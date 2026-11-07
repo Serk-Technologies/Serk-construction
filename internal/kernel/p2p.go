@@ -54,8 +54,15 @@ func (s *Service) p2pTx(ctx context.Context, p auth.Principal, perm auth.Permiss
 func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, error) {
 	var q string
 	switch docType {
-	case "boq_version", "purchase_requisition", "purchase_order":
-		q = map[string]string{"boq_version": "boq_versions", "purchase_requisition": "purchase_requisitions", "purchase_order": "purchase_orders"}[docType]
+	case "boq_version", "purchase_requisition", "purchase_order", "budget_version", "budget_transfer", "contingency_drawdown":
+		q = map[string]string{
+			"boq_version":          "boq_versions",
+			"purchase_requisition": "purchase_requisitions",
+			"purchase_order":       "purchase_orders",
+			"budget_version":       "budget_versions",
+			"budget_transfer":      "budget_transfers",
+			"contingency_drawdown": "contingency_drawdowns",
+		}[docType]
 		q = `SELECT project_id::text FROM ` + q + ` WHERE id = $1::uuid`
 	case "rfq":
 		q = `SELECT r.project_id::text FROM rfqs q JOIN purchase_requisitions r ON r.id = q.pr_id WHERE q.id = $1::uuid`
@@ -123,11 +130,33 @@ func requireStatus(d postgres.Doc, want ...string) error {
 	return fmt.Errorf("%w: document is %s", ledger.ErrBadTransition, d.Status)
 }
 
+// readPerm is the permission that opens a document type for reading. Most
+// types need p2p.read; the governance documents (authority matrices, duty
+// exceptions, delegations) are read by the people who prepare or approve
+// them, who do not need (and must not get) access to procurement documents.
+func (s *Service) readPerm(p auth.Principal, docType string) auth.Permission {
+	var gate []auth.Permission
+	switch docType {
+	case "authority_matrix", "sod_exception":
+		gate = []auth.Permission{auth.PermAuthorityManage, auth.PermAuthorityApprove}
+	case "delegation":
+		gate = []auth.Permission{auth.PermDelegationCreate, auth.PermDelegationApprove}
+	default:
+		return auth.PermP2PRead
+	}
+	for _, g := range gate {
+		if s.authz.Has(p, g) {
+			return g
+		}
+	}
+	return gate[0]
+}
+
 // GetP2PDoc returns a P2P document visible to the principal, as a
 // reader-safe projection (bank account numbers masked; IA-040-01).
 func (s *Service) GetP2PDoc(ctx context.Context, p auth.Principal, docType, id string) (postgres.Doc, error) {
 	var d postgres.Doc
-	err := s.p2pTx(ctx, p, auth.PermP2PRead, func(ctx context.Context, tx pgx.Tx) error {
+	err := s.p2pTx(ctx, p, s.readPerm(p, docType), func(ctx context.Context, tx pgx.Tx) error {
 		var err error
 		if d, err = s.visibleDoc(ctx, tx, p, docType, id, false); err != nil {
 			return err
@@ -638,12 +667,22 @@ func (s *Service) DecidePR(ctx context.Context, p auth.Principal, id string, app
 			return err
 		}
 		if approve {
+			// Serialise with budget transfers, drawdowns and other approvals of
+			// this project, so the same headroom is never spent twice (0039).
+			if err := postgres.LockProjectBudget(ctx, tx, "purchase_requisition", id); err != nil {
+				return err
+			}
 			short, err := postgres.BudgetShortfall(ctx, tx, id, "")
 			if err != nil {
 				return err
 			}
 			if short != "" {
 				return fmt.Errorf("%w: %s", ErrBudgetExceeded, short)
+			}
+		}
+		if approve {
+			if err := s.assertAuthority(ctx, tx, p, "purchase_requisition", id); err != nil { // approved authority matrix (0040)
+				return err
 			}
 		}
 		outcome := map[bool]string{true: "APPROVED", false: "REJECTED"}[approve]
@@ -899,8 +938,14 @@ func (s *Service) ApprovePO(ctx context.Context, p auth.Principal, id, overrideR
 		if err := auth.CheckMakerChecker(p, d.CreatedBy, "purchase order"); err != nil {
 			return err
 		}
+		if err := postgres.LockProjectBudget(ctx, tx, "purchase_order", id); err != nil { // see DecidePR
+			return err
+		}
 		short, err := postgres.BudgetShortfall(ctx, tx, "", id)
 		if err != nil {
+			return err
+		}
+		if err := s.assertAuthority(ctx, tx, p, "purchase_order", id); err != nil { // approved authority matrix (0040)
 			return err
 		}
 		outcome := "APPROVED"
@@ -1095,6 +1140,9 @@ func (s *Service) ApproveInvoice(ctx context.Context, p auth.Principal, id, exce
 				return fmt.Errorf("%w: approving a match exception needs a reason of 20+ characters", ErrInvalidInput)
 			}
 		}
+		if err := s.assertAuthority(ctx, tx, p, "supplier_invoice", id); err != nil { // approved authority matrix (0040)
+			return err
+		}
 		if err := s.authorize(ctx, tx, p, "ap.approve", "supplier_invoice", id, match); err != nil {
 			return err
 		}
@@ -1203,6 +1251,9 @@ func (s *Service) ApprovePayment(ctx context.Context, p auth.Principal, id strin
 			return err
 		}
 		if err := auth.CheckMakerChecker(p, d.CreatedBy, "payment"); err != nil {
+			return err
+		}
+		if err := s.assertAuthority(ctx, tx, p, "payment_instruction", id); err != nil { // approved authority matrix (0040)
 			return err
 		}
 		var dual bool
@@ -1737,7 +1788,7 @@ func (s *Service) batch(ids []string, fn func(string) error) []BatchResult {
 // except supplier master data which every P2P reader may see).
 func (s *Service) ListP2PDocs(ctx context.Context, p auth.Principal, docType, status string, limit int) ([]postgres.DocSummary, error) {
 	var out []postgres.DocSummary
-	err := s.p2pTx(ctx, p, auth.PermP2PRead, func(ctx context.Context, tx pgx.Tx) error {
+	err := s.p2pTx(ctx, p, s.readPerm(p, docType), func(ctx context.Context, tx pgx.Tx) error {
 		scope := s.listScope(p, docType) // the same policy as detail reads (docscope.go)
 		var err error
 		out, err = postgres.ListDocs(ctx, tx, docType, status, scope, limit)
@@ -1776,6 +1827,13 @@ type Identity struct {
 }
 
 // Whoami returns the caller's identity and effective permissions.
+// RoleCatalogue returns the roles in force and their permissions (no user
+// data). Any authenticated person may read it: the console uses it to say on
+// each page who prepares, approves and posts.
+func (s *Service) RoleCatalogue() map[string][]auth.Permission {
+	return s.authz.Catalogue()
+}
+
 func (s *Service) Whoami(p auth.Principal) Identity {
 	id := Identity{UserID: p.UserID, TenantID: p.TenantID, Roles: p.Roles, ProjectIDs: p.ProjectIDs,
 		TenantWide: s.tenantWide(p), MFA: p.MFA, Permissions: s.authz.Permissions(p)}

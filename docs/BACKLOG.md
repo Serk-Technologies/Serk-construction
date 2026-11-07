@@ -14,7 +14,7 @@ Nothing below is a human sign-off.
 |---|---|---|
 | Tenant isolation, roles, SoD, attested approvals (3.2, 14.1, 14.2) | 1 | RLS on every table; `gate_a_tenancy_test`, `review*` probes; isolated signer in staging |
 | Ledger, periods, reversals, FX (5.3) | 1 | Balanced journals, period gates, SC-09 price basis, reconciliations; 0 differences in journeys A–C |
-| Budget vs commitment vs actual (5.1, 5.2) | 3 | Approved BOQ budget, commitments, receipts, invoices, posted actuals; **missing**: budget revisions/transfers, contingency, original-vs-revised versions |
+| Budget vs commitment vs actual (5.1, 5.2) | 2 | Approved BOQ budget, commitments, receipts, invoices, posted actuals; budget revisions/transfers, contingency and original-vs-current budget views implemented (0039_budget_revisions.sql) |
 | Cash-flow forecast (5.4) | 3 | 90-day outlook from approved invoices and ledger cash (`CashOutlookOf`); **missing**: payroll, taxes, supplier schedules, confirmed-vs-forecast ledger |
 | Profitability and forecast final cost (5.5) | 3 | Posted margin; EAC/ETC/VAC from EVM; **missing**: phase/work-package/client/portfolio roll-ups, scenario analysis |
 | Financial control dashboard (5.6) | 3 | Risks page + Control review; **missing**: one KPI board with drill-down to transactions |

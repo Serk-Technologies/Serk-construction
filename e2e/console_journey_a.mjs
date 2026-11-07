@@ -24,7 +24,7 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 const fail = (msg) => { failures.push(msg); console.log('FAIL:', msg); };
 let shot = 0;
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.SERK_CHROME ? { executablePath: process.env.SERK_CHROME } : {}) // SERK_CHROME: use an installed Chrome (offline machines);
 const pages = {};
 
 async function as(role, opts = {}) {
@@ -399,7 +399,8 @@ try {
   const row = pm.getByRole('row').filter({ hasText: '01-MAT' });
   await row.waitFor();
   const cells = await row.getByRole('cell').allTextContents();
-  const want = ['01-MAT', '12,100,000.00', '2,160,000.00', '0.00', '2,160,000.00', '2,162,500.00', '2,162,500.00', '9,937,500.00'];
+  // Original and current budget side by side (WP-1.3): equal here, no revisions.
+  const want = ['01-MAT', '12,100,000.00', '12,100,000.00', '2,160,000.00', '0.00', '2,160,000.00', '2,162,500.00', '2,162,500.00', '9,937,500.00'];
   if (JSON.stringify(cells) !== JSON.stringify(want)) fail(`cost report row ${JSON.stringify(cells)} != ${JSON.stringify(want)}`);
   await snap(pm, 'project-cost-report');
 

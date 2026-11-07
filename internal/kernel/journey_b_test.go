@@ -289,6 +289,28 @@ func TestJourneyB_ContractToCashToGL(t *testing.T) {
 		t.Errorf("project revenue posted: %s", pr.RevenuePosted)
 	}
 	t.Logf("project profitability: revenue %s cost %s margin %s", pr.RevenuePosted, pr.CostPosted, pr.Margin)
+
+	// Catalogue reports over this contract-to-cash data (WP-1.5): the customer
+	// statement, certificate register and retention ledger agree with the books.
+	cs, err := f.svc.RunReport(f.ctx, c.cfo, "customer-statement", ReportFilters{EntityID: f.entity, SubjectID: w.customer})
+	must(t, "customer statement", err)
+	if len(cs.Rows) < 2 || cs.Totals["invoiced"] == "0.00" || cs.Totals["received"] == "0.00" {
+		t.Errorf("customer statement has no invoices/receipts: totals %v rows %d", cs.Totals, len(cs.Rows))
+	}
+	inv, rec := dec(cs.Totals["invoiced"]), dec(cs.Totals["received"])
+	if last := cs.Rows[len(cs.Rows)-1]["balance"]; !dec(last).Equal(inv.Sub(rec)) {
+		t.Errorf("customer statement closing balance %s != invoiced %s - received %s", last, inv, rec)
+	}
+	ipcs, err := f.svc.RunReport(f.ctx, c.cfo, "ipc-register", ReportFilters{EntityID: f.entity})
+	must(t, "ipc register", err)
+	if len(ipcs.Rows) == 0 || ipcs.Totals["this_gross"] == "0.00" {
+		t.Errorf("certificate register is empty: %v", ipcs.Totals)
+	}
+	ret, err := f.svc.RunReport(f.ctx, c.cfo, "retention-ledger", ReportFilters{EntityID: f.entity})
+	must(t, "retention ledger", err)
+	if len(ret.Rows) != 1 || !dec(ret.Rows[0]["held"]).Equal(dec(ret.Rows[0]["withheld"]).Sub(dec(ret.Rows[0]["released"]))) {
+		t.Errorf("retention ledger: %v", ret.Rows)
+	}
 }
 
 // arDenied asserts a refused step and logs the reason as evidence.

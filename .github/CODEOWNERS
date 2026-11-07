@@ -1,0 +1,11 @@
+# CODEOWNERS - Two reviews required on critical paths per WP-0.2
+*                   @serk-group/engineering
+
+# Financial kernel, permissions, money, and ledger
+/internal/kernel/   @serk-group/core-maintainers
+/internal/store/    @serk-group/core-maintainers
+/internal/store/postgres/migrations/ @serk-group/core-maintainers
+/pkg/auth/          @serk-group/core-maintainers
+/pkg/money/         @serk-group/core-maintainers
+/pkg/ledger/        @serk-group/core-maintainers
+

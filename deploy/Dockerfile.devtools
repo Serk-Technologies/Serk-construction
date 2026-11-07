@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1
+# DEVELOPMENT ONLY. Builds serk-seed (synthetic demo tenant) and the
+# development token tool for the local Docker stack (docker-compose.dev.yml,
+# profile "tools"). The tools refuse to run outside SERK_ENV=development.
+# Kept apart from deploy/Dockerfile so the production image can never
+# contain them.
+ARG GO_IMAGE=golang:1.26.10-alpine
+FROM ${GO_IMAGE} AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-seed ./cmd/serk-seed \
+ && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-devtoken ./cmd/serk-devtoken
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /out/serk-seed /out/serk-devtoken /
+USER nonroot:nonroot
+ENTRYPOINT ["/serk-seed"]

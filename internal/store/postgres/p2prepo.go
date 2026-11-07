@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -83,6 +84,16 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"schedule_progress": {"schedule_progress", "created_by", ""},
 	// Site operations (0037).
 	"site_diary": {"site_diaries", "created_by", ""},
+	// Budget revisions and movements (0039).
+	"budget_version":       {"budget_versions", "created_by", ""},
+	"budget_transfer":      {"budget_transfers", "requested_by", ""},
+	"contingency_drawdown": {"contingency_drawdowns", "requested_by", ""},
+	// Governance (0040).
+	"authority_matrix": {"authority_matrices", "created_by", ""},
+	"delegation":       {"delegations", "created_by", ""},
+	"sod_exception":    {"sod_exceptions", "created_by", ""},
+	// Units of measure (0041).
+	"uom_conversion": {"uom_conversions", "created_by", ""},
 }
 
 // DocTypes reports whether a document type is known (for callers that must
@@ -192,11 +203,13 @@ type CostPosition struct {
 	ActualPosted decimal.Decimal `json:"actual_posted"`
 	ActualOther  decimal.Decimal `json:"actual_other"`
 	Available    decimal.Decimal `json:"available"`
+	Original     decimal.Decimal `json:"original"`
+	Current      decimal.Decimal `json:"current"`
 }
 
 // ProjectCostReport returns the per-cost-code budget/commitment/actual report.
 func ProjectCostReport(ctx context.Context, tx pgx.Tx, projectID string) ([]CostPosition, error) {
-	rows, err := tx.Query(ctx, `SELECT cost_code_id::text, cost_code, budget, committed, reserved, received, invoiced, actual_posted, actual_other, available
+	rows, err := tx.Query(ctx, `SELECT cost_code_id::text, cost_code, budget, committed, reserved, received, invoiced, actual_posted, actual_other, available, original, current
 		FROM p2p_project_cost_report($1::uuid)`, projectID)
 	if err != nil {
 		return nil, err
@@ -205,7 +218,7 @@ func ProjectCostReport(ctx context.Context, tx pgx.Tx, projectID string) ([]Cost
 	var out []CostPosition
 	for rows.Next() {
 		var c CostPosition
-		if err := rows.Scan(&c.CostCodeID, &c.CostCode, &c.Budget, &c.Committed, &c.Reserved, &c.Received, &c.Invoiced, &c.ActualPosted, &c.ActualOther, &c.Available); err != nil {
+		if err := rows.Scan(&c.CostCodeID, &c.CostCode, &c.Budget, &c.Committed, &c.Reserved, &c.Received, &c.Invoiced, &c.ActualPosted, &c.ActualOther, &c.Available, &c.Original, &c.Current); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
@@ -238,6 +251,22 @@ func GLReconciliation(ctx context.Context, tx pgx.Tx, entityID string) ([]ReconC
 		out = append(out, c)
 	}
 	return out, rows.Err()
+}
+
+// LockProjectBudget locks the project of a requisition or purchase order
+// (budget_lock_project, 0039) for the rest of the transaction. Budget
+// transfers and drawdowns take the same lock, so a budget check and a budget
+// movement of one project never interleave.
+func LockProjectBudget(ctx context.Context, tx pgx.Tx, docType, id string) error {
+	q := map[string]string{
+		"purchase_requisition": `SELECT budget_lock_project(project_id) FROM purchase_requisitions WHERE id = $1::uuid`,
+		"purchase_order":       `SELECT budget_lock_project(project_id) FROM purchase_orders WHERE id = $1::uuid`,
+	}[docType]
+	if q == "" {
+		return fmt.Errorf("LockProjectBudget: unsupported document type %q", docType)
+	}
+	_, err := tx.Exec(ctx, q, id)
+	return err
 }
 
 // BudgetShortfall returns "" when the document fits the available budget,
@@ -312,6 +341,13 @@ var listSQL = map[string]string{
 	"schedule_progress":     `SELECT p.id::text, p.number, p.status, p.created_by, p.created_at, p.project_id::text, 0::numeric, 'Progress at ' || p.status_date || ' on v' || s.version FROM schedule_progress p JOIN schedule_versions s ON s.id = p.version_id`,
 	"site_diary":            `SELECT d.id::text, d.number, d.status, d.created_by, d.created_at, d.project_id::text, 0::numeric, 'Site diary ' || d.diary_date || ' v' || d.version FROM site_diaries d`,
 	"stock_transfer":        `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, COALESCE(wf.project_id::text, ''), COALESCE(t.amount, 0), i.code || ' ' || t.quantity || ' ' || i.unit || ' ' || wf.code || ' to ' || wt.code FROM stock_transfers t JOIN stock_items i ON i.id = t.stock_item_id JOIN warehouses wf ON wf.id = t.from_warehouse_id JOIN warehouses wt ON wt.id = t.to_warehouse_id`,
+	"budget_version":        `SELECT b.id::text, b.kind || ' v' || b.seq, b.status, b.created_by, b.created_at, b.project_id::text, COALESCE((SELECT sum(amount) FROM budget_lines l WHERE l.version_id = b.id), 0), b.reason FROM budget_versions b`,
+	"budget_transfer":       `SELECT t.id::text, 'TRF-' || substr(t.id::text, 1, 8), t.status, t.requested_by, t.created_at, t.project_id::text, t.amount, (SELECT code FROM cost_codes WHERE id = t.from_cost_code) || ' -> ' || (SELECT code FROM cost_codes WHERE id = t.to_cost_code) || ' — ' || t.reason FROM budget_transfers t`,
+	"contingency_drawdown":  `SELECT d.id::text, 'DRW-' || substr(d.id::text, 1, 8), d.status, d.requested_by, d.created_at, d.project_id::text, d.amount, (SELECT code FROM cost_codes WHERE id = d.to_cost_code) || ' — ' || d.reason FROM contingency_drawdowns d`,
+	"authority_matrix":      `SELECT m.id::text, 'AUTH-v' || m.version, m.status, m.created_by, m.created_at, '', (SELECT count(*) FROM authority_rules r WHERE r.matrix_id = m.id), m.reason FROM authority_matrices m`,
+	"delegation":            `SELECT d.id::text, 'DEL-' || substr(d.id::text, 1, 8), d.status, d.created_by, d.created_at, '', 0::numeric, d.delegator || ' -> ' || d.delegate || ' (' || array_to_string(d.perms, ', ') || ')' FROM delegations d`,
+	"sod_exception":         `SELECT e.id::text, 'SOD-' || substr(e.id::text, 1, 8), e.status, e.created_by, e.created_at, '', 0::numeric, e.user_id || ': ' || e.perm_a || ' + ' || e.perm_b FROM sod_exceptions e`,
+	"uom_conversion":        `SELECT c.id::text, 'UOM-' || substr(c.id::text, 1, 8), c.status, c.created_by, c.created_at, '', 0::numeric, '1 ' || c.from_uom || ' = ' || c.factor::text || ' ' || c.to_uom || COALESCE(' (' || (SELECT code FROM stock_items i WHERE i.id = c.stock_item_id) || ')', ' (all items)') FROM uom_conversions c`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,
 	       s.imported_by, s.imported_at, '', l.amount, l.reference || ' — ' || l.counterparty FROM bank_statement_lines l JOIN bank_statements s ON s.id = l.statement_id WHERE l.amount > 0`,

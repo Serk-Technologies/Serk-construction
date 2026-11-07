@@ -79,16 +79,25 @@ const (
 	PermPOManage            Permission = "po.manage"
 	PermPOApprove           Permission = "po.approve"
 	PermBudgetOverride      Permission = "budget.override"
-	PermGRNCreate           Permission = "grn.create"
-	PermGRNConfirm          Permission = "grn.confirm"
-	PermAPEnter             Permission = "ap.enter"
-	PermAPApprove           Permission = "ap.approve"
-	PermAPApproveException  Permission = "ap.approve_exception"
-	PermPaymentPrepare      Permission = "payment.prepare"
-	PermPaymentApprove      Permission = "payment.approve"
-	PermPaymentRelease      Permission = "payment.release"
-	PermBankImport          Permission = "bank.import"
-	PermBankReconcile       Permission = "bank.reconcile"
+	PermBudgetRevise        Permission = "budget.revise"
+	PermBudgetApprove       Permission = "budget.approve"
+	PermBudgetTransfer      Permission = "budget.transfer"
+	// Authority matrix, delegation and duty-conflict exceptions (0040).
+	PermStockReserve       Permission = "stock.reserve"      // set stock aside for a project (0041)
+	PermAuthorityManage    Permission = "authority.manage"   // maker: propose matrices and SoD exceptions
+	PermAuthorityApprove   Permission = "authority.approve"  // checker (fresh MFA)
+	PermDelegationCreate   Permission = "delegation.create"  // lend part of your own approval authority
+	PermDelegationApprove  Permission = "delegation.approve" // checker for delegations (fresh MFA)
+	PermGRNCreate          Permission = "grn.create"
+	PermGRNConfirm         Permission = "grn.confirm"
+	PermAPEnter            Permission = "ap.enter"
+	PermAPApprove          Permission = "ap.approve"
+	PermAPApproveException Permission = "ap.approve_exception"
+	PermPaymentPrepare     Permission = "payment.prepare"
+	PermPaymentApprove     Permission = "payment.approve"
+	PermPaymentRelease     Permission = "payment.release"
+	PermBankImport         Permission = "bank.import"
+	PermBankReconcile      Permission = "bank.reconcile"
 	// PermBankDetailsReveal shows a full bank account number (with fresh MFA,
 	// a stated purpose and an audit record). Everyone else sees it masked.
 	PermBankDetailsReveal Permission = "bank.details.reveal"
@@ -166,28 +175,28 @@ var DefaultRoles = map[string]Role{
 	"treasury_officer": {Name: "treasury_officer", Permissions: []Permission{PermIntelligenceRead, PermFXManage, PermFXRead, PermScopeTenantWide, PermWorkflowRead,
 		PermPaymentPrepare, PermPaymentRelease, PermBankAcctManage, PermP2PRead}},
 	"bank_statement_officer": {Name: "bank_statement_officer", Permissions: []Permission{PermBankImport, PermScopeTenantWide, PermP2PRead}},
-	"finance_manager": {Name: "finance_manager", Permissions: []Permission{PermIntelligenceRead, PermJournalApprove, PermJournalRead, PermFXRead, PermFXApprove,
+	"finance_manager": {Name: "finance_manager", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermJournalApprove, PermJournalRead, PermFXRead, PermFXApprove,
 		PermFXPolicyApprove, PermWBSApprove, PermScopeTenantWide, PermWorkflowRead, PermAPApproveException, PermPaymentApprove,
 		PermSupplierBankApprove, PermBankDetailsReveal, PermCustomerApprove, PermStockItemApprove, PermP2PRead}},
-	"controller": {Name: "controller", Permissions: []Permission{PermIntelligenceRead, PermJournalPost, PermJournalReverse, PermJournalRead, PermPeriodClose,
+	"controller": {Name: "controller", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermJournalPost, PermJournalReverse, PermJournalRead, PermPeriodClose,
 		PermAccountManage, PermFXRead, PermScopeTenantWide, PermWorkflowRead, PermP2PPolicyManage, PermContractPolicyManage, PermP2PRead}},
 	"cfo": {Name: "cfo", Permissions: []Permission{PermIntelligenceRead, PermJournalRead, PermFXRead, PermFXApprove, PermFXApproveExcept, PermFXPolicyApprove,
 		PermPeriodReopen, PermAuditRead, PermScopeTenantWide, PermWorkflowRead, PermWorkflowPublish, PermApprovalHighValue,
-		PermPaymentApprove, PermP2PPolicyApprove, PermBudgetOverride, PermBankAcctApprove, PermBankDetailsReveal, PermContractApprove, PermContractPolicyApprove, PermP2PRead}},
+		PermPaymentApprove, PermP2PPolicyApprove, PermBudgetOverride, PermBudgetApprove, PermAuthorityApprove, PermDelegationCreate, PermBankAcctApprove, PermBankDetailsReveal, PermContractApprove, PermContractPolicyApprove, PermP2PRead}},
 	"auditor":            {Name: "auditor", Permissions: []Permission{PermIntelligenceRead, PermJournalRead, PermAuditRead, PermFXRead, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
-	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermP2PRead}},
+	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead}},
 	"project_accountant": {Name: "project_accountant", Permissions: []Permission{PermJournalCreate, PermJournalRead, PermFXRead, PermWorkflowRead}},
-	"process_owner":      {Name: "process_owner", Permissions: []Permission{PermWorkflowDefine, PermWorkflowRead, PermAutomationManage, PermIntelligenceRead, PermScopeTenantWide}},
+	"process_owner":      {Name: "process_owner", Permissions: []Permission{PermAuthorityManage, PermWorkflowDefine, PermWorkflowRead, PermAutomationManage, PermIntelligenceRead, PermScopeTenantWide}},
 	"workflow_admin":     {Name: "workflow_admin", Permissions: []Permission{PermWorkflowAdmin, PermWorkflowRead, PermAutomationActivate, PermIntelligenceRead, PermScopeTenantWide}},
 	// Identity administration holds no financial permission at all.
-	"security_admin": {Name: "security_admin", Permissions: []Permission{PermIdentityRevoke, PermAuditRead, PermSiteDeviceManage, PermTenantSettingsManage, PermScopeTenantWide}},
+	"security_admin": {Name: "security_admin", Permissions: []Permission{PermDelegationApprove, PermIdentityRevoke, PermAuditRead, PermSiteDeviceManage, PermTenantSettingsManage, PermScopeTenantWide}},
 	// Journey A operational roles.
 	"estimator":           {Name: "estimator", Permissions: []Permission{PermBOQManage, PermP2PRead}},
-	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermIntelligenceRead, PermBOQApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead}},
-	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead}},
-	"storekeeper":         {Name: "storekeeper", Permissions: []Permission{PermGRNCreate, PermStockReceive, PermStockIssue, PermStockCount, PermStockTransfer, PermP2PRead}},
+	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermBOQApprove, PermBudgetApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead}},
+	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead}},
+	"storekeeper":         {Name: "storekeeper", Permissions: []Permission{PermStockReserve, PermGRNCreate, PermStockReceive, PermStockIssue, PermStockCount, PermStockTransfer, PermP2PRead}},
 	"procurement_officer": {Name: "procurement_officer", Permissions: []Permission{PermSupplierManage, PermRFQManage, PermPOManage, PermStockItemManage, PermP2PRead}},
-	"procurement_manager": {Name: "procurement_manager", Permissions: []Permission{PermIntelligenceRead, PermSupplierApprove, PermRFQAward, PermPOApprove, PermWarehouseManage, PermP2PRead}},
+	"procurement_manager": {Name: "procurement_manager", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermSupplierApprove, PermRFQAward, PermPOApprove, PermWarehouseManage, PermP2PRead}},
 	"ap_clerk":            {Name: "ap_clerk", Permissions: []Permission{PermAPEnter, PermP2PRead}},
 	"ap_supervisor":       {Name: "ap_supervisor", Permissions: []Permission{PermAPApprove, PermP2PRead}},
 	// Journey B operational roles.
@@ -253,6 +262,11 @@ type Principal struct {
 	MFA bool
 	// AuthTime is when the user last actively authenticated (OIDC "auth_time").
 	AuthTime time.Time
+	// Delegated holds authority lent to this person by colleagues (delegation
+	// of authority, 0040): permission -> the delegators who lent it. It is
+	// filled by the kernel from approved, current delegations, never from the
+	// token, and it never contains a permission the delegator could not use.
+	Delegated map[Permission][]string
 	// SessionID is the token identifier (JWT "jti"); IssuedAt is the token's
 	// "iat". Both are checked against the shared revocation list on every
 	// request and inside every approval transaction.
@@ -289,6 +303,17 @@ func NewAuthorizer(roles map[string]Role, requireDistinctPoster bool) *Authorize
 	return &Authorizer{roles: roles, RequireDistinctPoster: requireDistinctPoster, StepUpMaxAge: 10 * time.Minute, now: time.Now}
 }
 
+// Catalogue returns each role of this authorizer with its permissions. The
+// console uses it to explain pages ("who can approve this"); it reveals no
+// user, tenant or data, only the role definitions in force.
+func (a *Authorizer) Catalogue() map[string][]Permission {
+	out := make(map[string][]Permission, len(a.roles))
+	for name, r := range a.roles {
+		out[name] = append([]Permission(nil), r.Permissions...)
+	}
+	return out
+}
+
 // KnownPermissions is every permission some role of the catalogue grants.
 // Workflow definitions may only reference these.
 func (a *Authorizer) KnownPermissions() map[Permission]bool {
@@ -314,6 +339,11 @@ func (a *Authorizer) Permissions(p Principal) []Permission {
 			}
 		}
 	}
+	for perm := range p.Delegated {
+		if !strings.HasPrefix(string(perm), ReservedPermissionPrefix) {
+			set[perm] = struct{}{}
+		}
+	}
 	out := make([]Permission, 0, len(set))
 	for k := range set {
 		out = append(out, k)
@@ -324,6 +354,9 @@ func (a *Authorizer) Permissions(p Principal) []Permission {
 
 // Has reports whether the principal holds the permission.
 func (a *Authorizer) Has(p Principal, perm Permission) bool {
+	if len(p.Delegated[perm]) > 0 && !strings.HasPrefix(string(perm), ReservedPermissionPrefix) {
+		return true
+	}
 	for _, r := range p.Roles {
 		role, ok := a.roles[r]
 		if !ok {
@@ -449,6 +482,15 @@ func CheckMakerChecker(checker Principal, maker, what string) error {
 	if checker.UserID == maker {
 		return fmt.Errorf("%w: the creator of a %s cannot approve or reject it", ErrSoD, what)
 	}
+	// Acting on a delegation is acting for the delegator: a delegate never
+	// decides what their delegator prepared (that would be self-approval by proxy).
+	for _, from := range checker.Delegated {
+		for _, d := range from {
+			if d == maker {
+				return fmt.Errorf("%w: you hold delegated authority from the creator of this %s, who therefore cannot be approved through you", ErrSoD, what)
+			}
+		}
+	}
 	return nil
 }
 
@@ -483,4 +525,127 @@ func (a *Authorizer) ScopeMarkers(p Principal) ([]string, error) {
 	}
 	out = append(out, ReservedPermissionPrefix+"session:"+sid, fmt.Sprintf("%siat:%d", ReservedPermissionPrefix, iat))
 	return out, nil
+}
+
+// ---------------------------------------------------------------------------
+// Delegation of authority and segregation-of-duties analysis (0040)
+// ---------------------------------------------------------------------------
+
+// NonDelegable are permissions that are never lent: they control who may do
+// what, or are the last resort against the controls themselves.
+var NonDelegable = map[Permission]bool{
+	PermScopeTenantWide: true, PermIdentityRevoke: true, PermDelegationApprove: true,
+	PermAuthorityManage: true, PermAuthorityApprove: true, PermBudgetOverride: true, PermTenantSettingsManage: true,
+}
+
+// SoDConflict is a set of permissions one person should not hold together:
+// holding two or more of Perms breaks the maker/checker (or checker/poster)
+// separation of the control.
+type SoDConflict struct {
+	Control string
+	Perms   []Permission
+}
+
+// DefaultSoDConflicts is the company-neutral conflict catalogue. The role
+// catalogue is tested against it (no seed role holds a conflicting set), the
+// kernel strips delegated permissions that would create a conflict, and the
+// conflict report lists live conflicts. A company may accept a specific one
+// for a named person with an approved, expiring exception (sod_exceptions).
+var DefaultSoDConflicts = []SoDConflict{
+	{"Journals: prepare, approve, post", []Permission{PermJournalCreate, PermJournalApprove, PermJournalPost}},
+	{"FX rates", []Permission{PermFXManage, PermFXApprove}},
+	{"FX policy", []Permission{PermFXManage, PermFXPolicyApprove}},
+	{"Workflow definitions", []Permission{PermWorkflowDefine, PermWorkflowPublish}},
+	{"Period close and reopen", []Permission{PermPeriodClose, PermPeriodReopen}},
+	{"WBS and cost codes", []Permission{PermWBSManage, PermWBSApprove}},
+	{"Supplier master", []Permission{PermSupplierManage, PermSupplierApprove}},
+	{"Supplier bank accounts", []Permission{PermSupplierManage, PermSupplierBankApprove}},
+	{"Company bank accounts", []Permission{PermBankAcctManage, PermBankAcctApprove}},
+	{"BOQ", []Permission{PermBOQManage, PermBOQApprove}},
+	{"Requisitions", []Permission{PermPRCreate, PermPRApprove}},
+	{"RFQ: manage, award", []Permission{PermRFQManage, PermRFQAward}},
+	{"RFQ: manage, evaluate", []Permission{PermRFQManage, PermRFQEvaluate}},
+	{"Purchase orders", []Permission{PermPOManage, PermPOApprove}},
+	{"Goods receipt", []Permission{PermGRNCreate, PermGRNConfirm}},
+	{"Supplier invoices", []Permission{PermAPEnter, PermAPApprove}},
+	{"Invoice price exceptions", []Permission{PermAPEnter, PermAPApproveException}},
+	{"Payments: prepare, approve", []Permission{PermPaymentPrepare, PermPaymentApprove}},
+	{"Payments: approve, release", []Permission{PermPaymentApprove, PermPaymentRelease}},
+	{"Payments: release, reconcile", []Permission{PermPaymentRelease, PermBankReconcile}},
+	{"P2P policy", []Permission{PermP2PPolicyManage, PermP2PPolicyApprove}},
+	{"Bank statements and payments", []Permission{PermBankImport, PermBankReconcile}},
+	{"Bank import and payment prepare", []Permission{PermBankImport, PermPaymentPrepare}},
+	{"Bank import and payment approve", []Permission{PermBankImport, PermPaymentApprove}},
+	{"Bank import and payment release", []Permission{PermBankImport, PermPaymentRelease}},
+	{"Customers", []Permission{PermCustomerManage, PermCustomerApprove}},
+	{"Contract policy", []Permission{PermContractPolicyManage, PermContractPolicyApprove}},
+	{"Contracts", []Permission{PermContractManage, PermContractApprove}},
+	{"Measurements", []Permission{PermMeasureCreate, PermMeasureVerify}},
+	{"Payment certificates", []Permission{PermIPCPrepare, PermIPCCertify}},
+	{"Customer invoices", []Permission{PermARInvoiceCreate, PermARInvoiceApprove}},
+	{"Customer receipts", []Permission{PermARReceiptCreate, PermARReceiptConfirm}},
+	{"Credit notes", []Permission{PermARCreditCreate, PermARCreditApprove}},
+	{"Retention", []Permission{PermARRetentionCreate, PermARRetentionApprove}},
+	{"Stock transfers", []Permission{PermStockTransfer, PermStockTransferApprove}},
+	{"Schedules", []Permission{PermScheduleManage, PermScheduleApprove}},
+	{"Bank import and receipts", []Permission{PermBankImport, PermARReceiptConfirm}},
+	{"Bank import and receipt creation", []Permission{PermBankImport, PermARReceiptCreate}},
+	{"Stock items", []Permission{PermStockItemManage, PermStockItemApprove}},
+	{"Stock issues", []Permission{PermStockIssue, PermStockIssueApprove}},
+	{"Stock counts", []Permission{PermStockCount, PermStockAdjustApprove}},
+	{"Receive goods, approve issues", []Permission{PermGRNCreate, PermStockIssueApprove}},
+	{"Site diaries", []Permission{PermSiteDiaryManage, PermSiteDiaryApprove}},
+	{"Site devices", []Permission{PermSiteDeviceRegister, PermSiteDeviceManage}},
+	{"Budget revisions", []Permission{PermBudgetRevise, PermBudgetApprove}},
+	{"Budget transfers", []Permission{PermBudgetTransfer, PermBudgetApprove}},
+	{"Authority matrix and exceptions", []Permission{PermAuthorityManage, PermAuthorityApprove}},
+	{"Delegations", []Permission{PermDelegationCreate, PermDelegationApprove}},
+}
+
+// SoDPair is one violated conflict for one person.
+type SoDPair struct {
+	Control string
+	A, B    Permission // the two permissions held (sorted, A < B)
+}
+
+// SoDViolations lists the conflicting pairs present in a permission set,
+// except those a person holds under an approved exception (by sorted pair).
+func SoDViolations(held map[Permission]bool, accepted map[[2]Permission]bool) []SoDPair {
+	var out []SoDPair
+	for _, c := range DefaultSoDConflicts {
+		var have []Permission
+		for _, p := range c.Perms {
+			if held[p] {
+				have = append(have, p)
+			}
+		}
+		for i := 0; i < len(have); i++ {
+			for j := i + 1; j < len(have); j++ {
+				a, b := have[i], have[j]
+				if a > b {
+					a, b = b, a
+				}
+				if accepted[[2]Permission{a, b}] {
+					continue
+				}
+				out = append(out, SoDPair{Control: c.Control, A: a, B: b})
+			}
+		}
+	}
+	return out
+}
+
+// DelegationAllowed reports whether delegator may lend perm: they must hold
+// it themselves (by role, not by an earlier delegation) and it must be
+// delegable. A person never re-delegates what was lent to them.
+func (a *Authorizer) DelegationAllowed(delegator Principal, perm Permission) error {
+	if NonDelegable[perm] || strings.HasPrefix(string(perm), ReservedPermissionPrefix) {
+		return fmt.Errorf("%w: %s can never be delegated", ErrForbidden, perm)
+	}
+	own := delegator
+	own.Delegated = nil
+	if !a.Has(own, perm) {
+		return fmt.Errorf("%w: you cannot delegate %s: you do not hold it yourself", ErrForbidden, perm)
+	}
+	return nil
 }

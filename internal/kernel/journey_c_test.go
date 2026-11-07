@@ -221,6 +221,31 @@ func TestJourneyC_StockValuationToGL(t *testing.T) {
 	if len(onHand) != 2 {
 		t.Errorf("storekeeper sees %d stock lines, want 2", len(onHand))
 	}
+
+	// Catalogue reports over this stock data (WP-1.5): the valuation report
+	// equals the on-hand figures and the movement history is in date order.
+	sv, err := f.svc.RunReport(f.ctx, c.cfo, "stock-valuation", ReportFilters{EntityID: f.entity})
+	must(t, "stock valuation", err)
+	var qty, val decimal.Decimal
+	for _, o := range onHand {
+		qty, val = qty.Add(o.Qty), val.Add(o.Value)
+	}
+	var repQty decimal.Decimal
+	for _, r := range sv.Rows {
+		repQty = repQty.Add(dec(r["quantity"]))
+	}
+	if !repQty.Equal(qty) || !dec(sv.Totals["value"]).Equal(val) {
+		t.Errorf("stock valuation report qty %s value %s != on hand qty %s value %s", repQty, sv.Totals["value"], qty, val)
+	}
+	mv, err := f.svc.RunReport(f.ctx, c.cfo, "stock-movement", ReportFilters{EntityID: f.entity})
+	must(t, "stock movement", err)
+	kinds := map[string]bool{}
+	for _, r := range mv.Rows {
+		kinds[r["kind"]] = true
+	}
+	if !kinds["Put-away"] || !kinds["Issue"] {
+		t.Errorf("stock movement lacks put-aways or issues: %v", kinds)
+	}
 }
 
 func TestJourneyC_Controls(t *testing.T) {

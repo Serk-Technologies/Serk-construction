@@ -40,10 +40,16 @@ func (s *Service) canSee(p auth.Principal, docType, project string) bool {
 		return true
 	}
 	switch docType {
-	case "supplier", "customer", "stock_item":
+	case "supplier", "customer", "stock_item", "uom_conversion":
 		return true
 	case "supplier_bank_account":
 		return s.authz.Has(p, auth.PermSupplierManage)
+	case "authority_matrix", "sod_exception":
+		return s.authz.Has(p, auth.PermAuthorityManage) || s.authz.Has(p, auth.PermAuthorityApprove)
+	case "delegation":
+		// Everyone who may lend or approve authority sees the delegations
+		// (a delegate who only received one sees theirs via MyDelegations).
+		return s.authz.Has(p, auth.PermDelegationCreate) || s.authz.Has(p, auth.PermDelegationApprove)
 	}
 	return false
 }

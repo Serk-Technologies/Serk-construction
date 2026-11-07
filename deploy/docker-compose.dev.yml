@@ -3,27 +3,27 @@
 # SERK_ENV=development. Never deploy this file; use docker-compose.prod.yml.
 services:
   db:
-    image: postgres:16
+    image: ${POSTGRES_IMAGE:-postgres:16}
     environment:
       POSTGRES_PASSWORD: dev-only-postgres-password-not-for-production
       POSTGRES_DB: serk_construction
-    ports: ["127.0.0.1:5432:5432"]
+    ports: ["127.0.0.1:${SERK_DB_PORT:-5432}:5432"]
     volumes:
       - ./00-roles.sql:/docker-entrypoint-initdb.d/00-roles.sql:ro
       - ./01-dev-passwords.sql:/docker-entrypoint-initdb.d/01-dev-passwords.sql:ro
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres"]  # TCP: the init-time server is socket-only
       interval: 5s
       retries: 10
   migrate:
-    build: { context: .., dockerfile: deploy/Dockerfile }
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { GO_IMAGE: "${GO_IMAGE:-golang:1.26.10-alpine}" } }
     entrypoint: ["/serk-migrate"]
     environment:
       SERK_ADMIN_DSN: postgres://postgres:dev-only-postgres-password-not-for-production@db:5432/serk_construction?sslmode=disable
     depends_on: { db: { condition: service_healthy } }
   signer:
-    build: { context: .., dockerfile: deploy/Dockerfile }
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { GO_IMAGE: "${GO_IMAGE:-golang:1.26.10-alpine}" } }
     entrypoint: ["/serk-signer"]
     environment:
       SERK_ENV: development
@@ -32,7 +32,7 @@ services:
       SERK_TOKEN_SECRET: dev-only-hs256-token-secret-0123456789abcdefABCDEF
     volumes: [signer_sock:/run/serk]
   api:
-    build: { context: .., dockerfile: deploy/Dockerfile }
+    build: { context: .., dockerfile: deploy/Dockerfile, args: { GO_IMAGE: "${GO_IMAGE:-golang:1.26.10-alpine}" } }
     environment:
       SERK_ENV: development
       SERK_SIGNER_SOCKET: /run/serk/signer.sock
@@ -46,9 +46,37 @@ services:
       SERK_BANK_DATA_KEY: dev-only-bank-data-key-0123456789abcdefABCDEF
       SERK_BANK_DIGEST_KEY: dev-only-bank-digest-key-0123456789abcdefABCDEF
       SERK_LISTEN: ":8080"
-    ports: ["127.0.0.1:8080:8080"]
+      # Test-persona sign-in (development/staging only; refused in production).
+      # SERK_STAGING_COMPANIES is written to deploy/.env by scripts/dev-seed.sh.
+      SERK_STAGING_LOGIN_PASSPHRASE: dev-only-staging-passphrase-0123456789
+      SERK_STAGING_TENANT: 11111111-1111-4111-8111-111111111111
+      SERK_STAGING_COMPANIES: ${SERK_STAGING_COMPANIES:-}
+    ports: ["127.0.0.1:${SERK_API_PORT:-8080}:8080"]
     volumes: [signer_sock:/run/serk]
     depends_on: { migrate: { condition: service_completed_successfully }, signer: { condition: service_started } }
+  # Dev-only tools, never started by `up` (profile "tools"):
+  #   docker compose -f deploy/docker-compose.dev.yml --profile tools run --rm seed
+  #   docker compose -f deploy/docker-compose.dev.yml --profile tools run --rm --entrypoint /serk-devtoken devtoken --sub alice --tenant <uuid> --roles accountant
+  seed:
+    profiles: ["tools"]
+    build: { context: .., dockerfile: deploy/Dockerfile.devtools, args: { GO_IMAGE: "${GO_IMAGE:-golang:1.26.10-alpine}" } }
+    environment:
+      SERK_ENV: development
+      SERK_ADMIN_DSN: postgres://postgres:dev-only-postgres-password-not-for-production@db:5432/serk_construction?sslmode=disable
+      SERK_DB_BASE_DSN: postgres://db:5432/serk_construction?sslmode=disable
+      SERK_TENANT_DB_SECRET: dev-only-tenant-db-secret-0123456789abcdefABCDEF
+      SERK_APPROVAL_SIGNING_KEY: dev-only-approval-signing-key-0123456789abcdefABCDEF
+      SERK_BANK_DATA_KEY: dev-only-bank-data-key-0123456789abcdefABCDEF
+      SERK_BANK_DIGEST_KEY: dev-only-bank-digest-key-0123456789abcdefABCDEF
+      SERK_SEED_TENANT: 11111111-1111-4111-8111-111111111111
+    depends_on: { migrate: { condition: service_completed_successfully } }
+  devtoken:
+    profiles: ["tools"]
+    build: { context: .., dockerfile: deploy/Dockerfile.devtools, args: { GO_IMAGE: "${GO_IMAGE:-golang:1.26.10-alpine}" } }
+    entrypoint: ["/serk-devtoken"]
+    environment:
+      SERK_ENV: development
+      SERK_TOKEN_SECRET: dev-only-hs256-token-secret-0123456789abcdefABCDEF
 volumes:
   pgdata:
   signer_sock:

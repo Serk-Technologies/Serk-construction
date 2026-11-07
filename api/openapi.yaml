@@ -373,3 +373,104 @@ paths:
       responses:
         '200': { description: conversion bound to a snapshot id and algorithm version }
         '422': { description: fx_exception — no approved rate (never a fabricated one) }
+  /v1/budgets/revisions:
+    post:
+      summary: Create a DRAFT budget revision or original budget baseline (budget.revise)
+      responses: { '201': { description: created } }
+  /v1/budgets/transfers:
+    post:
+      summary: Request an inter-cost-code budget transfer (budget.transfer)
+      responses: { '201': { description: created } }
+  /v1/budgets/drawdowns:
+    post:
+      summary: Request a contingency drawdown (budget.revise)
+      responses: { '201': { description: created } }
+  /v1/projects/{id}/budget:
+    get:
+      summary: Get project budget current position by cost code (original, revisions, transfers, drawdowns, current)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { description: budget current positions } }
+  /v1/meta/roles:
+    get:
+      summary: Role catalogue (roles and their permissions; no people or data), for the console's page guides
+      responses: { '200': { description: roles } }
+  /v1/authority/matrices:
+    post:
+      summary: Prepare an authority matrix version with its approval bands (authority.manage)
+      responses: { '201': { description: created DRAFT } }
+  /v1/authority/matrices/{id}/{action}:
+    post:
+      summary: submit (author), approve or reject (authority.approve, fresh MFA, a different person); approval retires the matrix in force
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: action, in: path, required: true, schema: { type: string, enum: [submit, approve, reject] } }]
+      responses: { '200': { description: ok }, '403': { description: forbidden or segregation of duties } }
+  /v1/authority/matrix:
+    get:
+      summary: The authority matrix in force (null when none)
+      responses: { '200': { description: matrix with rules } }
+  /v1/delegations:
+    get:
+      summary: Delegations you lent or received (all, for delegation.approve)
+      responses: { '200': { description: delegations } }
+    post:
+      summary: Lend part of your own authority to a colleague for at most 90 days (delegation.create)
+      responses: { '201': { description: created DRAFT }, '403': { description: permission not held or never delegable } }
+  /v1/delegations/{id}/{action}:
+    post:
+      summary: submit (delegator), approve or reject (delegation.approve, fresh MFA, neither delegator nor delegate), revoke (delegator or approver, with a reason)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: action, in: path, required: true, schema: { type: string, enum: [submit, approve, reject, revoke] } }]
+      responses: { '200': { description: ok } }
+  /v1/sod/exceptions:
+    post:
+      summary: Prepare a duty-conflict exception for one person under a written control (authority.manage)
+      responses: { '201': { description: created DRAFT }, '422': { description: the pair is not a listed conflict } }
+  /v1/sod/exceptions/{id}/{action}:
+    post:
+      summary: submit, approve or reject a duty-conflict exception (approval needs authority.approve and fresh MFA)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: action, in: path, required: true, schema: { type: string, enum: [submit, approve, reject] } }]
+      responses: { '200': { description: ok } }
+  /v1/sod/report:
+    get:
+      summary: Duty conflicts present in the role catalogue (authority.manage, authority.approve or audit.read)
+      responses: { '200': { description: conflicts } }
+  /v1/dashboard:
+    get:
+      summary: Financial control dashboard (tiles with value, level, formula, source, drill-down link and contributors). Query preset=executive|project|finance|procurement, entity_id
+      responses: { '200': { description: tiles the caller may read, plus hidden tiles and what they need }, '404': { description: entity not visible } }
+  /v1/dashboard/kpis:
+    get:
+      summary: The KPI catalogue (id, title, formula, source, thresholds) and the role presets
+      responses: { '200': { description: kpis } }
+  /v1/reports/catalogue:
+    get:
+      summary: Catalogue reports the caller may run (by permission and scope)
+      responses: { '200': { description: reports } }
+  /v1/reports/catalogue/{id}:
+    get:
+      summary: Run a catalogue report (gl-detail, journal-register, vendor-statement, customer-statement, po-register, open-commitments, grni, match-exceptions, ipc-register, retention-ledger, stock-valuation, stock-movement, payment-register, budget-vs-actual). Query entity (required), project, subject, from, to. Exportable through /v1/export.
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: columns, rows, totals, as_of, filters }, '403': { description: report needs tenant-wide scope or permission }, '404': { description: unknown report or project outside scope }, '422': { description: invalid filter } }
+  /v1/stock/uom-conversions:
+    post:
+      summary: Prepare a unit conversion (1 from_unit = factor to_unit); optional stock_item_id (stock.item.manage)
+      responses: { '201': { description: created DRAFT } }
+  /v1/stock/uom-conversions/{id}/{action}:
+    post:
+      summary: submit (author), approve or reject (stock.item.approve, a different person)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }, { name: action, in: path, required: true, schema: { type: string, enum: [submit, approve, reject] } }]
+      responses: { '200': { description: ok } }
+  /v1/stock/reservations:
+    get:
+      summary: Reservations in the caller's project scope (status filter)
+      responses: { '200': { description: reservations } }
+    post:
+      summary: Reserve stock for a project (stock.reserve); refused above on-hand minus reserved
+      responses: { '201': { description: created }, '409': { description: not enough unreserved stock } }
+  /v1/stock/reservations/{id}/release:
+    post:
+      summary: Release an active reservation with a reason (its creator, a storekeeper or an inventory controller)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { description: ok } }
+  /v1/stock/reorder-rules:
+    put:
+      summary: Set minimum, maximum and reorder quantity for an item in a store (stock.item.manage); see report low-stock
+      responses: { '200': { description: ok } }
