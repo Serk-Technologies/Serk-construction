@@ -137,6 +137,14 @@ func (w *p2pWorld) approvedBOQ(t *testing.T) string {
 // awardedPO runs PR -> RFQ -> award -> PO approval and returns the PO id.
 func (w *p2pWorld) awardedPO(t *testing.T, steelQty, cementQty string) (pr, rfq, po string) {
 	t.Helper()
+	pr, rfq, po = w.draftPO(t, steelQty, cementQty)
+	must(t, "po approve", w.f.svc.ApprovePO(w.f.ctx, w.cast.procMgr, po, ""))
+	return pr, rfq, po
+}
+
+// draftPO runs the flow up to a purchase order awaiting approval.
+func (w *p2pWorld) draftPO(t *testing.T, steelQty, cementQty string) (pr, rfq, po string) {
+	t.Helper()
 	f, c := w.f, w.cast
 	var err error
 	pr, err = f.svc.CreatePR(f.ctx, c.siteEng, f.project, "Level 3 slab reinforcement and concrete", nil, []PRLine{
@@ -160,7 +168,6 @@ func (w *p2pWorld) awardedPO(t *testing.T, steelQty, cementQty string) (pr, rfq,
 	must(t, "award", f.svc.AwardRFQ(f.ctx, c.procMgr, rfq, q[0], ""))
 	po, err = f.svc.CreatePOFromAward(f.ctx, c.buyer, rfq, map[int]string{1: w.acct["5000"], 2: w.acct["5000"]})
 	must(t, "po", err)
-	must(t, "po approve", f.svc.ApprovePO(f.ctx, c.procMgr, po, ""))
 	return pr, rfq, po
 }
 

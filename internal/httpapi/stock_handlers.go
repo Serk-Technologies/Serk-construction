@@ -105,11 +105,12 @@ func (s *Server) putAway(w http.ResponseWriter, r *http.Request) {
 		StockItemID string          `json:"stock_item_id"`
 		WarehouseID string          `json:"warehouse_id"`
 		Quantity    decimal.Decimal `json:"quantity"`
+		Unit        string          `json:"unit"` // optional: quantity counted in this unit (needs an approved conversion)
 	}
 	if !decode(w, r, &b) || !validIDs(w, b.StockItemID, b.WarehouseID) {
 		return
 	}
-	id, err := s.cfg.Kernel.PutAway(r.Context(), principalFrom(r.Context()), grn, b.POLineNo, b.StockItemID, b.WarehouseID, b.Quantity)
+	id, err := s.cfg.Kernel.PutAwayInUnit(r.Context(), principalFrom(r.Context()), grn, b.POLineNo, b.StockItemID, b.WarehouseID, b.Quantity, b.Unit)
 	s.created(w, id, err)
 }
 

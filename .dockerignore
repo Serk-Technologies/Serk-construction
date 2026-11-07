@@ -1,0 +1,4 @@
+bin/
+.git/
+docs/testing/evidence/
+*.test

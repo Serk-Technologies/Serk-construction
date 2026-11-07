@@ -134,6 +134,17 @@ func (s *Service) PutAway(ctx context.Context, p auth.Principal, grnID string, p
 	return id, err
 }
 
+// PutAwayInUnit is PutAway for a quantity counted in another unit (for
+// example bags for an item kept in tonnes): it is converted with the
+// approved conversion first, and refused if there is none.
+func (s *Service) PutAwayInUnit(ctx context.Context, p auth.Principal, grnID string, poLineNo int, itemID, warehouseID string, qty decimal.Decimal, unit string) (string, error) {
+	base, err := s.ToBaseUnit(ctx, p, itemID, qty, unit)
+	if err != nil {
+		return "", err
+	}
+	return s.PutAway(ctx, p, grnID, poLineNo, itemID, warehouseID, base)
+}
+
 // StockIssueInput is a request to issue stock to a project cost code.
 type StockIssueInput struct {
 	WarehouseID      string          `json:"warehouse_id"`
@@ -142,6 +153,8 @@ type StockIssueInput struct {
 	CostCodeID       string          `json:"cost_code_id"`
 	ExpenseAccountID string          `json:"expense_account_id"`
 	Quantity         decimal.Decimal `json:"quantity"`
+	Unit             string          `json:"unit,omitempty"`           // quantity is in this unit (converted with an approved conversion); empty = the item's base unit
+	ReservationID    string          `json:"reservation_id,omitempty"` // issue against a reservation; approving the issue consumes it
 	IssueDate        time.Time       `json:"-"`
 	Note             string          `json:"note,omitempty"`
 }
@@ -154,8 +167,13 @@ func (s *Service) CreateStockIssue(ctx context.Context, p auth.Principal, in Sto
 	if err := stockDate(in.IssueDate); err != nil {
 		return "", err
 	}
+	qty, err := s.ToBaseUnit(ctx, p, in.StockItemID, in.Quantity, in.Unit)
+	if err != nil {
+		return "", err
+	}
+	in.Quantity = qty
 	var id string
-	err := s.p2pTx(ctx, p, auth.PermStockIssue, func(ctx context.Context, tx pgx.Tx) error {
+	err = s.p2pTx(ctx, p, auth.PermStockIssue, func(ctx context.Context, tx pgx.Tx) error {
 		if _, err := s.visibleDoc(ctx, tx, p, "warehouse", in.WarehouseID, false); err != nil {
 			return err
 		}
@@ -167,11 +185,15 @@ func (s *Service) CreateStockIssue(ctx context.Context, p auth.Principal, in Sto
 		if strings.TrimSpace(in.Note) != "" {
 			note = &in.Note
 		}
+		var reservation any
+		if in.ReservationID != "" {
+			reservation = in.ReservationID
+		}
 		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO stock_issues(legal_entity_id, number, warehouse_id, stock_item_id, project_id, cost_code_id,
-			expense_account_id, quantity, issue_date, note, currency, created_by)
-			SELECT w.legal_entity_id, $1, w.id, $3::uuid, $4::uuid, $5::uuid, $6::uuid, $7, $8, $9, le.functional_currency, $10
+			expense_account_id, quantity, issue_date, note, currency, created_by, reservation_id)
+			SELECT w.legal_entity_id, $1, w.id, $3::uuid, $4::uuid, $5::uuid, $6::uuid, $7, $8, $9, le.functional_currency, $10, $11::uuid
 			  FROM warehouses w JOIN legal_entities le ON le.id = w.legal_entity_id WHERE w.id = $2::uuid RETURNING id::text`,
-			num, in.WarehouseID, in.StockItemID, in.ProjectID, in.CostCodeID, in.ExpenseAccountID, in.Quantity, in.IssueDate, note, p.UserID)
+			num, in.WarehouseID, in.StockItemID, in.ProjectID, in.CostCodeID, in.ExpenseAccountID, in.Quantity, in.IssueDate, note, p.UserID, reservation)
 		if err != nil {
 			return mapNoRows(err)
 		}

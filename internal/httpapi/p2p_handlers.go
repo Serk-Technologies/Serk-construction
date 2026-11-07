@@ -74,6 +74,61 @@ func (s *Server) registerP2P() {
 	m.Handle("POST /v1/boqs/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
 		return nil, s.cfg.Kernel.DecideBOQ(ctx, p, id, false, b.Reason)
 	})))
+	s.registerAuthority(m) // authority matrix, delegation, SoD exceptions (0040)
+	s.registerStockPlus()  // unit conversions, reservations, reorder rules (0041)
+	// Financial control dashboard (WP-1.4): GET /v1/dashboard?preset=executive|project|finance|procurement&entity_id=
+	m.Handle("GET /v1/dashboard", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		preset := r.URL.Query().Get("preset")
+		if preset == "" {
+			preset = "executive"
+		}
+		entity := r.URL.Query().Get("entity_id")
+		if entity != "" && !canonicalUUID(entity) {
+			writeErr(w, http.StatusNotFound, "not_found", "not found")
+			return
+		}
+		out, err := s.cfg.Kernel.Dashboard(r.Context(), principalFrom(r.Context()), preset, entity)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	}))
+	m.Handle("GET /v1/dashboard/kpis", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"kpis": kernel.KPICatalogue, "presets": kernel.DashboardPresets})
+	}))
+	// Budget revisions, transfers and drawdowns (0039).
+	m.Handle("POST /v1/budgets/revisions", s.authed(s.createBudgetRevision))
+	m.Handle("POST /v1/budgets/revisions/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.SubmitBudgetRevision(ctx, p, id)
+	})))
+	m.Handle("POST /v1/budgets/revisions/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.DecideBudgetRevision(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/budgets/revisions/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.DecideBudgetRevision(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("POST /v1/budgets/transfers", s.authed(s.createBudgetTransfer))
+	m.Handle("POST /v1/budgets/transfers/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.SubmitBudgetTransfer(ctx, p, id)
+	})))
+	m.Handle("POST /v1/budgets/transfers/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.DecideBudgetTransfer(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/budgets/transfers/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.DecideBudgetTransfer(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("POST /v1/budgets/drawdowns", s.authed(s.createContingencyDrawdown))
+	m.Handle("POST /v1/budgets/drawdowns/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.SubmitContingencyDrawdown(ctx, p, id)
+	})))
+	m.Handle("POST /v1/budgets/drawdowns/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.DecideContingencyDrawdown(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/budgets/drawdowns/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, s.cfg.Kernel.DecideContingencyDrawdown(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("GET /v1/projects/{id}/budget", s.authed(s.getProjectBudget))
 	m.Handle("POST /v1/requisitions", s.authed(s.createPR))
 	m.Handle("POST /v1/requisitions/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
 		return nil, s.cfg.Kernel.SubmitPR(ctx, p, id)
@@ -153,6 +208,10 @@ func (s *Server) registerP2P() {
 	m.Handle("GET /v1/projects/{id}/cost-codes", s.authed(s.costCodes))
 	m.Handle("GET /v1/p2p-reference", s.authed(s.p2pReference))
 	m.Handle("GET /v1/identity/me", s.authed(s.whoami))
+	// Role catalogue for the console's page guides ("who can approve this").
+	m.Handle("GET /v1/meta/roles", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"roles": s.cfg.Kernel.RoleCatalogue()})
+	}))
 	m.Handle("GET /v1/entities/{id}/p2p-reconciliation", s.authed(s.p2pRecon))
 }
 
@@ -561,4 +620,49 @@ func (s *Server) revealBank(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) createBudgetRevision(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		ProjectID string              `json:"project_id"`
+		Kind      string              `json:"kind"`
+		Reason    string              `json:"reason"`
+		Lines     []kernel.BudgetLine `json:"lines"`
+	}
+	if !decode(w, r, &b) {
+		return
+	}
+	id, err := s.cfg.Kernel.CreateBudgetRevision(r.Context(), principalFrom(r.Context()), b.ProjectID, b.Kind, b.Reason, b.Lines)
+	s.created(w, id, err)
+}
+
+func (s *Server) createBudgetTransfer(w http.ResponseWriter, r *http.Request) {
+	var b kernel.BudgetTransferRequest
+	if !decode(w, r, &b) {
+		return
+	}
+	id, err := s.cfg.Kernel.RequestBudgetTransfer(r.Context(), principalFrom(r.Context()), b)
+	s.created(w, id, err)
+}
+
+func (s *Server) createContingencyDrawdown(w http.ResponseWriter, r *http.Request) {
+	var b kernel.ContingencyDrawdownRequest
+	if !decode(w, r, &b) {
+		return
+	}
+	id, err := s.cfg.Kernel.RequestContingencyDrawdown(r.Context(), principalFrom(r.Context()), b)
+	s.created(w, id, err)
+}
+
+func (s *Server) getProjectBudget(w http.ResponseWriter, r *http.Request) {
+	project, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	out, err := s.cfg.Kernel.GetProjectBudgetCurrent(r.Context(), principalFrom(r.Context()), project)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"project_id": project, "cost_codes": out})
 }

@@ -297,6 +297,11 @@ func (s *Server) authed(next func(http.ResponseWriter, *http.Request)) http.Hand
 				return
 			}
 		}
+		// Delegation of authority (0040): add what colleagues have lent this
+		// person. Never fails the request; on error the person simply has less.
+		if s.cfg.Kernel != nil {
+			p = s.cfg.Kernel.ApplyDelegations(r.Context(), p)
+		}
 		if !s.principal.hit(p.TenantID + "/" + p.UserID) {
 			w.Header().Set("Retry-After", "60")
 			writeErr(w, http.StatusTooManyRequests, "rate_limited", "command budget exceeded")

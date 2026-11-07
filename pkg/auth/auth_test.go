@@ -8,30 +8,10 @@ import (
 
 func TestDefaultRolesSeparateDuties(t *testing.T) {
 	a := NewAuthorizer(nil, true)
-	conflicts := [][]Permission{
-		{PermJournalCreate, PermJournalApprove, PermJournalPost},
-		{PermFXManage, PermFXApprove},
-		{PermFXManage, PermFXPolicyApprove},
-		{PermWorkflowDefine, PermWorkflowPublish},
-		{PermPeriodClose, PermPeriodReopen},
-		{PermWBSManage, PermWBSApprove},
-		{PermSupplierManage, PermSupplierApprove}, {PermSupplierManage, PermSupplierBankApprove},
-		{PermBankAcctManage, PermBankAcctApprove}, {PermBOQManage, PermBOQApprove}, {PermPRCreate, PermPRApprove},
-		{PermRFQManage, PermRFQAward}, {PermRFQManage, PermRFQEvaluate}, {PermPOManage, PermPOApprove},
-		{PermGRNCreate, PermGRNConfirm}, {PermAPEnter, PermAPApprove}, {PermAPEnter, PermAPApproveException},
-		{PermPaymentPrepare, PermPaymentApprove}, {PermPaymentApprove, PermPaymentRelease}, {PermPaymentRelease, PermBankReconcile},
-		{PermP2PPolicyManage, PermP2PPolicyApprove}, {PermBankImport, PermBankReconcile},
-		{PermBankImport, PermPaymentPrepare}, {PermBankImport, PermPaymentApprove}, {PermBankImport, PermPaymentRelease},
-		{PermCustomerManage, PermCustomerApprove}, {PermContractPolicyManage, PermContractPolicyApprove}, {PermContractManage, PermContractApprove},
-		{PermMeasureCreate, PermMeasureVerify}, {PermIPCPrepare, PermIPCCertify}, {PermARInvoiceCreate, PermARInvoiceApprove},
-		{PermARReceiptCreate, PermARReceiptConfirm}, {PermARCreditCreate, PermARCreditApprove}, {PermARRetentionCreate, PermARRetentionApprove}, {PermStockTransfer, PermStockTransferApprove}, {PermScheduleManage, PermScheduleApprove}, {PermBankImport, PermARReceiptConfirm}, {PermBankImport, PermARReceiptCreate},
-		{PermStockItemManage, PermStockItemApprove}, {PermStockIssue, PermStockIssueApprove}, {PermStockCount, PermStockAdjustApprove},
-		{PermGRNCreate, PermStockIssueApprove},
-		{PermSiteDiaryManage, PermSiteDiaryApprove}, {PermSiteDeviceRegister, PermSiteDeviceManage},
-	}
 	for name := range DefaultRoles {
 		p := Principal{UserID: "u", TenantID: "t", Roles: []string{name}}
-		for _, set := range conflicts {
+		for _, c := range DefaultSoDConflicts {
+			set := c.Perms
 			n := 0
 			for _, perm := range set {
 				if a.Has(p, perm) {
@@ -168,5 +148,73 @@ func TestReservedPermissionsNotGrantableByRoles(t *testing.T) {
 	}
 	if !a.Has(p, PermPaymentApprove) {
 		t.Fatal("ordinary permission lost")
+	}
+}
+
+// Delegated authority (0040): counts as the permission, but a delegate never
+// decides what their delegator prepared, and some permissions are never lent.
+func TestDelegatedAuthority(t *testing.T) {
+	a := NewAuthorizer(nil, true)
+	deleg := Principal{UserID: "u-delegate", TenantID: "t", Roles: []string{"project_manager"},
+		Delegated: map[Permission][]string{PermBudgetApprove: {"u-boss"}}}
+	if !a.Has(deleg, PermBudgetApprove) {
+		t.Fatal("a delegated permission was not honoured")
+	}
+	if a.Has(Principal{UserID: "u", TenantID: "t", Roles: []string{"project_manager"}}, PermBudgetApprove) {
+		t.Fatal("the project manager role must not hold budget.approve by itself")
+	}
+	found := false
+	for _, p := range a.Permissions(deleg) {
+		if p == PermBudgetApprove {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("delegated permission missing from Permissions (it would not be attested)")
+	}
+	if err := CheckMakerChecker(deleg, "u-boss", "budget revision"); !errors.Is(err, ErrSoD) {
+		t.Fatalf("a delegate approved their delegator's document: %v", err)
+	}
+	if err := CheckMakerChecker(deleg, "u-someone-else", "budget revision"); err != nil {
+		t.Fatalf("unrelated document refused: %v", err)
+	}
+	// Reserved markers can never be delegated into existence.
+	bad := Principal{UserID: "u", TenantID: "t", Delegated: map[Permission][]string{ReservedPermissionPrefix + "human": {"x"}}}
+	if a.Has(bad, Permission(ReservedPermissionPrefix+"human")) {
+		t.Fatal("a reserved permission was delegated")
+	}
+}
+
+func TestDelegationAllowed(t *testing.T) {
+	a := NewAuthorizer(nil, true)
+	pm := Principal{UserID: "u-pm", TenantID: "t", Roles: []string{"project_manager"}}
+	if err := a.DelegationAllowed(pm, PermPRApprove); err != nil {
+		t.Fatalf("a held, delegable permission was refused: %v", err)
+	}
+	if err := a.DelegationAllowed(pm, PermBudgetApprove); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("delegated a permission the delegator does not hold: %v", err)
+	}
+	cfo := Principal{UserID: "u-cfo", TenantID: "t", Roles: []string{"cfo"}}
+	for _, p := range []Permission{PermScopeTenantWide, PermAuthorityApprove, PermBudgetOverride, PermIdentityRevoke} {
+		if err := a.DelegationAllowed(cfo, p); !errors.Is(err, ErrForbidden) {
+			t.Fatalf("non-delegable %s was delegable: %v", p, err)
+		}
+	}
+	// Re-delegation: what was lent cannot be lent on.
+	lent := Principal{UserID: "u-x", TenantID: "t", Roles: []string{"estimator"}, Delegated: map[Permission][]string{PermPRApprove: {"u-pm"}}}
+	if err := a.DelegationAllowed(lent, PermPRApprove); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("re-delegation allowed: %v", err)
+	}
+}
+
+func TestSoDViolations(t *testing.T) {
+	held := map[Permission]bool{PermPRCreate: true, PermPRApprove: true, PermJournalCreate: true}
+	v := SoDViolations(held, nil)
+	if len(v) != 1 || v[0].Control != "Requisitions" {
+		t.Fatalf("violations = %+v", v)
+	}
+	accepted := map[[2]Permission]bool{{PermPRApprove, PermPRCreate}: true} // stored sorted: "pr.approve" < "pr.create"
+	if got := SoDViolations(held, accepted); len(got) != 0 {
+		t.Fatalf("an accepted exception still reported: %+v", got)
 	}
 }

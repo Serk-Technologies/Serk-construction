@@ -2,3 +2,4 @@ bin/
 *.test
 go.work
 go.work.sum
+deploy/.env

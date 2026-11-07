@@ -2,9 +2,19 @@
 GO ?= go
 ADMIN_DSN ?= postgres://postgres:dev-only-postgres-password-not-for-production@localhost:5432/serk_construction?sslmode=disable
 
-.PHONY: all build test test-unit test-integration vet fmt migrate dev-up dev-down check-prod-config clean
+.PHONY: all build test test-unit test-integration vet fmt migrate up seed reset dev-up dev-down check-prod-config clean
 
 all: fmt vet test build
+
+# Containerised local development environment (runlocal.md)
+up:
+	docker compose -p serk -f deploy/docker-compose.dev.yml up -d --build
+
+seed:
+	scripts/dev-seed.sh
+
+reset:
+	docker compose -p serk -f deploy/docker-compose.dev.yml --profile tools down -v
 
 build:
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags="-s -w" -o bin/ ./cmd/serk-api ./cmd/serk-migrate ./cmd/serk-relay

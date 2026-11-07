@@ -91,14 +91,37 @@ a { color: var(--accent); text-underline-offset: 3px; text-decoration-thickness:
 .drawer .empty { padding: 18px 16px; }
 
 /* ---------- shell ---------- */
-.shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: calc(100vh - 54px); }
+.shell { display: grid; grid-template-columns: 256px minmax(0, 1fr); min-height: calc(100vh - 54px); }
 nav[hidden] + main { grid-column: 1 / -1; } /* signed out: the page spans the shell */
-nav { border-right: 1px solid var(--line); background: var(--panel); padding: 14px 10px 30px; }
-nav h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); margin: 18px 10px 6px; font-weight: 700; }
-nav ul { list-style: none; margin: 0; padding: 0; }
-nav a { display: flex; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 8px; text-decoration: none; color: var(--ink); font-weight: 500; }
+/* Sidebar: sticks under the top band and scrolls on its own, so long menus never
+   push the page; categories fold (state kept per browser). */
+nav { border-right: 1px solid var(--line); background: var(--panel); padding: 12px 10px 30px;
+  position: sticky; top: var(--top-h, 54px); height: calc(100vh - var(--top-h, 54px)); overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+nav::-webkit-scrollbar { width: 8px; } nav::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+.navtools { display: flex; align-items: center; gap: 10px; margin: 2px 6px 8px 10px; white-space: nowrap; }
+.navlabel { font-size: 10.5px; text-transform: uppercase; letter-spacing: .16em; color: var(--muted); font-weight: 700; margin-right: auto; }
+.linkbtn { background: none; border: 0; padding: 2px 0; color: var(--accent); font: 600 12px var(--text); cursor: pointer; }
+.linkbtn:hover { text-decoration: underline; }
+.navfind { width: calc(100% - 8px); margin: 0 4px 6px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: 13px var(--text); }
+.navempty { margin: 10px; color: var(--muted); font-size: 13px; }
+nav h2 { margin: 10px 0 2px; font-size: inherit; }
+.ghead { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: 0; border-radius: 8px; padding: 6px 10px; cursor: pointer;
+  font: 700 11px var(--text); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); text-align: left; }
+.ghead:hover { background: var(--panel-2); color: var(--ink); }
+.gname { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+nav.filtering .chev { visibility: hidden; }
+.gcount { min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--panel-2); color: var(--muted); font-size: 10.5px; letter-spacing: 0; text-align: center; }
+.chev { width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); flex: none; }
+.group.folded .chev { transform: rotate(-45deg); }
+@media (prefers-reduced-motion: no-preference) { .chev { transition: transform .15s; } }
+.group.folded > ul { display: none; }
+nav.filtering .group.folded > ul { display: block; } /* a search shows matches in folded categories too */
+nav ul { list-style: none; margin: 0 0 4px; padding: 0; }
+nav a { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px 6px 14px; border-radius: 8px; text-decoration: none; color: var(--ink); font-weight: 500; position: relative; }
 nav a:hover { background: var(--panel-2); }
 nav a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+nav a[aria-current="page"]::before { content: ""; position: absolute; left: 3px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--brass); }
 main { padding: 26px clamp(16px, 3.4vw, 40px) 56px; min-width: 0; }
 main:focus { outline: none; }
 .navtoggle { display: none; }
@@ -107,10 +130,10 @@ main:focus { outline: none; }
   .brand .name { font-size: 18px; }
   .who #who-name { max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .shell { grid-template-columns: minmax(0, 1fr); align-content: start; }
-  nav { border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 12px; }
+  nav { border-right: 0; border-bottom: 1px solid var(--line); padding: 8px 12px; position: static; height: auto; overflow: visible; }
   .navtoggle { display: inline-flex; width: 100%; justify-content: center; }
-  nav:not(.open) h2, nav:not(.open) ul { display: none; }
-  nav.open ul { display: flex; flex-wrap: wrap; gap: 4px; }
+  nav:not(.open) .navbody { display: none; }
+  nav.open .group:not(.folded) > ul, nav.filtering .group > ul { display: flex; flex-wrap: wrap; gap: 4px; }
   nav li { flex: none; }
   .brand .tag { display: none; }
   .drawer { top: 8px; }
@@ -222,3 +245,41 @@ code { font-family: var(--mono); font-size: 13px; }
 .finding h3 { font-family: var(--display); font-size: 18px; font-weight: 600; margin: 0; }
 .finding .advice { border-left: 3px solid var(--brass); padding-left: 10px; margin: 10px 0; }
 .drawer-sub { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 10px 16px 2px; font-weight: 700; }
+
+/* ---------- page guide: "How this page works" (guide.js) ----------
+   A folding card under each page title. Open by default; closing it is
+   remembered per page in this browser. */
+.guide { margin: 4px 0 20px; border: 1px solid var(--line); border-left: 4px solid var(--brass); border-radius: var(--radius); background: var(--panel); }
+.guide > summary { cursor: pointer; padding: 9px 14px; font-weight: 700; font-size: 13.5px; color: var(--ink); list-style: none; display: flex; align-items: center; gap: 8px; }
+.guide > summary::-webkit-details-marker { display: none; }
+.guide > summary::before { content: "?"; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--brass); color: var(--panel); font-size: 12px; flex: none; }
+.guide > summary::after { content: ""; margin-left: auto; width: 7px; height: 7px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); }
+.guide[open] > summary::after { transform: rotate(-135deg); }
+.guidebody { padding: 0 16px 14px; font-size: 14px; }
+.guidebody .what { margin: 0 0 10px; }
+.guidecols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 22px; }
+.guidecols h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 6px 0 4px; }
+.guidecols ol, .guidecols ul { margin: 0; padding-left: 18px; }
+.guidecols li { margin: 2px 0; }
+.guidecols dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; }
+.guidecols dt { font-weight: 700; } .guidecols dd { margin: 0; }
+.guidebody .life li { font-family: var(--mono); font-size: 12.5px; }
+.guidebody .related { margin: 10px 0 0; font-size: 13px; }
+@media print { .guide { display: none; } }
+
+/* ---------- dashboard tiles (WP-1.4) ---------- */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: var(--gap); margin: 14px 0 22px; }
+.tile { border: 1px solid var(--line); border-top: 4px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 12px 14px 12px; box-shadow: var(--shadow); min-width: 0; }
+.tile.lvl-ok { border-top-color: var(--ok); } .tile.lvl-watch { border-top-color: var(--brass); } .tile.lvl-alert { border-top-color: var(--bad); }
+.tilehead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.tile h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin: 0; }
+.tile .big { font-family: var(--display); font-size: 30px; font-weight: 640; margin: 6px 0 2px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.lvl { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 10px; white-space: nowrap; }
+.lvl-ok { background: var(--ok-bg); color: var(--ok); } .lvl-watch { background: var(--warn-bg); color: var(--warn); }
+.lvl-alert { background: var(--bad-bg); color: var(--bad); } .lvl-unknown { background: var(--panel-2); color: var(--muted); }
+.tile .detail { display: grid; grid-template-columns: 1fr auto; gap: 1px 10px; margin: 6px 0; font-size: 13px; }
+.tile .detail dt { color: var(--muted); } .tile .detail dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.tile .evidence { margin: 6px 0; padding-left: 18px; font-size: 13px; } .tile .evidence li { margin: 2px 0; }
+.tile .tilefoot { margin: 8px 0 2px; font-size: 13px; }
+.tile .how { margin-top: 6px; font-size: 12.5px; } .tile .how summary { cursor: pointer; color: var(--accent); }
+@media print { .tile .how { display: none; } }

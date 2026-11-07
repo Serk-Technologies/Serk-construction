@@ -1,10 +1,25 @@
-// SERK operations console (Journey A: procure-to-pay).
+// SERK Construction OS operations console: one page application for every
+// module (projects and budgets, procurement, site, stores, commercial and
+// revenue, payables, treasury, accounting, governance).
+//
+// Map of this file (search for the "// ----------" section markers):
+//   DOM helpers ........ h(), $(), field builders
+//   DOCS ............... every document type: list, detail, actions, forms
+//   NAV ................ the sidebar categories (scrollable, collapsible)
+//   page / guides ...... page() renders a page; guidePanel() adds the
+//                        "How this page works" card from guide.js
+//   route() ............ the hash router (#/list/..., #/doc/..., #/new/...)
+//   FORMS .............. the create forms, one per document
+//   render*() .......... special pages (budget, cost, stock, journals ...)
+//   theme .............. day / night switch
 //
 // Security model: this page holds no authority. The access token lives only
 // in memory (never in storage); every action is an API call that the kernel
 // and PostgreSQL re-authorize, including separation of duties, project scope,
 // MFA step-up and budget checks. Server data is only ever inserted as text
 // (no innerHTML), under a CSP that forbids inline script.
+
+import { guideFor } from './guide.js';
 
 const S = { token: null, me: null, ref: null, can: new Set() };
 
@@ -128,6 +143,28 @@ function chip(status) {
 // actions: [action, permission, mode]; mode: undefined | 'opt' (optional
 // reason) | 'req' (reason required) | 'award' | 'evaluate'.
 const DOCS = {
+  budget_version: { title: 'Budget versions', one: 'Budget version', base: '/v1/budgets/revisions', create: 'budget.revise', form: 'budget_revision',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'budget.revise']], SUBMITTED: [['approve', 'budget.approve', 'opt'], ['reject', 'budget.approve', 'req']] } },
+  budget_transfer: { title: 'Budget transfers', one: 'Budget transfer', base: '/v1/budgets/transfers', create: 'budget.transfer', form: 'budget_transfer',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'budget.transfer']], SUBMITTED: [['approve', 'budget.approve', 'opt'], ['reject', 'budget.approve', 'req']] } },
+  uom_conversion: { title: 'Unit conversions', one: 'Unit conversion', base: '/v1/stock/uom-conversions', create: 'stock.item.manage', form: 'uom_conversion',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'stock.item.manage']], SUBMITTED: [['approve', 'stock.item.approve', 'opt'], ['reject', 'stock.item.approve', 'req']] } },
+  authority_matrix: { title: 'Authority matrices', one: 'Authority matrix', base: '/v1/authority/matrices', create: 'authority.manage', form: 'authority_matrix',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'RETIRED'],
+    actions: { DRAFT: [['submit', 'authority.manage']], SUBMITTED: [['approve', 'authority.approve', 'opt'], ['reject', 'authority.approve', 'req']] } },
+  delegation: { title: 'Delegations of authority', one: 'Delegation', base: '/v1/delegations', create: 'delegation.create', form: 'delegation',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'REVOKED'],
+    actions: { DRAFT: [['submit', 'delegation.create']], SUBMITTED: [['approve', 'delegation.approve', 'opt'], ['reject', 'delegation.approve', 'req'], ['revoke', 'delegation.create|delegation.approve', 'req']],
+      APPROVED: [['revoke', 'delegation.create|delegation.approve', 'req']] } },
+  sod_exception: { title: 'Duty-conflict exceptions', one: 'Duty-conflict exception', base: '/v1/sod/exceptions', create: 'authority.manage', form: 'sod_exception',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'authority.manage']], SUBMITTED: [['approve', 'authority.approve', 'opt'], ['reject', 'authority.approve', 'req']] } },
+  contingency_drawdown: { title: 'Contingency drawdowns', one: 'Contingency drawdown', base: '/v1/budgets/drawdowns', create: 'budget.revise', form: 'contingency_drawdown',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'budget.revise']], SUBMITTED: [['approve', 'budget.approve', 'opt'], ['reject', 'budget.approve', 'req']] } },
   boq_version: { title: 'BOQ versions', one: 'BOQ version', base: '/v1/boqs', create: 'boq.manage', form: 'boq',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
     actions: { DRAFT: [['submit', 'boq.manage']], SUBMITTED: [['approve', 'boq.approve', 'opt'], ['reject', 'boq.approve', 'req']] } },
@@ -226,32 +263,48 @@ const DOCS = {
 };
 const ACTION_LABEL = { submit: 'Submit for approval', approve: 'Approve', reject: 'Reject', issue: 'Issue to suppliers', award: 'Award',
   evaluate: 'Record evaluation', confirm: 'Confirm receipt', release: 'Release payment', cancel: 'Cancel', block: 'Block supplier',
-  verify: 'Verify measurement', certify: 'Certify', invoice: 'Issue customer invoice' };
+  verify: 'Verify measurement', certify: 'Certify', invoice: 'Issue customer invoice', revoke: 'Revoke' };
 
+// Sidebar: categories in the order work flows through a construction company.
+// Each category folds; the folded set is remembered per browser (NAV_KEY).
 const NAV = [
-  ['Overview', [['#/home', 'My work', null], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
-  ['Project', [['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/list/purchase_requisition', 'Requisitions', 'p2p.read'], ['#/cost', 'Cost report', 'p2p.read']]],
-  ['Planning', [['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read']]],
-  ['Procurement', [['#/list/rfq', 'RFQs', 'p2p.read'], ['#/list/rfq_quote', 'Quotes', 'p2p.read'], ['#/list/purchase_order', 'Purchase orders', 'p2p.read'], ['#/list/supplier', 'Suppliers', 'p2p.read']]],
-  ['Site', [['#/list/site_diary', 'Site diaries', 'p2p.read'], ['#/site/devices', 'Field devices', 'site.device.register|site.device.manage'],
-    ['#/list/grn', 'Goods receipts', 'p2p.read']]],
-  ['Stores', [['#/stock', 'Stock on hand', 'p2p.read'], ['#/list/stock_issue', 'Stock issues', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'],
-    ['#/list/stock_transfer', 'Transfers', 'p2p.read'],
-    ['#/list/stock_receipt', 'Put-aways', 'p2p.read'], ['#/list/stock_item', 'Stock items', 'p2p.read'], ['#/list/warehouse', 'Warehouses', 'p2p.read']]],
-  ['Payables', [['#/list/supplier_invoice', 'Invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read']]],
-  ['Treasury', [['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'], ['#/list/supplier_bank_account', 'Supplier banks', 'p2p.read']]],
-  ['Revenue', [['#/list/contract', 'Contracts', 'p2p.read'], ['#/list/contract_variation', 'Variations', 'p2p.read'], ['#/list/measurement', 'Measurements', 'p2p.read'], ['#/list/ipc', 'Payment certificates', 'p2p.read'],
+  ['Overview', [['#/home', 'My work', null], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
+  ['Projects & planning', [['#/budget', 'Budget overview', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/cost', 'Cost report', 'p2p.read'],
+    ['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read']]],
+  ['Procurement', [['#/list/purchase_requisition', 'Requisitions', 'p2p.read'], ['#/list/rfq', 'RFQs', 'p2p.read'], ['#/list/rfq_quote', 'Quotes', 'p2p.read'],
+    ['#/list/purchase_order', 'Purchase orders', 'p2p.read'], ['#/list/supplier', 'Suppliers', 'p2p.read']]],
+  ['Site', [['#/list/site_diary', 'Site diaries', 'p2p.read'], ['#/list/grn', 'Goods receipts', 'p2p.read'],
+    ['#/site/devices', 'Field devices', 'site.device.register|site.device.manage']]],
+  ['Stores', [['#/stock', 'Stock on hand', 'p2p.read'], ['#/list/stock_issue', 'Stock issues', 'p2p.read'], ['#/list/stock_receipt', 'Put-aways', 'p2p.read'],
+    ['#/list/stock_transfer', 'Transfers', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'],
+    ['#/reservations', 'Reservations', 'p2p.read'], ['#/report/low-stock', 'Low stock', 'p2p.read'], ['#/list/uom_conversion', 'Unit conversions', 'p2p.read'],
+    ['#/list/stock_item', 'Stock items', 'p2p.read'], ['#/list/warehouse', 'Warehouses', 'p2p.read']]],
+  ['Commercial & revenue', [['#/list/contract', 'Contracts', 'p2p.read'], ['#/list/contract_variation', 'Variations', 'p2p.read'],
+    ['#/list/measurement', 'Measurements', 'p2p.read'], ['#/list/ipc', 'Payment certificates', 'p2p.read'],
     ['#/list/customer_invoice', 'Customer invoices', 'p2p.read'], ['#/list/customer_credit_note', 'Credit notes', 'p2p.read'],
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
-    ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
-  ['Finance', [['#/journals', 'Journals', 'journal.read'], ['#/recon', 'Reconciliation', 'journal.read'], ['#/tb', 'Trial balance', 'journal.read'],
-    ['#/aging/ap', 'Payables aging', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/p2p_policy', 'P2P policies', 'scope.tenant_wide'],
-    ['#/list/contract_policy', 'Contract policies', 'scope.tenant_wide'], ['#/controls', 'Control review', 'scope.tenant_wide']]],
-  ['Company', [['#/automation', 'Automation rules', 'automation.manage|automation.activate|workflow.read'], ['#/settings', 'Company settings', null]]],
+    ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
+  ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
+    ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
+  ['Treasury & banking', [['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
+    ['#/list/supplier_bank_account', 'Supplier banks', 'p2p.read']]],
+  ['Accounting', [['#/journals', 'Journals', 'journal.read'], ['#/recon', 'Reconciliation', 'journal.read'], ['#/tb', 'Trial balance', 'journal.read']]],
+  ['Governance', [['#/authority', 'Authority & duties', 'p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
+    ['#/list/delegation', 'Delegations', 'delegation.create|delegation.approve'], ['#/list/sod_exception', 'Duty-conflict exceptions', 'authority.manage|authority.approve'],
+    ['#/list/p2p_policy', 'P2P policies', 'scope.tenant_wide'], ['#/list/contract_policy', 'Contract policies', 'scope.tenant_wide'],
+    ['#/controls', 'Control review', 'scope.tenant_wide'], ['#/automation', 'Automation rules', 'automation.manage|automation.activate|workflow.read'],
+    ['#/settings', 'Company settings', null]]],
 ];
+const NAV_KEY = 'serk.nav.folded';
 const allowed = (perm) => !perm || perm.split('|').some((p) => S.can.has(p));
 
 const QUEUES = [
+  ['budget.approve', 'budget_version', 'SUBMITTED', 'Budget revisions to approve'],
+  ['budget.approve', 'budget_transfer', 'SUBMITTED', 'Budget transfers to approve'],
+  ['budget.approve', 'contingency_drawdown', 'SUBMITTED', 'Contingency drawdowns to approve'],
+  ['authority.approve', 'authority_matrix', 'SUBMITTED', 'Authority matrices to approve'],
+  ['delegation.approve', 'delegation', 'SUBMITTED', 'Delegations to approve'],
+  ['authority.approve', 'sod_exception', 'SUBMITTED', 'Duty-conflict exceptions to approve'],
   ['boq.approve', 'boq_version', 'SUBMITTED', 'BOQs to approve'],
   ['pr.approve', 'purchase_requisition', 'SUBMITTED', 'Requisitions to approve'],
   ['rfq.manage', 'purchase_requisition', 'APPROVED', 'Approved requisitions'],
@@ -306,31 +359,138 @@ function page(title, lede, ...kids) {
   const v = $('view');
   v.textContent = '';
   const h1 = h('h1', { tabindex: '-1' }, title);
-  v.append(...[h1, lede ? h('p', { class: 'lede' }, lede) : null, ...kids].filter(Boolean));
+  v.append(...[h1, lede ? h('p', { class: 'lede' }, lede) : null, guidePanel(), ...kids].filter(Boolean));
   document.title = `${title} — SERK Construction`;
   h1.focus();
   return v;
+}
+// ---------- page guides ("How this page works", see guide.js) ----------
+// Route key of the current page: "home", "budget", "list/purchase_order",
+// "doc/purchase_order", "new/requisition" ...
+function routeKey() {
+  const [, view, a] = location.hash.split('/');
+  if (!view || view === 'home') return 'home';
+  return ['list', 'doc', 'new'].includes(view) ? `${view}/${a}` : view;
+}
+// The role catalogue (GET /v1/meta/roles) says who may do what; loaded once.
+let ROLES = null;
+let rolesLoading = null;
+function loadRoles() {
+  if (!rolesLoading) rolesLoading = api('GET', '/v1/meta/roles').then((r) => { ROLES = r.roles || {}; }).catch(() => { ROLES = {}; });
+  return rolesLoading;
+}
+const GUIDE_KEY = 'serk.guide.closed';
+function guideClosed() { try { return new Set(JSON.parse(localStorage.getItem(GUIDE_KEY) || '[]')); } catch { return new Set(); } }
+function fillGuide(box, g) {
+  const body = box.querySelector('.guidebody');
+  body.textContent = '';
+  if (g.what) body.append(h('p', { class: 'what' }, g.what));
+  const cols = h('div', { class: 'guidecols' });
+  if (g.steps && g.steps.length) cols.append(h('div', {}, h('h3', {}, 'How to use it'), h('ol', {}, g.steps.map((x) => h('li', {}, x)))));
+  if (g.life && g.life.length) cols.append(h('div', {}, h('h3', {}, 'Life cycle'), h('ul', { class: 'life' }, g.life.map((x) => h('li', {}, x)))));
+  if (g.who && g.who.length) {
+    cols.append(h('div', {}, h('h3', {}, 'Who does it'), h('dl', {}, g.who.map(([k, rs]) => [h('dt', {}, k), h('dd', {}, rs.length ? rs.join(', ') : (ROLES ? 'No role in this company holds this duty' : 'Loading…'))]))));
+  }
+  if (g.rules && g.rules.length) cols.append(h('div', {}, h('h3', {}, 'The system enforces'), h('ul', {}, g.rules.map((x) => h('li', {}, x)))));
+  body.append(cols);
+  if (g.related && g.related.length) body.append(h('p', { class: 'related' }, 'Related: ', g.related.map(([href, label], i) => [i ? ' · ' : '', h('a', { href }, label)])));
+}
+function guidePanel() {
+  if (!S.token) return null;
+  const key = routeKey();
+  const g = guideFor(key, DOCS, ROLES, ACTION_LABEL);
+  if (!g) return null;
+  const box = h('details', { class: 'guide' }, h('summary', {}, 'How this page works'), h('div', { class: 'guidebody' }));
+  if (!guideClosed().has(key)) box.open = true;
+  box.addEventListener('toggle', () => {
+    const set = guideClosed();
+    if (box.open) set.delete(key); else set.add(key);
+    try { localStorage.setItem(GUIDE_KEY, JSON.stringify([...set])); } catch { /* storage unavailable */ }
+  });
+  fillGuide(box, g);
+  // Roles arrive once per session; refresh the "Who does it" lines then.
+  if (!ROLES) loadRoles().then(() => { if (box.isConnected) fillGuide(box, guideFor(key, DOCS, ROLES, ACTION_LABEL)); });
+  return box;
+}
+
+function navFolded() { try { return new Set(JSON.parse(localStorage.getItem(NAV_KEY) || '[]')); } catch { return new Set(); } }
+function saveFolded(set) { try { localStorage.setItem(NAV_KEY, JSON.stringify([...set])); } catch { /* storage unavailable */ } }
+function setGroupOpen(sec, open) {
+  sec.classList.toggle('folded', !open);
+  sec.querySelector('.ghead').setAttribute('aria-expanded', String(open));
+}
+function rememberFolds() {
+  const set = new Set();
+  for (const sec of $('nav').querySelectorAll('.group')) if (sec.classList.contains('folded')) set.add(sec.dataset.group);
+  saveFolded(set);
 }
 function buildNav() {
   const nav = $('nav');
   nav.textContent = '';
   // Phones: the menu folds away behind one button.
-  const tog = h('button', { type: 'button', class: 'ghost navtoggle', 'aria-expanded': 'false', 'aria-controls': 'nav' }, 'Menu');
+  const tog = h('button', { type: 'button', class: 'ghost navtoggle', 'aria-expanded': 'false', 'aria-controls': 'navbody' }, 'Menu');
   tog.addEventListener('click', () => { const o = nav.classList.toggle('open'); tog.setAttribute('aria-expanded', String(o)); });
   nav.addEventListener('click', (e) => { if (e.target.closest('a')) { nav.classList.remove('open'); tog.setAttribute('aria-expanded', 'false'); } });
   nav.append(tog);
+
+  const body = h('div', { class: 'navbody', id: 'navbody' });
+  const find = h('input', { type: 'search', class: 'navfind', placeholder: 'Find a page', 'aria-label': 'Find a page in the menu', autocomplete: 'off' });
+  const expand = h('button', { type: 'button', class: 'linkbtn' }, 'Expand all');
+  const collapse = h('button', { type: 'button', class: 'linkbtn' }, 'Collapse all');
+  body.append(h('div', { class: 'navtools' }, h('span', { class: 'navlabel' }, 'Workspace'), expand, collapse), find);
+
+  const folded = navFolded();
   for (const [group, items] of NAV) {
     const vis = items.filter(([, , p]) => allowed(p));
     if (!vis.length) continue;
-    nav.append(h('h2', {}, group), h('ul', {}, vis.map(([href, label]) => h('li', {}, h('a', { href }, label)))));
+    const id = 'g-' + group.toLowerCase().replace(/[^a-z]+/g, '-');
+    const head = h('button', { type: 'button', class: 'ghead', 'aria-controls': id, 'aria-expanded': 'true' },
+      h('span', { class: 'gname' }, group), h('span', { class: 'gcount', 'aria-hidden': 'true' }, String(vis.length)),
+      h('span', { class: 'chev', 'aria-hidden': 'true' }));
+    const sec = h('section', { class: 'group', 'data-group': group },
+      h('h2', {}, head), h('ul', { id }, vis.map(([href, label]) => h('li', {}, h('a', { href }, label)))));
+    setGroupOpen(sec, !folded.has(group));
+    head.addEventListener('click', () => { setGroupOpen(sec, sec.classList.contains('folded')); rememberFolds(); });
+    body.append(sec);
   }
+  const all = (open) => { for (const sec of body.querySelectorAll('.group')) setGroupOpen(sec, open); rememberFolds(); };
+  expand.addEventListener('click', () => all(true));
+  collapse.addEventListener('click', () => all(false));
+  const empty = h('p', { class: 'navempty', hidden: '' }, 'No page matches.');
+  body.append(empty);
+  // Filtering shows matching pages in every category, folded or not.
+  find.addEventListener('input', () => {
+    const q = find.value.trim().toLowerCase();
+    nav.classList.toggle('filtering', !!q);
+    let any = false;
+    for (const sec of body.querySelectorAll('.group')) {
+      let n = 0;
+      for (const li of sec.querySelectorAll('li')) {
+        const hit = !q || li.textContent.toLowerCase().includes(q) || sec.dataset.group.toLowerCase().includes(q);
+        li.hidden = !hit; if (hit) n++;
+      }
+      sec.hidden = n === 0; if (n) any = true;
+    }
+    empty.hidden = any;
+  });
+  find.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { find.value = ''; find.dispatchEvent(new Event('input')); }
+    if (e.key === 'Enter') { const a = body.querySelector('.group:not([hidden]) li:not([hidden]) a'); if (a) a.click(); }
+  });
+  nav.append(body);
   nav.hidden = false;
+  markNav();
 }
 function markNav() {
   const cur = location.hash.split('/').slice(0, 3).join('/');
   for (const a of $('nav').querySelectorAll('a')) {
-    if (a.getAttribute('href') === cur || (cur.startsWith('#/doc/') && a.getAttribute('href') === '#/list/' + location.hash.split('/')[2])) a.setAttribute('aria-current', 'page');
-    else a.removeAttribute('aria-current');
+    if (a.getAttribute('href') === cur || (cur.startsWith('#/doc/') && a.getAttribute('href') === '#/list/' + location.hash.split('/')[2])) {
+      a.setAttribute('aria-current', 'page');
+      // The current page is never hidden inside a folded category.
+      const sec = a.closest('.group');
+      if (sec && sec.classList.contains('folded')) setGroupOpen(sec, true);
+      if (a.scrollIntoView) a.scrollIntoView({ block: 'nearest' });
+    } else a.removeAttribute('aria-current');
   }
 }
 
@@ -347,7 +507,12 @@ async function route() {
       case 'journals': return await renderJournals();
       case 'bank': return await renderBank();
       case 'recon': return await renderRecon();
-      case 'cost': return await renderCost();
+      case 'budget': return await renderBudget();
+      case 'report': return await renderCatalogueReport(a);
+      case 'reservations': return await renderReservations();
+      case 'dashboard': return await renderDashboard(a);
+      case 'authority': return await renderAuthority();
+      case 'cost': return await renderCost(a);
       case 'stock': return await renderStock();
       case 'evm': return await renderEVM();
       case 'site': return await renderDevices();
@@ -444,7 +609,7 @@ async function stagingSignin(v, ta) {
 }
 async function signOut(msg) {
   if (S.token) { try { await api('POST', '/v1/identity/logout'); } catch { /* session may already be gone */ } }
-  S.token = null; S.me = null; S.ref = null; S.can = new Set(); S.company = null;
+  S.token = null; S.me = null; S.ref = null; S.can = new Set(); S.company = null; ROLES = null; rolesLoading = null;
   brandCompany();
   stopBell();
   history.replaceState(null, '', '#/');
@@ -651,7 +816,7 @@ function nextSteps(type, d) {
 function actionsPanel(type, d, det) {
   const meta = DOCS[type];
   const seen = new Set();
-  const acts = (meta.actions[d.status] || []).filter(([a, perm]) => S.can.has(perm) && !seen.has(a) && seen.add(a));
+  const acts = (meta.actions[d.status] || []).filter(([a, perm]) => allowed(perm) && !seen.has(a) && seen.add(a));
   if (!acts.length) return null;
   const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Actions'));
   for (const [action, , mode] of acts) {
@@ -788,6 +953,192 @@ async function renderForm(kind, arg) {
 }
 
 const FORMS = {
+  async budget_revision() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const kind = select('kind', [{ value: 'REVISION', label: 'Revision' }, { value: 'ORIGINAL', label: 'Original' }], { required: true });
+    const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
+    let grid;
+    const holder = h('div');
+    const load = async () => {
+      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+      grid = lineGrid('Budget lines', [
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+        { key: 'amount', label: 'Amount', make: num('amount') },
+        { key: 'contingency_flag', label: 'Contingency?', make: () => select('contingency_flag', [{ value: false, label: 'No' }, { value: true, label: 'Yes' }]) },
+      ], [], true);
+      holder.replaceChildren(grid);
+    };
+    proj.addEventListener('change', load);
+    formPage('New budget revision', 'Prepare the ORIGINAL baseline or a REVISION per cost code. A revision may reduce a code (negative amount). Mark a line as contingency to allow drawdowns from it. A different person approves.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Kind', kind), field('Reason', reason)), holder], 'Create budget revision', async () => {
+        const lines = grid.rows().map((r) => ({ cost_code_id: r.cost_code_id, amount: r.amount, contingency_flag: r.contingency_flag === true || r.contingency_flag === 'true' }));
+        const res = await api('POST', '/v1/budgets/revisions', { project_id: proj.value, kind: kind.value, reason: reason.value.trim(), lines });
+        created('budget_version', res, 'Budget version');
+      });
+    await load();
+  },
+
+  async budget_transfer() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const fromCC = select('from_cost_code', [], { required: true });
+    const toCC = select('to_cost_code', [], { required: true });
+    const amt = input('amount', { type: 'number', step: '0.01', min: '0.01', required: true });
+    const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
+    const load = async () => {
+      const ccs = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+      const opts = opt(ccs, (c) => `${c.code} ${c.name}`);
+      fromCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
+      toCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
+    };
+    proj.addEventListener('change', load);
+    formPage('Request budget transfer', 'Transfer budget between cost codes within the same project with net-zero impact.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('From cost code', fromCC), field('To cost code', toCC), field('Amount', amt), field('Reason', reason))], 'Submit transfer request', async () => {
+        const res = await api('POST', '/v1/budgets/transfers', {
+          project_id: proj.value,
+          from_cost_code: fromCC.value,
+          to_cost_code: toCC.value,
+          amount: amt.value,
+          reason: reason.value.trim()
+        });
+        created('budget_transfer', res, 'Budget transfer');
+      });
+    await load();
+  },
+
+  async contingency_drawdown() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const fromCC = select('from_cost_code', []);
+    const toCC = select('to_cost_code', [], { required: true });
+    const amt = input('amount', { type: 'number', step: '0.01', min: '0.01', required: true });
+    const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
+    const load = async () => {
+      const ccs = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+      const opts = opt(ccs, (c) => `${c.code} ${c.name}`);
+      toCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
+      // Source: the project's contingency code(s); empty = the only one.
+      const pos = proj.value ? ((await api('GET', `/v1/projects/${proj.value}/budget`)).cost_codes || []).filter((r) => r.is_contingency) : [];
+      fromCC.replaceChildren(h('option', { value: '' }, pos.length === 1 ? `${pos[0].cost_code} (the project's contingency)` : 'Choose the contingency code'),
+        ...pos.map((r) => h('option', { value: r.cost_code_id }, `${r.cost_code} — current ${r.current}`)));
+    };
+    proj.addEventListener('change', load);
+    formPage('Request contingency drawdown', 'Draw down from project contingency into a project cost code.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('From contingency code', fromCC, 'Money comes out of this code. It must hold contingency.'),
+        field('To cost code', toCC), field('Amount', amt), field('Reason', reason))], 'Create drawdown request', async () => {
+        const res = await api('POST', '/v1/budgets/drawdowns', {
+          project_id: proj.value,
+          from_cost_code: fromCC.value,
+          to_cost_code: toCC.value,
+          amount: amt.value,
+          reason: reason.value.trim()
+        });
+        created('contingency_drawdown', res, 'Contingency drawdown');
+      });
+    await load();
+  },
+
+  async authority_matrix() {
+    await loadRoles();
+    const perms = [...new Set(Object.values(ROLES || {}).flat())].sort();
+    const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
+    const types = [['budget_version', 'Budget version'], ['budget_transfer', 'Budget transfer'], ['contingency_drawdown', 'Contingency drawdown'],
+      ['purchase_requisition', 'Requisition'], ['purchase_order', 'Purchase order'], ['supplier_invoice', 'Supplier invoice'], ['payment_instruction', 'Payment']];
+    const grid = lineGrid('Approval bands (from the amount shown, up to but not including the next band)', [
+      { key: 'doc_type', label: 'Document', make: () => select('doc_type', types.map(([value, label]) => ({ value, label }))) },
+      { key: 'min_amount', label: 'From amount', make: num('min_amount', { value: '0' }) },
+      { key: 'max_amount', label: 'Below (empty = no limit)', make: num('max_amount') },
+      { key: 'currency', label: 'Currency', make: txt('currency', { size: '4', value: 'ETB', maxlength: '3' }) },
+      { key: 'required_perm', label: 'Permission needed', make: () => select('required_perm', perms.map((value) => ({ value, label: value })) ) },
+      { key: 'requires_mfa', label: 'Fresh MFA?', make: () => select('requires_mfa', [{ value: false, label: 'No' }, { value: true, label: 'Yes' }]) },
+    ], [], true);
+    formPage('New authority matrix', 'Prepare who may approve how much. It takes effect only when a different person (the CFO, with a fresh multi-factor sign-in) approves it, and it then replaces the matrix in force.',
+      [h('div', { class: 'grid' }, field('Reason for this version', reason)), grid], 'Create matrix', async () => {
+        const rules = grid.rows().map((r) => ({ doc_type: r.doc_type, min_amount: r.min_amount || '0', max_amount: r.max_amount ? r.max_amount : undefined,
+          currency: (r.currency || 'ETB').toUpperCase(), required_perm: r.required_perm, requires_mfa: r.requires_mfa === true || r.requires_mfa === 'true' }));
+        const res = await api('POST', '/v1/authority/matrices', { reason: reason.value.trim(), rules });
+        created('authority_matrix', res, 'Authority matrix');
+      });
+  },
+
+  async delegation() {
+    const nonDelegable = new Set(['scope.tenant_wide', 'identity.revoke_sessions', 'delegation.approve', 'authority.manage', 'authority.approve', 'budget.override', 'tenant.settings.manage']);
+    const mine = (S.me.permissions || []).filter((p) => !nonDelegable.has(p) && !p.startsWith('serk.') && !p.startsWith('principal.') && !/\.(read)$/.test(p));
+    const to = input('delegate', { type: 'text', required: true, maxlength: '200', autocomplete: 'off' });
+    const perms = select('perms', mine.map((value) => ({ value, label: value })), { multiple: true, size: '8', required: true });
+    const day = (d) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 16);
+    const from = input('valid_from', { type: 'datetime-local', required: true, value: day(0) });
+    const until = input('valid_to', { type: 'datetime-local', required: true, value: day(7) });
+    const reason = input('reason', { type: 'text', required: true, maxlength: '500', placeholder: 'For example: annual leave cover' });
+    formPage('Delegate my authority', 'Lend part of your own approval authority to a colleague for a limited time (at most 90 days). A third person approves it; you can revoke it at any time. Your colleague can never approve what you prepared, and permissions that would give them a conflict of duties are not applied.',
+      [h('div', { class: 'grid' }, field('Colleague (their sign-in name)', to), field('Permissions to lend', perms, 'Hold Ctrl or Cmd to choose several. Only permissions you hold yourself are listed.'),
+        field('From', from), field('Until', until), field('Reason', reason))], 'Create delegation', async () => {
+        const chosen = [...perms.selectedOptions].map((o) => o.value);
+        const res = await api('POST', '/v1/delegations', { delegate: to.value.trim(), perms: chosen, valid_from: new Date(from.value).toISOString(),
+          valid_to: new Date(until.value).toISOString(), reason: reason.value.trim() });
+        created('delegation', res, 'Delegation');
+      });
+  },
+
+  async sod_exception() {
+    await loadRoles();
+    const user = input('user_id', { type: 'text', required: true, maxlength: '200', autocomplete: 'off' });
+    const all = [...new Set(Object.values(ROLES || {}).flat())].sort().map((value) => ({ value, label: value }));
+    const a = select('perm_a', all, { required: true });
+    const b = select('perm_b', all, { required: true });
+    const control = input('mitigating_control', { type: 'text', required: true, minlength: '20', maxlength: '1000', placeholder: 'The written control that makes this acceptable (20+ characters)' });
+    const until = input('expires_at', { type: 'date', required: true, value: new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10) });
+    formPage('Duty-conflict exception', 'Allow one named person to hold two permissions that are normally kept apart, for a limited time, under a written control. A different person approves it, with a fresh multi-factor sign-in. It does not waive the rule that nobody approves what they prepared.',
+      [h('div', { class: 'grid' }, field('Person (their sign-in name)', user), field('First permission', a), field('Second permission', b),
+        field('Mitigating control', control), field('Expires', until))], 'Create exception', async () => {
+        const res = await api('POST', '/v1/sod/exceptions', { user_id: user.value.trim(), perm_a: a.value, perm_b: b.value,
+          mitigating_control: control.value.trim(), expires_at: new Date(until.value + 'T23:59:59Z').toISOString() });
+        created('sod_exception', res, 'Duty-conflict exception');
+      });
+  },
+
+  async uom_conversion() {
+    const item = select('stock_item_id', [{ value: '', label: 'All items whose own unit is the unit below' }, ...(await docOpts('stock_item', 'ACTIVE'))]);
+    const from = input('from_unit', { type: 'text', required: true, maxlength: '20', placeholder: 'for example: bundle, bag, truck' });
+    const to = input('to_unit', { type: 'text', required: true, maxlength: '20', placeholder: 'the item\'s own unit, for example: t, m3, piece' });
+    const factor = input('factor', { inputmode: 'decimal', required: true, placeholder: '1 of the first unit = this many of the second' });
+    const note = input('note', { type: 'text', maxlength: '300' });
+    formPage('New unit conversion', 'Stock is always kept in the item\'s own unit. A conversion lets people count in another unit (a bag, a bundle, a truck). It is exact, applies only after a different person approves it, and there is one approved factor per pair of units.',
+      [h('div', { class: 'grid' }, field('Item', item), field('From unit', from), field('To unit', to), field('Factor', factor), field('Note', note))], 'Create conversion', async () => {
+        const res = await api('POST', '/v1/stock/uom-conversions', { stock_item_id: item.value || undefined, from_unit: from.value.trim(), to_unit: to.value.trim(), factor: factor.value.trim(), note: note.value.trim() });
+        created('uom_conversion', res, 'Unit conversion');
+      });
+  },
+
+  async reservation() {
+    const wh = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const item = select('stock_item_id', await docOpts('stock_item', 'ACTIVE'), { required: true });
+    const proj = select('project_id', projectOpts(), { required: true });
+    const qty = input('quantity', { inputmode: 'decimal', required: true });
+    const unit = input('unit', { type: 'text', maxlength: '20', placeholder: 'Leave empty for the item\'s own unit' });
+    const why = input('purpose', { type: 'text', required: true, maxlength: '300', placeholder: 'For example: level 3 slab pour' });
+    const until = input('expires_at', { type: 'date', required: true, value: plusDays(14) });
+    formPage('Reserve stock', 'Sets material aside for a project so nobody else can issue it. You cannot reserve more than is on hand and not already reserved. A reservation lapses on its end date, and you can release it at any time.',
+      [h('div', { class: 'grid' }, field('Store', wh), field('Stock item', item), field('Project', proj), field('Quantity', qty), field('Unit (optional)', unit), field('Purpose', why), field('Keep until', until))], 'Reserve', async () => {
+        await api('POST', '/v1/stock/reservations', { warehouse_id: wh.value, stock_item_id: item.value, project_id: proj.value, quantity: qty.value.trim(), unit: unit.value.trim() || undefined,
+          purpose: why.value.trim(), expires_at: new Date(until.value + 'T23:59:59Z').toISOString() });
+        say('Stock reserved.');
+        location.hash = '#/reservations';
+      });
+  },
+
+  async reorderrule() {
+    const wh = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const item = select('stock_item_id', await docOpts('stock_item', 'ACTIVE'), { required: true });
+    const min = input('min_qty', { inputmode: 'decimal', required: true });
+    const max = input('max_qty', { inputmode: 'decimal', required: true });
+    const re = input('reorder_qty', { inputmode: 'decimal', required: true });
+    formPage('Reorder rule', 'When the available stock (on hand minus reserved) of an item in a store falls below the minimum, the Low stock report suggests how much to order to get back to the maximum, and at least the reorder quantity. It never orders by itself.',
+      [h('div', { class: 'grid' }, field('Store', wh), field('Stock item', item), field('Minimum', min), field('Maximum', max), field('Reorder quantity', re))], 'Save rule', async () => {
+        await api('PUT', '/v1/stock/reorder-rules', { warehouse_id: wh.value, stock_item_id: item.value, min_qty: min.value.trim(), max_qty: max.value.trim(), reorder_qty: re.value.trim() });
+        say('Reorder rule saved.');
+        location.hash = '#/report/low-stock';
+      });
+  },
+
   async requisition() {
     const proj = select('project_id', projectOpts(), { required: true });
     const just = input('justification', { type: 'text', required: true, maxlength: '500' });
@@ -1485,6 +1836,8 @@ const FORMS = {
     const item = select('stock_item_id', await docOpts('stock_item', 'ACTIVE'), { required: true });
     const proj = select('project_id', projectOpts(), { required: true });
     const qty = input('quantity', { inputmode: 'decimal', required: true });
+    const unit = input('unit', { type: 'text', maxlength: '20', placeholder: 'Leave empty for the item\'s own unit' });
+    const resv = select('reservation_id', [{ value: '', label: 'None (use unreserved stock)' }, ...((await api('GET', '/v1/stock/reservations?status=ACTIVE')).reservations || []).map((r) => ({ value: r.id, label: `${r.item_code} ${r.quantity} in ${r.warehouse}: ${r.purpose}` }))]);
     const date = input('issue_date', { type: 'date', value: today(), required: true });
     const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
     const cc = select('cost_code_id', [], { required: true });
@@ -1495,10 +1848,10 @@ const FORMS = {
     };
     proj.addEventListener('change', () => loadCC().catch(showError));
     formPage('Issue stock to a project', 'The site engineer or project manager approves the issue; its cost (FIFO or average) is computed then and charged to the cost code.', [
-      h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty), field('Project', proj), field('Cost code', cc),
-        field('Expense account', acct), field('Issue date', date))], 'Request issue', async () => {
+      h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty), field('Unit (optional)', unit, 'Counted in another unit? It is converted with an approved conversion.'), field('Against a reservation', resv, 'An issue against a reservation uses it up when approved.'),
+        field('Project', proj), field('Cost code', cc), field('Expense account', acct), field('Issue date', date))], 'Request issue', async () => {
       const res = await api('POST', '/v1/stock-issues', { warehouse_id: wh.value, stock_item_id: item.value, project_id: proj.value, cost_code_id: cc.value,
-        expense_account_id: acct.value, quantity: qty.value.trim(), issue_date: date.value });
+        expense_account_id: acct.value, quantity: qty.value.trim(), unit: unit.value.trim() || undefined, reservation_id: resv.value || undefined, issue_date: date.value });
       created('stock_issue', res, 'Stock issue');
     });
     await loadCC();
@@ -1697,18 +2050,153 @@ async function renderRecon() {
   await load();
 }
 
-async function renderCost() {
+// ---------- financial control dashboard (WP-1.4; formulas in docs/reports/KPI_CATALOGUE.md) ----------
+// Each tile shows one KPI with its level, what it is made of, the largest
+// contributors (each linking to its record) and a link to the page holding
+// the rows behind it. "How is this calculated?" shows the formula and source.
+const LEVEL_WORD = { ok: 'On track', watch: 'Watch', alert: 'Needs action', unknown: 'No data' };
+async function renderDashboard(preset) {
+  preset = ['executive', 'project', 'finance', 'procurement'].includes(preset) ? preset : 'executive';
+  const params = new URLSearchParams(location.hash.split('?')[1] || '');
+  const entity = params.get('entity') || '';
+  const q = `?preset=${preset}${entity ? '&entity_id=' + encodeURIComponent(entity) : ''}`;
+  const d = await api('GET', '/v1/dashboard' + q);
+  const view = (name) => h('a', { class: 'btn' + (name === preset ? ' primary' : ' ghost'), href: `#/dashboard/${name}${entity ? '?entity=' + entity : ''}`, 'aria-current': name === preset ? 'true' : null },
+    { executive: 'Executive', project: 'Project', finance: 'Finance', procurement: 'Procurement' }[name]);
+  const ent = select('entity', d.entities.map((e) => ({ value: e.id, label: `${e.name} (${e.currency})` })));
+  ent.value = d.entity_id;
+  ent.addEventListener('change', () => { location.hash = `#/dashboard/${preset}?entity=${ent.value}`; });
+  const money_ = (t) => (t.unit === '%' ? `${t.value} %` : t.unit === 'count' ? t.value : t.unit ? `${t.unit} ${money(t.value)}` : t.value);
+  const grid = h('div', { class: 'tiles' }, d.tiles.map((t) => h('section', { class: `tile lvl-${t.level}`, 'aria-label': t.title },
+    h('div', { class: 'tilehead' }, h('h2', {}, t.title), h('span', { class: `lvl lvl-${t.level}` }, LEVEL_WORD[t.level] || t.level)),
+    h('p', { class: 'big' }, money_(t)),
+    t.note ? h('p', { class: 'hint' }, t.note) : null,
+    t.detail && t.detail.length ? h('dl', { class: 'detail' }, t.detail.map((x) => [h('dt', {}, x.label), h('dd', {}, /^-?[\d,.]+$/.test(x.value) ? money(x.value) : x.value)])) : null,
+    t.evidence && t.evidence.length ? h('ul', { class: 'evidence' }, t.evidence.map((e) => h('li', {}, h('a', { href: e.href }, e.label)))) : null,
+    h('p', { class: 'tilefoot' }, h('a', { href: t.drill }, 'See the rows behind this number')),
+    h('details', { class: 'how' }, h('summary', {}, 'How is this calculated?'), h('p', {}, t.formula), h('p', { class: 'hint' }, `${t.id}. Source: ${t.source}. Computed ${when(t.as_of)}.`)))));
+  const hidden = d.hidden && d.hidden.length
+    ? h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Not shown to your role'),
+      h('ul', {}, d.hidden.map((x) => h('li', {}, `${x.title}: needs ${x.needs}.`))))
+    : null;
+  page('Dashboard', `${d.entity || 'Your company'}${d.currency ? ' (' + d.currency + ')' : ''}: ${d.projects_in_scope} project(s) in your scope. Every figure is computed now from approved and posted records.`,
+    h('div', { class: 'toolbar' }, view('executive'), view('project'), view('finance'), view('procurement'), d.entities.length > 1 ? field('Legal entity', ent) : null), grid, hidden);
+}
+
+// ---------- stock reservations (WP-1.6) ----------
+async function renderReservations() {
+  const status = select('status', [{ value: '', label: 'All' }, { value: 'ACTIVE', label: 'Active' }, { value: 'CONSUMED', label: 'Used by an issue' }, { value: 'RELEASED', label: 'Released' }]);
+  status.value = 'ACTIVE';
+  const out = h('div');
+  const load = async () => {
+    out.textContent = '';
+    const r = (await api('GET', '/v1/stock/reservations?status=' + status.value)).reservations || [];
+    out.append(table('Stock reservations', [
+      { label: 'Item', cell: (x) => x.item_code }, { label: 'Store', cell: (x) => x.warehouse },
+      { label: 'Quantity', num: true, cell: (x) => x.quantity }, { label: 'Purpose', cell: (x) => x.purpose },
+      { label: 'Keep until', cell: (x) => when(x.expires_at) }, { label: 'By', cell: (x) => x.created_by },
+      { label: 'Status', cell: (x) => chip(x.status) },
+      { label: '', cell: (x) => (x.status === 'ACTIVE' ? h('button', { type: 'button', class: 'ghost', on: { click: async () => {
+        const why = prompt('Why is this reservation released?');
+        if (!why) return;
+        try { await api('POST', `/v1/stock/reservations/${x.id}/release`, { reason: why }); say('Reservation released.'); await load(); } catch (e) { showError(e); }
+      } } }, 'Release') : '') },
+    ], r, 'No reservations.'));
+  };
+  status.addEventListener('change', () => load().catch(showError));
+  page('Stock reservations', 'Material set aside for projects. Reserved stock cannot be issued to anyone else.',
+    h('div', { class: 'toolbar' }, field('Show', status),
+      S.can.has('stock.reserve') ? h('a', { class: 'btn primary', href: '#/new/reservation' }, 'Reserve stock') : null,
+      S.can.has('stock.item.manage') ? h('a', { class: 'btn ghost', href: '#/new/reorderrule' }, 'Reorder rule') : null), out);
+  await load();
+}
+
+async function renderAuthority() {
+  const out = h('div');
+  const cur = (await api('GET', '/v1/authority/matrix')).matrix;
+  const lent = (await api('GET', '/v1/delegations')).delegations || [];
+  const lines = (cur && cur.rules) || [];
+  out.append(cur
+    ? table(`Matrix in force: version ${cur.version}, approved by ${cur.approved_by}`, [
+      { label: 'Document', cell: (r) => words(r.doc_type) },
+      { label: 'From', num: true, cell: (r) => money(r.min_amount) },
+      { label: 'Below', num: true, cell: (r) => (r.max_amount ? money(r.max_amount) : 'no limit') },
+      { label: 'Currency', cell: (r) => r.currency },
+      { label: 'Needs permission', cell: (r) => r.required_perm },
+      { label: 'Fresh MFA', cell: (r) => (r.requires_mfa ? 'yes' : '') },
+    ], lines, 'No rules.')
+    : h('div', { class: 'panel' }, h('p', {}, 'No authority matrix is in force. Approvals are limited only by roles.')));
+  out.append(table('Delegations you lent or received', [
+    { label: 'From', cell: (r) => r.delegator }, { label: 'To', cell: (r) => r.delegate },
+    { label: 'Permissions', cell: (r) => r.perms.join(', ') },
+    { label: 'From date', cell: (r) => when(r.valid_from) }, { label: 'Until', cell: (r) => when(r.valid_to) },
+    { label: 'Status', cell: (r) => chip(r.status) },
+    { label: '', cell: (r) => h('a', { href: `#/doc/delegation/${r.id}` }, 'Open') },
+  ], lent, 'No delegations.'));
+  let conflicts = null;
+  // Only people who may read the report ask for it (avoids a refused request).
+  if (S.can.has('authority.manage') || S.can.has('authority.approve') || S.can.has('audit.read')) {
+    try { conflicts = (await api('GET', '/v1/sod/report')).conflicts || []; } catch { conflicts = null; }
+  }
+  if (conflicts) {
+    out.append(table('Duty conflicts in the role catalogue', [
+      { label: 'Role', cell: (r) => r.subject }, { label: 'Control', cell: (r) => r.control },
+      { label: 'Permissions held together', cell: (r) => `${r.perm_a} + ${r.perm_b}` },
+    ], conflicts, 'None. No role holds permissions that should be kept apart.'));
+  }
+  const actions = h('div', { class: 'toolbar' },
+    S.can.has('authority.manage') ? h('a', { class: 'btn primary', href: '#/new/authority_matrix' }, 'New matrix version') : null,
+    S.can.has('delegation.create') ? h('a', { class: 'btn', href: '#/new/delegation' }, 'Delegate my authority') : null,
+    S.can.has('authority.manage') ? h('a', { class: 'btn ghost', href: '#/new/sod_exception' }, 'Duty-conflict exception') : null);
+  page('Authority and duties', 'Who may approve how much, who has lent authority to whom, and where duties must be kept apart.', actions, out);
+}
+
+async function renderBudget() {
   const proj = select('project_id', projectOpts());
+  const out = h('div');
+  const reqBtn = S.can.has('budget.transfer') ? h('a', { class: 'btn primary', href: '#/new/budget_transfer' }, 'Request transfer') : null;
+  const revBtn = S.can.has('budget.revise') ? h('a', { class: 'btn', href: '#/new/budget_revision' }, 'New revision') : null;
+  const drwBtn = S.can.has('budget.revise') ? h('a', { class: 'btn ghost', href: '#/new/contingency_drawdown' }, 'Draw down contingency') : null;
+  const load = async () => {
+    out.textContent = '';
+    if (!proj.value) return;
+    const res = await api('GET', `/v1/projects/${proj.value}/budget`);
+    const rows = res.cost_codes || [];
+    out.append(table('Budget overview by cost code', [
+      { label: 'Cost code', cell: (r) => (r.is_contingency ? `${r.cost_code} (contingency)` : r.cost_code) },
+      { label: 'Original', num: true, cell: (r) => money(r.original) },
+      { label: 'Revisions', num: true, cell: (r) => money(r.approved_revisions) },
+      { label: 'Transfers in', num: true, cell: (r) => money(r.transfers_in) },
+      { label: 'Transfers out', num: true, cell: (r) => money(r.transfers_out) },
+      { label: 'Drawdowns in', num: true, cell: (r) => money(r.drawdowns_in) },
+      { label: 'Drawdowns out', num: true, cell: (r) => money(r.drawdowns_out) },
+      { label: 'Current budget', num: true, cell: (r) => money(r.current) },
+    ], rows, 'No budgeted cost codes.'));
+  };
+  proj.addEventListener('change', () => load().catch(showError));
+  page('Project budget', 'Original budget, approved revisions, inter-code transfers and drawdowns.',
+    h('div', { class: 'toolbar' }, field('Project', proj), reqBtn, revBtn, drwBtn), out);
+  await load();
+}
+
+async function renderCost(projectID) {
+  const proj = select('project_id', projectOpts());
+  if (projectID && [...proj.options].some((o) => o.value === projectID)) proj.value = projectID; // #/cost/<project> from a dashboard drill-down
   const out = h('div');
   const load = async () => {
     out.textContent = '';
     if (!proj.value) return;
     const rows = (await api('GET', `/v1/projects/${proj.value}/cost-report`)).cost_codes;
     out.append(table('Budget, commitments and actuals by cost code', [
-      { label: 'Cost code', cell: (r) => r.cost_code }, { label: 'Budget', num: true, cell: (r) => money(r.budget) },
-      { label: 'Committed', num: true, cell: (r) => money(r.committed) }, { label: 'Reserved', num: true, cell: (r) => money(r.reserved) },
-      { label: 'Received', num: true, cell: (r) => money(r.received) }, { label: 'Invoiced', num: true, cell: (r) => money(r.invoiced) },
-      { label: 'Actual (posted)', num: true, cell: (r) => money(r.actual_posted) }, { label: 'Available', num: true, cell: (r) => money(r.available) }], rows, 'No budgeted cost codes.'));
+      { label: 'Cost code', cell: (r) => r.cost_code },
+      { label: 'Original', num: true, cell: (r) => money(r.original || r.budget) },
+      { label: 'Current budget', num: true, cell: (r) => money(r.current || r.budget) },
+      { label: 'Committed', num: true, cell: (r) => money(r.committed) },
+      { label: 'Reserved', num: true, cell: (r) => money(r.reserved) },
+      { label: 'Received', num: true, cell: (r) => money(r.received) },
+      { label: 'Invoiced', num: true, cell: (r) => money(r.invoiced) },
+      { label: 'Actual (posted)', num: true, cell: (r) => money(r.actual_posted) },
+      { label: 'Available', num: true, cell: (r) => money(r.available) }], rows, 'No budgeted cost codes.'));
   };
   proj.addEventListener('change', () => load().catch(showError));
   const projName = () => { const p = S.ref.projects.find((x) => x.id === proj.value); return p ? `${p.code} ${p.name}` : ''; };
@@ -1864,8 +2352,65 @@ async function renderReports() {
     if (!allowed(perm)) continue;
     grid.append(h('a', { class: 'card', href }, h('h3', {}, t), h('p', {}, d)));
   }
-  page('Reports', 'Every report and every list can be exported as PDF, Word or Excel with the company letterhead.', grid,
-    h('p', { class: 'foot-note' }, 'Exports contain only what you may see. Each export is recorded with your name and the time.'));
+  // The report catalogue (WP-1.5): grouped, and limited to what this person may run.
+  let cat = [];
+  try { cat = (await api('GET', '/v1/reports/catalogue')).reports || []; } catch { cat = []; }
+  const groups = {};
+  for (const r of cat) (groups[r.group] = groups[r.group] || []).push(r);
+  const sections = Object.keys(groups).sort().map((g) => h('section', {}, h('h2', { class: 'section' }, g),
+    h('div', { class: 'reportgrid' }, groups[g].map((r) => h('a', { class: 'card', href: `#/report/${r.id}` }, h('h3', {}, r.title), h('p', {}, r.description))))));
+  page('Reports', 'Every report and every list can be exported as PDF, Word or Excel with the company letterhead.', h('h2', { class: 'section' }, 'Core reports'), grid,
+    ...sections, h('p', { class: 'foot-note' }, 'Exports contain only what you may see. Each export is recorded with your name and the time.'));
+}
+
+// ---------- catalogue report page (#/report/<id>; WP-1.5) ----------
+// One generic page for every catalogue report: filters, the table with totals,
+// the data-as-of time and the filters used, and PDF / Word / Excel export.
+async function renderCatalogueReport(id) {
+  const cat = (await api('GET', '/v1/reports/catalogue')).reports || [];
+  const def = cat.find((r) => r.id === id);
+  if (!def) { page('Report', 'This report does not exist or is not available to your role.'); return; }
+  const has = (k) => def.filters.includes(k);
+  const ent = select('entity', entityOpts());
+  const proj = select('project', [{ value: '', label: def.id === 'budget-vs-actual' ? 'Choose a project' : 'All my projects' }, ...projectOpts()]);
+  const from = input('from', { type: 'date' });
+  const to = input('to', { type: 'date' });
+  let subject = null;
+  if (def.subject === 'supplier') subject = select('subject', [{ value: '', label: 'Choose a supplier' }, ...(await docOpts('supplier', 'ACTIVE'))]);
+  if (def.subject === 'customer') subject = select('subject', [{ value: '', label: 'Choose a customer' }, ...(await docOpts('customer', 'ACTIVE'))]);
+  if (def.subject === 'account') subject = select('subject', [{ value: '', label: 'All accounts' }, ...S.ref.accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))]);
+  const out = h('div');
+  const src = () => {
+    const q = new URLSearchParams({ entity: ent.value });
+    if (has('project') && proj.value) q.set('project', proj.value);
+    if (subject && subject.value) q.set('subject', subject.value);
+    if (has('from') && from.value) q.set('from', from.value);
+    if (has('to') && to.value) q.set('to', to.value);
+    return `/v1/reports/catalogue/${def.id}?${q}`;
+  };
+  const load = async () => {
+    out.textContent = '';
+    if (!ent.value) return;
+    if ((def.subject === 'supplier' || def.subject === 'customer') && !subject.value) { out.append(h('p', { class: 'hint' }, `Choose a ${def.subject} to see this statement.`)); return; }
+    if (def.id === 'budget-vs-actual' && !proj.value) { out.append(h('p', { class: 'hint' }, 'Choose a project to see this report.')); return; }
+    const r = await api('GET', src());
+    const cols = def.columns.map((c) => ({ label: c.label, num: c.type === 'money' || c.type === 'qty',
+      cell: (row) => (c.type === 'money' ? money(row[c.key]) : c.type === 'qty' ? row[c.key] : row[c.key]) }));
+    const rows = r.rows.slice();
+    if (r.totals && rows.length) {
+      const t = { _class: 'total' };
+      def.columns.forEach((c, i) => { t[c.key] = i === 0 ? 'Total' : r.totals[c.key] !== undefined ? r.totals[c.key] : ''; });
+      rows.push(t);
+    }
+    const used = Object.entries(r.filters || {}).map(([k, v]) => `${k}: ${v}`).join(' · ') || 'no filters';
+    out.append(h('p', { class: 'hint', role: 'status' }, `${r.row_count} row(s). Data as of ${r.as_of}. Filters: ${used}.${r.cut ? ' Showing the first 5,000 rows only; narrow the dates or project.' : ''}`),
+      table(def.title, cols, rows, 'No records match these filters.'));
+  };
+  for (const el of [ent, proj, from, to, subject].filter(Boolean)) el.addEventListener('change', () => load().catch(showError));
+  const bar = h('div', { class: 'toolbar' }, field('Legal entity', ent), has('project') ? field('Project', proj) : null, subject ? field(def.subject.charAt(0).toUpperCase() + def.subject.slice(1), subject) : null,
+    has('from') ? field('From', from) : null, has('to') ? field('To', to) : null, h('span', { class: 'spacer' }), exportBar(src, () => def.title, { entity: () => ent.value }));
+  page(def.title, def.description, bar, out);
+  await load();
 }
 
 function entityToolbar(ent, at, extra) {
@@ -2278,3 +2823,12 @@ function paintThemeButton() {
 $('signout').addEventListener('click', () => signOut());
 window.addEventListener('hashchange', route);
 route();
+
+// The sidebar sticks just below the top band; keep its offset equal to the
+// band's real height (the band wraps on narrow screens).
+{
+  const band = document.querySelector('.top');
+  const setTop = () => document.documentElement.style.setProperty('--top-h', `${band.offsetHeight}px`);
+  setTop();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(setTop).observe(band);
+}

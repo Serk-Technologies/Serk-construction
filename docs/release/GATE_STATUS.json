@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-10-22T21:16:32Z",
- "source_commit": "a667597",
+ "generated_at": "2026-11-07T06:24:21Z",
+ "source_commit": "5f94bc3",
  "source_commit_note": "The commit whose tree was evaluated. This file is committed afterwards, so the release tag points at a child of source_commit that differs from it only by the generated documents (GATE_STATUS.json, inventory, register, feature matrix). The checkpoint record names both.",
  "release_decision": "NO-GO",
  "release_decision_reason": "Gate A not passed (BLOCKED items); Gate B/C partly evidenced (Journeys A and B), other items not tested or partial; Gate P requires independent human sign-off",

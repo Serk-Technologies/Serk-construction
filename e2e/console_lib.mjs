@@ -16,7 +16,7 @@ export const log = (...a) => console.log(new Date().toISOString().slice(11, 23),
 export const fail = (msg) => { failures.push(msg); console.log('FAIL:', msg); };
 let shot = 0;
 
-export const browser = await chromium.launch();
+export const browser = await chromium.launch(process.env.SERK_CHROME ? { executablePath: process.env.SERK_CHROME } : {}) // SERK_CHROME: use an installed Chrome (offline machines);
 export const pages = {};
 
 export async function as(role, opts = {}) {

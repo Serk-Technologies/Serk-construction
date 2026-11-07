@@ -3,6 +3,17 @@ on: [push, pull_request]
 permissions: { contents: read }
 
 jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
+        with: { go-version: "1.26.10" }
+      - name: Check formatting (gofmt)
+        run: test -z "$(gofmt -l .)"
+      - name: Go vet
+        run: go vet ./...
+
   supply-chain:
     runs-on: ubuntu-24.04
     steps:
@@ -28,6 +39,8 @@ jobs:
         with: { name: sbom, path: sbom.cdx.json }
       - name: Local supply-chain checks (go mod verify, build-list SBOM, licenses, secret scan)
         run: OUT=supply-chain-out scripts/supply_chain_local.sh
+      - name: Gate status audit
+        run: python3 tools/gate_status.py
 
   test:
     runs-on: ubuntu-24.04
@@ -46,12 +59,25 @@ jobs:
         with: { go-version: "1.26.10" }
       - name: Cluster roles
         run: PGPASSWORD=ci-only-throwaway-password psql -h localhost -U postgres -d serk_ci -v ON_ERROR_STOP=1 -f deploy/00-roles.sql
-      - run: test -z "$(gofmt -l .)"
-      - run: go vet ./...
       - name: Unit + PostgreSQL integration/adversarial/concurrency tests (race detector)
         env:
           SERK_TEST_ADMIN_DSN: postgres://postgres:ci-only-throwaway-password@localhost:5432/serk_ci?sslmode=disable
-        run: go test -race -count=1 ./...
+        run: |
+          mkdir -p test-logs
+          go test -race -count=1 -p 1 -v ./... | tee test-logs/test-run.log
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with: { name: test-logs, path: test-logs/test-run.log }
       - name: Production configuration refuses demo defaults
         run: go test -count=1 -run 'Manifest|Demo|ProductionRules' ./internal/config/
-      - run: CGO_ENABLED=0 go build -trimpath ./cmd/...
+      - name: Build binaries
+        run: CGO_ENABLED=0 go build -trimpath ./cmd/...
+
+  image:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build Docker images
+        run: |
+          docker build -f deploy/Dockerfile --target devtools -t serk:devtools .
+          docker build -f deploy/Dockerfile -t serk:latest .
