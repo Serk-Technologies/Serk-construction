@@ -94,6 +94,22 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"sod_exception":    {"sod_exceptions", "created_by", ""},
 	// Units of measure (0041).
 	"uom_conversion": {"uom_conversions", "created_by", ""},
+	// Project master (0042).
+	"project_stage_gate": {"project_stage_gates", "created_by", ""},
+	// Cost forecasting (0044).
+	"forecast_cycle": {"forecast_cycles", "created_by", ""},
+	// Change events (0045).
+	"change_event": {"change_events", "created_by", ""},
+	// Notices and claims (0046).
+	"contract_notice": {"contract_notices", "created_by", ""},
+	"contract_claim":  {"contract_claims", "created_by", ""},
+	// Guarantees and price adjustment (0050).
+	"guarantee":          {"guarantees", "created_by", ""},
+	"price_index_value":  {"price_index_values", "created_by", ""},
+	"escalation_formula": {"escalation_formulas", "created_by", ""},
+	"price_adjustment":   {"price_adjustments", "created_by", ""},
+	// Liquidated damages terms (0051).
+	"ld_terms": {"contract_ld_terms", "created_by", ""},
 }
 
 // DocTypes reports whether a document type is known (for callers that must
@@ -348,6 +364,16 @@ var listSQL = map[string]string{
 	"delegation":            `SELECT d.id::text, 'DEL-' || substr(d.id::text, 1, 8), d.status, d.created_by, d.created_at, '', 0::numeric, d.delegator || ' -> ' || d.delegate || ' (' || array_to_string(d.perms, ', ') || ')' FROM delegations d`,
 	"sod_exception":         `SELECT e.id::text, 'SOD-' || substr(e.id::text, 1, 8), e.status, e.created_by, e.created_at, '', 0::numeric, e.user_id || ': ' || e.perm_a || ' + ' || e.perm_b FROM sod_exceptions e`,
 	"uom_conversion":        `SELECT c.id::text, 'UOM-' || substr(c.id::text, 1, 8), c.status, c.created_by, c.created_at, '', 0::numeric, '1 ' || c.from_uom || ' = ' || c.factor::text || ' ' || c.to_uom || COALESCE(' (' || (SELECT code FROM stock_items i WHERE i.id = c.stock_item_id) || ')', ' (all items)') FROM uom_conversions c`,
+	"project_stage_gate":    `SELECT g.id::text, 'GATE-' || substr(g.id::text, 1, 8), g.status, g.created_by, g.created_at, g.project_id::text, 0::numeric, (SELECT code FROM projects WHERE id = g.project_id) || ': ' || g.from_phase || ' -> ' || g.to_phase FROM project_stage_gates g`,
+	"forecast_cycle":        `SELECT f.id::text, 'FC-' || to_char(f.period_end, 'YYYY-MM'), f.status, f.created_by, f.created_at, f.project_id::text, COALESCE((SELECT sum(eac) FROM forecast_lines l WHERE l.cycle_id = f.id), 0), (SELECT code FROM projects WHERE id = f.project_id) || ' forecast at completion for ' || f.period_end FROM forecast_cycles f`,
+	"change_event":          `SELECT e.id::text, e.number, e.status, e.created_by, e.created_at, e.project_id::text, COALESCE((SELECT sum(cost_impact) FROM change_event_lines l WHERE l.event_id = e.id), 0), e.source || ' — ' || e.title FROM change_events e`,
+	"contract_notice":       `SELECT n.id::text, n.number, n.status, n.created_by, n.created_at, c.project_id::text, 0::numeric, n.clause_ref || ' — ' || n.subject || ' (notify by ' || n.due_on || ')' FROM contract_notices n JOIN contracts c ON c.id = n.contract_id`,
+	"contract_claim":        `SELECT k.id::text, k.number, k.status, k.created_by, k.created_at, c.project_id::text, k.amount, k.kind || ' — ' || k.title || CASE WHEN k.days > 0 THEN ' (' || k.days || ' days)' ELSE '' END || COALESCE(' — client: ' || lower(k.client_outcome), '') FROM contract_claims k JOIN contracts c ON c.id = k.contract_id`,
+	"guarantee":             `SELECT g.id::text, g.number, g.status, g.created_by, g.created_at, c.project_id::text, g.amount, initcap(g.kind) || ' — ' || g.issuer || ' ' || g.reference || ' (expires ' || g.expires_on || ')' FROM guarantees g JOIN contracts c ON c.id = g.contract_id`,
+	"price_index_value":     `SELECT v.id::text, v.index_code || ' ' || to_char(v.period, 'YYYY-MM'), v.status, v.created_by, v.created_at, '', v.value, x.name || ' — ' || v.source_ref FROM price_index_values v JOIN price_indices x ON x.code = v.index_code`,
+	"escalation_formula":    `SELECT f.id::text, f.number, f.status, f.created_by, f.created_at, c.project_id::text, f.fixed_portion, c.number || ' — fixed ' || f.fixed_portion || ', base ' || to_char(f.base_period, 'YYYY-MM') || ' (' || (SELECT string_agg(t.index_code || ' ' || t.weight, ', ' ORDER BY t.index_code) FROM escalation_terms t WHERE t.formula_id = f.id) || ')' FROM escalation_formulas f JOIN contracts c ON c.id = f.contract_id`,
+	"price_adjustment":      `SELECT a.id::text, a.number, a.status, a.created_by, a.created_at, c.project_id::text, a.amount, i.number || ' — factor ' || a.factor || ' on ' || a.base_value || ' (indices ' || to_char(a.current_period, 'YYYY-MM') || ')' FROM price_adjustments a JOIN contracts c ON c.id = a.contract_id JOIN ipcs i ON i.id = a.ipc_id`,
+	"ld_terms":              `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, c.project_id::text, t.rate_per_day, c.number || ' — complete by ' || t.completion_date || ', ' || t.rate_per_day || ' a day, cap ' || t.cap_amount || ' (clause ' || t.clause_ref || ')' FROM contract_ld_terms t JOIN contracts c ON c.id = t.contract_id`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,
 	       s.imported_by, s.imported_at, '', l.amount, l.reference || ' — ' || l.counterparty FROM bank_statement_lines l JOIN bank_statements s ON s.id = l.statement_id WHERE l.amount > 0`,

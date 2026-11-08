@@ -52,6 +52,7 @@ var StagingPersonas = []Persona{
 	{"u-planner", "Planner", []string{"planner"}, true},
 	{"u-site-engineer", "Site engineer", []string{"site_engineer"}, true},
 	{"u-buyer", "Procurement officer", []string{"procurement_officer"}, true},
+	{"u-buyer-2", "Procurement officer (second)", []string{"procurement_officer"}, true},
 	{"u-proc-manager", "Procurement manager", []string{"procurement_manager"}, true},
 	{"u-storekeeper", "Storekeeper", []string{"storekeeper"}, true},
 	{"u-inventory", "Inventory controller", []string{"inventory_controller"}, true},
@@ -60,6 +61,7 @@ var StagingPersonas = []Persona{
 	{"u-ap-clerk", "AP clerk", []string{"ap_clerk"}, true},
 	{"u-ap-supervisor", "AP supervisor", []string{"ap_supervisor"}, true},
 	{"u-ar-clerk", "AR clerk", []string{"ar_clerk"}, false},
+	{"u-ar-clerk-2", "AR clerk (second)", []string{"ar_clerk"}, false},
 	{"u-ar-supervisor", "AR supervisor", []string{"ar_supervisor"}, false},
 	{"u-treasury", "Treasury officer", []string{"treasury_officer"}, false},
 	{"u-treasury-2", "Treasury officer (second)", []string{"treasury_officer"}, false},
@@ -162,6 +164,10 @@ func (s *Server) registerStaging() {
 			return
 		}
 		s.cfg.Logger.Info("security", "event", "staging_token_issued", "persona", p.ID, "tenant", company.ID)
+		// Test personas appear in the people directory under their duty.
+		if s.cfg.Kernel != nil {
+			_ = s.cfg.Kernel.NameIfBlank(r.Context(), company.ID, p.ID, p.Label)
+		}
 		writeJSON(w, http.StatusOK, map[string]any{"token": tok, "expires_at": now.Add(sl.TTL).UTC().Format(time.RFC3339)})
 	})
 }

@@ -546,6 +546,12 @@ func (s *Service) findings(ctx context.Context, tx pgx.Tx, c automation.Conditio
 					Title: fmt.Sprintf("%s %s: %s %s is below %s", pr.Code, pr.Name, label, idx.Round(3).String(), c.Ratio.String()), Href: "#/evm"})
 			}
 		}
+	case automation.NoticeDue, automation.ObligationDue, automation.GuaranteeExpiring:
+		found, err := deadlineFindings(ctx, tx, c.Kind, now, c.Days)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, found...)
 	case automation.ExportVolume:
 		counts, err := postgres.ExportCounts(ctx, tx)
 		if err != nil {
@@ -650,4 +656,54 @@ func (s *Service) RecordExport(ctx context.Context, p auth.Principal, subject st
 		return err
 	}
 	return over
+}
+
+// deadlineFindings: unsent notices, open obligations and guarantees in force
+// whose date falls within days of now (late ones included). The key is the
+// alert stage, so a subject is announced again at 14, 7 and 2 days and when late.
+func deadlineFindings(ctx context.Context, tx pgx.Tx, kind automation.Kind, now time.Time, days int) ([]automation.Finding, error) {
+	var q, typ string
+	switch kind {
+	case automation.NoticeDue:
+		typ = "contract_notice"
+		q = `SELECT n.id::text, c.project_id::text, n.number || ' (' || c.number || ', clause ' || n.clause_ref || ')', n.subject, n.due_on FROM contract_notices n JOIN contracts c ON c.id = n.contract_id
+			WHERE n.status = 'OPEN' AND n.due_on <= $1::date + $2::int`
+	case automation.ObligationDue:
+		typ = "contract_obligation"
+		q = `SELECT o.id::text, c.project_id::text, o.number || ' (' || c.number || ', clause ' || o.clause_ref || ', owner ' || o.owner || ')', o.description, o.due_on FROM contract_obligations o JOIN contracts c ON c.id = o.contract_id
+			WHERE o.status = 'OPEN' AND o.due_on <= $1::date + $2::int`
+	default:
+		typ = "guarantee"
+		q = `SELECT g.id::text, c.project_id::text, g.number || ' (' || c.number || ')', initcap(g.kind) || ' guarantee ' || g.reference || ' from ' || g.issuer || ': ' || g.amount || ' ' || g.currency, g.expires_on FROM guarantees g JOIN contracts c ON c.id = g.contract_id
+			WHERE g.status = 'ACTIVE' AND g.expires_on <= $1::date + $2::int`
+	}
+	rows, err := tx.Query(ctx, q, now, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	var out []automation.Finding
+	for rows.Next() {
+		var id, project, ref, body string
+		var due time.Time
+		if err := rows.Scan(&id, &project, &ref, &body, &due); err != nil {
+			return nil, err
+		}
+		left := int(due.Sub(today).Hours() / 24)
+		state := fmt.Sprintf("due %s (%d days)", due.Format("2 Jan 2006"), left)
+		if kind == automation.GuaranteeExpiring {
+			state = fmt.Sprintf("expires %s (%d days)", due.Format("2 Jan 2006"), left)
+		}
+		if left < 0 {
+			state = fmt.Sprintf("%d days late (%s)", -left, due.Format("2 Jan 2006"))
+		}
+		href := "#/doc/" + typ + "/" + id
+		if typ == "contract_obligation" {
+			href = "#/obligations"
+		}
+		out = append(out, automation.Finding{SubjectType: typ, SubjectID: id, ProjectID: project, Key: automation.DeadlineBucket(left),
+			Title: fmt.Sprintf("%s %s: %s", words(typ), ref, state), Body: body, Href: href})
+	}
+	return out, rows.Err()
 }

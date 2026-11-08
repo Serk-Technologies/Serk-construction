@@ -85,7 +85,7 @@ idempotent; running it again just reports the existing ids.
 
 ## 2. Signing in
 
-**Easiest:** the console's persona sign-in (26 test users, one shared passphrase). All
+**Easiest:** the console's persona sign-in (28 test users, one shared passphrase). All
 credentials and a step-by-step test guide are in [testmanual.md](testmanual.md).
 
 Or paste a bearer token: the console holds no credentials of its own. Mint one inside a

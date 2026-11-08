@@ -42,10 +42,16 @@ const (
 	CostRisk Kind = "cost_risk"
 	// ExportVolume: a person who exported more than Count files in 24 hours.
 	ExportVolume Kind = "export_volume"
+	// NoticeDue: contract notices not yet sent, due within a number of days (0051).
+	NoticeDue Kind = "notice_due"
+	// ObligationDue: open contract obligations due within a number of days (0051).
+	ObligationDue Kind = "obligation_due"
+	// GuaranteeExpiring: guarantees in force expiring within a number of days (0050).
+	GuaranteeExpiring Kind = "guarantee_expiring"
 )
 
 // Kinds lists the catalogue in display order.
-var Kinds = []Kind{DocumentStale, InvoiceDue, ReceivableOverdue, POOverdue, BudgetThreshold, StockBelow, ScheduleRisk, CostRisk, ExportVolume}
+var Kinds = []Kind{DocumentStale, InvoiceDue, ReceivableOverdue, POOverdue, BudgetThreshold, StockBelow, ScheduleRisk, CostRisk, ExportVolume, NoticeDue, ObligationDue, GuaranteeExpiring}
 
 // Describe explains a kind and its parameters for the console.
 func Describe(k Kind) string {
@@ -68,6 +74,12 @@ func Describe(k Kind) string {
 		return "Projects with a baseline whose cost performance index is below a ratio (ratio)."
 	case ExportVolume:
 		return "A person who exported more than a number of files in the last 24 hours (count). Addressed to security."
+	case NoticeDue:
+		return "Contract notices not yet sent whose time bar falls within a number of days, including overdue ones (days). Alerts again at 14, 7 and 2 days and when overdue."
+	case ObligationDue:
+		return "Open contract obligations due within a number of days, including overdue ones (days). Alerts again at 14, 7 and 2 days and when overdue."
+	case GuaranteeExpiring:
+		return "Guarantees in force that expire within a number of days, including expired ones not yet released (days). Alerts again at 14, 7 and 2 days and when expired."
 	}
 	return ""
 }
@@ -159,6 +171,10 @@ func (r Rule) Validate() error {
 		if !c.Ratio.IsPositive() || c.Ratio.GreaterThan(decimal.NewFromInt(10)) {
 			return bad("ratio must be between 0 and 10")
 		}
+	case NoticeDue, ObligationDue, GuaranteeExpiring:
+		if c.Days < 0 || c.Days > 365 {
+			return bad("days must be 0..365")
+		}
 	case ExportVolume:
 		if c.Count < 1 || c.Count > 100000 {
 			return bad("count must be 1..100000")
@@ -220,4 +236,20 @@ func (c Condition) Horizon(now time.Time) string {
 		return "last 24 hours"
 	}
 	return "now"
+}
+
+// DeadlineBucket names the alert stage of a deadline days away: a finding's
+// key, so the same subject alerts again at 14, 7 and 2 days and when late.
+func DeadlineBucket(daysLeft int) string {
+	switch {
+	case daysLeft < 0:
+		return "overdue"
+	case daysLeft <= 2:
+		return "2d"
+	case daysLeft <= 7:
+		return "7d"
+	case daysLeft <= 14:
+		return "14d"
+	}
+	return "early"
 }

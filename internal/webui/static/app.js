@@ -149,6 +149,32 @@ const DOCS = {
   budget_transfer: { title: 'Budget transfers', one: 'Budget transfer', base: '/v1/budgets/transfers', create: 'budget.transfer', form: 'budget_transfer',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'budget.transfer']], SUBMITTED: [['approve', 'budget.approve', 'opt'], ['reject', 'budget.approve', 'req']] } },
+  project_stage_gate: { title: 'Stage gates', one: 'Stage gate', base: '/v1/project-gates', create: 'project.gate.submit', form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'project.gate.submit']], SUBMITTED: [['approve', 'project.gate.decide', 'opt'], ['reject', 'project.gate.decide', 'req']] } },
+  forecast_cycle: { title: 'Cost forecasts', one: 'Cost forecast', base: '/v1/forecasts', create: 'forecast.prepare', form: 'forecast',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'forecast.prepare'], ['cancel', 'forecast.prepare', 'req']], SUBMITTED: [['approve', 'forecast.approve', 'opt'], ['reject', 'forecast.approve', 'req']] } },
+  change_event: { title: 'Change events', one: 'Change event', base: '/v1/change-events', create: 'change.manage', form: 'change_event',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'change.manage']], SUBMITTED: [['approve', 'change.approve', 'opt'], ['reject', 'change.approve', 'req']] } },
+  contract_notice: { title: 'Contract notices', one: 'Contract notice', base: '/v1/notices', create: 'claim.manage', form: 'notice',
+    statuses: ['OPEN', 'SENT'], actions: {} },
+  contract_claim: { title: 'Claims', one: 'Claim', base: '/v1/claims', create: 'claim.manage', form: 'claim',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
+  ld_terms: { title: 'Damages terms', one: 'Damages terms', base: '/v1/ld-terms', create: 'claim.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
+  guarantee: { title: 'Guarantees', one: 'Guarantee', base: '/v1/guarantees', create: 'bond.manage', form: null, statuses: ['ACTIVE', 'RELEASED', 'CALLED'], actions: {} },
+  price_index_value: { title: 'Index values', one: 'Index value', base: '/v1/price-index-values', create: 'escalation.manage', form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'escalation.manage']], SUBMITTED: [['approve', 'escalation.approve', 'opt'], ['reject', 'escalation.approve', 'req']] } },
+  escalation_formula: { title: 'Price adjustment formulas', one: 'Price adjustment formula', base: '/v1/escalation/formulas', create: 'escalation.manage', form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'escalation.manage']], SUBMITTED: [['approve', 'escalation.approve', 'opt'], ['reject', 'escalation.approve', 'req']] } },
+  price_adjustment: { title: 'Price adjustments', one: 'Price adjustment', base: '/v1/price-adjustments', create: 'escalation.manage', form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'escalation.manage']], SUBMITTED: [['approve', 'escalation.approve', 'opt'], ['reject', 'escalation.approve', 'req']] } },
   uom_conversion: { title: 'Unit conversions', one: 'Unit conversion', base: '/v1/stock/uom-conversions', create: 'stock.item.manage', form: 'uom_conversion',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'stock.item.manage']], SUBMITTED: [['approve', 'stock.item.approve', 'opt'], ['reject', 'stock.item.approve', 'req']] } },
@@ -268,8 +294,8 @@ const ACTION_LABEL = { submit: 'Submit for approval', approve: 'Approve', reject
 // Sidebar: categories in the order work flows through a construction company.
 // Each category folds; the folded set is remembered per browser (NAV_KEY).
 const NAV = [
-  ['Overview', [['#/home', 'My work', null], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
-  ['Projects & planning', [['#/budget', 'Budget overview', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/cost', 'Cost report', 'p2p.read'],
+  ['Overview', [['#/home', 'My work', null], ['#/me', 'My profile', null], ['#/setup', 'Company setup', 'p2p.read|tenant.settings.manage|org.manage'], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
+  ['Projects & planning', [['#/projects', 'Projects', 'p2p.read|project.create|project.update|project.gate.decide'], ['#/list/project_stage_gate', 'Stage gates', 'p2p.read|project.gate.submit|project.gate.decide'], ['#/budget', 'Budget overview', 'p2p.read'], ['#/list/forecast_cycle', 'Cost forecasts', 'p2p.read'], ['#/list/change_event', 'Change events', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/cost', 'Cost report', 'p2p.read'],
     ['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read']]],
   ['Procurement', [['#/list/purchase_requisition', 'Requisitions', 'p2p.read'], ['#/list/rfq', 'RFQs', 'p2p.read'], ['#/list/rfq_quote', 'Quotes', 'p2p.read'],
     ['#/list/purchase_order', 'Purchase orders', 'p2p.read'], ['#/list/supplier', 'Suppliers', 'p2p.read']]],
@@ -279,7 +305,9 @@ const NAV = [
     ['#/list/stock_transfer', 'Transfers', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'],
     ['#/reservations', 'Reservations', 'p2p.read'], ['#/report/low-stock', 'Low stock', 'p2p.read'], ['#/list/uom_conversion', 'Unit conversions', 'p2p.read'],
     ['#/list/stock_item', 'Stock items', 'p2p.read'], ['#/list/warehouse', 'Warehouses', 'p2p.read']]],
-  ['Commercial & revenue', [['#/list/contract', 'Contracts', 'p2p.read'], ['#/list/contract_variation', 'Variations', 'p2p.read'],
+  ['Commercial & revenue', [['#/list/contract', 'Contracts', 'p2p.read'], ['#/list/contract_variation', 'Variations', 'p2p.read'], ['#/list/contract_notice', 'Contract notices', 'p2p.read'], ['#/list/contract_claim', 'Claims', 'p2p.read'],
+    ['#/obligations', 'Contract obligations', 'p2p.read'],
+    ['#/bonds', 'Guarantees & price adjustment', 'p2p.read|bond.manage|bond.approve|escalation.manage|escalation.approve'],
     ['#/list/measurement', 'Measurements', 'p2p.read'], ['#/list/ipc', 'Payment certificates', 'p2p.read'],
     ['#/list/customer_invoice', 'Customer invoices', 'p2p.read'], ['#/list/customer_credit_note', 'Credit notes', 'p2p.read'],
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
@@ -289,9 +317,9 @@ const NAV = [
   ['Treasury & banking', [['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
     ['#/list/supplier_bank_account', 'Supplier banks', 'p2p.read']]],
   ['Accounting', [['#/journals', 'Journals', 'journal.read'], ['#/recon', 'Reconciliation', 'journal.read'], ['#/tb', 'Trial balance', 'journal.read']]],
-  ['Governance', [['#/authority', 'Authority & duties', 'p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
+  ['Governance', [['#/people', 'People & access', 'user.manage|role.manage|audit.read'], ['#/org', 'Organisation & calendar', 'p2p.read|org.manage'], ['#/authority', 'Authority & duties', 'p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
     ['#/list/delegation', 'Delegations', 'delegation.create|delegation.approve'], ['#/list/sod_exception', 'Duty-conflict exceptions', 'authority.manage|authority.approve'],
-    ['#/list/p2p_policy', 'P2P policies', 'scope.tenant_wide'], ['#/list/contract_policy', 'Contract policies', 'scope.tenant_wide'],
+    ['#/imports', 'Data imports', 'supplier.manage|customer.manage|stock.item.manage'], ['#/list/p2p_policy', 'P2P policies', 'scope.tenant_wide'], ['#/list/contract_policy', 'Contract policies', 'scope.tenant_wide'],
     ['#/controls', 'Control review', 'scope.tenant_wide'], ['#/automation', 'Automation rules', 'automation.manage|automation.activate|workflow.read'],
     ['#/settings', 'Company settings', null]]],
 ];
@@ -303,6 +331,14 @@ const QUEUES = [
   ['budget.approve', 'budget_transfer', 'SUBMITTED', 'Budget transfers to approve'],
   ['budget.approve', 'contingency_drawdown', 'SUBMITTED', 'Contingency drawdowns to approve'],
   ['authority.approve', 'authority_matrix', 'SUBMITTED', 'Authority matrices to approve'],
+  ['project.gate.decide', 'project_stage_gate', 'SUBMITTED', 'Stage gates to decide'],
+  ['forecast.approve', 'forecast_cycle', 'SUBMITTED', 'Cost forecasts to approve'],
+  ['change.approve', 'change_event', 'SUBMITTED', 'Change events to decide'],
+  ['claim.approve', 'contract_claim', 'SUBMITTED', 'Claims to approve for sending'],
+  ['claim.approve', 'ld_terms', 'SUBMITTED', 'Damages terms to approve'],
+  ['escalation.approve', 'price_index_value', 'SUBMITTED', 'Index values to approve'],
+  ['escalation.approve', 'escalation_formula', 'SUBMITTED', 'Price adjustment formulas to approve'],
+  ['escalation.approve', 'price_adjustment', 'SUBMITTED', 'Price adjustments to approve'],
   ['delegation.approve', 'delegation', 'SUBMITTED', 'Delegations to approve'],
   ['authority.approve', 'sod_exception', 'SUBMITTED', 'Duty-conflict exceptions to approve'],
   ['boq.approve', 'boq_version', 'SUBMITTED', 'BOQs to approve'],
@@ -496,6 +532,7 @@ function markNav() {
 
 async function route() {
   clearError();
+  closeSheet();
   if (!S.token) return renderSignin();
   markNav();
   const [, view, a, b] = location.hash.split('/');
@@ -510,6 +547,10 @@ async function route() {
       case 'budget': return await renderBudget();
       case 'report': return await renderCatalogueReport(a);
       case 'reservations': return await renderReservations();
+      case 'projects': return await renderProjects();
+      case 'setup': return await renderSetup();
+      case 'imports': return await renderImports(a);
+      case 'org': return await renderOrg();
       case 'dashboard': return await renderDashboard(a);
       case 'authority': return await renderAuthority();
       case 'cost': return await renderCost(a);
@@ -524,6 +565,10 @@ async function route() {
       case 'controls': return await renderControls();
       case 'automation': return await renderAutomation();
       case 'settings': return await renderSettings();
+      case 'people': return await renderPeople(a);
+      case 'me': return await renderMe();
+      case 'bonds': return await renderBonds(a);
+      case 'obligations': return await renderObligations();
       default: return await renderHome();
     }
   } catch (e) {
@@ -546,7 +591,9 @@ function renderSignin(msg) {
       S.ref = S.can.has('p2p.read') ? await api('GET', '/v1/p2p-reference') : { legal_entities: [], projects: [], accounts: [] };
       try { S.company = await api('GET', '/v1/tenant/settings'); } catch { S.company = null; }
       brandCompany();
-      $('who-name').textContent = `${S.me.user_id} · ${S.me.roles.join(', ')}`;
+      paintWho(S.me.user_id);
+      $('mebtn').title = `Your profile — ${S.me.roles.join(', ') || 'no role'}`;
+      api('GET', '/v1/me/profile').then((pr) => { if (pr.display_name) paintWho(pr.display_name); }).catch(() => { /* the id is shown */ });
       $('who-mfa').hidden = !S.me.mfa;
       $('who').hidden = false;
       buildNav();
@@ -752,12 +799,47 @@ async function renderDoc(type, id) {
       h('p', {}, chip(md.status || head.match_status), ` price tolerance ${(Number(md.price_tolerance_pct) * 100).toFixed(2)}% · VAT ${(Number(md.vat_rate) * 100).toFixed(2)}% · policy version ${md.policy_version}`),
       rowsTable('Invoice against purchase order and confirmed receipts', md.lines)));
   }
-  parts.push(rowsTable('Lines', det.lines), rowsTable('Items', det.items), rowsTable('Allocations', det.alloc),
+  if (type === 'forecast_cycle') parts.push(await forecastPanel(d)); else parts.push(rowsTable('Lines', det.lines));
+  parts.push(rowsTable('Items', det.items), rowsTable('Allocations', det.alloc),
     rowsTable('Activities (critical path computed; the database re-verifies it)', det.activities), rowsTable('Dependencies', det.links),
     rowsTable('Labour (this version)', det.labour), rowsTable('Equipment (this version)', det.equipment));
   if (Array.isArray(det.quotes)) parts.push(rowsTable('Quotes received', det.quotes.map((x) => x.q)));
   if (det.payee) parts.push(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Payee (approved bank account)'), kv(det.payee)));
-  if (type === 'contract' && d.status === 'ACTIVE') parts.push(await positionPanel(d.id));
+  if (type === 'contract' && d.status === 'ACTIVE') parts.push(await positionPanel(d.id), await timePanel(d.id));
+  if (type === 'change_event' && d.status === 'APPROVED') {
+    const ce = await api('GET', `/v1/change-events/${d.id}`);
+    parts.push(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Effect on the budget'),
+      h('p', {}, `Cost impact ${money(ce.total_cost_impact)} · revenue impact ${money(ce.revenue_impact)} · margin impact ${money(ce.margin_impact)} · schedule ${ce.schedule_impact_days} day(s).`),
+      ce.budget_version_id ? h('p', {}, 'A budget revision for the cost lines was drafted. The budget moves only when it is submitted and approved: ', h('a', { href: `#/doc/budget_version/${ce.budget_version_id}` }, 'open the drafted revision'), '.')
+        : h('p', { class: 'hint' }, 'This change event has no cost lines, so no budget revision was drafted.')));
+  }
+  if (type === 'contract_notice' && d.status === 'OPEN' && S.can.has('claim.manage')) {
+    const on = input('sent_on', { type: 'date', required: true, value: new Date().toISOString().slice(0, 10) });
+    const btn = h('button', { type: 'button', class: 'primary' }, 'Record as sent');
+    btn.addEventListener('click', async () => {
+      clearError();
+      try { await api('POST', `/v1/notices/${d.id}/send`, { sent_on: on.value }); say('Notice recorded as sent.'); route(); } catch (e) { showError(e); }
+    });
+    parts.push(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record sending'), h('p', { class: 'hint' }, 'Enter the day the notice was actually sent. It cannot be in the future or before the event, and it is recorded once.'), h('div', { class: 'actions' }, field('Date sent', on), btn)));
+  }
+  if (type === 'contract_claim' && d.status === 'APPROVED' && !head.client_outcome && S.can.has('claim.manage')) {
+    const out = select('outcome', [['AGREED', 'Agreed'], ['REJECTED', 'Rejected'], ['DISPUTED', 'Disputed']].map(([value, label]) => ({ value, label })));
+    const ref = input('client_reference', { type: 'text', required: true, maxlength: '100', placeholder: 'The client\'s letter or reference' });
+    const amt = input('agreed_amount', { type: 'number', step: '0.01', min: '0', value: '0' });
+    const dd = input('agreed_days', { type: 'number', step: '1', min: '0', value: '0' });
+    const on = input('outcome_on', { type: 'date', required: true, value: new Date().toISOString().slice(0, 10) });
+    const btn = h('button', { type: 'button', class: 'primary' }, 'Record the answer');
+    btn.addEventListener('click', async () => {
+      clearError();
+      try {
+        await api('POST', `/v1/claims/${d.id}/outcome`, { outcome: out.value, client_reference: ref.value.trim(), agreed_amount: out.value === 'AGREED' ? amt.value || '0' : '0', agreed_days: out.value === 'AGREED' ? Number(dd.value || 0) : 0, outcome_on: on.value });
+        say('The client\'s answer was recorded.'); route();
+      } catch (e) { showError(e); }
+    });
+    parts.push(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'The client\'s answer'),
+      h('p', { class: 'hint' }, 'Record what the client decided, once. Agreed money and days cannot exceed what was claimed.'),
+      h('div', { class: 'grid' }, field('Outcome', out), field('Client reference', ref), field('Agreed amount', amt), field('Agreed days', dd), field('Date of answer', on)), h('div', { class: 'actions' }, btn)));
+  }
   parts.push(actionsPanel(type, d, det), nextSteps(type, d), revealPanel(type, d));
   const docTitle = `${meta.one} ${d.number || head.code || (head.version ? 'v' + head.version : '')}`.trim();
   parts.unshift(h('div', { class: 'toolbar' }, h('span', { class: 'spacer' }), exportBar(`/v1/p2p/${type}/${id}`, docTitle, { entity: () => head.legal_entity_id || '' })));
@@ -786,6 +868,57 @@ function revealPanel(type, d) {
   return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Bank details'),
     h('p', { class: 'hint' }, 'Account numbers are masked. Revealing one requires a recent multi-factor sign-in and is audited.'),
     h('div', { class: 'actions' }, field('Purpose of the reveal', purpose), btn), out);
+}
+
+// The forecast page: each cost code's budget, cost to date and commitments (frozen
+// by the database), the method that sets the estimate to complete, and the
+// resulting estimate at completion (EAC) and variance (VAC = budget - EAC).
+async function forecastPanel(d) {
+  const c = await api('GET', `/v1/forecasts/${d.id}`);
+  const edit = d.status === 'DRAFT' && c.created_by === S.me.user_id && S.can.has('forecast.prepare');
+  const METHODS = [['REMAINING_BUDGET', 'Remaining budget'], ['OPEN_COMMITMENTS', 'Open commitments only'], ['MANUAL', 'Manual estimate']];
+  const cols = [
+    { label: 'Cost code', cell: (l) => l.cost_code },
+    { label: 'Current budget', num: true, cell: (l) => money(l.budget) },
+    { label: 'Committed', num: true, cell: (l) => (l.total ? '' : money(l.committed)) },
+    { label: 'Cost to date', num: true, cell: (l) => money(l.cost_to_date) },
+    { label: 'Method', cell: (l) => (l.total ? '' : edit ? methodCell(l) : words(l.method.toLowerCase())) },
+    { label: 'Estimate to complete', num: true, cell: (l) => money(l.etc) },
+    { label: 'Estimate at completion', num: true, cell: (l) => money(l.eac) },
+    { label: 'Variance (budget - EAC)', num: true, cell: (l) => money(l.vac) },
+    { label: 'Why / note', cell: (l) => (l.total ? '' : edit ? noteCell(l) : l.note || '') },
+  ];
+  const rows = !(c.lines || []).length ? [] : [...c.lines, { cost_code: 'Total', budget: c.total_budget, committed: '', cost_to_date: c.total_cost_to_date, method: '', etc: c.total_etc, eac: c.total_eac, vac: c.total_vac, note: '', total: true }];
+  const cells = new Map();
+  const save = async (l, method, manual, note) => {
+    clearError();
+    try {
+      await api('PUT', `/v1/forecasts/${d.id}/lines/${l.cost_code_id}`, { method, manual_etc: method === 'MANUAL' ? manual : null, note });
+      say(`${l.cost_code} updated.`);
+      route();
+    } catch (e) { showError(e); }
+  };
+  function methodCell(l) {
+    const sel = select('method', METHODS.map(([value, label]) => ({ value, label })), { 'aria-label': `Method for ${l.cost_code}` });
+    sel.value = l.method;
+    const man = input('manual_etc', { type: 'number', step: '0.01', min: '0', value: l.manual_etc || '', 'aria-label': `Manual estimate to complete for ${l.cost_code}`, size: '10' });
+    man.hidden = l.method !== 'MANUAL';
+    sel.addEventListener('change', () => { man.hidden = sel.value !== 'MANUAL'; if (sel.value !== 'MANUAL') save(l, sel.value, null, (cells.get(l.cost_code_id) || {}).value || l.note || ''); else man.focus(); });
+    man.addEventListener('change', () => save(l, 'MANUAL', man.value, (cells.get(l.cost_code_id) || {}).value || l.note || ''));
+    return h('span', {}, sel, ' ', man);
+  }
+  function noteCell(l) {
+    const n = input('note', { type: 'text', value: l.note || '', maxlength: '500', 'aria-label': `Note for ${l.cost_code}`, placeholder: Number(l.eac) > Number(l.budget) ? 'Required: why over budget' : '' });
+    cells.set(l.cost_code_id, n);
+    n.addEventListener('change', () => save(l, l.method, l.manual_etc, n.value.trim()));
+    return n;
+  }
+  const over = (c.lines || []).filter((l) => Number(l.eac) > Number(l.budget)).length;
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, `Forecast at completion as at ${c.period_end}`),
+    h('p', { class: 'hint' }, edit
+      ? `Change a line's method or add a note; each change saves at once and the figures are recomputed by the database. ${over ? over + ' line(s) are forecast above budget and need an explanation before you can submit.' : ''}`
+      : 'Figures are frozen by the database from the cost position when the line was last saved. A negative variance is a forecast overrun.'),
+    table('Estimate at completion by cost code', cols, rows, 'No cost codes have money on them yet.'));
 }
 
 async function positionPanel(id) {
@@ -1136,6 +1269,120 @@ const FORMS = {
         await api('PUT', '/v1/stock/reorder-rules', { warehouse_id: wh.value, stock_item_id: item.value, min_qty: min.value.trim(), max_qty: max.value.trim(), reorder_qty: re.value.trim() });
         say('Reorder rule saved.');
         location.hash = '#/report/low-stock';
+      });
+  },
+
+  async project() {
+    const [regions, units, customers] = await Promise.all([api('GET', '/v1/org/regions'), api('GET', '/v1/org/business-units'), docOpts('customer', 'ACTIVE')]);
+    const f = projectFields(null, regions.items, units.items, customers);
+    formPage('New project', 'Creates the project PLANNED, in phase BID. It takes no part in costs until it passes its first stage gate (a different person approves it). The code and company cannot be changed later.',
+      [f.grid], 'Create project', async () => {
+        const res = await api('POST', '/v1/projects', f.body());
+        say('Project created.');
+        location.hash = '#/projects';
+        return res;
+      });
+  },
+
+  async projectedit(id) {
+    const [pl, regions, units, customers] = await Promise.all([api('GET', '/v1/projects'), api('GET', '/v1/org/regions'), api('GET', '/v1/org/business-units'), docOpts('customer', 'ACTIVE')]);
+    const pr = pl.projects.find((x) => x.id === id);
+    if (!pr) { page('Project', 'This project does not exist or is not in your scope.'); return; }
+    const f = projectFields(pr, regions.items, units.items, customers);
+    formPage(`Edit ${pr.code}`, 'Changes the project\'s details. The code, company and phase are fixed here: the phase moves only through a stage gate.', [f.grid], 'Save changes', async () => {
+      await api('PUT', `/v1/projects/${id}`, f.body());
+      say('Project updated.');
+      location.hash = '#/projects';
+    });
+  },
+
+  async change_event() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '200' });
+    const src = select('source', [['RFI', 'Request for information'], ['SITE_INSTRUCTION', 'Site instruction'], ['CLIENT', 'Client request'], ['DESIGN', 'Design change'], ['INTERNAL', 'Internal']].map(([value, label]) => ({ value, label })), { required: true });
+    const desc = input('description', { type: 'text', required: true, minlength: '5', maxlength: '2000', placeholder: 'What changed and why' });
+    const rev = input('revenue_impact', { type: 'number', step: '0.01', value: '0' });
+    const days = input('schedule_impact_days', { type: 'number', step: '1', value: '0' });
+    let grid;
+    const holder = h('div');
+    const load = async () => {
+      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+      grid = lineGrid('Expected cost impact by cost code (more cost is positive, a saving is negative)', [
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+        { key: 'cost_impact', label: 'Cost impact', make: num('cost_impact') },
+        { key: 'note', label: 'Note', make: txt('note', { maxlength: '200' }) },
+      ], [], true);
+      holder.replaceChildren(grid);
+    };
+    proj.addEventListener('change', load);
+    formPage('Raise a change event', 'Record a change to the money or time of a project before it is agreed. A different person decides it with a fresh multi-factor sign-in; if it has cost lines, approval drafts the budget revision that carries them (a draft only: the budget moves when that revision is approved).',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Title', title), field('Source', src), field('Description', desc), field('Revenue impact (what the client pays; signed)', rev), field('Schedule impact (days; signed)', days)), holder], 'Create change event', async () => {
+        const lines = grid.rows().filter((r) => r.cost_impact !== '' && Number(r.cost_impact) !== 0);
+        const res = await api('POST', '/v1/change-events', { project_id: proj.value, title: title.value.trim(), source: src.value, description: desc.value.trim(),
+          revenue_impact: rev.value || '0', schedule_impact_days: Number(days.value || 0), lines });
+        created('change_event', res, 'Change event');
+      });
+    await load();
+  },
+
+  async notice() {
+    const ctr = select('contract_id', await docOpts('contract', 'ACTIVE'), { required: true });
+    const clause = input('clause_ref', { type: 'text', required: true, maxlength: '100', placeholder: 'e.g. 20.1' });
+    const subject = input('subject', { type: 'text', required: true, minlength: '3', maxlength: '300', placeholder: 'What happened' });
+    const ev = input('event_date', { type: 'date', required: true, value: new Date().toISOString().slice(0, 10) });
+    const days = input('due_days', { type: 'number', min: '1', max: '365', value: '28' });
+    formPage('Raise a contract notice', 'Record an event that may entitle the contractor to time or money. The system computes the date by which the contract requires it to be notified (event date + days) and tracks it: open, due soon, overdue or sent. Send the notice, then record the day you sent it.',
+      [h('div', { class: 'grid' }, field('Contract', ctr), field('Clause', clause), field('What happened', subject), field('Date of the event', ev), field('Days allowed to notify', days))], 'Create notice', async () => {
+        const res = await api('POST', '/v1/notices', { contract_id: ctr.value, clause_ref: clause.value.trim(), subject: subject.value.trim(), event_date: ev.value, due_days: Number(days.value || 28) });
+        created('contract_notice', res, 'Notice');
+      });
+  },
+
+  async claim() {
+    const ctr = select('contract_id', await docOpts('contract', 'ACTIVE'), { required: true });
+    const notice = select('notice_id', [{ value: '', label: 'No notice' }]);
+    const kind = select('kind', [['TIME', 'Time (extension)'], ['COST', 'Cost'], ['BOTH', 'Time and cost']].map(([value, label]) => ({ value, label })), { required: true });
+    const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '200' });
+    const desc = input('description', { type: 'text', required: true, minlength: '10', maxlength: '4000', placeholder: 'The basis of the claim' });
+    const amount = input('amount', { type: 'number', step: '0.01', min: '0', value: '0' });
+    const days = input('days', { type: 'number', step: '1', min: '0', value: '0' });
+    const waiver = input('waiver_reason', { type: 'text', maxlength: '500', placeholder: 'Required if the notice is missing or was sent late' });
+    const loadNotices = async () => {
+      const list = ctr.value ? (await api('GET', `/v1/notices?contract=${ctr.value}`)).notices || [] : [];
+      notice.replaceChildren(h('option', { value: '' }, 'No notice'), ...list.map((n) => h('option', { value: n.id }, `${n.number} — ${n.subject} (${words(n.standing.toLowerCase())})`)));
+    };
+    ctr.addEventListener('change', loadNotices);
+    formPage('Prepare a claim', 'A claim for time, cost or both. Time needs days, cost needs an amount. Link the notice it follows: if the notice is missing or was sent late the claim cannot be submitted without a reason (for example a written waiver of the time bar). A different person approves it for sending to the client with a fresh multi-factor sign-in.',
+      [h('div', { class: 'grid' }, field('Contract', ctr), field('Notice', notice), field('Kind', kind), field('Title', title), field('Basis', desc), field('Amount claimed', amount), field('Days claimed', days), field('Why it stands without a timely notice', waiver))], 'Create claim', async () => {
+        const res = await api('POST', '/v1/claims', { contract_id: ctr.value, notice_id: notice.value, kind: kind.value, title: title.value.trim(), description: desc.value.trim(),
+          amount: kind.value === 'TIME' ? '0' : amount.value || '0', days: kind.value === 'COST' ? 0 : Number(days.value || 0), waiver_reason: waiver.value.trim() });
+        created('contract_claim', res, 'Claim');
+      });
+    await loadNotices();
+  },
+
+  async forecast() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const end = input('period_end', { type: 'date', value: new Date().toISOString().slice(0, 10), required: true });
+    const note = input('note', { type: 'text', maxlength: '500', placeholder: 'Optional: what this forecast assumes' });
+    formPage('Prepare a cost forecast', 'Opens this month\'s forecast for a project with every cost code that has money on it. The system fills in cost to date, commitments and the estimate to complete; you then adjust each line before submitting it for a different person to approve.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Forecast as at (month end)', end), field('Note', note))], 'Create forecast', async () => {
+        const res = await api('POST', `/v1/projects/${proj.value}/forecasts`, { period_end: end.value, note: note.value.trim() });
+        created('forecast_cycle', res, 'Cost forecast');
+      });
+  },
+
+  async stagegate(id) {
+    const pl = await api('GET', '/v1/projects');
+    const pr = pl.projects.find((x) => x.id === id);
+    if (!pr) { page('Stage gate', 'This project does not exist or is not in your scope.'); return; }
+    const next = { BID: ['MOBILISATION', 'CLOSED'], MOBILISATION: ['EXECUTION'], EXECUTION: ['PRACTICAL_COMPLETION'], PRACTICAL_COMPLETION: ['DEFECTS'], DEFECTS: ['CLOSED'] }[pr.phase] || [];
+    const to = select('to_phase', next.map((v) => ({ value: v, label: words(v.toLowerCase()) })), { required: true });
+    const notes = input('notes', { type: 'text', required: true, minlength: '5', maxlength: '1000', placeholder: 'The evidence for passing this gate' });
+    formPage(`Stage gate for ${pr.code}`, `The project is in phase ${words(pr.phase.toLowerCase())}. Prepare the step to the next phase with the evidence for it; a different person decides it with a fresh multi-factor sign-in, and the project moves only then.`,
+      [h('div', { class: 'grid' }, field('Move to', to), field('Evidence', notes))], 'Create gate', async () => {
+        const res = await api('POST', `/v1/projects/${id}/gates`, { to_phase: to.value, notes: notes.value.trim() });
+        created('project_stage_gate', res, 'Stage gate');
       });
   },
 
@@ -2059,13 +2306,20 @@ async function renderDashboard(preset) {
   preset = ['executive', 'project', 'finance', 'procurement'].includes(preset) ? preset : 'executive';
   const params = new URLSearchParams(location.hash.split('?')[1] || '');
   const entity = params.get('entity') || '';
-  const q = `?preset=${preset}${entity ? '&entity_id=' + encodeURIComponent(entity) : ''}`;
+  const region = params.get('region') || '';
+  const unitF = params.get('unit') || '';
+  const q = `?preset=${preset}${entity ? '&entity_id=' + encodeURIComponent(entity) : ''}${region ? '&region_id=' + region : ''}${unitF ? '&business_unit_id=' + unitF : ''}`;
   const d = await api('GET', '/v1/dashboard' + q);
-  const view = (name) => h('a', { class: 'btn' + (name === preset ? ' primary' : ' ghost'), href: `#/dashboard/${name}${entity ? '?entity=' + entity : ''}`, 'aria-current': name === preset ? 'true' : null },
+  const view = (name) => h('a', { class: 'btn' + (name === preset ? ' primary' : ' ghost'), href: `#/dashboard/${name}${entity || region || unitF ? '?entity=' + entity + (region ? '&region=' + region : '') + (unitF ? '&unit=' + unitF : '') : ''}`, 'aria-current': name === preset ? 'true' : null },
     { executive: 'Executive', project: 'Project', finance: 'Finance', procurement: 'Procurement' }[name]);
   const ent = select('entity', d.entities.map((e) => ({ value: e.id, label: `${e.name} (${e.currency})` })));
   ent.value = d.entity_id;
-  ent.addEventListener('change', () => { location.hash = `#/dashboard/${preset}?entity=${ent.value}`; });
+  const [rg, bu] = await Promise.all([api('GET', '/v1/org/regions').catch(() => ({ items: [] })), api('GET', '/v1/org/business-units').catch(() => ({ items: [] }))]);
+  const regSel = select('region', [{ value: '', label: 'All regions' }, ...rg.items.map((x) => ({ value: x.id, label: x.name }))]);
+  const unitSel = select('unit', [{ value: '', label: 'All business units' }, ...bu.items.map((x) => ({ value: x.id, label: x.name }))]);
+  regSel.value = region; unitSel.value = unitF;
+  const refilter = () => { location.hash = `#/dashboard/${preset}?entity=${ent.value}${regSel.value ? '&region=' + regSel.value : ''}${unitSel.value ? '&unit=' + unitSel.value : ''}`; };
+  for (const el of [ent, regSel, unitSel]) el.addEventListener('change', refilter);
   const money_ = (t) => (t.unit === '%' ? `${t.value} %` : t.unit === 'count' ? t.value : t.unit ? `${t.unit} ${money(t.value)}` : t.value);
   const grid = h('div', { class: 'tiles' }, d.tiles.map((t) => h('section', { class: `tile lvl-${t.level}`, 'aria-label': t.title },
     h('div', { class: 'tilehead' }, h('h2', {}, t.title), h('span', { class: `lvl lvl-${t.level}` }, LEVEL_WORD[t.level] || t.level)),
@@ -2080,7 +2334,151 @@ async function renderDashboard(preset) {
       h('ul', {}, d.hidden.map((x) => h('li', {}, `${x.title}: needs ${x.needs}.`))))
     : null;
   page('Dashboard', `${d.entity || 'Your company'}${d.currency ? ' (' + d.currency + ')' : ''}: ${d.projects_in_scope} project(s) in your scope. Every figure is computed now from approved and posted records.`,
-    h('div', { class: 'toolbar' }, view('executive'), view('project'), view('finance'), view('procurement'), d.entities.length > 1 ? field('Legal entity', ent) : null), grid, hidden);
+    h('div', { class: 'toolbar' }, view('executive'), view('project'), view('finance'), view('procurement'), d.entities.length > 1 ? field('Legal entity', ent) : null, rg.items.length ? field('Region', regSel) : null, bu.items.length ? field('Business unit', unitSel) : null), grid, hidden);
+}
+
+// Shared fields of the project forms (create and edit).
+function projectFields(pr, regions, units, customers) {
+  const v = (k) => (pr && pr[k]) || '';
+  const entity = select('legal_entity_id', entityOpts(), { required: true });
+  const code = input('code', { type: 'text', required: true, maxlength: '20', value: v('code') });
+  const name = input('name', { type: 'text', required: true, minlength: '3', maxlength: '200', value: v('name') });
+  const none = (label) => [{ value: '', label }];
+  const customer = select('customer_id', [...none('No client yet'), ...customers]);
+  const region = select('region_id', [...none('No region'), ...regions.map((r) => ({ value: r.id, label: `${r.code} ${r.name}` }))]);
+  const unit = select('business_unit_id', [...none('No business unit'), ...units.map((r) => ({ value: r.id, label: `${r.code} ${r.name}` }))]);
+  const type = select('contract_type', [...none('Not set'), ...['LUMP_SUM', 'REMEASURE', 'COST_PLUS', 'DESIGN_BUILD', 'FRAMEWORK', 'OTHER'].map((t) => ({ value: t, label: words(t.toLowerCase()) }))]);
+  const lat = input('latitude', { inputmode: 'decimal', placeholder: 'for example 13.4967', value: pr && pr.latitude ? String(pr.latitude) : '' });
+  const lng = input('longitude', { inputmode: 'decimal', placeholder: 'for example 39.4753', value: pr && pr.longitude ? String(pr.longitude) : '' });
+  const start = input('start_date', { type: 'date', value: v('start_date') });
+  const finish = input('planned_finish', { type: 'date', value: v('planned_finish') });
+  const pm = input('project_manager', { type: 'text', maxlength: '200', value: v('project_manager'), placeholder: 'their sign-in name' });
+  const desc = input('description', { type: 'text', maxlength: '1000', value: v('description') });
+  region.value = v('region_id'); unit.value = v('business_unit_id'); customer.value = v('customer_id'); type.value = v('contract_type');
+  const grid = h('div', { class: 'grid' }, pr ? null : field('Company', entity), pr ? null : field('Project code', code), field('Name', name), field('Client', customer), field('Region', region),
+    field('Business unit', unit), field('Contract type', type), field('Latitude', lat), field('Longitude', lng), field('Start date', start), field('Planned finish', finish),
+    field('Project manager', pm), field('Description', desc));
+  const body = () => ({ legal_entity_id: entity.value || undefined, code: code.value.trim(), name: name.value.trim(), customer_id: customer.value, region_id: region.value, business_unit_id: unit.value,
+    contract_type: type.value, latitude: lat.value.trim() || undefined, longitude: lng.value.trim() || undefined, start_date: start.value, planned_finish: finish.value,
+    project_manager: pm.value.trim(), description: desc.value.trim() });
+  return { grid, body };
+}
+
+// ---------- projects, organisation and calendar (WP-1.7) ----------
+async function renderProjects() {
+  const r = await api('GET', '/v1/projects');
+  const next = { BID: 'Mobilisation', MOBILISATION: 'Execution', EXECUTION: 'Practical completion', PRACTICAL_COMPLETION: 'Defects period', DEFECTS: 'Closed' };
+  page('Projects', 'Every project you may see, with its client, region, contract type, manager, dates and phase. The phase moves only through a stage gate.',
+    h('div', { class: 'toolbar' }, S.can.has('project.create') ? h('a', { class: 'btn primary', href: '#/new/project' }, 'New project') : null),
+    table('Projects', [
+      { label: 'Code', cell: (x) => h('span', { class: 'ref' }, x.code) }, { label: 'Name', cell: (x) => x.name },
+      { label: 'Client', cell: (x) => x.customer }, { label: 'Region', cell: (x) => x.region }, { label: 'Unit', cell: (x) => x.business_unit },
+      { label: 'Contract', cell: (x) => words((x.contract_type || '').toLowerCase()) }, { label: 'Manager', cell: (x) => x.project_manager },
+      { label: 'Start', cell: (x) => x.start_date }, { label: 'Finish', cell: (x) => x.planned_finish },
+      { label: 'Phase', cell: (x) => chip(x.phase) },
+      { label: '', cell: (x) => h('span', {},
+        S.can.has('project.update') ? h('a', { href: `#/new/projectedit/${x.id}` }, 'Edit') : null, ' ',
+        x.open_gate_id ? h('a', { href: `#/doc/project_stage_gate/${x.open_gate_id}` }, `Gate to ${words(x.open_gate_to.toLowerCase())} (${x.open_gate_status.toLowerCase()})`)
+          : (S.can.has('project.gate.submit') && next[x.phase] ? h('a', { href: `#/new/stagegate/${x.id}` }, `Request ${next[x.phase].toLowerCase()}`) : null)) },
+    ], r.projects, 'No projects in your scope.'));
+}
+
+async function renderOrg() {
+  const [regions, units, cal] = await Promise.all([api('GET', '/v1/org/regions'), api('GET', '/v1/org/business-units'), api('GET', '/v1/org/calendar')]);
+  const can = S.can.has('org.manage');
+  const addBox = (kind, path, label) => {
+    const code = input('code', { type: 'text', required: true, maxlength: '20', placeholder: 'code' });
+    const name = input('name', { type: 'text', required: true, maxlength: '120', placeholder: `${label} name` });
+    const b = h('button', { type: 'button', on: { click: async () => {
+      try { await api('POST', path, { Code: code.value.trim(), Name: name.value.trim() }); say(`${label} added.`); await renderOrg(); } catch (e) { showError(e); }
+    } } }, `Add ${label.toLowerCase()}`);
+    return can ? h('div', { class: 'toolbar' }, field('Code', code), field('Name', name), b) : null;
+  };
+  const day = input('day', { type: 'date', required: true });
+  const dname = input('name', { type: 'text', required: true, maxlength: '120', placeholder: 'for example Ethiopian Christmas (Genna)' });
+  const kind = select('kind', [{ value: 'HOLIDAY', label: 'Holiday (not worked)' }, { value: 'WORKING', label: 'Exceptional working day' }]);
+  const addDay = can ? h('div', { class: 'toolbar' }, field('Day', day), field('Name', dname), field('Kind', kind), h('button', { type: 'button', on: { click: async () => {
+    try { await api('POST', '/v1/org/calendar', { Day: day.value, Name: dname.value.trim(), Kind: kind.value }); say('Day added.'); await renderOrg(); } catch (e) { showError(e); }
+  } } }, 'Add day')) : null;
+  page('Organisation and calendar', 'Regions and business units are used to roll results up on the dashboard and in reports. The calendar lists company holidays and exceptional working days.',
+    table('Regions', [{ label: 'Code', cell: (x) => x.code }, { label: 'Name', cell: (x) => x.name }], regions.items, 'No regions yet.'), addBox('region', '/v1/org/regions', 'Region'),
+    table('Business units', [{ label: 'Code', cell: (x) => x.code }, { label: 'Name', cell: (x) => x.name }], units.items, 'No business units yet.'), addBox('business_unit', '/v1/org/business-units', 'Business unit'),
+    table('Company calendar', [{ label: 'Day', cell: (x) => x.day }, { label: 'Name', cell: (x) => x.name }, { label: 'Kind', cell: (x) => (x.kind === 'HOLIDAY' ? 'Holiday' : 'Worked') },
+      { label: '', cell: (x) => (can ? h('button', { type: 'button', class: 'ghost', on: { click: async () => { try { await api('DELETE', `/v1/org/calendar/${x.id}`); await renderOrg(); } catch (e) { showError(e); } } } }, 'Remove') : '') }], cal.days, 'No days entered.'),
+    addDay, h('p', { class: 'hint' }, 'Movable holidays (for example Easter and the Islamic holidays) fall on different dates each year, so enter them for the year ahead; nothing is assumed.'));
+}
+
+// ---------- company setup checklist and staged imports (WP-1.8) ----------
+// The checklist reads the real state of the records (nothing is ticked by hand).
+async function renderSetup() {
+  const steps = (await api('GET', '/v1/setup')).steps;
+  const required = steps.filter((x) => !x.optional);
+  const done = required.filter((x) => x.done).length;
+  const groups = [...new Set(steps.map((x) => x.group))];
+  const pct = Math.round((100 * done) / required.length);
+  page('Company setup', 'What a new company needs in place before it can run a project. Each step is ticked automatically when the records exist; each says who does it and links to the page that does.',
+    h('div', { class: 'panel' }, h('p', { class: 'big' }, `${done} of ${required.length} required steps done`),
+      h('progress', { class: 'progress', value: String(done), max: String(required.length), 'aria-label': 'Setup progress' }, `${pct}%`)),
+    ...groups.map((g) => h('section', {}, h('h2', { class: 'section' }, g),
+      h('ul', { class: 'steps' }, steps.filter((x) => x.group === g).map((x) => h('li', { class: x.done ? 'done' : '' },
+        h('span', { class: 'mark', 'aria-label': x.done ? 'Done' : 'Not done' }, x.done ? '✓' : '○'),
+        h('div', {}, h('a', { href: x.href }, x.title), x.optional ? h('span', { class: 'hint' }, ' (optional)') : null,
+          h('p', { class: 'hint' }, x.why), h('p', { class: 'hint' }, `Who: ${x.who}.${x.count ? ` ${x.count} on record.` : ''}`))))))));
+}
+
+async function renderImports(batchID) {
+  if (batchID) return renderImportBatch(batchID);
+  const list = (await api('GET', '/v1/imports')).imports;
+  const kinds = [['supplier', 'Suppliers', 'supplier.manage'], ['customer', 'Customers', 'customer.manage'], ['stock_item', 'Stock items', 'stock.item.manage']].filter((k) => S.can.has(k[2]));
+  const kind = select('kind', kinds.map(([value, label]) => ({ value, label })), { required: true });
+  const ent = select('legal_entity_id', entityOpts(), { required: true });
+  const file = input('file', { type: 'file', accept: '.csv,text/csv' });
+  const text = h('textarea', { name: 'content', rows: '8', spellcheck: 'false', placeholder: 'Or paste CSV here, header row first' });
+  const tpl = h('button', { type: 'button', class: 'ghost', on: { click: async () => {
+    const t = await api('GET', `/v1/imports/templates/${kind.value}`);
+    text.value = t.csv;
+    say(t.help);
+    help.textContent = t.help;
+  } } }, 'Fill in the template');
+  const help = h('p', { class: 'hint' }, 'Choose what you are importing, then fill in the template or choose your file. Nothing is created until a second person commits it.');
+  file.addEventListener('change', async () => { if (file.files[0]) text.value = await file.files[0].text(); });
+  const form = h('form', { class: 'panel', novalidate: true, on: { submit: async (ev) => {
+    ev.preventDefault(); clearError();
+    try {
+      const res = await api('POST', '/v1/imports', { kind: kind.value, legal_entity_id: ent.value, filename: (file.files[0] && file.files[0].name) || `${kind.value}.csv`, content: text.value });
+      say('File staged: review it before it is committed.');
+      location.hash = `#/imports/${res.id}`;
+    } catch (e) { showError(e); }
+  } } }, h('div', { class: 'grid' }, field('What to import', kind), field('Company', ent), field('CSV file', file)), field('Contents', text), help,
+    h('div', { class: 'actions' }, tpl, h('button', { type: 'submit' }, 'Stage for review')));
+  page('Data imports', 'Load suppliers, customers or stock items from a spreadsheet saved as CSV. The file is checked row by row first; a different person then commits it, confirming the number of rows in the source. Records still go through their normal approval.',
+    kinds.length ? form : h('p', { class: 'hint' }, 'You do not hold a permission to import data.'),
+    table('Staged and past imports', [
+      { label: 'File', cell: (x) => h('a', { href: `#/imports/${x.id}` }, x.filename) }, { label: 'Kind', cell: (x) => words(x.kind) },
+      { label: 'Rows', num: true, cell: (x) => String(x.row_count) }, { label: 'Valid', num: true, cell: (x) => String(x.valid_count) }, { label: 'Errors', num: true, cell: (x) => String(x.invalid_count) },
+      { label: 'Staged by', cell: (x) => x.created_by }, { label: 'Status', cell: (x) => chip(x.status) }], list, 'No imports yet.'));
+}
+
+async function renderImportBatch(id) {
+  const b = await api('GET', `/v1/imports/${id}`);
+  const cols = Object.keys((b.rows[0] || {}).data || {});
+  const open = b.status === 'STAGED' || b.status === 'PARTIAL';
+  const mine = b.created_by === S.me.user_id;
+  const expected = input('expected_rows', { inputmode: 'numeric', required: true, placeholder: 'rows in your source file' });
+  const reason = input('reason', { type: 'text', maxlength: '300', placeholder: 'why discard' });
+  const commit = h('form', { class: 'panel', novalidate: true, on: { submit: async (ev) => {
+    ev.preventDefault(); clearError();
+    try { await api('POST', `/v1/imports/${id}/commit`, { expected_rows: Number(expected.value) }); say('Import committed.'); await renderImportBatch(id); } catch (e) { showError(e); }
+  } } }, h('p', {}, mine ? 'You staged this file, so someone else must commit it.' : 'Count the data rows in the original source (not this screen) and enter that number. It must match the staged file.'),
+    h('div', { class: 'grid' }, field('Rows in the source', expected)), h('div', { class: 'actions' }, h('button', { type: 'submit', disabled: mine || b.valid_count === 0 }, `Create the ${b.valid_count} valid record(s)`)));
+  const discard = h('form', { class: 'panel', novalidate: true, on: { submit: async (ev) => {
+    ev.preventDefault(); clearError();
+    try { await api('POST', `/v1/imports/${id}/discard`, { reason: reason.value.trim() }); say('Import discarded.'); await renderImportBatch(id); } catch (e) { showError(e); }
+  } } }, h('div', { class: 'grid' }, field('Reason', reason)), h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'ghost' }, 'Discard this import')));
+  page(`Import: ${b.filename}`, `${words(b.kind)}: ${b.row_count} row(s), ${b.valid_count} valid, ${b.invalid_count} with errors. Status ${b.status.toLowerCase()}. Staged by ${b.created_by}${b.committed_by ? `, committed by ${b.committed_by}` : ''}. Nothing is created until it is committed, and rows with errors are never created.`,
+    table('Rows', [{ label: 'Line', num: true, cell: (r) => String(r.line) }, ...cols.map((c) => ({ label: words(c), cell: (r) => r.data[c] })),
+      { label: 'Result', cell: (r) => (r.errors && r.errors.length ? h('span', { class: 'bad' }, r.errors.join('; ')) : r.status === 'CREATED' ? 'Created' : r.status === 'FAILED' ? h('span', { class: 'bad' }, r.error) : 'Valid') }], b.rows, 'No rows.'),
+    open ? commit : null, open ? discard : null, h('p', {}, h('a', { href: '#/imports' }, 'All imports')));
 }
 
 // ---------- stock reservations (WP-1.6) ----------
@@ -2688,7 +3086,8 @@ async function renderAutomation() {
     const sev = select('severity', [{ value: 'info', label: 'info' }, { value: 'warn', label: 'warn' }, { value: 'critical', label: 'critical' }]);
     const title = input('title', { type: 'text', maxlength: '200' });
     const PARAMS = { document_stale: ['subject', 'status', 'hours'], invoice_due: ['days'], receivable_overdue: ['days'], po_overdue: [], budget_threshold: ['percent'],
-      stock_below: ['item_code', 'quantity'], schedule_risk: ['ratio'], cost_risk: ['ratio'], export_volume: ['count'] };
+      stock_below: ['item_code', 'quantity'], schedule_risk: ['ratio'], cost_risk: ['ratio'], export_volume: ['count'],
+      notice_due: ['days'], obligation_due: ['days'], guarantee_expiring: ['days'] };
     const inputs = {};
     const paint = () => {
       params.textContent = '';
@@ -2783,6 +3182,1103 @@ async function renderSettings() {
       h('li', {}, 'Exports carry the company letterhead, the person’s name and the time, and are counted against a daily limit.'),
       h('li', {}, 'Bank account numbers are encrypted at rest and masked everywhere; revealing one needs a fresh multi-factor sign-in and is audited.'),
       h('li', {}, 'Every approval is a signed human decision verified by the database. Automation and the assistant can only read and notify.'))));
+}
+
+// ---------- people & access, my profile (0048) ----------
+// The company directory as cards, a duty map (who prepares, approves,
+// releases, governs), the role catalogue and the access history; and each
+// person's own profile. The server decides every permission and refuses
+// self-administration and duty conflicts; this page only previews them.
+const STAGES = [
+  ['read', 'Read only', 'Sees records'],
+  ['prepare', 'Prepare', 'Creates and submits'],
+  ['approve', 'Approve', 'Checks, approves, certifies'],
+  ['release', 'Release & post', 'Posts, pays, closes'],
+  ['govern', 'Govern', 'Sets the rules others work under'],
+];
+const STAGE_NAME = Object.fromEntries(STAGES.map(([k, n]) => [k, n]));
+const stageChip = (st) => h('span', { class: `stagechip st-${st || 'none'}` }, st ? STAGE_NAME[st] : 'No access');
+function initials(name) {
+  const w = String(name || '?').replace(/^u-/, '').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (!w.length) return '?';
+  return ((w[0][0] || '') + (w.length > 1 ? w[w.length - 1][0] : (w[0][1] || ''))).toUpperCase();
+}
+function avClass(id) { let n = 0; for (const c of String(id)) n = (n * 31 + c.charCodeAt(0)) >>> 0; return `av-${n % 6}`; }
+const avatar = (id, name, size) => h('span', { class: `avatar ${avClass(id)} ${size || ''}`, 'aria-hidden': 'true' }, initials(name || id));
+const personName = (x) => x.display_name || x.user_id;
+function ago(s) {
+  if (!s) return 'never';
+  const d = (Date.now() - new Date(s)) / 1000;
+  if (d < 90) return 'just now';
+  if (d < 5400) return `${Math.round(d / 60)} min ago`;
+  if (d < 129600) return `${Math.round(d / 3600)} h ago`;
+  return `${Math.round(d / 86400)} days ago`;
+}
+const PEOPLE_EVENTS = {
+  'people.person_added': 'was added to the directory', 'people.details_changed': 'had their details changed',
+  'people.managed': 'had their access taken under management', 'people.disabled': 'was disabled and signed out everywhere',
+  'people.enabled': 'was enabled again', 'people.role_granted': 'was given', 'people.role_removed': 'lost',
+  'people.role_created': 'was created', 'people.role_changed': 'was changed', 'people.role_retired': 'was retired',
+  'people.profile_changed': 'updated their own profile',
+};
+// Conflicting duties in a permission set, by the server's control catalogue.
+function dutyConflicts(perms, controls) {
+  const out = [];
+  for (const c of controls || []) {
+    const have = c.Perms.filter((p) => perms.has(p));
+    if (have.length > 1) out.push({ control: c.Control, perms: have });
+  }
+  return out;
+}
+
+let PV = null; // the last /v1/people answer
+let sheetReturn = null;
+function sheetKey(e) { if (e.key === 'Escape') closeSheet(); }
+function closeSheet() {
+  const s = $('sheet');
+  if (!s) return;
+  s.remove();
+  $('scrim')?.remove();
+  document.removeEventListener('keydown', sheetKey);
+  if (sheetReturn && sheetReturn.isConnected) sheetReturn.focus();
+  sheetReturn = null;
+}
+function openSheet(label, head, ...body) {
+  const back = $('sheet') ? sheetReturn : document.activeElement;
+  closeSheet();
+  sheetReturn = back;
+  const x = h('button', { type: 'button', class: 'ghost x', on: { click: closeSheet } }, 'Close');
+  const sheet = h('aside', { class: 'sheet', id: 'sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': label },
+    h('div', { class: 'sheethead' }, head, x), h('div', { class: 'sheetbody' }, body));
+  document.body.append(h('div', { class: 'scrim', id: 'scrim', on: { click: closeSheet } }), sheet);
+  document.addEventListener('keydown', sheetKey);
+  x.focus();
+  return sheet;
+}
+const reasonInput = (placeholder) => input('reason', { type: 'text', minlength: '5', maxlength: '500', autocomplete: 'off', placeholder });
+function needReason(el) {
+  if (el.value.trim().length >= 5) return el.value.trim();
+  el.setAttribute('aria-invalid', 'true');
+  el.focus();
+  throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters; it is kept in the access history.');
+}
+function sheetError(where, e) {
+  const box = where.querySelector('.sheeterr') || where.prepend(h('div', { class: 'callout bad sheeterr', role: 'alert' })) || where.querySelector('.sheeterr');
+  box.textContent = '';
+  box.append(h('strong', {}, errorTitle(e)), ' ', e.message || String(e));
+  box.scrollIntoView({ block: 'nearest' });
+}
+const roleOf = (code) => (PV && PV.roles.find((r) => r.code === code)) || { code, name: words(code.replace(/^custom:/, '')), kind: 'seed', permissions: [], stage: '' };
+const labelOf = (code) => (PV && PV.permissions.find((p) => p.code === code)) || { code, label: code, area: 'Other', stage: 'prepare' };
+
+// Permissions grouped by area; tickable when `pick` is a Set to edit.
+function permGroups(codes, pick, onChange) {
+  const catalogue = pick ? PV.permissions : codes.map(labelOf);
+  const areas = new Map();
+  for (const p of catalogue) { if (!areas.has(p.area)) areas.set(p.area, []); areas.get(p.area).push(p); }
+  const wrap = h('div', { class: 'permgroups' });
+  for (const [area, list] of [...areas.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    if (!pick) {
+      wrap.append(h('div', { class: 'permgroup' }, h('h4', {}, area, h('span', { class: 'count' }, String(list.length))),
+        h('ul', {}, list.map((p) => h('li', { class: `st-${p.stage}`, title: p.code }, h('span', { class: 'dot' }), p.label)))));
+      continue;
+    }
+    const count = h('span', { class: 'count' });
+    const paint = () => { count.textContent = `${list.filter((p) => pick.has(p.code)).length}/${list.length}`; };
+    const fs = h('fieldset', { class: 'permgroup' }, h('legend', {}, area, count),
+      list.map((p) => {
+        const cb = h('input', { type: 'checkbox', value: p.code });
+        cb.checked = pick.has(p.code);
+        cb.addEventListener('change', () => { if (cb.checked) pick.add(p.code); else pick.delete(p.code); paint(); onChange(); });
+        return h('label', { class: `st-${p.stage}`, 'data-perm': p.code, title: p.code }, cb, h('span', {}, p.label));
+      }));
+    paint();
+    wrap.append(fs);
+  }
+  return wrap;
+}
+
+async function renderPeople(tab) {
+  closeSheet();
+  PV = await api('GET', '/v1/people');
+  const v = PV;
+  const me = v.me;
+  const nameOf = (id) => { const x = v.people.find((p) => p.user_id === id); return x ? personName(x) : id; };
+  const active = v.people.filter((p) => p.status === 'ACTIVE');
+  const kpi = (n, k, warn) => h('div', { class: `kpi${warn && n ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(n)), h('div', { class: 'k' }, k));
+  const kpis = h('div', { class: 'kpis' },
+    kpi(v.people.length, 'People in the directory'), kpi(active.length, 'Active'),
+    kpi(v.people.filter((p) => p.managed).length, 'Access managed here'), kpi(v.people.filter((p) => !p.managed).length, 'Roles from sign-in'),
+    kpi(v.people.length - active.length, 'Disabled', true), kpi(active.filter((p) => p.conflicts.length).length, 'Holding conflicting duties', true),
+    kpi(v.roles.filter((r) => r.kind === 'company' && r.status === 'ACTIVE').length, 'Company roles'));
+
+  const TABS = [['people', 'People', v.people.length], ['map', 'Duty map', null], ['roles', 'Roles', v.roles.filter((r) => r.status === 'ACTIVE').length], ['history', 'Access history', v.history.length]];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'people';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'People and access' });
+  const show = (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/people/${k}`);
+    content.textContent = '';
+    content.append(k === 'map' ? dutyMap(v, nameOf) : k === 'roles' ? rolesTab(v) : k === 'history' ? historyTab(v, nameOf) : peopleTab(v));
+  };
+  for (const [k, label, n] of TABS) {
+    tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label, n == null ? null : h('span', { class: 'n' }, String(n))));
+  }
+  const actions = h('div', { class: 'toolbar' },
+    me.can_manage_users ? h('button', { type: 'button', on: { click: () => addPersonSheet(v) } }, 'Add person') : null,
+    me.can_manage_roles ? h('button', { type: 'button', class: 'ghost', on: { click: () => roleSheet(null) } }, 'New company role') : null,
+    !me.can_manage_users && !me.can_manage_roles ? h('span', { class: 'hint' }, 'You can look but not change: only a user or role administrator changes access.') : null);
+  page('People & access', 'Who works in this company, what each person may do and on which projects, and every change to that. Nobody changes their own access, and no one is given both halves of a control.',
+    actions, kpis, tabs, content);
+  show(cur);
+}
+
+function personCard(x, roles) {
+  const stage = x.status === 'ACTIVE' ? (x.stage || 'none') : 'none';
+  const shown = x.roles.slice(0, 3);
+  return h('button', { type: 'button', class: `pcard st-${stage}${x.status !== 'ACTIVE' ? ' disabled-person' : ''}`, 'aria-label': `Open ${personName(x)}`, on: { click: () => personSheet(x.user_id) } },
+    h('div', { class: 'row' }, avatar(x.user_id, personName(x)),
+      h('div', { class: 'pwho' }, h('div', { class: 'nm' }, personName(x)), h('div', { class: 'sub' }, x.job_title || x.user_id))),
+    h('div', { class: 'rolechips' }, shown.length ? shown.map((r) => h('span', { class: `rolechip${r.startsWith('custom:') ? ' company' : ''}` }, roleOf(r).name)) : h('span', { class: 'hint' }, 'No role'),
+      x.roles.length > 3 ? h('span', { class: 'rolechip' }, `+${x.roles.length - 3}`) : null),
+    h('div', { class: 'meta' }, x.status === 'ACTIVE' ? stageChip(x.stage) : chip('DISABLED'),
+      h('span', {}, x.managed ? 'Managed here' : 'From sign-in'), h('span', {}, '·'), h('span', {}, `seen ${ago(x.last_seen)}`),
+      x.conflicts.length ? h('span', { class: 'conflictflag' }, `⚠ ${x.conflicts.length} duty conflict${x.conflicts.length > 1 ? 's' : ''}`) : null));
+}
+
+function peopleTab(v) {
+  const find = h('input', { type: 'search', class: 'findbox', placeholder: 'Find by name, sign-in id, job or role', 'aria-label': 'Find a person', autocomplete: 'off' });
+  const FILTERS = [['all', 'Everyone', () => true], ['managed', 'Managed here', (x) => x.managed], ['signin', 'From sign-in', (x) => !x.managed],
+    ['conflicts', 'Duty conflicts', (x) => x.conflicts.length > 0], ['disabled', 'Disabled', (x) => x.status !== 'ACTIVE']];
+  let filter = 'all';
+  let view = 'cards';
+  const pills = h('div', { class: 'pills', role: 'group', 'aria-label': 'Show' });
+  const viewp = h('div', { class: 'pills', role: 'group', 'aria-label': 'View' });
+  const out = h('div');
+  const draw = () => {
+    for (const b of pills.children) b.setAttribute('aria-pressed', String(b.dataset.k === filter));
+    for (const b of viewp.children) b.setAttribute('aria-pressed', String(b.dataset.k === view));
+    const q = find.value.trim().toLowerCase();
+    const test = FILTERS.find(([k]) => k === filter)[2];
+    const rows = v.people.filter((x) => test(x) && (!q || [x.display_name, x.user_id, x.job_title, x.email, ...x.roles.map((r) => roleOf(r).name)].join(' ').toLowerCase().includes(q)));
+    out.textContent = '';
+    if (!rows.length) { out.append(h('p', { class: 'empty panel' }, 'Nobody matches.')); return; }
+    if (view === 'cards') { out.append(h('div', { class: 'pgrid' }, rows.map((x) => personCard(x)))); return; }
+    out.append(table(`${rows.length} people`, [
+      { label: 'Person', cell: (x) => h('button', { type: 'button', class: 'linkbtn', on: { click: () => personSheet(x.user_id) } }, personName(x)) },
+      { label: 'Sign-in id', cell: (x) => h('span', { class: 'ref' }, x.user_id) },
+      { label: 'Job', cell: (x) => x.job_title },
+      { label: 'Roles', cell: (x) => x.roles.map((r) => roleOf(r).name).join(', ') },
+      { label: 'Furthest stage', cell: (x) => stageChip(x.stage) },
+      { label: 'Roles from', cell: (x) => (x.managed ? 'Directory' : 'Sign-in') },
+      { label: 'Status', cell: (x) => chip(x.status) },
+      { label: 'Conflicts', num: true, cell: (x) => (x.conflicts.length ? h('span', { class: 'conflictflag' }, String(x.conflicts.length)) : '0') },
+      { label: 'Last seen', cell: (x) => ago(x.last_seen) },
+    ], rows));
+  };
+  for (const [k, label] of FILTERS) pills.append(h('button', { type: 'button', 'data-k': k, on: { click: () => { filter = k; draw(); } } }, label));
+  for (const [k, label] of [['cards', 'Cards'], ['table', 'Table']]) viewp.append(h('button', { type: 'button', 'data-k': k, on: { click: () => { view = k; draw(); } } }, label));
+  find.addEventListener('input', draw);
+  draw();
+  return h('div', {}, h('div', { class: 'toolbar' }, find, pills, h('span', { class: 'spacer' }), viewp), out);
+}
+
+function dutyMap(v, nameOf) {
+  const roles = v.roles.filter((r) => r.status === 'ACTIVE' && r.holders > 0);
+  const hl = select('highlight', [{ value: '', label: 'Highlight who holds… (any role)' }, ...roles.map((r) => ({ value: r.code, label: `${r.name} (${r.holders})` }))]);
+  const active = v.people.filter((x) => x.status === 'ACTIVE' && x.stage);
+  const lane = v.people.filter((x) => x.status !== 'ACTIVE' || !x.stage);
+  const nodes = [];
+  const node = (x) => {
+    const n = h('button', { type: 'button', class: `dnode st-${x.status === 'ACTIVE' ? x.stage || 'none' : 'none'}`, 'data-roles': x.roles.join(' '), title: `${personName(x)} — ${x.roles.map((r) => roleOf(r).name).join(', ') || 'no role'}`, on: { click: () => personSheet(x.user_id) } },
+      avatar(x.user_id, personName(x), 'sm'),
+      h('span', { class: 'pwho' }, h('div', { class: 'nm' }, personName(x), x.conflicts.length ? h('span', { class: 'conflictflag' }, ' ⚠') : null),
+        h('div', { class: 'sub' }, x.roles.length ? x.roles.map((r) => roleOf(r).name).join(', ') : 'No role')));
+    nodes.push(n);
+    return n;
+  };
+  const bar = h('div', { class: 'flowbar', 'aria-hidden': 'true' });
+  const legend = h('div', { class: 'flowlegend' });
+  for (const [k, name] of STAGES) {
+    const n = active.filter((x) => x.stage === k).length;
+    const seg = h('span', { class: `st-${k}`, title: `${name}: ${n}` });
+    seg.style.flexGrow = String(n);
+    bar.append(seg);
+    legend.append(h('span', { class: `stagechip st-${k}` }, `${name} · ${n}`));
+  }
+  const map = h('div', { class: 'dmap', role: 'list', 'aria-label': 'People by the furthest stage of work they reach' },
+    STAGES.map(([k, name, what]) => h('div', { class: `dcol st-${k}`, role: 'listitem' },
+      h('div', { class: 'dhead' }, h('div', { class: 't' }, h('span', {}, `${name} (${active.filter((x) => x.stage === k).length})`)), h('div', { class: 'd' }, what)),
+      active.filter((x) => x.stage === k).map(node))));
+  hl.addEventListener('change', () => {
+    for (const n of nodes) {
+      const has = hl.value && n.dataset.roles.split(' ').includes(hl.value);
+      n.classList.toggle('hit', !!has);
+      n.classList.toggle('dim', !!hl.value && !has);
+    }
+  });
+  return h('div', {},
+    h('div', { class: 'panel' },
+      h('p', { class: 'hint' }, 'Work moves left to right: one person prepares, another approves, a third releases or posts, and governors set the rules. Each person sits at the furthest stage their roles reach. ⚠ marks someone who holds both halves of a control.'),
+      bar, legend),
+    h('div', { class: 'toolbar' }, field('Highlight', hl)),
+    h('div', { class: 'panel' }, map,
+      lane.length ? h('div', { class: 'dlane' }, h('span', { class: 'lbl' }, 'Disabled or without access:'), lane.map(node)) : null));
+}
+
+function rolesTab(v) {
+  const find = h('input', { type: 'search', class: 'findbox', placeholder: 'Find a role or a permission', 'aria-label': 'Find a role', autocomplete: 'off' });
+  let kind = 'all';
+  const pills = h('div', { class: 'pills', role: 'group', 'aria-label': 'Show' });
+  const out = h('div', { class: 'rolecards' });
+  const draw = () => {
+    for (const b of pills.children) b.setAttribute('aria-pressed', String(b.dataset.k === kind));
+    const q = find.value.trim().toLowerCase();
+    out.textContent = '';
+    const rows = v.roles.filter((r) => (kind === 'all' ? r.status === 'ACTIVE' : kind === 'retired' ? r.status === 'RETIRED' : r.kind === kind && r.status === 'ACTIVE') &&
+      (!q || [r.name, r.code, r.description, ...r.permissions.map((p) => labelOf(p).label)].join(' ').toLowerCase().includes(q)));
+    if (!rows.length) out.append(h('p', { class: 'empty' }, 'No role matches.'));
+    for (const r of rows) {
+      out.append(h('button', { type: 'button', class: `rolecard st-${r.stage || 'none'}`, on: { click: () => roleSheet(r.code) } },
+        h('h4', {}, r.name), h('p', {}, r.kind === 'company' ? (r.description || 'Company role') : 'Product role'),
+        h('div', { class: 'meta' }, stageChip(r.stage), h('span', {}, `${r.permissions.length} permissions`), h('span', {}, `${r.holders} ${r.holders === 1 ? 'person' : 'people'}`),
+          r.kind === 'company' ? h('span', { class: 'rolechip company' }, 'company') : null)));
+    }
+  };
+  for (const [k, label] of [['all', 'All roles'], ['company', 'Company roles'], ['seed', 'Product roles'], ['retired', 'Retired']]) {
+    pills.append(h('button', { type: 'button', 'data-k': k, on: { click: () => { kind = k; draw(); } } }, label));
+  }
+  find.addEventListener('input', draw);
+  draw();
+  return h('div', {}, h('div', { class: 'toolbar' }, find, pills), out);
+}
+
+function historyTab(v, nameOf) {
+  if (!v.history.length) return h('p', { class: 'panel empty' }, 'No access change has been made yet.');
+  return h('div', { class: 'panel' }, h('ol', { class: 'timeline' }, v.history.map((e) => accessEventLine(e, nameOf))));
+}
+function accessEventLine(e, nameOf) {
+  const d = e.detail || {};
+  const isRole = String(e.subject).startsWith('custom:');
+  const subject = isRole ? `Company role ${roleOf(e.subject).name}` : nameOf(e.subject);
+  const what = PEOPLE_EVENTS[e.action] || words(e.action.replace(/^people\./, ''));
+  return h('li', {}, h('div', {}, h('strong', {}, subject), ' ', what, d.role ? [' ', h('strong', {}, roleOf(d.role).name)] : null),
+    h('div', { class: 'when' }, `${when(e.at)} · by ${nameOf(e.actor)}`), d.reason ? h('div', { class: 'why' }, `“${d.reason}”`) : null);
+}
+
+async function refreshAfter(fn, reopen) {
+  const tab = (location.hash.split('/')[2]) || 'people';
+  await fn();
+  await renderPeople(tab);
+  if (reopen) await reopen();
+}
+
+async function personSheet(id) {
+  const [d] = await Promise.all([api('GET', `/v1/people/${encodeURIComponent(id)}`)]);
+  const x = d.person;
+  const me = PV.me;
+  const self = x.user_id === me.user_id;
+  const canEdit = me.can_manage_users && !self;
+  const nameOf = (u) => { const p = PV.people.find((q) => q.user_id === u); return p ? personName(p) : u; };
+  const reason = reasonInput('Why? For example: new site, HR ticket 41');
+  const act = (fn) => async (ev) => {
+    ev.preventDefault();
+    try { const why = needReason(reason); await refreshAfter(() => fn(why), () => personSheet(id)); say('Saved.'); } catch (e) { sheetError($('sheet').querySelector('.sheetbody'), e); }
+  };
+  const tenantWide = x.permissions.includes('scope.tenant_wide');
+  const parts = [];
+  parts.push(h('p', { class: 'callout' }, x.managed
+    ? 'Access is managed here: the roles and projects below are the ones in force on every request, whatever the sign-in token says.'
+    : 'Roles and projects come from this person’s sign-in (the identity provider). Take their access under management to give and remove roles here.'));
+  if (x.status !== 'ACTIVE') parts.push(h('p', { class: 'callout bad' }, `Disabled: ${x.status_reason || ''}. Every request is refused.`));
+  if (x.conflicts.length) {
+    parts.push(h('div', { class: 'callout bad' }, h('strong', {}, 'Holds both halves of a control: '),
+      x.conflicts.map((c, i) => [i ? '; ' : '', `${c.Control} (${labelOf(c.A).label} + ${labelOf(c.B).label})`]),
+      '. Remove a role, or record an approved duty-conflict exception.'));
+  }
+  if (self) parts.push(h('p', { class: 'callout' }, 'This is you. Another administrator must change your access.'));
+  // Details
+  const det = { display_name: input('display_name', { type: 'text', maxlength: '200', value: x.display_name }), email: input('email', { type: 'email', maxlength: '254', value: x.email }),
+    job_title: input('job_title', { type: 'text', maxlength: '120', value: x.job_title }), phone: input('phone', { type: 'tel', maxlength: '40', value: x.phone }) };
+  parts.push(h('section', {}, h('h3', {}, 'Details'),
+    me.can_manage_users
+      ? h('form', { novalidate: true, on: { submit: act((why) => api('PUT', `/v1/people/${encodeURIComponent(id)}`, { display_name: det.display_name.value, email: det.email.value, job_title: det.job_title.value, phone: det.phone.value, version: x.version, reason: why })) } },
+        h('div', { class: 'grid' }, field('Name', det.display_name), field('Email', det.email), field('Job title', det.job_title), field('Phone', det.phone)),
+        h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'ghost' }, 'Save details')))
+      : h('dl', { class: 'kv' }, h('dt', {}, 'Email'), h('dd', {}, x.email || '—'), h('dt', {}, 'Job'), h('dd', {}, x.job_title || '—'), h('dt', {}, 'Phone'), h('dd', {}, x.phone || '—')),
+    h('dl', { class: 'kv' }, h('dt', {}, 'Sign-in id'), h('dd', { class: 'ref' }, x.user_id), h('dt', {}, 'First seen'), h('dd', {}, x.first_seen ? when(x.first_seen) : 'not signed in yet'),
+      h('dt', {}, 'Last seen'), h('dd', {}, x.last_seen ? `${when(x.last_seen)} (${ago(x.last_seen)})` : '—'), h('dt', {}, 'Added by'), h('dd', {}, x.created_by === 'sign-in' ? 'their first sign-in' : nameOf(x.created_by)))));
+  // Roles
+  const held = new Set(x.permissions);
+  const roleRows = x.managed
+    ? x.grants.map((g) => h('div', { class: 'grantrow' }, h('div', { class: 'what' }, h('strong', {}, roleOf(g.role).name), ' ', stageChip(roleOf(g.role).stage),
+      h('div', { class: 'why' }, `Given by ${nameOf(g.granted_by)} ${ago(g.granted_at)}: “${g.reason}”`)),
+      canEdit ? h('button', { type: 'button', class: 'danger', on: { click: act((why) => api('POST', `/v1/role-grants/${g.id}/revoke`, { reason: why })) } }, 'Remove') : null))
+    : x.roles.map((r) => h('div', { class: 'grantrow' }, h('div', { class: 'what' }, h('strong', {}, roleOf(r).name), ' ', stageChip(roleOf(r).stage), h('div', { class: 'why' }, 'From the sign-in token'))));
+  const roleSec = h('section', {}, h('h3', {}, `Roles (${x.roles.length})`), roleRows.length ? roleRows : h('p', { class: 'hint' }, 'No role: this person can only sign in.'));
+  if (canEdit && x.managed && x.status === 'ACTIVE') {
+    const pickable = PV.roles.filter((r) => r.status === 'ACTIVE' && !x.roles.includes(r.code));
+    const sel = h('select', { name: 'role' }, h('option', { value: '' }, 'Choose a role to give…'),
+      [['company', 'Company roles'], ['seed', 'Product roles']].map(([k, lbl]) => {
+        const rs = pickable.filter((r) => r.kind === k);
+        return rs.length ? h('optgroup', { label: lbl }, rs.map((r) => h('option', { value: r.code }, `${r.name} — ${STAGE_NAME[r.stage] || ''}, ${r.permissions.length} permissions`))) : null;
+      }));
+    const preview = h('div', { 'aria-live': 'polite' });
+    sel.addEventListener('change', () => {
+      preview.textContent = '';
+      if (!sel.value) return;
+      const r = roleOf(sel.value);
+      const after = new Set([...held, ...r.permissions]);
+      const added = r.permissions.filter((p) => !held.has(p));
+      const bad = dutyConflicts(after, PV.controls).filter((c) => c.perms.some((p) => !held.has(p)));
+      preview.append(bad.length
+        ? h('p', { class: 'callout bad' }, 'Will be refused: this would let them hold both halves of ', bad.map((c) => c.control).join('; '), '. An approved duty-conflict exception is needed first.')
+        : h('p', { class: 'callout ok' }, `Adds ${added.length} permission${added.length === 1 ? '' : 's'}: `, added.slice(0, 6).map((p) => labelOf(p).label).join(', '), added.length > 6 ? ` and ${added.length - 6} more` : '', '.'));
+    });
+    roleSec.append(h('form', { novalidate: true, on: { submit: act((why) => { if (!sel.value) throw new ApiError(422, 'validation', 'Choose a role.'); return api('POST', `/v1/people/${encodeURIComponent(id)}/roles`, { role: sel.value, reason: why }); }) } },
+      h('div', { class: 'inline' }, sel, h('button', { type: 'submit' }, 'Give role')), preview));
+  }
+  parts.push(roleSec);
+  // Projects
+  const projSec = h('section', {}, h('h3', {}, 'Projects'));
+  if (tenantWide) projSec.append(h('p', { class: 'callout ok' }, 'Works on every project: a role gives company-wide scope.'));
+  if (canEdit && x.managed && !tenantWide) {
+    const boxes = PV.projects.map((p) => { const cb = h('input', { type: 'checkbox', value: p.id }); cb.checked = x.project_ids.includes(p.id); return h('label', { class: 'check' }, cb, `${p.code} — ${p.name}`); });
+    projSec.append(h('form', { novalidate: true, on: { submit: act((why) => api('PUT', `/v1/people/${encodeURIComponent(id)}`, {
+      display_name: x.display_name, email: x.email, job_title: x.job_title, phone: x.phone, version: x.version, reason: why,
+      project_ids: boxes.map((l) => l.querySelector('input')).filter((c) => c.checked).map((c) => c.value) })) } },
+      PV.projects.length ? boxes : h('p', { class: 'hint' }, 'No projects yet.'), h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'ghost' }, 'Save projects'))));
+  } else if (!tenantWide) {
+    const names = x.project_ids.map((pid) => PV.projects.find((p) => p.id === pid)).filter(Boolean);
+    projSec.append(names.length ? h('div', { class: 'rolechips' }, names.map((p) => h('span', { class: 'rolechip' }, `${p.code} — ${p.name}`))) : h('p', { class: 'hint' }, 'No project assigned.'));
+  }
+  parts.push(projSec);
+  parts.push(h('section', {}, h('h3', {}, `What they may do (${x.permissions.length})`), x.permissions.length ? permGroups(x.permissions) : h('p', { class: 'hint' }, 'Nothing.')));
+  // Manage
+  if (canEdit) {
+    const btns = [];
+    if (!x.managed && x.status === 'ACTIVE') btns.push(h('button', { type: 'button', on: { click: act((why) => api('POST', `/v1/people/${encodeURIComponent(id)}/manage`, { reason: why })) } }, 'Manage access here'));
+    if (x.status === 'ACTIVE') btns.push(h('button', { type: 'button', class: 'danger', on: { click: act((why) => api('POST', `/v1/people/${encodeURIComponent(id)}/disable`, { reason: why })) } }, 'Disable and sign out'));
+    else btns.push(h('button', { type: 'button', on: { click: act((why) => api('POST', `/v1/people/${encodeURIComponent(id)}/enable`, { reason: why })) } }, 'Enable'));
+    parts.splice(1, 0, h('section', { class: 'panel' }, h('h3', {}, 'Change access'), field('Reason (kept in the access history)', reason, 'Every button on this sheet uses it.'),
+      h('div', { class: 'actions' }, btns)));
+  }
+  if (d.grant_history.length) {
+    parts.push(h('section', {}, h('h3', {}, 'Role history'), h('ol', { class: 'timeline' }, d.grant_history.map((g) => h('li', {},
+      h('div', {}, h('strong', {}, roleOf(g.role).name), g.revoked_at ? ' — removed' : ' — in force'),
+      h('div', { class: 'when' }, `Given ${when(g.granted_at)} by ${nameOf(g.granted_by)}${g.revoked_at ? `; removed ${when(g.revoked_at)} by ${nameOf(g.revoked_by)}` : ''}`),
+      h('div', { class: 'why' }, `“${g.revoke_reason || g.reason}”`))))));
+  }
+  if (d.history.length) parts.push(h('section', {}, h('h3', {}, 'Access history'), h('ol', { class: 'timeline' }, d.history.map((e) => accessEventLine(e, nameOf)))));
+  openSheet(`Person ${personName(x)}`, [avatar(x.user_id, personName(x), 'lg'), h('div', {}, h('h2', {}, personName(x)),
+    h('div', { class: 'sub' }, [x.job_title, x.user_id].filter(Boolean).join(' · ')),
+    h('div', { class: 'meta inline' }, x.status === 'ACTIVE' ? stageChip(x.stage) : chip('DISABLED'), h('span', { class: 'chip' }, x.managed ? 'Managed here' : 'From sign-in')))], parts);
+}
+
+function roleSheet(code) {
+  const me = PV.me;
+  const r = code ? roleOf(code) : null;
+  const editable = me.can_manage_roles && (!r || (r.kind === 'company' && r.status === 'ACTIVE'));
+  const nameOf = (u) => { const p = PV.people.find((q) => q.user_id === u); return p ? personName(p) : u; };
+  const parts = [];
+  if (r) {
+    const holders = PV.people.filter((x) => x.status === 'ACTIVE' && x.roles.includes(r.code));
+    parts.push(h('p', { class: 'callout' }, r.kind === 'company' ? (r.description || 'A company role.') + (r.updated_by ? ` Last changed by ${nameOf(r.updated_by)} ${ago(r.updated_at)}.` : '') : 'A product role: fixed by SERK and tested never to hold both halves of a control. Give it to people; build a company role if it does not fit.'));
+    parts.push(h('section', {}, h('h3', {}, `Held by (${holders.length})`), holders.length
+      ? h('div', { class: 'rolechips' }, holders.map((x) => h('button', { type: 'button', class: 'ghost', on: { click: () => personSheet(x.user_id) } }, avatar(x.user_id, personName(x), 'sm'), personName(x))))
+      : h('p', { class: 'hint' }, 'Nobody holds this role.')));
+  }
+  if (!editable) {
+    parts.push(h('section', {}, h('h3', {}, `Permissions (${r.permissions.length})`), permGroups(r.permissions)));
+  } else {
+    const pick = new Set(r ? r.permissions : ['p2p.read']);
+    const f = { code: input('code', { type: 'text', maxlength: '41', value: r ? r.code.replace(/^custom:/, '') : '', placeholder: 'site_buyer', disabled: !!r }),
+      name: input('name', { type: 'text', maxlength: '80', value: r ? r.name : '', required: true }), description: input('description', { type: 'text', maxlength: '500', value: r ? r.description : '' }) };
+    const reason = reasonInput('Why? For example: approved by the CFO, ticket ACC-12');
+    const warn = h('div', { 'aria-live': 'polite' });
+    const summary = h('p', { class: 'hint' });
+    let groups;
+    const check = () => {
+      const bad = dutyConflicts(pick, PV.controls);
+      warn.textContent = '';
+      const badPerms = new Set(bad.flatMap((c) => c.perms));
+      for (const l of groups.querySelectorAll('label[data-perm]')) l.classList.toggle('conflict', badPerms.has(l.dataset.perm));
+      if (bad.length) warn.append(h('p', { class: 'callout bad' }, 'Not allowed: this role would hold both halves of ', bad.map((c) => c.control).join('; '), '. Untick one side.'));
+      summary.textContent = `${pick.size} permission${pick.size === 1 ? '' : 's'} ticked.`;
+    };
+    groups = permGroups(null, pick, check);
+    check();
+    const form = h('form', { novalidate: true, on: { submit: async (ev) => {
+      ev.preventDefault();
+      try {
+        const why = needReason(reason);
+        const body = { code: f.code.value.trim(), name: f.name.value.trim(), description: f.description.value.trim(), permissions: [...pick].sort(), reason: why };
+        let saved;
+        await refreshAfter(async () => { saved = r ? await api('PUT', `/v1/roles/${encodeURIComponent(r.code)}`, { ...body, version: r.version }) : await api('POST', '/v1/roles', body); }, () => roleSheet(saved.code));
+        say('Role saved.');
+      } catch (e) { sheetError($('sheet').querySelector('.sheetbody'), e); }
+    } } },
+    h('div', { class: 'grid' }, field('Code', f.code, r ? 'Fixed once created.' : 'Lowercase letters, digits, underscores.'), field('Name', f.name), field('Description', f.description)),
+    h('h3', {}, 'What people with this role may do'), summary, groups, warn,
+    field('Reason (kept in the access history)', reason),
+    h('div', { class: 'actions' }, h('button', { type: 'submit' }, r ? 'Save role' : 'Create role'),
+      r ? h('button', { type: 'button', class: 'danger', on: { click: async () => {
+        try { const why = needReason(reason); await refreshAfter(() => api('POST', `/v1/roles/${encodeURIComponent(r.code)}/retire`, { reason: why })); say('Role retired.'); } catch (e) { sheetError($('sheet').querySelector('.sheetbody'), e); }
+      } } }, 'Retire role') : null));
+    parts.push(form);
+  }
+  openSheet(r ? `Role ${r.name}` : 'New company role', [h('div', {}, h('div', { class: 'eyebrow' }, r ? (r.kind === 'company' ? 'Company role' : 'Product role') : 'New company role'),
+    h('h2', {}, r ? r.name : 'Compose a role'), r ? h('div', { class: 'meta inline' }, stageChip(r.stage), h('span', { class: 'sub' }, `${r.permissions.length} permissions · ${r.code}`)) : null)], parts);
+}
+
+function addPersonSheet(v) {
+  const f = { user_id: input('user_id', { type: 'text', maxlength: '200', required: true, placeholder: 'their identity-provider subject, e.g. selam@company.et' }),
+    display_name: input('display_name', { type: 'text', maxlength: '200', required: true }), email: input('email', { type: 'email', maxlength: '254' }),
+    job_title: input('job_title', { type: 'text', maxlength: '120' }), phone: input('phone', { type: 'tel', maxlength: '40' }) };
+  const roles = new Set();
+  const warn = h('div', { 'aria-live': 'polite' });
+  const check = () => {
+    const perms = new Set([...roles].flatMap((c) => roleOf(c).permissions));
+    const bad = dutyConflicts(perms, v.controls);
+    warn.textContent = '';
+    warn.append(bad.length ? h('p', { class: 'callout bad' }, 'Will be refused: these roles together hold both halves of ', bad.map((c) => c.control).join('; '), '.')
+      : h('p', { class: 'hint' }, `${roles.size} role${roles.size === 1 ? '' : 's'}, ${perms.size} permissions.`));
+  };
+  const roleBoxes = h('div', { class: 'permgroups' }, [['company', 'Company roles'], ['seed', 'Product roles']].map(([k, lbl]) => {
+    const rs = v.roles.filter((r) => r.kind === k && r.status === 'ACTIVE');
+    return rs.length ? h('fieldset', { class: 'permgroup' }, h('legend', {}, lbl), rs.map((r) => {
+      const cb = h('input', { type: 'checkbox', value: r.code });
+      cb.addEventListener('change', () => { if (cb.checked) roles.add(r.code); else roles.delete(r.code); check(); });
+      return h('label', { class: `st-${r.stage}` }, cb, h('span', {}, r.name));
+    })) : null;
+  }));
+  const projects = v.projects.map((p) => h('label', { class: 'check' }, h('input', { type: 'checkbox', value: p.id }), `${p.code} — ${p.name}`));
+  const reason = reasonInput('Why? For example: new hire, HR ticket 41');
+  check();
+  openSheet('Add a person', [h('div', {}, h('div', { class: 'eyebrow' }, 'Directory'), h('h2', {}, 'Add a person'), h('div', { class: 'sub' }, 'Before their first sign-in; their access is managed here from the start.'))],
+    h('form', { novalidate: true, on: { submit: async (ev) => {
+      ev.preventDefault();
+      try {
+        const why = needReason(reason);
+        const body = { user_id: f.user_id.value.trim(), display_name: f.display_name.value.trim(), email: f.email.value.trim(), job_title: f.job_title.value.trim(), phone: f.phone.value.trim(),
+          roles: [...roles], project_ids: projects.map((l) => l.querySelector('input')).filter((c) => c.checked).map((c) => c.value), reason: why };
+        await refreshAfter(() => api('POST', '/v1/people', body), () => personSheet(body.user_id));
+        say('Person added.');
+      } catch (e) { sheetError($('sheet').querySelector('.sheetbody'), e); }
+    } } },
+    h('div', { class: 'grid' }, field('Sign-in id', f.user_id, 'Exactly the subject their sign-in token carries.'), field('Name', f.display_name), field('Email', f.email), field('Job title', f.job_title), field('Phone', f.phone)),
+    h('h3', {}, 'Roles'), roleBoxes, warn,
+    h('h3', {}, 'Projects'), v.projects.length ? h('div', {}, projects) : h('p', { class: 'hint' }, 'No projects yet.'),
+    field('Reason (kept in the access history)', reason),
+    h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Add person'))));
+}
+
+function paintWho(name) {
+  $('who-name').textContent = name;
+  const av = $('who-av');
+  av.textContent = initials(name);
+}
+
+// ---------- guarantees and price adjustment (0050) ----------
+function svg(tag, attrs, ...kids) {
+  const e = document.createElementNS(SVGNS, tag);
+  for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, String(v));
+  for (const k of kids) if (k != null) e.append(k);
+  return e;
+}
+const GKIND = { BID: 'Bid', ADVANCE: 'Advance payment', PERFORMANCE: 'Performance', RETENTION: 'Retention' };
+const GSTAND = { ACTIVE: 'In force', EXPIRING: 'Expires soon', EXPIRED: 'Expired', RELEASED: 'Released', CALLED: 'Called' };
+const standChip = (s) => h('span', { class: `gstand gs-${s.toLowerCase()}` }, GSTAND[s] || words(s.toLowerCase()));
+const monthName = (m) => { if (!m) return ''; const [y, mo] = m.split('-').map(Number); return new Date(Date.UTC(y, mo - 1, 1)).toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }); };
+const micro = (x) => Math.round(Number(x || 0) * 1e6);
+
+async function renderBonds(tab) {
+  closeSheet();
+  const TABS = [['guarantees', 'Guarantees'], ['indices', 'Price indices'], ['escalation', 'Price adjustment']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'guarantees';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Guarantees and price adjustment' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/bonds/${k}`);
+    content.textContent = '';
+    try {
+      content.append(k === 'indices' ? await indicesTab() : k === 'escalation' ? await escalationTab() : await guaranteesTab());
+    } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Guarantees & price adjustment', 'The bank guarantees held against each contract, and the price adjustment the contract allows for changes in published price indices. Each value and decision is made by one person and approved by another.',
+    tabs, content);
+  await show(cur);
+}
+
+// Guarantees: register, standing, advance cover.
+async function guaranteesTab() {
+  const r = await api('GET', '/v1/guarantees');
+  const gs = r.guarantees;
+  const kpi = (n, k, warn) => h('div', { class: `kpi${warn && Number(n) ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(n)), h('div', { class: 'k' }, k));
+  const held = Object.entries(r.totals.held || {});
+  const kpis = h('div', { class: 'kpis' }, kpi(r.totals.active, 'In force'), kpi(r.totals.expiring, `Expire within 30 days`, true), kpi(r.totals.expired, 'Expired, not released', true),
+    held.length ? held.map(([ccy, v]) => kpi(money(v).replace(/\.00$/, ''), `Held (${ccy})`)) : kpi(0, 'Held'), kpi(r.totals.cover_shortfalls, 'Advance cover gaps', true));
+  const cover = r.advance_cover.length ? h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Advance payment cover'),
+    h('p', { class: 'hint' }, 'The advance the client paid, less what the certified payment certificates have recovered, should stay covered by an advance payment guarantee in force.'),
+    r.advance_cover.map((a) => {
+      const out = Number(a.advance_outstanding); const cov = Number(a.advance_cover);
+      const pct = out > 0 ? Math.min(100, Math.round((cov / out) * 100)) : 100;
+      const bar = h('div', { class: 'coverbar', role: 'img', 'aria-label': `${a.contract_number}: ${pct}% covered` }, h('span', { class: Number(a.shortfall) > 0 ? 'short' : 'full' }));
+      bar.firstChild.style.width = `${pct}%`;
+      return h('div', { class: 'coverrow' }, h('div', { class: 'ct' }, h('a', { href: `#/doc/contract/${a.contract_id}` }, a.contract_number)),
+        h('div', { class: 'cf' }, `Received ${money(a.advance_received)} · recovered ${money(a.advance_recovered)} · outstanding `, h('strong', {}, money(a.advance_outstanding)),
+          ` · guaranteed ${money(a.advance_cover)} ${a.currency}`), bar,
+        Number(a.shortfall) > 0 ? h('div', { class: 'callout bad' }, `Shortfall ${money(a.shortfall)} ${a.currency}: ask the contractor's bank for an advance guarantee or extend the one in force.`) : null);
+    })) : null;
+
+  const find = h('input', { type: 'search', class: 'findbox', placeholder: 'Find by bank, reference, contract or number', 'aria-label': 'Find a guarantee', autocomplete: 'off' });
+  const FILTERS = [['open', 'In force', (g) => g.status === 'ACTIVE'], ['EXPIRING', 'Expiring', (g) => g.standing === 'EXPIRING'], ['EXPIRED', 'Expired', (g) => g.standing === 'EXPIRED'],
+    ['closed', 'Released or called', (g) => g.status !== 'ACTIVE'], ['all', 'All', () => true]];
+  let filter = 'open';
+  let view = 'cards';
+  const kindSel = select('kind', [{ value: '', label: 'Every kind' }, ...Object.entries(GKIND).map(([value, label]) => ({ value, label }))]);
+  const pills = h('div', { class: 'pills', role: 'group', 'aria-label': 'Show' });
+  const viewp = h('div', { class: 'pills', role: 'group', 'aria-label': 'View' });
+  const out = h('div');
+  const draw = () => {
+    for (const b of pills.children) b.setAttribute('aria-pressed', String(b.dataset.k === filter));
+    for (const b of viewp.children) b.setAttribute('aria-pressed', String(b.dataset.k === view));
+    const q = find.value.trim().toLowerCase();
+    const test = FILTERS.find(([k]) => k === filter)[2];
+    const rows = gs.filter((g) => test(g) && (!kindSel.value || g.kind === kindSel.value) && (!q || [g.number, g.issuer, g.reference, g.contract_number].join(' ').toLowerCase().includes(q)));
+    out.textContent = '';
+    if (!rows.length) { out.append(h('p', { class: 'empty panel' }, gs.length ? 'No guarantee matches.' : 'No guarantee is registered yet.')); return; }
+    if (view === 'cards') { out.append(h('div', { class: 'pgrid' }, rows.map(guaranteeCard))); return; }
+    out.append(table(`${rows.length} guarantees`, [
+      { label: 'Number', cell: (g) => h('button', { type: 'button', class: 'linkbtn', on: { click: () => guaranteeSheet(g) } }, g.number) },
+      { label: 'Kind', cell: (g) => GKIND[g.kind] },
+      { label: 'Contract', cell: (g) => g.contract_number },
+      { label: 'Bank and reference', cell: (g) => `${g.issuer} — ${g.reference}` },
+      { label: 'Value', num: true, cell: (g) => `${money(g.amount)} ${g.currency}` },
+      { label: 'Expires', cell: (g) => g.expires_on },
+      { label: 'Days left', num: true, cell: (g) => (g.status === 'ACTIVE' ? String(g.days_left) : '') },
+      { label: 'Standing', cell: (g) => standChip(g.standing) },
+    ], rows));
+  };
+  for (const [k, label] of FILTERS) pills.append(h('button', { type: 'button', 'data-k': k, on: { click: () => { filter = k; draw(); } } }, label));
+  for (const [k, label] of [['cards', 'Cards'], ['table', 'Table']]) viewp.append(h('button', { type: 'button', 'data-k': k, on: { click: () => { view = k; draw(); } } }, label));
+  find.addEventListener('input', draw);
+  kindSel.addEventListener('change', draw);
+  draw();
+  const tools = h('div', { class: 'toolbar' },
+    S.can.has('bond.manage') ? h('button', { type: 'button', on: { click: registerGuaranteeSheet } }, 'Register a guarantee') : null,
+    !S.can.has('bond.manage') && !S.can.has('bond.approve') ? h('span', { class: 'hint' }, 'Treasury registers guarantees; a commercial manager releases or records a call.') : null);
+  return h('div', {}, tools, kpis, cover, h('div', { class: 'toolbar' }, find, pills, kindSel, h('span', { class: 'spacer' }), viewp), out);
+}
+
+function lifeBar(g) {
+  const start = Date.parse(g.issued_on); const end = Date.parse(g.expires_on);
+  const pct = Math.max(0, Math.min(100, Math.round(((Date.now() - start) / Math.max(1, end - start)) * 100)));
+  const bar = h('div', { class: `lifebar gs-${g.standing.toLowerCase()}`, role: 'img', 'aria-label': `${pct}% of its term elapsed` }, h('span'));
+  bar.firstChild.style.width = `${g.status === 'ACTIVE' ? pct : 100}%`;
+  return bar;
+}
+
+function guaranteeCard(g) {
+  const left = g.status !== 'ACTIVE' ? (g.status === 'CALLED' ? `Called ${money(g.called_amount)}` : 'Returned to the bank')
+    : g.days_left < 0 ? `Expired ${-g.days_left} day${g.days_left === -1 ? '' : 's'} ago` : `${g.days_left} day${g.days_left === 1 ? '' : 's'} left`;
+  return h('button', { type: 'button', class: `pcard gcard gs-${g.standing.toLowerCase()}`, 'aria-label': `Open guarantee ${g.number}`, on: { click: () => guaranteeSheet(g) } },
+    h('div', { class: 'row spread' }, h('span', { class: 'rolechip' }, GKIND[g.kind]), standChip(g.standing)),
+    h('div', {}, h('div', { class: 'gamt' }, money(g.amount), h('span', { class: 'ccy' }, ` ${g.currency}`)),
+      g.amount !== g.original_amount ? h('div', { class: 'sub' }, `reduced from ${money(g.original_amount)}`) : null),
+    h('div', { class: 'pwho' }, h('div', { class: 'nm' }, g.issuer), h('div', { class: 'sub' }, `${g.reference} · ${g.contract_number}`)),
+    lifeBar(g),
+    h('div', { class: 'meta' }, h('span', {}, `${g.issued_on} → ${g.expires_on}`), h('span', {}, '·'), h('strong', {}, left)));
+}
+
+async function registerGuaranteeSheet() {
+  const ctr = select('contract_id', await docOpts('contract', 'ACTIVE'), { required: true });
+  const kind = select('kind', Object.entries(GKIND).map(([value, label]) => ({ value, label })), { required: true });
+  const issuer = input('issuer', { type: 'text', required: true, maxlength: '200', placeholder: 'The issuing bank' });
+  const ref = input('reference', { type: 'text', required: true, maxlength: '100', placeholder: "The bank's reference" });
+  const amount = input('amount', { inputmode: 'decimal', required: true, autocomplete: 'off' });
+  const ccy = input('currency', { type: 'text', maxlength: '3', placeholder: "Contract's currency", autocomplete: 'off' });
+  const issued = input('issued_on', { type: 'date', required: true, value: today() });
+  const expires = input('expires_on', { type: 'date', required: true, value: plusDays(365) });
+  const save = h('button', { type: 'button', class: 'primary' }, 'Register');
+  const sheet = openSheet('Register a guarantee', h('div', {}, h('h2', {}, 'Register a guarantee'), h('p', { class: 'hint' }, 'As received from the bank. Its value can later only be reduced and its expiry only extended.')),
+    h('div', { class: 'grid' }, field('Contract', ctr), field('Kind', kind), field('Bank', issuer), field('Bank reference', ref), field('Amount', amount), field('Currency', ccy, 'Leave empty for the contract currency'),
+      field('Issued on', issued), field('Expires on', expires)), h('div', { class: 'actions' }, save));
+  save.addEventListener('click', async () => {
+    try {
+      await api('POST', '/v1/guarantees', { contract_id: ctr.value, kind: kind.value, issuer: issuer.value.trim(), reference: ref.value.trim(), amount: amount.value.trim(),
+        currency: ccy.value.trim(), issued_on: issued.value, expires_on: expires.value });
+      closeSheet(); say('Guarantee registered.'); renderBonds('guarantees');
+    } catch (e) { sheetError(sheet, e); }
+  });
+}
+
+function guaranteeSheet(g) {
+  const dl = h('dl', { class: 'kv' });
+  for (const [k, v] of [['Contract', h('a', { href: `#/doc/contract/${g.contract_id}` }, g.contract_number)], ['Kind', GKIND[g.kind]], ['Bank', g.issuer], ['Bank reference', g.reference],
+    ['Face value', `${money(g.original_amount)} ${g.currency}`], ['Current value', `${money(g.amount)} ${g.currency}`], ['Issued', g.issued_on], ['Expires', g.expires_on],
+    ['Registered by', g.created_by], ['Changes', String(g.version - 1)],
+    g.closed_by ? [g.status === 'CALLED' ? 'Called' : 'Released', `${g.closed_by} — ${g.close_reference}: ${g.close_reason}`] : null,
+    g.called_amount ? ['Amount called', `${money(g.called_amount)} ${g.currency}`] : null].filter(Boolean)) dl.append(h('dt', {}, k), h('dd', {}, v));
+  const parts = [lifeBar(g), dl];
+  const sheet = openSheet(`Guarantee ${g.number}`, h('div', {}, h('h2', {}, `${GKIND[g.kind]} guarantee ${g.number}`), h('p', {}, standChip(g.standing))), ...parts,
+    h('p', {}, h('a', { href: `#/doc/guarantee/${g.id}` }, 'Open as a document')));
+  if (g.status !== 'ACTIVE') return;
+  if (S.can.has('bond.manage')) {
+    const amt = input('amount', { inputmode: 'decimal', autocomplete: 'off', placeholder: `Now ${money(g.amount)}` });
+    const exp = input('expires_on', { type: 'date', min: g.expires_on });
+    const why = reasonInput('e.g. Bank amendment no. 2');
+    const b = h('button', { type: 'button' }, 'Record the change');
+    b.addEventListener('click', async () => {
+      try {
+        const body = { reason: needReason(why) };
+        if (amt.value.trim()) body.amount = amt.value.trim();
+        if (exp.value) body.expires_on = exp.value;
+        await api('POST', `/v1/guarantees/${g.id}/change`, body);
+        closeSheet(); say('Guarantee changed.'); renderBonds('guarantees');
+      } catch (e) { sheetError(sheet, e); }
+    });
+    sheet.querySelector('.sheetbody').append(h('div', { class: 'panel' }, h('h3', {}, 'Reduce or extend'), h('p', { class: 'hint' }, 'A lower value or a later expiry, from the bank’s amendment.'),
+      h('div', { class: 'grid' }, field('New value', amt), field('New expiry', exp), field('Reason', why)), h('div', { class: 'actions' }, b)));
+  }
+  if (S.can.has('bond.approve')) {
+    const outcome = select('outcome', [{ value: 'RELEASED', label: 'Released to the bank' }, { value: 'CALLED', label: 'Called by the client' }]);
+    const ref = input('reference', { type: 'text', maxlength: '100', placeholder: 'Letter reference' });
+    const called = input('called_amount', { inputmode: 'decimal', autocomplete: 'off', placeholder: `Up to ${money(g.amount)}` });
+    const calledField = field('Amount called', called);
+    const why = reasonInput('e.g. Taking-over certificate issued');
+    const sync = () => { calledField.hidden = outcome.value !== 'CALLED'; };
+    outcome.addEventListener('change', sync); sync();
+    const b = h('button', { type: 'button', class: 'primary' }, 'Record');
+    b.addEventListener('click', async () => {
+      try {
+        const body = { outcome: outcome.value, reference: ref.value.trim(), reason: needReason(why) };
+        if (outcome.value === 'CALLED') body.called_amount = called.value.trim();
+        await api('POST', `/v1/guarantees/${g.id}/close`, body);
+        closeSheet(); say(outcome.value === 'CALLED' ? 'Call recorded.' : 'Guarantee released.'); renderBonds('guarantees');
+      } catch (e) { sheetError(sheet, e); }
+    });
+    sheet.querySelector('.sheetbody').append(h('div', { class: 'panel' }, h('h3', {}, 'Release or record a call'),
+      h('p', { class: 'hint' }, g.created_by === S.me.user_id ? 'You registered this guarantee, so another person must decide it.' : 'Needs a sign-in with a second factor in the last 10 minutes. It cannot be undone.'),
+      h('div', { class: 'grid' }, field('What happened', outcome), field('Reference', ref), calledField, field('Reason', why)), h('div', { class: 'actions' }, b)));
+  }
+}
+
+// Price indices: series, approved values, values waiting for approval.
+function sparkline(values) {
+  const pts = values.filter((v) => v.status === 'APPROVED').slice().sort((a, b) => a.period.localeCompare(b.period));
+  if (pts.length < 2) return h('div', { class: 'spark empty' }, pts.length ? 'One approved value' : 'No approved value yet');
+  const W = 240; const H = 56; const nums = pts.map((p) => Number(p.value));
+  const lo = Math.min(...nums); const hi = Math.max(...nums); const span = hi - lo || 1;
+  const xy = nums.map((n, i) => [4 + (i * (W - 8)) / (nums.length - 1), H - 6 - ((n - lo) / span) * (H - 14)]);
+  const line = xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const [lx, ly] = xy[xy.length - 1];
+  return svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'spark', role: 'img', 'aria-label': `${pts.length} approved values from ${monthName(pts[0].period)} (${pts[0].value}) to ${monthName(pts[pts.length - 1].period)} (${pts[pts.length - 1].value})` },
+    svg('polyline', { points: `4,${H - 2} ${line} ${W - 4},${H - 2}`, class: 'area' }), svg('polyline', { points: line, class: 'ln' }), svg('circle', { cx: lx, cy: ly, r: 3.5, class: 'pt' }));
+}
+
+async function indicesTab() {
+  const r = await api('GET', '/v1/price-indices');
+  const manage = S.can.has('escalation.manage'); const approve = S.can.has('escalation.approve');
+  const pending = r.indices.flatMap((x) => x.values.filter((v) => v.status === 'SUBMITTED' || v.status === 'DRAFT').map((v) => ({ ...v, code: x.code, name: x.name })))
+    .sort((a, b) => a.code.localeCompare(b.code) || a.period.localeCompare(b.period));
+  const decide = async (v, ok) => {
+    try {
+      let reason = '';
+      if (!ok) { reason = (prompt(`Why is ${v.code} ${monthName(v.period)} rejected?`) || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'A rejection needs a reason of at least 5 characters.'); }
+      await api('POST', `/v1/price-index-values/${v.id}/${ok ? 'approve' : 'reject'}`, { reason });
+      say(ok ? 'Index value approved.' : 'Index value rejected.'); renderBonds('indices');
+    } catch (e) { showError(e); }
+  };
+  const submit = async (v) => { try { await api('POST', `/v1/price-index-values/${v.id}/submit`, {}); say('Submitted for approval.'); renderBonds('indices'); } catch (e) { showError(e); } };
+  const queue = pending.length ? h('div', { class: 'panel' }, h('h2', { class: 'section' }, `Waiting (${pending.length})`),
+    table('Index values not yet approved', [
+      { label: 'Index', cell: (v) => `${v.code} — ${v.name}` }, { label: 'Month', cell: (v) => monthName(v.period) }, { label: 'Value', num: true, cell: (v) => v.value },
+      { label: 'Source', cell: (v) => v.source_ref }, { label: 'Proposed by', cell: (v) => v.created_by }, { label: 'Status', cell: (v) => chip(v.status) },
+      { label: '', cell: (v) => h('div', { class: 'rowacts' },
+        v.status === 'DRAFT' && manage && v.created_by === S.me.user_id ? h('button', { type: 'button', 'aria-label': `Submit ${v.code} ${monthName(v.period)}`, on: { click: () => submit(v) } }, 'Submit') : null,
+        v.status === 'SUBMITTED' && approve && v.created_by !== S.me.user_id ? [h('button', { type: 'button', class: 'primary', 'aria-label': `Approve ${v.code} ${monthName(v.period)}`, on: { click: () => decide(v, true) } }, 'Approve'),
+          h('button', { type: 'button', class: 'ghost', 'aria-label': `Reject ${v.code} ${monthName(v.period)}`, on: { click: () => decide(v, false) } }, 'Reject')] : null) },
+    ], pending)) : null;
+  const cards = r.indices.length ? h('div', { class: 'pgrid' }, r.indices.map((x) => {
+    const ok = x.values.filter((v) => v.status === 'APPROVED');
+    const last = ok[0]; const prev = ok[1];
+    const chg = last && prev ? ((Number(last.value) / Number(prev.value)) - 1) * 100 : null;
+    return h('div', { class: 'pcard icard' },
+      h('div', { class: 'row spread' }, h('span', { class: 'rolechip' }, x.code), h('span', { class: 'sub' }, x.source)),
+      h('div', { class: 'nm' }, x.name),
+      h('div', { class: 'row' }, h('div', { class: 'gamt' }, last ? last.value : '—'),
+        h('div', { class: 'sub' }, last ? monthName(last.period) : 'no approved value', chg != null ? h('span', { class: `delta ${chg >= 0 ? 'up' : 'down'}` }, ` ${chg >= 0 ? '▲' : '▼'} ${Math.abs(chg).toFixed(2)}%`) : null)),
+      sparkline(x.values),
+      h('div', { class: 'meta' }, `${ok.length} approved month${ok.length === 1 ? '' : 's'}`));
+  })) : h('p', { class: 'empty panel' }, 'No price index yet. A quantity surveyor adds the indices the contracts name (for example cement, steel, fuel, labour).');
+  const tools = h('div', { class: 'toolbar' },
+    manage ? h('button', { type: 'button', on: { click: () => indexValueSheet(r.indices) } }, 'Propose a monthly value') : null,
+    manage ? h('button', { type: 'button', class: 'ghost', on: { click: newIndexSheet } }, 'Add an index') : null,
+    !manage ? h('span', { class: 'hint' }, approve ? 'You approve the values others propose.' : 'Values are proposed by a quantity surveyor and approved by a commercial manager.') : null);
+  return h('div', {}, tools, queue, cards);
+}
+
+function newIndexSheet() {
+  const code = input('code', { type: 'text', required: true, maxlength: '30', placeholder: 'e.g. CEM', autocomplete: 'off' });
+  const name = input('name', { type: 'text', required: true, maxlength: '200', placeholder: 'e.g. Cement price index' });
+  const src = input('source', { type: 'text', required: true, maxlength: '200', placeholder: 'Who publishes it' });
+  const b = h('button', { type: 'button', class: 'primary' }, 'Add index');
+  const sheet = openSheet('Add a price index', h('h2', {}, 'Add a price index'), h('div', { class: 'grid' }, field('Code', code, 'Capital letters and digits'), field('Name', name), field('Published by', src)), h('div', { class: 'actions' }, b));
+  b.addEventListener('click', async () => {
+    try { await api('POST', '/v1/price-indices', { code: code.value.trim().toUpperCase(), name: name.value.trim(), source: src.value.trim() }); closeSheet(); say('Index added.'); renderBonds('indices'); } catch (e) { sheetError(sheet, e); }
+  });
+}
+
+function indexValueSheet(indices) {
+  if (!indices.length) { showError(new ApiError(422, 'validation', 'Add an index first.')); return; }
+  const idx = select('index_code', indices.map((x) => ({ value: x.code, label: `${x.code} — ${x.name}` })));
+  const lastMonth = new Date(); lastMonth.setDate(1); lastMonth.setMonth(lastMonth.getMonth() - 1);
+  const period = input('period', { type: 'month', required: true, value: lastMonth.toISOString().slice(0, 7), max: new Date().toISOString().slice(0, 7) });
+  const value = input('value', { inputmode: 'decimal', required: true, autocomplete: 'off' });
+  const src = input('source_ref', { type: 'text', required: true, maxlength: '200', placeholder: 'e.g. CSA bulletin no. 412' });
+  const b = h('button', { type: 'button', class: 'primary' }, 'Propose and submit');
+  const sheet = openSheet('Propose an index value', h('div', {}, h('h2', {}, 'Propose an index value'), h('p', { class: 'hint' }, 'From the published bulletin. Another person approves it; once approved it never changes, and a month has one value.')),
+    h('div', { class: 'grid' }, field('Index', idx), field('Month', period), field('Value', value), field('Source', src)), h('div', { class: 'actions' }, b));
+  b.addEventListener('click', async () => {
+    try {
+      const res = await api('POST', '/v1/price-index-values', { index_code: idx.value, period: period.value, value: value.value.trim(), source_ref: src.value.trim() });
+      await api('POST', `/v1/price-index-values/${res.id}/submit`, {});
+      closeSheet(); say('Value proposed and submitted for approval.'); renderBonds('indices');
+    } catch (e) { sheetError(sheet, e); }
+  });
+}
+
+// Price adjustment: a contract's formula, its certificates and adjustments.
+let ESC_CONTRACT = '';
+async function escalationTab() {
+  const opts = await docOpts('contract', 'ACTIVE');
+  if (!opts.length) return h('p', { class: 'empty panel' }, 'No active contract.');
+  if (!opts.some((o) => o.value === ESC_CONTRACT)) ESC_CONTRACT = opts[0].value;
+  const ctr = select('contract', opts);
+  ctr.value = ESC_CONTRACT;
+  const body = h('div');
+  const load = async () => {
+    ESC_CONTRACT = ctr.value;
+    body.textContent = '';
+    try { body.append(await escalationBody(ctr.value)); } catch (e) { showError(e); }
+  };
+  ctr.addEventListener('change', load);
+  await load();
+  return h('div', {}, h('div', { class: 'toolbar' }, field('Contract', ctr)), body);
+}
+
+const IDX_TONES = 6;
+function formulaView(f) {
+  const terms = f.terms || [];
+  const eq = h('p', { class: 'formula', 'aria-label': 'Price adjustment formula' }, h('var', {}, 'P'), h('sub', {}, 'n'), ' = ', h('b', {}, f.fixed_portion),
+    terms.map((t) => [' + ', h('b', {}, t.weight), ' × ', h('var', {}, t.index_code), h('sub', {}, 'n'), ' / ', h('var', {}, t.index_code), h('sub', {}, '0')]));
+  const bar = h('div', { class: 'wbar', role: 'img', 'aria-label': `Fixed ${f.fixed_portion}; ${terms.map((t) => `${t.index_code} ${t.weight}`).join(', ')}` });
+  const legend = h('div', { class: 'flowlegend' });
+  const seg = (w, cls, label) => { const s = h('span', { class: cls, title: label }); s.style.flexGrow = String(micro(w)); bar.append(s); legend.append(h('span', { class: `wkey ${cls}` }, label)); };
+  seg(f.fixed_portion, 'w-fixed', `Fixed ${(Number(f.fixed_portion) * 100).toFixed(1)}%`);
+  terms.forEach((t, i) => seg(t.weight, `w-${i % IDX_TONES}`, `${t.index_code} ${(Number(t.weight) * 100).toFixed(1)}%${t.name ? ' — ' + t.name : ''}`));
+  return h('div', {}, eq, bar, legend);
+}
+
+async function escalationBody(contract) {
+  const [e, ix] = await Promise.all([api('GET', `/v1/escalation?contract=${contract}`), api('GET', '/v1/price-indices')]);
+  const manage = S.can.has('escalation.manage');
+  const f = e.formula;
+  const parts = [];
+  if (f) {
+    parts.push(h('div', { class: 'panel' }, h('div', { class: 'row spread' }, h('h2', { class: 'section' }, `Formula ${f.number}`), chip(f.status)),
+      formulaView(f),
+      h('p', { class: 'hint' }, `Clause ${f.clause_ref} · base month ${monthName(f.base_period)} · prepared by ${f.created_by}${f.approved_by ? ' · approved by ' + f.approved_by : ''}`),
+      f.status !== 'APPROVED' ? h('p', {}, h('a', { href: `#/doc/escalation_formula/${f.id}` }, f.status === 'DRAFT' ? 'Open it to submit for approval' : 'Open it to approve or reject')) : null));
+  } else if (manage) {
+    parts.push(formulaComposer(contract, ix.indices));
+  } else {
+    parts.push(h('p', { class: 'empty panel' }, 'This contract has no price adjustment formula. A quantity surveyor sets it from the contract’s clause; a commercial manager approves it.'));
+  }
+  const kpi = (v, k) => h('div', { class: 'kpi' }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k));
+  parts.push(h('div', { class: 'kpis' }, kpi(String(e.certificates.length), 'Certified certificates'), kpi(String(e.certificates.filter((c) => c.adjusted).length), 'With an adjustment'),
+    kpi(money(e.approved_total).replace(/\.00$/, ''), 'Approved adjustment')));
+  const ready = f && f.status === 'APPROVED' && manage;
+  const preview = h('div', { 'aria-live': 'polite' });
+  parts.push(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Certified payment certificates'),
+    table('Work certified in each period, the base of its adjustment', [
+      { label: 'Certificate', cell: (c) => h('a', { href: `#/doc/ipc/${c.id}` }, c.number) }, { label: 'Period to', cell: (c) => c.period_end },
+      { label: 'Work this period', num: true, cell: (c) => money(c.this_gross) }, { label: 'Status', cell: (c) => chip(c.status) },
+      { label: 'Adjustment', cell: (c) => (c.adjusted ? 'Prepared' : ready ? adjustControls(c, f, preview, contract) : h('span', { class: 'hint' }, f && f.status === 'APPROVED' ? 'Not yet' : 'Needs an approved formula')) },
+    ], e.certificates, 'No certified certificate yet.'), preview));
+  if (e.adjustments.length) {
+    parts.push(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Price adjustments'),
+      table(`${e.adjustments.length} adjustment(s)`, [
+        { label: 'Number', cell: (a) => h('a', { href: `#/doc/price_adjustment/${a.id}` }, a.number) }, { label: 'Certificate', cell: (a) => a.ipc_number },
+        { label: 'Indices of', cell: (a) => monthName(a.current_period) }, { label: 'Base', num: true, cell: (a) => money(a.base_value) },
+        { label: 'Factor', num: true, cell: (a) => a.factor }, { label: 'Adjustment', num: true, cell: (a) => h('strong', {}, money(a.amount)) },
+        { label: 'Status', cell: (a) => chip(a.status) },
+      ], e.adjustments)));
+  }
+  return h('div', {}, parts);
+}
+
+function adjustControls(c, f, preview, contract) {
+  const m = input('period', { type: 'month', value: c.period_end.slice(0, 7), min: f.base_period, max: c.period_end.slice(0, 7), 'aria-label': `Index month for ${c.number}` });
+  const b = h('button', { type: 'button' }, 'Compute');
+  b.addEventListener('click', async () => {
+    try {
+      clearError();
+      const p = await api('GET', `/v1/price-adjustments/preview?ipc=${c.id}&period=${m.value}`);
+      preview.textContent = '';
+      const go = h('button', { type: 'button', class: 'primary' }, 'Prepare and submit for approval');
+      go.addEventListener('click', async () => {
+        try {
+          const res = await api('POST', '/v1/price-adjustments', { ipc_id: c.id, period: m.value });
+          await api('POST', `/v1/price-adjustments/${res.id}/submit`, {});
+          say('Price adjustment prepared and submitted for approval.'); renderBonds('escalation');
+        } catch (err) { showError(err); }
+      });
+      preview.append(h('div', { class: 'adjpreview' }, h('h3', {}, `${c.number} with indices of ${monthName(p.current_period)}`),
+        table('What each index contributes', [
+          { label: 'Index', cell: (t) => t.index }, { label: 'Weight b', num: true, cell: (t) => t.weight }, { label: 'Base L₀', num: true, cell: (t) => t.base_value },
+          { label: 'Current Lₙ', num: true, cell: (t) => t.current_value }, { label: 'Lₙ / L₀', num: true, cell: (t) => t.ratio },
+          { label: 'b × Lₙ / L₀', num: true, cell: (t) => (Number(t.weight) * Number(t.current_value) / Number(t.base_value)).toFixed(6) },
+        ], p.terms),
+        h('div', { class: 'adjsum' }, h('div', {}, h('span', { class: 'k' }, 'Fixed a'), h('span', { class: 'v' }, f.fixed_portion)),
+          h('div', {}, h('span', { class: 'k' }, 'Factor Pₙ'), h('span', { class: 'v' }, p.factor)),
+          h('div', {}, h('span', { class: 'k' }, 'Work this period'), h('span', { class: 'v' }, money(p.base_value))),
+          h('div', { class: Number(p.amount) < 0 ? 'neg' : 'pos' }, h('span', { class: 'k' }, 'Adjustment = work × (Pₙ − 1)'), h('span', { class: 'v' }, `${money(p.amount)} ${p.currency}`))),
+        h('p', { class: 'hint' }, 'Computed by the database from approved index values only; it is computed again when it is approved.'), h('div', { class: 'actions' }, go)));
+      preview.scrollIntoView({ block: 'nearest' });
+    } catch (err) { showError(err); }
+  });
+  return h('div', { class: 'rowacts' }, m, b);
+}
+
+function formulaComposer(contract, indices) {
+  const clause = input('clause_ref', { type: 'text', maxlength: '100', value: '13.8', 'aria-label': 'Clause' });
+  const fixed = input('fixed_portion', { inputmode: 'decimal', value: '0.15', autocomplete: 'off', 'aria-label': 'Fixed portion a' });
+  const base = input('base_period', { type: 'month', 'aria-label': 'Base month', max: new Date().toISOString().slice(0, 7) });
+  const rows = h('div', { class: 'termrows' });
+  const total = h('div', { class: 'callout', role: 'status' });
+  const live = h('div');
+  const terms = () => [...rows.children].map((r) => ({ index_code: r.querySelector('select').value, weight: r.querySelector('input').value.trim() })).filter((t) => t.index_code && t.weight);
+  const paint = () => {
+    const sum = micro(fixed.value) + terms().reduce((s, t) => s + micro(t.weight), 0);
+    const ok = sum === 1e6;
+    total.className = `callout ${ok ? 'ok' : 'bad'}`;
+    total.textContent = `a + Σb = ${(sum / 1e6).toFixed(6)} ${ok ? '— adds up to exactly 1' : '— must add up to exactly 1'}`;
+    live.textContent = '';
+    live.append(formulaView({ fixed_portion: fixed.value || '0', terms: terms().map((t) => ({ ...t, name: (indices.find((x) => x.code === t.index_code) || {}).name })) }));
+  };
+  const addRow = (code, w) => {
+    const sel = select('index', [{ value: '', label: 'Choose an index' }, ...indices.map((x) => ({ value: x.code, label: `${x.code} — ${x.name}` }))]);
+    sel.value = code || '';
+    const wt = input('weight', { inputmode: 'decimal', value: w || '', autocomplete: 'off', placeholder: 'Weight b', 'aria-label': 'Weight' });
+    const rm = h('button', { type: 'button', class: 'ghost', 'aria-label': 'Remove this index' }, 'Remove');
+    const row = h('div', { class: 'termrow' }, sel, wt, rm);
+    rm.addEventListener('click', () => { row.remove(); paint(); });
+    sel.addEventListener('change', paint); wt.addEventListener('input', paint);
+    rows.append(row);
+  };
+  fixed.addEventListener('input', paint);
+  if (!indices.length) return h('p', { class: 'empty panel' }, 'Add the price indices the contract names first (Price indices tab), then set the formula here.');
+  addRow(indices[0].code, '');
+  const more = h('button', { type: 'button', class: 'ghost', on: { click: () => { addRow('', ''); paint(); } } }, 'Add an index');
+  const save = h('button', { type: 'button', class: 'primary' }, 'Save formula');
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Set the price adjustment formula'),
+    h('p', { class: 'hint' }, 'From the contract’s price adjustment clause: Pₙ = a + Σ b × Lₙ / L₀. The fixed portion a and the weights b must add up to exactly 1, and every index needs an approved value for the base month (usually the month before tenders were due).'),
+    h('div', { class: 'grid' }, field('Clause', clause), field('Fixed portion a', fixed), field('Base month', base)), rows, more, total, live, h('div', { class: 'actions' }, save));
+  save.addEventListener('click', async () => {
+    try {
+      clearError();
+      const res = await api('POST', '/v1/escalation/formulas', { contract_id: contract, clause_ref: clause.value.trim(), fixed_portion: fixed.value.trim(), base_period: base.value, terms: terms() });
+      say('Formula saved as a draft. Open it to submit for approval.');
+      location.hash = `#/doc/escalation_formula/${res.id}`;
+    } catch (e) { showError(e); }
+  });
+  paint();
+  return box;
+}
+
+// ---------- contract time, liquidated damages, obligations (0051) ----------
+const OSTAND = { OPEN: 'Open', DUE_SOON: 'Due within 7 days', OVERDUE: 'Overdue', DONE: 'Done', WAIVED: 'Waived' };
+const OCLS = { OPEN: 'active', DUE_SOON: 'expiring', OVERDUE: 'expired', DONE: 'released', WAIVED: 'released' };
+const PARTY = { CONTRACTOR: 'Contractor', CLIENT: 'Client', ENGINEER: 'Engineer' };
+const obligChip = (s) => h('span', { class: `gstand gs-${OCLS[s] || 'active'}` }, OSTAND[s] || words(s.toLowerCase()));
+
+function obligationsTable(list, after) {
+  return table(`${list.length} obligation(s)`, [
+    { label: 'Number', cell: (o) => o.number }, { label: 'Contract', cell: (o) => h('a', { href: `#/doc/contract/${o.contract_id}` }, o.contract_number) },
+    { label: 'Clause', cell: (o) => o.clause_ref }, { label: 'What', cell: (o) => o.description }, { label: 'Party', cell: (o) => PARTY[o.party] },
+    { label: 'Owner', cell: (o) => o.owner }, { label: 'Due', cell: (o) => o.due_on },
+    { label: 'Standing', cell: (o) => [obligChip(o.standing), o.status === 'OPEN' ? h('span', { class: 'hint' }, ` ${o.days_left < 0 ? -o.days_left + ' days late' : o.days_left + ' days'}`) : h('span', { class: 'hint' }, ` ${o.closed_on} — ${o.close_note}`)] },
+    { label: '', cell: (o) => (o.status === 'OPEN' && S.can.has('claim.manage') ? h('button', { type: 'button', class: 'ghost', 'aria-label': `Close ${o.number}`, on: { click: () => closeObligationSheet(o, after) } }, 'Close…') : null) },
+  ], list, 'No obligation recorded.');
+}
+
+function closeObligationSheet(o, after) {
+  const st = select('status', [{ value: 'DONE', label: 'Done' }, { value: 'WAIVED', label: 'Waived' }]);
+  const on = input('closed_on', { type: 'date', value: today(), max: today() });
+  const note = input('note', { type: 'text', maxlength: '500', placeholder: 'How it was met, or why it is waived' });
+  const b = h('button', { type: 'button', class: 'primary' }, 'Close obligation');
+  const sheet = openSheet(`Close ${o.number}`, h('div', {}, h('h2', {}, `Close ${o.number}`), h('p', { class: 'hint' }, o.description)),
+    h('div', { class: 'grid' }, field('Outcome', st), field('On', on), field('Note', note, 'A waiver needs its reason (5+ characters)')), h('div', { class: 'actions' }, b));
+  b.addEventListener('click', async () => {
+    try { await api('POST', `/v1/obligations/${o.id}/close`, { status: st.value, closed_on: on.value, note: note.value.trim() }); closeSheet(); say('Obligation closed.'); after(); } catch (e) { sheetError(sheet, e); }
+  });
+}
+
+function addObligationSheet(contracts, after) {
+  const ctr = select('contract_id', contracts, { required: true });
+  const clause = input('clause_ref', { type: 'text', maxlength: '100', placeholder: 'e.g. 8.3' });
+  const desc = input('description', { type: 'text', maxlength: '500', placeholder: 'e.g. Submit the revised programme' });
+  const party = select('party', Object.entries(PARTY).map(([value, label]) => ({ value, label })));
+  const owner = input('owner', { type: 'text', maxlength: '200', placeholder: 'Sign-in id (empty: you)', autocomplete: 'off' });
+  const due = input('due_on', { type: 'date', value: plusDays(14) });
+  const b = h('button', { type: 'button', class: 'primary' }, 'Add obligation');
+  const sheet = openSheet('Add an obligation', h('div', {}, h('h2', {}, 'Add an obligation'), h('p', { class: 'hint' }, 'What the contract requires, of whom, by when. Alert rules can warn the owner at 14, 7 and 2 days.')),
+    h('div', { class: 'grid' }, field('Contract', ctr), field('Clause', clause), field('What', desc), field('Whose obligation', party), field('Owner here', owner), field('Due on', due)), h('div', { class: 'actions' }, b));
+  b.addEventListener('click', async () => {
+    try {
+      await api('POST', '/v1/obligations', { contract_id: ctr.value, clause_ref: clause.value.trim(), description: desc.value.trim(), party: party.value, owner: owner.value.trim(), due_on: due.value });
+      closeSheet(); say('Obligation added.'); after();
+    } catch (e) { sheetError(sheet, e); }
+  });
+}
+
+async function renderObligations() {
+  closeSheet();
+  const r = await api('GET', '/v1/obligations');
+  const list = r.obligations;
+  const kpi = (n, k, warn) => h('div', { class: `kpi${warn && n ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(n)), h('div', { class: 'k' }, k));
+  const open = list.filter((o) => o.status === 'OPEN');
+  const FILTERS = [['open', 'Open', (o) => o.status === 'OPEN'], ['soon', 'Due within 7 days', (o) => o.standing === 'DUE_SOON'], ['late', 'Overdue', (o) => o.standing === 'OVERDUE'], ['closed', 'Closed', (o) => o.status !== 'OPEN'], ['all', 'All', () => true]];
+  let filter = 'open';
+  const pills = h('div', { class: 'pills', role: 'group', 'aria-label': 'Show' });
+  const out = h('div');
+  const draw = () => {
+    for (const b of pills.children) b.setAttribute('aria-pressed', String(b.dataset.k === filter));
+    out.textContent = '';
+    out.append(obligationsTable(list.filter(FILTERS.find(([k]) => k === filter)[2]), renderObligations));
+  };
+  for (const [k, label] of FILTERS) pills.append(h('button', { type: 'button', 'data-k': k, on: { click: () => { filter = k; draw(); } } }, label));
+  draw();
+  const add = S.can.has('claim.manage') ? h('button', { type: 'button', on: { click: async () => addObligationSheet(await docOpts('contract', 'ACTIVE'), renderObligations) } }, 'Add an obligation') : null;
+  page('Contract obligations', 'What each contract requires of the contractor, the client and the engineer, by when. Closed once, as done or waived; a waiver needs its reason.',
+    h('div', { class: 'toolbar' }, add), h('div', { class: 'kpis' }, kpi(open.length, 'Open'), kpi(open.filter((o) => o.standing === 'DUE_SOON').length, 'Due within 7 days', true),
+      kpi(open.filter((o) => o.standing === 'OVERDUE').length, 'Overdue', true), kpi(list.length - open.length, 'Closed')),
+    h('div', { class: 'toolbar' }, pills), out);
+}
+
+async function timePanel(contract) {
+  const t = await api('GET', `/v1/contracts/${contract}/time`);
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Time for completion and liquidated damages'));
+  const reload = async () => { box.replaceWith(await timePanel(contract)); };
+  const terms = t.terms;
+  if (!terms) {
+    if (!S.can.has('claim.manage')) { box.append(h('p', { class: 'hint' }, 'No damages terms are set for this contract.')); }
+    else {
+      const clause = input('clause_ref', { type: 'text', maxlength: '100', value: '8.8' });
+      const done = input('completion_date', { type: 'date' });
+      const rate = input('rate_per_day', { inputmode: 'decimal', autocomplete: 'off', placeholder: 'per day of delay' });
+      const cap = input('cap_amount', { inputmode: 'decimal', autocomplete: 'off', placeholder: 'e.g. 10% of the contract value' });
+      const b = h('button', { type: 'button', class: 'primary' }, 'Save and submit for approval');
+      b.addEventListener('click', async () => {
+        try {
+          clearError();
+          const res = await api('POST', '/v1/ld-terms', { contract_id: contract, clause_ref: clause.value.trim(), completion_date: done.value, rate_per_day: rate.value.trim(), cap_amount: cap.value.trim() });
+          await api('POST', `/v1/ld-terms/${res.id}/submit`, {});
+          say('Damages terms submitted for approval.'); await reload();
+        } catch (e) { showError(e); }
+      });
+      box.append(h('p', { class: 'hint' }, 'From the contract: the time for completion, the damages per day of delay and their cap. Another person approves them; they then never change.'),
+        h('div', { class: 'grid' }, field('Clause', clause), field('Time for completion', done), field('Damages per day', rate), field('Cap', cap)), h('div', { class: 'actions' }, b));
+    }
+  } else if (terms.status !== 'APPROVED') {
+    box.append(h('p', {}, chip(terms.status), ` ${terms.number}: complete by ${terms.completion_date}, ${money(terms.rate_per_day)} a day, cap ${money(terms.cap_amount)}. `,
+      h('a', { href: `#/doc/ld_terms/${terms.id}` }, terms.status === 'DRAFT' ? 'Open to submit' : 'Open to approve or reject')));
+  } else {
+    const kpi = (v, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}${/^\d{4}-\d\d-\d\d$/.test(v) ? ' datek' : ''}` }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k));
+    const used = Number(t.cap) ? Math.min(100, Math.round((Number(t.damages_to_date) / Number(t.cap)) * 100)) : 0;
+    const bar = h('div', { class: 'coverbar', role: 'img', 'aria-label': `${used}% of the damages cap reached` }, h('span', { class: 'short' }));
+    bar.firstChild.style.width = `${used}%`;
+    box.append(h('div', { class: 'kpis' }, kpi(t.completion_date, 'Time for completion'), kpi(`+${t.extension_days} d`, 'Extensions agreed'), kpi(t.revised_completion, 'Revised completion'),
+      kpi(t.schedule_finish || '—', 'Baseline schedule finish', t.forecast_delay_days > 0), kpi(String(t.days_late), 'Days late today', t.days_late > 0),
+      kpi(money(t.damages_to_date).replace(/\.00$/, ''), `Damages to date (${t.currency})`, Number(t.damages_to_date) > 0)),
+      h('p', { class: 'hint' }, `${money(t.rate_per_day)} a day, capped at ${money(t.cap)} (clause ${terms.clause_ref}). `,
+        t.schedule_finish ? (t.forecast_delay_days > 0 ? `The baseline schedule finishes ${t.forecast_delay_days} days after the revised completion: forecast damages ${money(t.damages_forecast)}.` : 'The baseline schedule finishes on time.') : 'No baseline schedule yet, so no damages forecast.',
+        t.cap_reached ? ' The cap is reached.' : ''), bar,
+      t.extensions.length ? table('Extensions of time agreed by the client', [{ label: 'Claim', cell: (x) => h('a', { href: `#/doc/contract_claim/${x.claim_id}` }, x.number) },
+        { label: 'Title', cell: (x) => x.title }, { label: 'Days', num: true, cell: (x) => String(x.days) }, { label: 'Agreed on', cell: (x) => x.agreed_on }, { label: 'Client reference', cell: (x) => x.client_reference }], t.extensions)
+        : h('p', { class: 'hint' }, 'No extension agreed yet. Days the client agrees on a claim move the completion date here automatically.'));
+  }
+  box.append(h('h3', {}, 'Obligations'), obligationsTable(t.obligations, reload));
+  if (S.can.has('claim.manage')) box.append(h('div', { class: 'actions' }, h('button', { type: 'button', class: 'ghost', on: { click: () => addObligationSheet([{ value: contract, label: t.contract_number }], reload) } }, 'Add an obligation')));
+  return box;
+}
+
+async function renderMe() {
+  const pr = await api('GET', '/v1/me/profile');
+  const name = pr.display_name || pr.user_id;
+  paintWho(name);
+  const company = (S.company && S.company.display_name) || 'this company';
+  const area = {};
+  for (const p of pr.permissions) area[p.area] = (area[p.area] || 0) + 1;
+  const kpi = (n, k) => h('div', { class: 'kpi' }, h('div', { class: 'v' }, String(n)), h('div', { class: 'k' }, k));
+  const hero = h('div', { class: `profilehero st-${pr.stage || 'none'}` }, avatar(pr.user_id, name, 'lg'),
+    h('div', {}, h('div', { class: 'eyebrow' }, company), h('h2', {}, name), h('div', { class: 'sub' }, [pr.job_title, pr.user_id].filter(Boolean).join(' · ')),
+      h('div', { class: 'badges' }, stageChip(pr.stage), h('span', { class: pr.mfa ? 'chip ok' : 'chip warn' }, pr.mfa ? 'Multi-factor sign-in' : 'No multi-factor sign-in'),
+        h('span', { class: 'chip' }, pr.role_source === 'directory' ? 'Access managed by the company' : 'Access from your sign-in'),
+        pr.kind && pr.kind !== 'human' ? h('span', { class: 'chip warn' }, `${pr.kind} principal`) : null)));
+  const kpis = h('div', { class: 'kpis' }, kpi(pr.roles.length, 'Roles'), kpi(pr.permissions.length, 'Things you may do'),
+    kpi(pr.tenant_wide ? 'All' : pr.projects.length, 'Projects'), kpi(pr.lent_to_me.length, 'Lent to you'), kpi(Object.keys(area).length, 'Business areas'));
+  const roles = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Your roles'),
+    pr.roles.length ? h('div', { class: 'rolecards' }, pr.roles.map((r) => h('span', { class: `rolecard st-${r.stage || 'none'}` }, h('h4', {}, r.name),
+      h('p', {}, r.kind === 'company' ? (r.description || 'Company role') : 'Product role'),
+      h('div', { class: 'meta' }, stageChip(r.stage), h('span', {}, `${r.permissions.length} permissions`)))))
+      : h('p', { class: 'hint' }, 'You hold no role in this company.'));
+  const can = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'What you may do'),
+    h('p', { class: 'hint' }, 'Everything below comes from your roles' + (pr.lent_to_me.length ? ' and authority lent to you' : '') + '. The system also checks separation of duties, project scope, amount limits and fresh multi-factor sign-in on each action.'),
+    pr.permissions.length ? permGroupsFrom(pr.permissions) : h('p', { class: 'hint' }, 'Nothing yet.'));
+  const activity = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Your recent activity'),
+    pr.recent_activity.length ? h('ol', { class: 'timeline' }, pr.recent_activity.map((e) => h('li', {}, h('div', {}, words(e.action.replace(/[._]/g, ' '))),
+      h('div', { class: 'when' }, `${when(e.at)} · ${ago(e.at)}`)))) : h('p', { class: 'hint' }, 'Nothing recorded yet.'));
+  const f = { display_name: input('display_name', { type: 'text', maxlength: '200', value: pr.display_name || '', required: true, autocomplete: 'name' }),
+    job_title: input('job_title', { type: 'text', maxlength: '120', value: pr.job_title || '', autocomplete: 'organization-title' }),
+    phone: input('phone', { type: 'tel', maxlength: '40', value: pr.phone || '', autocomplete: 'tel' }) };
+  const details = h('form', { class: 'panel', novalidate: true, on: { submit: async (ev) => {
+    ev.preventDefault();
+    clearError();
+    try { await api('PUT', '/v1/me/profile', { display_name: f.display_name.value, job_title: f.job_title.value, phone: f.phone.value }); say('Profile saved.'); await renderMe(); } catch (e) { showError(e); }
+  } } }, h('h2', { class: 'section' }, 'Your details'), field('Name', f.display_name), field('Job title', f.job_title), field('Phone', f.phone),
+  h('p', { class: 'hint' }, pr.email ? `Email ${pr.email} is kept by your administrator.` : 'Your email and access are kept by your administrator.'),
+  h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Save')));
+  const where = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Where you work'),
+    pr.tenant_wide ? h('p', { class: 'callout ok' }, 'Every project of the company.') : pr.projects.length
+      ? h('div', { class: 'rolechips' }, pr.projects.map((p) => h('span', { class: 'rolechip' }, `${p.code} — ${p.name}`))) : h('p', { class: 'hint' }, 'No project assigned yet.'));
+  const lent = pr.lent_to_me.length ? h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Authority lent to you'),
+    h('ul', {}, pr.lent_to_me.map((l) => h('li', {}, l.permission.label, h('span', { class: 'hint' }, ` — from ${l.from.join(', ')}`))))) : null;
+  const exc = pr.duty_exceptions.length ? h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Approved duty exceptions'), h('ul', {}, pr.duty_exceptions.map((x) => h('li', {}, x)))) : null;
+  const session = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'This sign-in'),
+    h('dl', { class: 'kv' }, h('dt', {}, 'Sign-in id'), h('dd', { class: 'ref' }, pr.user_id),
+      h('dt', {}, 'Signed in'), h('dd', {}, pr.auth_time ? `${when(pr.auth_time)} (${ago(pr.auth_time)})` : '—'),
+      h('dt', {}, 'Multi-factor'), h('dd', {}, pr.mfa ? 'yes — approvals need it within the last 10 minutes' : 'no'),
+      h('dt', {}, 'First seen here'), h('dd', {}, pr.first_seen ? when(pr.first_seen) : '—')),
+    h('div', { class: 'actions' }, h('button', { type: 'button', class: 'ghost', on: { click: () => signOut() } }, 'Sign out'),
+      h('button', { type: 'button', class: 'danger', on: { click: async () => {
+        try { await api('POST', '/v1/identity/sessions/revoke', { subject: pr.user_id, reason: 'Signed out everywhere from my profile' }); signOut('You were signed out on every device.'); } catch (e) { showError(e); }
+      } } }, 'Sign out everywhere')));
+  page('My profile', 'Who you are in this company, what you may do and why, and what you did last.', hero, kpis,
+    h('div', { class: 'twocol' }, h('div', {}, roles, can, activity), h('div', {}, details, where, lent, exc, session)));
+}
+function permGroupsFrom(infos) {
+  const areas = new Map();
+  for (const p of infos) { if (!areas.has(p.area)) areas.set(p.area, []); areas.get(p.area).push(p); }
+  return h('div', { class: 'permgroups' }, [...areas.entries()].map(([a, list]) => h('div', { class: 'permgroup' }, h('h4', {}, a, h('span', { class: 'count' }, String(list.length))),
+    h('ul', {}, list.map((p) => h('li', { class: `st-${p.stage}`, title: p.code }, h('span', { class: 'dot' }), p.label))))));
 }
 
 // ---------- theme: day (green on cream) / night (cream on green) ----------

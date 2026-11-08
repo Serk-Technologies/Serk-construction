@@ -55,8 +55,8 @@ func TestReportCatalogue_EveryReportRunsAndTiesOut(t *testing.T) {
 	w := newP2PWorld(t)
 	f, c := w.f, w.cast
 	w.reportsWorld(t)
-	if len(reportDefs) != 15 || len(reportIDs()) != 15 {
-		t.Fatalf("the catalogue has %d reports, want 15", len(reportDefs))
+	if len(reportDefs) != 19 || len(reportIDs()) != 19 {
+		t.Fatalf("the catalogue has %d reports, want 19", len(reportDefs))
 	}
 	run := func(id string, fl ReportFilters) ReportResult {
 		t.Helper()
@@ -165,8 +165,8 @@ func TestReportCatalogue_EveryReportRunsAndTiesOut(t *testing.T) {
 	if len(bva.Rows) == 0 || !last.Equal(actual) {
 		t.Fatalf("budget-vs-actual cumulative %s != cost report posted actual %s (%d rows)", last, actual, len(bva.Rows))
 	}
-	// The catalogue lists all 14 for the CFO.
-	if n := len(f.svc.ReportCatalogue(c.cfo)); n != 15 {
+	// The catalogue lists all 19 for the CFO.
+	if n := len(f.svc.ReportCatalogue(c.cfo)); n != 19 {
 		t.Fatalf("CFO catalogue has %d reports", n)
 	}
 }

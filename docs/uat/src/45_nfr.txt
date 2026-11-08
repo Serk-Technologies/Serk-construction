@@ -1,0 +1,226 @@
+# 31. Non-functional acceptance: security, performance, availability, usability, operations (SRS section 7)
+
+## How non-functional requirements are accepted
+Business users cannot judge encryption or throughput by clicking, so the SRS assigns each non-functional requirement a verification method: **Test** (measure it), **Inspection** (look at configuration, documents or evidence), **Demo** or **Analysis** (reasoned evidence from specialists). The UAT lead collects the evidence, attaches it to the case, and the relevant owner (security lead, operations lead, QA lead) signs. A case passes only when the evidence is current, dated, and from the environment under acceptance (a laptop result is not a production-like result).
+
+> Evidence rule: every case below says *what to attach*. "Trust me" and screenshots without dates are not evidence. A case with no evidence is Blocked, not Passed.
+
+@term SLO / SLA = Service level objective / agreement: the measured level of availability or speed promised.
+@term RPO / RTO = Recovery point objective (maximum data loss) / recovery time objective (maximum downtime).
+@term PITR = Point-in-time recovery: restoring the database to a chosen moment.
+@term SIEM = Central security log and alert system.
+@term SBOM = Software bill of materials: list of all components in a build.
+@term WCAG = Web content accessibility guidelines.
+
+## 31.1 Security (SRS 7.3)
+@release R1
+
+@case T-NFR-01 | All traffic uses TLS 1.2+ with HSTS | R1 | NFR-SEC-01, EI-CM-01 | UAT
+1. Run a TLS scan against the web, API, portal and sync endpoints.
+2. Try plain HTTP and TLS 1.0/1.1.
+=> Only TLS 1.2 or 1.3 is accepted; HTTP redirects or is refused; public endpoints send HSTS. Attach the scan report with date.
+
+@case T-NFR-02 | Data is encrypted at rest; bank details and personal identifiers have field-level encryption | R1 | NFR-SEC-02 | UAT, ADM
+1. Inspect the storage encryption settings (database, object store, backups).
+2. As the schema owner in a test copy, read the bank account column of a supplier directly.
+=> Storage encryption is on. The column shows ciphertext, not the account number. Attach settings evidence and the query result.
+
+@case T-NFR-03 | OWASP ASVS Level 2, and Level 3 for authentication, approvals, payments and administration | R1 | NFR-SEC-03 | UAT
+1. Review the ASVS applicability matrix and the evidence for each requirement.
+=> Every ASVS L2 item (and L3 for the named areas) is marked met, not applicable (with reason) or an accepted risk signed by the security lead. No unreviewed items.
+
+@case T-NFR-04 | The approval-signing key is in an HSM or cloud KMS; no secrets in source or client code | R1 | NFR-SEC-04 | UAT, ADM
+1. Inspect the key ceremony record and KMS/HSM configuration.
+2. Run the secret scan on the repository and a search of the web client bundle for keys.
+=> The signing key cannot be exported and is used only by the isolated signer; other secrets come from a vault and have a rotation record; the scans find none.
+
+@case T-NFR-05 | The pipeline runs SAST, dependency scanning, secret scanning, checksum verification and SBOM, and signs images | R1 | NFR-SEC-05 | UAT
+1. Open the latest release pipeline results.
+=> All five checks ran on the release candidate commit and passed or have recorded exceptions; the SBOM exists; the container images are signed and the signature verifies.
+
+@case T-NFR-06 | Automated cross-tenant and privilege-escalation probes run in CI | R1 | NFR-SEC-06, ISO-T01 | UAT
+1. Open the last probe run for the release candidate.
+=> Probes ran as the tenant database login and as the schema owner, covering cross-tenant, cross-project and export attempts; zero successes. Denials appear in the audit entries.
+
+@case T-NFR-07 | The independent penetration test has closed all critical and high findings | R1 | NFR-SEC-07 | UAT
+1. Obtain the penetration-test report and the retest letter.
+=> No open critical or high finding; each closed finding has retest evidence; the test is dated within the last 12 months. Required before general availability.
+
+@case T-NFR-08 | Security logs go to the SIEM, with alerts, and never contain secrets | R1 | NFR-SEC-08 | UAT, ADM
+1. After running this manual, search the central logs for the test passwords, MFA codes, tokens and bank account numbers.
+2. Trigger an account lockout and a bulk export; look for the alerts.
+=> No secret or bank number appears in logs. Both events produced a SIEM alert with correlation identifiers.
+
+@case T-NFR-09 | ISO/IEC 27001 and SOC 2 Type II plan | R1 | NFR-SEC-10 | UAT
+1. Review the certification plan.
+=> A dated plan with milestones within 18 months of general availability, with an assigned owner. (Should, evidence of plan only.)
+
+## 31.2 Privacy and regulatory (SRS 7.4)
+@release R1
+
+@case T-NFR-10 | Data-protection capabilities for Proclamation 1321/2024 and GDPR | R1 | NFR-PRV-01 | UAT, ADM
+1. Review the mapping of the proclamation's duties (minimisation, purpose limitation, data-subject rights, breach notification, cross-border) to system features.
+2. Perform a data-subject access request and a correction request on an employee test record.
+=> Each duty maps to a feature or a documented process signed by counsel. The access request produces the subject's data; corrections are audited; financial records needed by law are retained and the response explains why.
+
+@case T-NFR-11 | In-country hosting or on-premises deployment is available | R1 | NFR-PRV-02, NFR-MNT-05 | UAT
+1. Review the residency decision (D-02) and the deployment evidence.
+=> A deployment in the chosen location is demonstrated (region or on-premises), and data, backups and logs stay there.
+
+@case T-NFR-12 | Retention and deletion follow legal minimums; deletion is by approved purge or anonymisation | R1 | NFR-PRV-03, ADM-08 | UAT, ADM
+1. Review the retention schedule signed by counsel (D-09).
+=> Periods for financial, payroll, contract and HSE records match the signed schedule; purge and anonymisation need approval and leave evidence (see T-ADM-08).
+
+@case T-NFR-13 | Incident and breach-response procedure and data-processing agreement template | R1 | NFR-PRV-04 | UAT
+1. Review the procedure; run a tabletop exercise with a simulated breach.
+=> The procedure names roles, notification deadlines and templates; the exercise produced a dated record with actions.
+
+@case T-NFR-14 | Financial and tax treatment signed by a qualified professional | R1 | NFR-PRV-05 | FIN, UAT
+1. Obtain the signed mapping for IFRS, VAT, withholding and payroll.
+=> Signed and dated by a qualified accountant or tax adviser for the release being accepted. Without it, mark Blocked and do not go live with the affected module.
+
+## 31.3 Performance and capacity (SRS 7.1)
+@release R4
+
+@case T-NFR-15 | Command response time: 1 s at p95 and 3 s at p99 under reference load | R4 | NFR-PERF-01, PERF-T01 | UAT
+1. Run the reference load script (approved mix of commands) on the production-like environment for the agreed duration.
+=> Report shows p95 <= 1 s and p99 <= 3 s for command endpoints, error rate within the agreed limit, with environment description and date.
+
+@case T-NFR-16 | Lists and reads under 500 ms at p95; search under 1 s over 5 million documents | R4 | NFR-PERF-02 | UAT
+1. Run read and search load against a tenant seeded with 5 million documents.
+=> p95 for lists and detail <= 500 ms; search <= 1 s at p95.
+
+@case T-NFR-17 | Reports up to 100,000 rows in 10 s; larger reports run in the background and notify | R4 | NFR-PERF-03 | UAT, FIN
+1. Run a report producing 100,000 rows and another producing 1,000,000 rows.
+=> The first completes in 10 s or less. The second starts a background job, tells the user, and sends a notification with the result link when done.
+
+@case T-NFR-18 | 2,000 concurrent users, 500 active projects and 50 million journal lines | R4 | NFR-PERF-04 | UAT
+1. Run the scale test with seeded data and concurrent sessions.
+=> NFR-PERF-01 is still met at that scale; no errors beyond the agreed limit during the soak period.
+
+@case T-NFR-19 | 1,000 queued offline commands sync in 5 minutes on a 3G-class link | R3 | NFR-PERF-05, SIT-02 | SITE, UAT
+1. Queue 1,000 small commands on a test phone; throttle the network to 3G-class; start sync.
+=> All commands are processed in 5 minutes or less; small commands go before large media; results are per item.
+
+@case T-NFR-20 | First load of the web console under 1.5 MB compressed | R4 | NFR-PERF-06 | UAT
+1. Clear the cache; open the console on a throttled connection; read the transfer size.
+=> Less than 1.5 MB compressed.
+
+## 31.4 Availability, reliability and recovery (SRS 7.2)
+@release R1
+
+@case T-NFR-21 | Availability target and service-level reporting | R1 | NFR-AVL-01 | UAT
+1. Review the monitoring set-up and the first month's availability report (or the design analysis before launch).
+=> 99.9% monthly target (99.5% in the first six months) is defined with a measurement method, exclusions and alerts.
+
+@case T-NFR-22 | Point-in-time restore meets 5 minutes RPO and 4 hours RTO, and the restored system verifies | R1 | NFR-AVL-02, NFR-AVL-05, OPS-T01 | UAT, ADM, AUD
+1. Note the time and the total of a known set of documents. Make a further change (the "last committed" transaction).
+2. Simulate loss of the primary database.
+3. Restore to a point immediately before the loss, using the documented runbook, and time the whole exercise.
+4. In the restored system run the audit-chain verification, the integrity scan and the stock/AP/AR reconciliations.
+=> Data loss is within 5 minutes; total restoration time is within the 4-hour (or 1-hour premium) target.
+=> Chain verification, integrity scan and reconciliations all report zero differences. A signed drill record is produced.
+
+@case T-NFR-23 | A failure mid-command leaves it fully committed or fully rolled back; replay is safe | R1 | NFR-AVL-03, AUD-02 | UAT
+1. With a test hook, kill the application process in the middle of approving a journal; restart.
+2. Repeat the same request with the same idempotency key.
+=> After restart the journal is either fully approved with its audit record and event, or not at all; the replay completes it once.
+
+@case T-NFR-24 | Reporting, AI, notification, export and integration failures do not stop transactions | R1 | NFR-AVL-04 | UAT
+1. Stop the reporting service, the AI service and the notification service in turn; keep posting transactions.
+=> Transactions continue unaffected; the admin health view shows the failed service; queued items process after recovery. (Related T-INT-06.)
+
+@case T-NFR-25 | Backups are encrypted, copied off-site in object-locked storage, and restore-tested quarterly | R1 | NFR-AVL-05 | UAT, ADM
+1. Inspect the backup configuration and the off-site bucket (object lock, encryption).
+2. Review the last quarterly restore-test record.
+3. Try to delete an off-site backup with the operational credentials.
+=> Backups are encrypted and retained off-site in isolated object-locked storage; deletion is refused; a signed restore-test record exists within the last 90 days (SRS 9.1).
+
+@case T-NFR-26 | Deployments and migrations are backward-compatible: no downtime in working hours | R1 | NFR-AVL-06, NFR-MNT-02 | UAT
+1. During a session with users working, deploy the next build with an additive migration.
+=> No user is logged out or sees errors; in-flight commands complete; the migration list shows only additive changes with checksums.
+
+## 31.5 Usability, accessibility and localisation (SRS 7.5)
+@release R1
+
+@case T-NFR-27 | WCAG 2.1 AA and full keyboard use | R1 | NFR-USB-01 | UAT, SITE
+1. Run the automated accessibility scan on the key screens (requisition, PO, journal, IPC, dashboard).
+2. Without using the mouse, create and submit a requisition and approve a PO.
+3. Use a screen reader on one form.
+=> No failures at level AA; every function reachable by keyboard with visible focus; the screen reader announces fields, errors and status.
+
+@case T-NFR-28 | A clerk can work a standard document after one day of training | R1 | NFR-USB-02 | AP, STORE, SITE
+1. Give three first-time users (an AP clerk, a storekeeper and a site engineer) one day of training from the in-product help.
+2. The next morning each performs their standard document (invoice, goods receipt, requisition) alone, timed and observed.
+=> At least 2 of the 3 complete it without help from the observer, with no data errors. Record times and stumbling points.
+
+@case T-NFR-29 | Layouts adapt from desktop to tablet and phone; approvals and dashboards are fully usable on a phone | R1 | NFR-USB-03 | PM, EXE
+1. On a phone-size screen open the inbox, approve a requisition, view the executive dashboard and a cost report.
+=> No horizontal scrolling in the page frame, tap targets are usable, and every approval step including MFA works.
+
+@case T-NFR-30 | Ethiopic script and calendars render correctly everywhere | R1 | NFR-USB-04, NFR-USB-05, ADM-04 | ADM, FIN
+1. Create a supplier named in Amharic; show it on screen, in PDF, Word and Excel exports and in an email notification.
+2. Switch the date display between Gregorian and Ethiopian.
+=> The name renders correctly in all places; dates display in both calendars; stored values do not change; default time zone is Africa/Addis_Ababa.
+
+@case T-NFR-31 | Every refusal explains the rule and the action that would satisfy it | R1 | NFR-USB-06, EI-UI-02 | UAT
+1. Gather all refusals recorded in this test run (budget, SoD, closed period, hold point, duplicate, mismatch, conflict, permission).
+2. Score each on five points: no change occurred; names the rule; names the next step; audited; same outcome by a second route.
+=> All refusals score 5/5. Any refusal scoring lower is raised as a Medium defect.
+
+@case T-NFR-32 | One documented design system across web, mobile and portals | R1 | NFR-USB-07 | UAT
+1. Compare the same functions on web, mobile and portal against the design-system documentation.
+=> Components, colours, typography and patterns match the documented system; deviations are listed and accepted.
+
+## 31.6 Maintainability, portability and operations (SRS 7.6)
+@release R1
+
+@case T-NFR-33 | Modular monolith with explicit module boundaries | R1 | NFR-MNT-01 | UAT
+1. Review the module-boundary tests and the dependency report.
+=> No module writes another module's tables directly; the check runs in CI and passes.
+
+@case T-NFR-34 | Tests cover every invariant R1-R9; line coverage of critical modules is at least 80% | R1 | NFR-MNT-03 | UAT
+1. Open the latest coverage report and the invariant-to-test map (SRS section 9).
+=> Each invariant has at least one passing automated suite; financial, approval, stock, contract and sync modules each show >= 80% line coverage.
+
+@case T-NFR-35 | Delivery of OpenAPI, ER diagram, ADRs and runbooks, kept current | R1 | NFR-MNT-04 | UAT
+1. Open each deliverable and check its version against the release.
+=> All four exist, are dated for this release, and the OpenAPI document matches the running API (contract test passes).
+
+@case T-NFR-36 | Containerised delivery as SaaS, dedicated or on-premises (including air-gapped) | R1 | NFR-MNT-05 | UAT, ADM
+1. Deploy the release from the provided images to a clean environment with only PostgreSQL and S3-compatible storage; repeat with no internet access.
+=> The system starts, migrates and passes a smoke test of this manual's T-IAM-07, T-PRC-01 and T-FIN-01 in both deployments.
+
+@case T-NFR-37 | Observability: structured logs, metrics, traces and SLO alerts that fire only on real failures | R1 | NFR-MNT-06, OPS-T02 | UAT, ADM
+1. Induce a failure of each alert type: availability, latency, outbox lag, ledger integrity.
+2. Run a normal day of testing and count alerts.
+=> Each induced failure fires its alert within the agreed time with a correlation identifier and trace; a normal period fires no false alert.
+
+@case T-NFR-38 | Horizontal scaling of API replicas and workers; large tenants on a dedicated database | R3 | NFR-MNT-07 | UAT
+1. Add API replicas under load; place a tenant on a dedicated database.
+=> Throughput rises with replicas; the tenant on the dedicated database works identically.
+
+@case T-NFR-39 | Supported browsers and operating systems | R1 | NFR-MNT-08 | UAT
+1. Run the smoke checklist (sign-in, create requisition, approve, export, dashboard) on current and previous major versions of Chrome, Edge, Firefox and Safari, and on Android 10 and a newer Android.
+=> All pass. Record the version of each.
+
+## 31.7 Data integrity (SRS 7.7)
+@release R1
+
+@case T-NFR-40 | Exact decimal arithmetic with defined rounding and allocation | R1 | NFR-DAT-03, FIN-01, PRC-06 | FIN, UAT
+1. Split 100.00 equally across three cost codes.
+2. Allocate 1,700,000 across two items by value (T-PRC-06 numbers).
+3. Enter a document with two lines of 0.10 and 0.20 and read its total.
+=> The split of 100.00 is 33.34, 33.33, 33.33 (or the documented largest-remainder order) and sums exactly to 100.00. Allocations always sum to the original amount. Totals are exactly 0.30, never 0.30000000000000004.
+
+@case T-NFR-41 | Financial, contractual and audit records are never hard-deleted | R1 | NFR-DAT-02 | UAT
+1. Try to delete a posted invoice, a signed contract, an approved IPC and an audit entry through the screen and the API.
+=> All are refused; cancellations and reversals leave visible records.
+
+## 31.8 Commercial and support
+@release R1
+
+@case T-NFR-42 | Support tiers, roadmap and deprecation policy, onboarding methodology and training | R1 | COM-01, COM-02, COM-03, COM-04 | UAT
+1. Review the support agreement, the published roadmap and API deprecation policy, the implementation methodology with templates, and the in-product help in each supported language.
+=> Response times (Critical: 1 hour, 24x7 for premium) are stated; API versions carry at least 12 months' deprecation notice; templates (chart of accounts, workflows, roles, reports) exist; help exists in English and Amharic.
+

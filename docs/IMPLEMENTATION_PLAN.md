@@ -457,6 +457,19 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   existing project ids into the new table with a backfill migration that
   keeps the ids.
 - **Estimate:** 4 ew.
+- **Delivered and verified (2026-11-07), as built:** migration `0042_project_master.sql` (renumbered:
+  the plan reserved 0042 for this), `internal/kernel/org.go`, `internal/httpapi/org_handlers.go`, console
+  *Projects*, *Stage gates*, *Organisation & calendar*, region and business-unit filters on the dashboard.
+  - Project master: client, contract type, location, dates, manager, region, business unit, phase.
+  - Stage gates (BID, MOBILISATION, EXECUTION, PRACTICAL_COMPLETION, DEFECTS, CLOSED): prepared by one person,
+    decided by another with fresh MFA, attested, one open gate, no skipping; approval moves the project atomically.
+  - **Security fix:** tenant logins can no longer create ACTIVE projects directly.
+  - **Known limits:** the new project is added to people's scope by the identity provider (WP-0.5), so only
+    its creator and tenant-wide roles see it until then; the calendar is stored and shown but not yet used by the
+    scheduler (WP-3.2); no Ethiopian holidays are seeded (movable dates differ yearly and need adviser sign-off);
+    region and unit filters narrow budget and risk tiles only; the project-level legal-entity hierarchy
+    (groups, joint ventures) waits for consolidation (WP-2.10).
+
 
 #### WP-1.8 Guided tenant onboarding and imports
 - **SRS:** ADM-01, ADM-03, INT-03, NFR-DAT-05.
@@ -466,6 +479,16 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   (suppliers, customers, items, opening balances, open AP/AR, opening stock)
   with a validation report and a reconciliation sign-off before commit.
 - **Estimate:** 5 ew.
+- **Delivered and verified (2026-11-07), as built:** migration `0043_imports.sql`, `internal/kernel/imports.go`,
+  `internal/kernel/setup.go`, console *Company setup* and *Data imports*.
+  - **Setup checklist:** 16 steps read from the real records (never ticked by hand), grouped, each with why, who and a link.
+  - **Staged imports** (suppliers, customers, stock items from CSV): stage and validate every row (nothing is created), a
+    different person commits and confirms the source's row count, records are created through the ordinary commands (still
+    needing their normal approval), partial batches retry without duplicating, a discarded or committed batch is final.
+  - **Known limits:** opening balances, open AP/AR documents and opening stock are not imported yet (they need the
+    reconciliation-to-ledger design of WP-2.x and an accountant's sign-off); import kinds are the three master-data types;
+    the guided setup is a checklist with links, not a step-by-step wizard that fills in policies.
+
 
 #### WP-1.9 R1 hardening, documentation and GA
 - Update the OpenAPI spec for all endpoints (it currently documents 28 paths);
@@ -474,12 +497,40 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 - **Estimate:** 4 ew.
 
 ---
+- **Delivered (2026-11-07), as built:** every served route is in `api/openapi.yaml` and a contract test keeps it so;
+  the role matrix is generated from the code and tested; `docs/operations/ADMIN_RUNBOOK.md`,
+  `docs/release/RELEASE_NOTES_R1.md`, `docs/release/UAT_PLAN_R1.md`; `GO_NO_GO.md` refreshed; `make gen-docs`.
+  **Not done and cannot be done by engineering alone:** UAT by the area leads, the signed GO record, and the items of
+  WP-0.5, 0.6, 0.7 and 1.1. Phase R1 is therefore **code-complete, not released**.
+
+
+#### WP-1.10 People, roles and profiles (SRS IAM-05, IAM-06, IAM-09, IAM-11, ADM-01)
+- Added after the R1 review: roles came only from the sign-in token, so a company could not see who works
+  in it, give or take roles, compose its own roles, or disable a leaver in one place.
+- **Delivered (2026-11-08), as built:** migrations `0048_people_access.sql` and `0049_people_access_fix.sql`;
+  `internal/kernel/people.go`; routes `/v1/people*`, `/v1/role-grants/{id}/revoke`, `/v1/roles*`, `/v1/me/profile`;
+  console pages **Governance → People & access** (cards, table, duty map, roles, access history, side sheets)
+  and **My profile** (header avatar).
+  - The first request of a signed-in person records them in the directory with the roles and projects their
+    token states. Once an administrator takes the person "under management", the directory's roles and
+    projects replace the token's on the next request (IAM-11), and a disabled person is refused at once
+    and signed out everywhere.
+  - Company roles are composed only from the fixed permission list; one that holds both halves of a control
+    is refused, and so is a change that would give a present holder a conflict (IAM-05).
+  - A role is refused if it gives the person both halves of a control, unless an approved duty-conflict
+    exception covers that pair (IAM-09). The console previews the refusal before you click.
+  - Nobody changes their own access (kernel and database); changes need fresh MFA and a reason; grants are
+    never deleted, only ended, so the history is whole.
+  - New permissions `user.manage` and `role.manage` (security administrator). Every permission now has a
+    plain-words label, area and stage of work (`pkg/auth/labels.go`, tested complete).
+  **Not done:** SCIM provisioning (WP-4.5) and project assignment by business unit.
+- **Estimate:** 3 ew (actual).
 
 ### Phase R2: Project controls and commercial (weeks 21-40)
 
 #### WP-2.1 Cost forecasting cycle
 - **SRS:** PCC-04, PCC-05, PCC-10.
-- **Migration:** `0043_forecast.sql`.
+- **Migration:** `0044_forecast.sql` (built).
 - **Data model:**
   - `forecast_cycle(id, project_id, period_id, status OPEN|SUBMITTED|APPROVED, prepared_by, approved_by)`;
   - `forecast_line(cycle_id, cost_code_id, method MANUAL|CPI|REMAINING_BUDGET, etc_amount, eac_amount, note)`;
@@ -490,6 +541,22 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 - **Console:** a forecast grid per cost code with method selection, comments
   and an "explain the change" field; S-curves (planned, actual, forecast).
 - **Estimate:** 5 ew.
+- **Delivered (2026-11-07), as built:** migration `0044_forecast.sql`, `internal/kernel/forecast.go`,
+  routes `POST /v1/projects/{id}/forecasts`, `GET /v1/forecasts/{id}`, `PUT /v1/forecasts/{id}/lines/{code}`,
+  `POST /v1/forecasts/{id}/submit|approve|reject`, console page **Projects & planning → Cost forecasts**.
+  A forecast is a cycle (project and month end) with one line per cost code that has money on it. The
+  database computes and freezes each line's budget, commitments, cost to date, ETC, EAC and VAC; the
+  preparer chooses only the method (remaining budget, open commitments, manual) and a note. A line forecast
+  above its budget must be explained (10+ characters) before submission. The decider is a different
+  person with `forecast.approve` and a fresh MFA; the decision is attested and an approved forecast
+  never changes. One open cycle per project; one approved cycle per project and month end.
+  Test: `TestForecast_MethodsAndGuards`.
+  Follow-up from the browser check (migration `0047_forecast_cancel.sql`): the author can cancel a DRAFT
+  forecast with a reason, so an abandoned draft no longer blocks the project; a project with no money on any
+  cost code is refused in plain words; a second open forecast is refused in plain words naming the open one.
+  Tests: `TestForecast_MethodsAndGuards` (cancel path), `TestForecast_EmptyProjectRefused`.
+- **Still to do in this package:** the CPI method (needs earned value, WP-3.x), accruals in EAC (WP-2.13),
+  S-curves, and variance against the previous approved forecast.
 
 #### WP-2.2 WIP schedule (over and under billing)
 - **SRS:** PCC-06.
@@ -498,6 +565,15 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   earned revenue; month-end WIP adjustment journal (generated draft, approved
   and posted by finance).
 - **Estimate:** 3 ew. Depends on WP-2.1.
+- **Delivered (2026-11-07/08), as built:** two catalogue reports in `internal/kernel/reportcat.go` (no new
+  migration): **Cost forecast against budget** (`forecast-summary`) and **Work in progress: over and under
+  billing** (`wip-schedule`). Both read the latest APPROVED forecast of each project. Percent complete =
+  cost to date / EAC (capped at 100%); earned revenue = active contract value x percent complete; billed =
+  approved customer invoices up to the forecast date; over/(under) billed = billed - earned; a project whose EAC
+  exceeds its contract value shows its total expected loss. Both export to PDF/Word/Excel like every report.
+  Test: `TestForecast_WIPScheduleAndSummary` recomputes every figure from first principles.
+- **Still to do in this package:** the month-end WIP adjustment journal (a generated draft approved by
+  finance and posted by a different person) and per-contract (not per-project) percent complete.
 
 #### WP-2.3 IFRS 15 revenue recognition over time
 - **SRS:** FIN-15, CON-07 (contract assets and liabilities).
@@ -512,7 +588,7 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 
 #### WP-2.4 Change events
 - **SRS:** PCC-07, CON-03, SUB-03.
-- **Migration:** `0045_change_events.sql`: `change_event(id, project_id,
+- **Migration:** `0045_change_events.sql` (built): `change_event(id, project_id,
   source RFI|SITE_INSTRUCTION|CLIENT|DESIGN|INTERNAL, status POTENTIAL|PENDING|APPROVED|VOID,
   cost_impact, revenue_impact, schedule_impact_days)`, link tables to
   `contract_variation`, `subcontract_variation` and `budget_version`.
@@ -520,6 +596,17 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   approved (variation approved), which raises a budget revision draft
   automatically (draft only).
 - **Estimate:** 4 ew.
+- **Delivered (2026-11-08), as built:** migration `0045_change_events.sql`, `internal/kernel/change.go`, routes
+  `POST /v1/change-events`, `GET /v1/change-events/{id}`, `POST /v1/change-events/{id}/submit|approve|reject`,
+  console **Projects & planning → Change events**. Statuses are DRAFT (potential), SUBMITTED (pending decision),
+  APPROVED, REJECTED. Each event has a source (RFI, site instruction, client, design, internal), a signed
+  revenue impact, a signed schedule impact in days and signed cost lines per cost code (header and lines
+  immutable once submitted). Prepared with `change.manage` (project manager, quantity surveyor), decided by a
+  different person with `change.approve` (commercial manager) and a fresh MFA, attested. Approval drafts a
+  budget REVISION for the cost lines, authored by the change's author so that a different person approves it
+  under budget control (draft only; the budget does not move). Test: `TestChange_EventToBudgetDraft`.
+- **Still to do in this package:** links to contract variations and subcontract variations (the latter needs WP-2.5).
+
 
 #### WP-2.5 Subcontract management
 - **SRS:** SUB-01..07, PCC-02.
@@ -550,7 +637,7 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 
 #### WP-2.6 Claims, EOT, notices and LDs
 - **SRS:** CON-04, CON-06, CON-09, SCH-07.
-- **Migration:** `0047_claims.sql`: `contract_notice(id, contract_id,
+- **Migration:** `0046_claims.sql` (built): `contract_notice(id, contract_id,
   clause_ref, event_date, notice_due_at, sent_at, status)`, `claim(id,
   contract_id, type TIME|COST|BOTH, amount, days, status
   DRAFT|SUBMITTED|UNDER_REVIEW|AGREED|REJECTED|DISPUTED)`, `obligation(id,
@@ -559,10 +646,33 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 - **Automation:** time-bar alerts (for example 28-day notices) at 14, 7 and 2
   days before expiry, through notification rules (notify only).
 - **Estimate:** 4 ew.
+- **Delivered (2026-11-08), as built:** migration `0046_claims.sql` (the numbering above shifted by one),
+  `internal/kernel/claims.go`, routes `POST /v1/notices`, `GET /v1/notices`, `POST /v1/notices/{id}/send`,
+  `POST /v1/claims`, `POST /v1/claims/{id}/submit|approve|reject`, `POST /v1/claims/{id}/outcome`, console
+  **Commercial & revenue → Contract notices / Claims**, reports `notice-register` and `claims-register`.
+  The database computes a notice's deadline (event date + days, default 28) and its standing (open, due soon,
+  overdue, sent, sent late); a notice is sent once, never in the future or before its event. A claim has the
+  money or days its kind (time, cost, both) says; if its notice is missing or late it cannot be submitted
+  without a reason; it is approved for sending by a different person (`claim.approve`, fresh MFA, attested);
+  the client's answer (agreed, rejected, disputed, with a reference) is recorded once and agreed money and
+  days never exceed the claim. Test: `TestClaims_NoticesAndClaims`.
+- **Completed (2026-11-08):** `0051_contract_time.sql`, `internal/kernel/contracttime.go`. Damages terms (time for
+  completion, rate per day, cap) prepared under `claim.manage` and approved under `claim.approve` (fresh MFA, attested),
+  once per contract; the revised completion is the approved date plus the days the client agreed on claims; damages to
+  date and the forecast from the baseline schedule finish are computed and capped; an obligations register (raised open,
+  closed once, a waiver needs a reason); alert rule kinds `notice_due`, `obligation_due` and `guarantee_expiring` that
+  re-alert at 14, 7 and 2 days and when late. Console: *Time for completion and liquidated damages* on each active
+  contract and **Commercial & revenue → Contract obligations**. Tests: `TestContractTime_DamagesExtensionsObligations`,
+  `TestDeadlineBucket`.
+
 
 #### WP-2.7 Guarantees and bonds; price adjustment
 - **SRS:** CON-05, CON-07, TRS-04.
-- **Migration:** `0048_bonds_escalation.sql`: `guarantee(id, kind
+- **Status (2026-11-08):** done. `0050_bonds_escalation.sql`, `internal/kernel/bonds.go`,
+  `internal/httpapi/bonds_handlers.go`, console page *Guarantees & price adjustment*. The
+  adjustment is its own approved document per certified IPC (the IPC's amounts, invoice and
+  journals are unchanged); billing an approved adjustment to the client is not yet built.
+- **Migration:** `0050_bonds_escalation.sql`: `guarantee(id, kind
   BID|ADVANCE|PERFORMANCE|RETENTION, contract_id, issuer_bank, amount,
   currency, issued_at, expires_at, reduced_to, status)`;
   `price_index(code, period, value)` with maker/checker;
@@ -572,7 +682,7 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 
 #### WP-2.8 Workforce and payroll
 - **SRS:** HCM-01, HCM-04, HCM-05, HCM-06.
-- **Migrations:** `0049_hcm.sql`, `0050_payroll.sql`.
+- **Migrations:** `0053_hcm.sql`, `0054_payroll.sql` (provisional).
 - **Data model:**
   - `employee(id, number, name, kind SALARIED|DAILY, grade, trade, base_rate, rate_unit, bank_or_wallet (encrypted, masked), tin, pension_no, start, end)`;
   - `payroll_rule_set(id, effective_from, status, approved_by)` and
@@ -591,7 +701,7 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 
 #### WP-2.9 Fixed assets (IAS 16)
 - **SRS:** FIN-06, EQP-01.
-- **Migration:** `0051_fixed_assets.sql`: `asset(id, class, entity_id,
+- **Migration:** `0055_fixed_assets.sql` (provisional): `asset(id, class, entity_id,
   acquired_at, cost, residual, life_months, method SL|DB|UNITS, component_of
   NULL, location, status)`, `asset_event(kind ACQUIRE|DEPRECIATE|REVALUE|IMPAIR|TRANSFER|DISPOSE)`,
   `depreciation_run(period, status)`.
@@ -814,22 +924,26 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 | 0040 | WP-1.2 | authority_matrix |
 | 0041 | WP-1.6 | uom_reservations_reorder (built) |
 | 0042 | WP-1.7 | org_structure |
-| 0043 | WP-2.1 | forecast |
-| 0044 | WP-2.3 | revenue_recognition |
-| 0045 | WP-2.4 | change_events |
-| 0046 | WP-2.5 | subcontracts |
-| 0047 | WP-2.6 | claims |
-| 0048 | WP-2.7 | bonds_escalation |
-| 0049-0050 | WP-2.8 | hcm, payroll |
-| 0051 | WP-2.9 | fixed_assets |
-| 0052 | WP-2.10 | consolidation |
-| 0053 | WP-3.2 | schedule_ext |
-| 0054 | WP-3.3 | timesheets |
-| 0055 | WP-3.4 | equipment |
-| 0056 | WP-3.5 | documents |
-| 0057 | WP-3.6 | quality |
-| 0058 | WP-3.7 | hse |
-| 0059+ | R4 and corrections | assigned when started |
+| 0043 | WP-1.8 | imports (built) |
+| 0044 | WP-2.1 | forecast (built) |
+| 0045 | WP-2.4 | change_events (built) |
+| 0046 | WP-2.6 | claims (built) |
+| 0047 | WP-2.1 | forecast_cancel (built: a draft forecast can be cancelled by its author) |
+| 0048 | WP-1.10 | people_access (built: directory, company roles, role grants) |
+| 0049 | WP-1.10 | people_access_fix (built: pinned search_path, first seen) |
+| 0050 | WP-2.7 | bonds_escalation (built: guarantees, price indices, formulas, price adjustments) |
+| 0051 | WP-2.6 | contract_time (built: liquidated damages terms, extension of time, obligations) |
+| 0052* | WP-2.3 | revenue_recognition (numbers from here on are provisional; each package takes the next free number when built) |
+| 0053-0054 | WP-2.8 | hcm, payroll |
+| 0055 | WP-2.9 | fixed_assets |
+| 0056 | WP-2.10 | consolidation |
+| 0057 | WP-3.2 | schedule_ext |
+| 0058 | WP-3.3 | timesheets |
+| 0059 | WP-3.4 | equipment |
+| 0060 | WP-3.5 | documents |
+| 0061 | WP-3.6 | quality |
+| 0062 | WP-3.7 | hse |
+| 0063+ | R4 and corrections | assigned when started |
 
 If WPs land in a different order, renumber **before** merge, never after.
 
@@ -855,16 +969,17 @@ Legend: ⬜ not started · 🟨 in progress · 🟦 in review · ✅ done · ⛔
 | WP-1.4 | Control dashboard + drill-down | R1 | 4 | 1.3 | ✅ | uncommitted | docs/release/evidence/wp-1.4-verification-2026-11-07.md |
 | WP-1.5 | Report catalogue to 25 | R1 | 5 | - | ✅ | uncommitted | docs/release/evidence/wp-1.5-verification-2026-11-07.md |
 | WP-1.6 | UoM, reservations, reorder | R1 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-1.6-verification-2026-11-07.md |
-| WP-1.7 | Multi-entity, project master | R1 | 4 | - | ⬜ | | |
-| WP-1.8 | Onboarding wizard, imports | R1 | 5 | 1.7 | ⬜ | | |
-| WP-1.9 | R1 hardening and GA | R1 | 4 | all R1 | ⬜ | | |
-| WP-2.1 | Cost forecasting | R2 | 5 | 1.3 | ⬜ | | |
-| WP-2.2 | WIP schedule | R2 | 3 | 2.1 | ⬜ | | |
+| WP-1.7 | Multi-entity, project master | R1 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-1.7-verification-2026-11-07.md |
+| WP-1.8 | Onboarding wizard, imports | R1 | 5 | 1.7 | ✅ | uncommitted | docs/release/evidence/wp-1.8-verification-2026-11-07.md |
+| WP-1.9 | R1 hardening and GA | R1 | 4 | all R1 | 🟨 | uncommitted | docs/release/evidence/wp-1.9-verification-2026-11-07.md (docs and contract done; UAT, pentest, GO sign-off pending) |
+| WP-1.10 | People, roles and profiles | R1 | 3 | 1.2 | ✅ | uncommitted | docs/release/evidence/wp-1.10-verification-2026-11-08.md |
+| WP-2.1 | Cost forecasting | R2 | 5 | 1.3 | 🟨 | 2026-11-07 | monthly cycle, 3 methods, approval built; S-curves, CPI method and forecast-vs-last-forecast variance pending |
+| WP-2.2 | WIP schedule | R2 | 3 | 2.1 | 🟨 | 2026-11-08 | WIP schedule and forecast summary reports built; adjustment journal pending |
 | WP-2.3 | IFRS 15 revenue | R2 | 4 | 2.2, D-05 | ⬜ | | |
-| WP-2.4 | Change events | R2 | 4 | 1.3 | ⬜ | | |
+| WP-2.4 | Change events | R2 | 4 | 1.3 | 🟨 | 2026-11-08 | event, approval and budget draft built; variation links pending (2.5) |
 | WP-2.5 | Subcontracts | R2 | 8 | 1.3, 2.4 | ⬜ | | |
-| WP-2.6 | Claims, EOT, notices, LDs | R2 | 4 | - | ⬜ | | |
-| WP-2.7 | Bonds and price adjustment | R2 | 4 | - | ⬜ | | |
+| WP-2.6 | Claims, EOT, notices, LDs | R2 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-2.6-completion-verification-2026-11-08.md |
+| WP-2.7 | Bonds and price adjustment | R2 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-2.7-verification-2026-11-08.md |
 | WP-2.8 | Workforce and payroll | R2 | 8 | D-04 | ⬜ | | |
 | WP-2.9 | Fixed assets | R2 | 5 | - | ⬜ | | |
 | WP-2.10 | Consolidation, intercompany | R2 | 6 | 1.7 | ⬜ | | |

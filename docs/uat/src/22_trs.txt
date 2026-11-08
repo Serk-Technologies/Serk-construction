@@ -1,0 +1,63 @@
+# 17. Treasury and cash management (SRS 6.14)
+@release R1
+
+## Industry context
+Treasury decides **when and how** money leaves the company. In SERK the system **never moves money itself**: it prepares a payment instruction, two or three different people approve and release it, the instruction goes to the bank (as a file or by the bank's own portal), and only when the **bank statement** shows the debit does the system mark the payment as settled. This matters because "released" in the ERP does not mean "paid": a bank may reject a payment, and a fraudster could otherwise mark an invoice as paid without any money moving.
+
+Cash is the lifeblood of a contractor. The client pays 45-60 days after the work, but wages and suppliers must be paid sooner, so treasury maintains a **13-week cash forecast** that separates confirmed flows (approved invoices, certified IPCs) from estimated ones (expected IPC receipts, payroll, tax).
+
+@term Payment instruction = A record telling the bank to pay; it is not proof of payment.
+@term Settlement = The bank confirming (on a statement) that the money left or arrived.
+@term pain.001 / camt.053 / MT940 = Standard bank file formats for payment instructions and account statements.
+@term Letter of credit = A bank's commitment to pay a foreign supplier on presentation of shipping documents.
+
+@case T-TRS-01 | Payments are prepared, approved and released by three different people with fresh MFA | R1 | TRS-01, IAM-08, IAM-04 | TRS, CFO, AP
+pre: Approved payable to SC-01 for 3,400,000 (T-SUB-02). Dual-approval threshold 1,000,000.
+1. As trs.a prepare the payment run containing this payable.
+2. As trs.a try to approve it. As fin.b (finance approver) approve without fresh MFA. Then with fresh MFA.
+3. Because the amount exceeds the threshold, have a second approver (cfo.a) approve with fresh MFA.
+4. As trs.a (the preparer) try to release; then release as trs.b (treasury manager) with fresh MFA.
+5. Inspect what the system now says about the payment and the invoice.
+=> Self-approval and self-release are refused. Approval without fresh MFA is refused. Above the threshold two distinct approvers are required, and neither is the preparer or the releaser.
+=> After release the payment status is "Released / sent to bank", **not "Paid"**; the invoice remains open until settlement.
+=> Preparer, approvers and releaser are recorded; each decision shows the attestation/MFA time.
+why: In every large payment fraud, one person could move money alone.
+
+@case T-TRS-02 | Settlement comes only from the imported bank statement, by an independent person | R1 | TRS-01, FIN-05 | TRS, FIN
+pre: Statement file from the bank (CSV, or MT940/camt.053 if available) containing the debit of 3,400,000 and a bank fee of 500.
+1. As trs.c (bank statement officer, who holds no payment permission) import the statement.
+2. Check how the payment of 3,400,000 is matched.
+3. Try to mark the payment "paid" manually.
+4. Reconcile the bank account.
+=> The import is recorded with file name, hash, user and time. The statement line is matched to the payment, which becomes **Settled** only now, and the invoice leaves AP.
+=> Step 3 is impossible: there is no manual "mark as paid".
+=> The 500 bank fee appears as an unmatched line to be coded; the bank reconciliation shows zero unexplained difference after coding.
+=> An unmatched or rejected payment remains open, visible and cannot be silently closed.
+
+@case T-TRS-03 | The 13-week cash forecast separates confirmed from forecast flows | R1 | TRS-02 | TRS, CFO, EXE
+1. Open the 13-week forecast.
+2. Check the weekly lines: payroll, taxes, supplier payments by due date, expected IPC receipts, debt service.
+3. Approve an additional supplier payment run and refresh; certify an IPC and refresh.
+=> Confirmed flows (approved payables, certified IPC receivables) are visually separated from estimated flows; the opening balance equals the bank balance.
+=> The forecast moves when documents are approved; the project-horizon forecast uses the same data.
+
+@case T-TRS-04 | Payment files and bank statement formats | R2 | TRS-03, INT-05 | TRS
+1. Export the approved run as an ISO 20022 pain.001 file.
+2. Import statements in camt.053, MT940 and bank CSV.
+=> The pain.001 file validates against the standard and totals match the run; the import of each statement format yields identical matching results; files are attested on import (hash, user, time).
+note: "Should": mark Blocked if the bank chosen for release 1 does not support files (decision D-08).
+
+@case T-TRS-05 | Bank facilities, overdrafts and guarantee lines | R2 | TRS-04, CON-07 | TRS, CFO
+1. Record overdraft facility 10,000,000 and a guarantee line 25,000,000; the advance guarantee (12,000,000) and performance bond (6,000,000) draw on the guarantee line.
+=> Utilisation shown: guarantee line used 18,000,000 (72%), available 7,000,000; overdraft used from the bank balance. Alerts at the configured limit.
+
+@case T-TRS-06 | Letters of credit for imports | R2 | TRS-05, PRC-06 | TRS, PROC
+1. Open an LC for the import order of T-PRC-06 (amount USD 52,500): application, issue, amendment, shipping presentation, payment.
+=> Each LC stage is recorded with documents; the LC links to the import order; settlement happens only through the bank statement.
+
+@case T-TRS-07 | Site petty cash on an imprest basis | R3 | TRS-06 | SITE, FIN
+pre: Imprest float 50,000 at site P-101.
+1. Record expenses of 38,500 with receipts.
+2. Request replenishment.
+=> The replenishment request is exactly **38,500** (float restored to 50,000), approved by someone other than the custodian, and cash on hand plus receipts always equals 50,000.
+

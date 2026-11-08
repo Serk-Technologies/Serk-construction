@@ -1,0 +1,67 @@
+# 11. Subcontract management (SRS 6.8)
+@release R2
+
+## Industry context
+On many projects **subcontractors do most of the work**: plastering, MEP, aluminium, tiling, landscaping. A subcontract is a small contract of its own, with a **schedule of values**, retention, an advance payment and monthly **payment applications**. Each month the subcontractor says what they completed; the contractor's **quantity surveyor measures and certifies** it; deductions are made (retention, advance recovery, back-charges, withholding tax); and only the certified net amount becomes a payable. Uncontrolled certification is one of the biggest leaks in construction: paying for work that is not done, not inspected, or done twice.
+
+@term Schedule of values (SoV) = The breakdown of a subcontract price into items, used to measure progress and certify payments.
+@term Payment application = The subcontractor's monthly claim for work done.
+@term Certificate = The contractor's approved statement of what is payable, after measurement and deductions.
+@term Withholding tax = Tax deducted from a payment to a supplier or subcontractor and paid to the tax authority; rate per the signed tax fixture.
+@term Pay-when-certified = A rule that the contractor pays a subcontractor only after the client has certified the same work.
+
+@case T-SUB-01 | A subcontract is a commitment against the budget | R2 | SUB-01, PCC-02 | PROC, PM, QS
+pre: SC-01 Selam Finishing PLC; subcontract value 20,000,000; retention 10%; advance 15% (3,000,000); on cost code 09-100 (budget 21,000,000).
+1. As proc.a create the subcontract with a schedule of values (for example: internal plaster 8,000,000; external plaster 6,000,000; screed 4,000,000; paint 2,000,000), retention, advance and scope.
+2. Submit; approve with the next level (not the creator).
+3. Check commitments on 09-100.
+4. Create a second subcontract on 09-100 for 2,000,000 more than the remaining budget and submit.
+=> SoV total 20,000,000 equals the subcontract value; the screen blocks submission if they differ.
+=> After approval 09-100 shows commitment 20,000,000 (remaining 1,000,000).
+=> Step 4 is refused for budget, with the override route stated (R8).
+
+@case T-SUB-02 | Payment application, certificate and payable arithmetic | R2 | SUB-02, SUB-T01 | QS, AP, FIN
+pre: SC-01 as above. This month's measured work 4,000,000. Back-charge accepted: 120,000. Fixture rules: VAT 15% on the gross certified value; withholding tax 2% of gross certified value; advance recovered at 15% of each gross certificate.
+1. As qs.a prepare Application 1 for 4,000,000 measured work: link each line to SoV items and the measurement sheet.
+2. Include back-charge BC-01 of 120,000.
+3. Try to certify it as qs.a. Then certify as qs.b (the certifier).
+4. Open the generated payable.
+=> Retention 10% = **400,000**; advance recovery 15% = **600,000**; back-charge **120,000**.
+=> Net before tax = 4,000,000 - 400,000 - 600,000 - 120,000 = **2,880,000**.
+=> VAT 600,000; withholding tax 80,000. **Payable = 2,880,000 + 600,000 - 80,000 = 3,400,000.**
+=> Self-certification is refused; the certificate by qs.b generates the payable (supplier invoice equivalent) ready for approval and payment.
+=> Cumulative figures after Application 1: retention held 400,000; advance recovered 600,000; work certified 4,000,000.
+note: If the signed tax fixture uses different bases, replace the VAT/WHT lines but keep the structure; the other lines must still agree.
+
+@case T-SUB-03 | Subcontract variations linked to change events | R2 | SUB-03, PCC-07 | QS, PM
+1. Create variation SV-01 +500,000 on SC-01 linked to change event CE-01; approve it with a different user.
+2. Check subcontract value, commitment and the change event.
+=> Subcontract value becomes 20,500,000; commitment on the cost code rises by 500,000 (budget check applies); CE-01 shows the linked subcontract variation.
+
+@case T-SUB-04 | Subcontractor compliance (insurance, licences, safety induction) can block payment | R3 | SUB-04, ORG-05 | QS, HSE
+pre: Tenant policy "block payment while a compliance document is expired" is ON. SC-01's insurance expired yesterday.
+1. Try to approve the payable for SC-01.
+2. Upload the renewed insurance certificate; re-try.
+=> Step 1 is refused with the name of the expired document and its date.
+=> After renewal the block is lifted; the audit trail shows both events.
+note: "Should" in the SRS; if the policy is OFF, the same screen must only warn.
+
+@case T-SUB-05 | Back-charges and contra-charges with evidence and acknowledgement | R2 | SUB-05 | QS, EXT
+1. As qs.a raise back-charge BC-02 of 75,000 for cleaning, attach photos and the instruction.
+2. As the subcontractor (portal) acknowledge or dispute it.
+=> A back-charge cannot be deducted until it has evidence; the status shows Acknowledged or Disputed.
+=> A disputed charge is excluded from the next certificate until resolved, but remains visible as an open item.
+
+@case T-SUB-06 | Pay-when-certified links subcontractor payment to client certification | R2 | SUB-06, CON-02 | QS, TRS
+pre: Subcontract SC-02 has the pay-when-certified rule.
+1. Prepare and certify a payment application for SC-02 for work included in IPC-02 that the client has not yet certified.
+2. Try to prepare payment.
+3. Record client certification of IPC-02 and retry.
+=> Step 2 is refused: the related client certificate is missing.
+=> After client certification the payable is released for payment.
+
+@case T-SUB-07 | The subcontractor submits applications and documents through the portal | R3 | SUB-07, COL-03 | EXT, QS
+1. Sign in to the portal as the SC-01 user; submit Application 2 with attachments.
+2. Try to view SC-02's applications and any other company's data.
+=> QS sees the application in the work queue. The subcontractor sees only its own subcontract, certificates and documents. Demo verification.
+

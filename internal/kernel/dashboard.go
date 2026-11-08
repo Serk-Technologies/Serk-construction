@@ -25,6 +25,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
 
 	"github.com/serk-group/serk-construction/pkg/auth"
@@ -105,15 +106,17 @@ type HiddenTile struct {
 
 // Dashboard is the response.
 type Dashboard struct {
-	Preset   string       `json:"preset"`
-	EntityID string       `json:"entity_id"`
-	Entity   string       `json:"entity"`
-	Currency string       `json:"currency"`
-	Entities []EntityRef  `json:"entities"`
-	Projects int          `json:"projects_in_scope"`
-	AsOf     time.Time    `json:"as_of"`
-	Tiles    []Tile       `json:"tiles"`
-	Hidden   []HiddenTile `json:"hidden,omitempty"`
+	Preset         string       `json:"preset"`
+	EntityID       string       `json:"entity_id"`
+	RegionID       string       `json:"region_id,omitempty"`
+	BusinessUnitID string       `json:"business_unit_id,omitempty"`
+	Entity         string       `json:"entity"`
+	Currency       string       `json:"currency"`
+	Entities       []EntityRef  `json:"entities"`
+	Projects       int          `json:"projects_in_scope"`
+	AsOf           time.Time    `json:"as_of"`
+	Tiles          []Tile       `json:"tiles"`
+	Hidden         []HiddenTile `json:"hidden,omitempty"`
 }
 
 // EntityRef is a legal entity the caller may choose.
@@ -126,6 +129,20 @@ type EntityRef struct {
 // Dashboard builds the dashboard for a preset and legal entity. An empty
 // entityID selects the first legal entity.
 func (s *Service) Dashboard(ctx context.Context, p auth.Principal, preset, entityID string) (Dashboard, error) {
+	return s.DashboardFor(ctx, p, preset, DashboardFilter{EntityID: entityID})
+}
+
+// DashboardFilter narrows a dashboard to a legal entity and, optionally, one
+// region and / or business unit (the roll-ups of WP-1.7). Only budget and
+// risk tiles are narrowed: cash, ledger and control figures belong to the
+// legal entity as a whole.
+type DashboardFilter struct {
+	EntityID, RegionID, BusinessUnitID string
+}
+
+// DashboardFor builds the dashboard for a preset and filter.
+func (s *Service) DashboardFor(ctx context.Context, p auth.Principal, preset string, f DashboardFilter) (Dashboard, error) {
+	entityID := f.EntityID
 	ids, ok := DashboardPresets[preset]
 	if !ok {
 		return Dashboard{}, fmt.Errorf("%w: unknown dashboard %q", ErrInvalidInput, preset)
@@ -164,6 +181,36 @@ func (s *Service) Dashboard(ctx context.Context, p auth.Principal, preset, entit
 		if entityID == "" || pr.Parent == entityID {
 			projects = append(projects, projectRef{ID: pr.ID, Code: pr.Code, Name: pr.Name})
 		}
+	}
+	if f.RegionID != "" || f.BusinessUnitID != "" {
+		keep := map[string]bool{}
+		err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+			rows, err := tx.Query(ctx, `SELECT id::text FROM projects WHERE ($1 = '' OR region_id = NULLIF($1, '')::uuid) AND ($2 = '' OR business_unit_id = NULLIF($2, '')::uuid)`,
+				f.RegionID, f.BusinessUnitID)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var id string
+				if err := rows.Scan(&id); err != nil {
+					return err
+				}
+				keep[id] = true
+			}
+			return rows.Err()
+		})
+		if err != nil {
+			return Dashboard{}, err
+		}
+		kept := projects[:0:0]
+		for _, pr := range projects {
+			if keep[pr.ID] {
+				kept = append(kept, pr)
+			}
+		}
+		projects = kept
+		out.RegionID, out.BusinessUnitID = f.RegionID, f.BusinessUnitID
 	}
 	out.Projects = len(projects)
 	out.AsOf = time.Now().UTC()

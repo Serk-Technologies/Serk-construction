@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"os"
 	"testing"
 	"time"
 )
@@ -216,5 +217,24 @@ func TestSoDViolations(t *testing.T) {
 	accepted := map[[2]Permission]bool{{PermPRApprove, PermPRCreate}: true} // stored sorted: "pr.approve" < "pr.create"
 	if got := SoDViolations(held, accepted); len(got) != 0 {
 		t.Fatalf("an accepted exception still reported: %+v", got)
+	}
+}
+
+// The role matrix document is generated from the catalogue
+// (UPDATE_ROLE_DOC=1 rewrites docs/security/ROLE_PERMISSION_MATRIX.md).
+func TestRoleMatrixDocumentIsCurrent(t *testing.T) {
+	const path = "../../docs/security/ROLE_PERMISSION_MATRIX.md"
+	want := RoleMatrixMarkdown()
+	if os.Getenv("UPDATE_ROLE_DOC") == "1" {
+		if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("%v (generate it with UPDATE_ROLE_DOC=1)", err)
+	}
+	if string(got) != want {
+		t.Fatal("docs/security/ROLE_PERMISSION_MATRIX.md is out of date; regenerate with UPDATE_ROLE_DOC=1")
 	}
 }

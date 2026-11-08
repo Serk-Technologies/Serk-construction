@@ -48,7 +48,7 @@ IAM-16|C|T|N|The system may support tenant conditional-access policies (IP allow
 
 ## 6.2|Organisation and Master Data|Group structure, projects, business partners, cost structures and resources. Atlas references: modules Ledger, WBS, P2P.
 ORG-01|M|T|P|The system shall model group, legal entity, region or branch, business unit and project. Each legal entity shall have its own functional currency, tax registration, chart-of-accounts mapping and fiscal calendar.
-ORG-02|M|T|P|The system shall maintain a project master: code, name, client, contract type, location (with GPS coordinates), key dates, project manager, phase, status and stage-gate history.
+ORG-02|M|T|E|The system shall maintain a project master: code, name, client, contract type, location (with GPS coordinates), key dates, project manager, phase, status and stage-gate history.
 ORG-03|M|T|E|The system shall maintain supplier and subcontractor masters with maker/checker approval and blocking. Bank accounts shall be dual-approved with MFA and shown masked unless the user holds the reveal permission (which is audited).
 ORG-04|M|T|P|The system shall maintain a customer master with TIN, credit limit, payment terms and maker/checker approval.
 ORG-05|S|T|N|The system should support supplier and subcontractor pre-qualification: trade licence and contractor grade, tax clearance, VAT registration, insurance and expiry tracking, with alerts before expiry and an evaluated performance rating.
@@ -268,7 +268,7 @@ COL-04|S|T|N|The system should support comments and mentions on any record, reta
 ## 6.24|Integration and Interoperability|Open by design, so that no tenant is locked in.
 INT-01|M|I|E|All APIs shall be versioned, documented in OpenAPI 3, authenticated and rate-limited. Every command shall accept an idempotency key.
 INT-02|M|T|E|Domain events shall be delivered as signed webhooks from the transactional outbox, with per-aggregate ordering, retries, a dead-letter queue and replay.
-INT-03|S|T|N|The system should offer bulk import and export (CSV and Excel templates) through a validated staging area with review before commit.
+INT-03|S|T|P|The system should offer bulk import and export (CSV and Excel templates) through a validated staging area with review before commit.
 INT-04|S|T|N|The system should provide connectors for Primavera P6, Microsoft Project, Microsoft 365 and SharePoint, Google Drive and Power BI.
 INT-05|S|T|N|The system should connect to Ethiopian commercial banks and to mobile-money services (for example telebirr) where they offer interfaces.
 INT-06|M|T|P|External adapters shall be isolated behind timeouts, retries with back-off and circuit breakers, so that no outside failure blocks internal transactions.

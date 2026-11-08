@@ -1,0 +1,97 @@
+# 12. Inventory and materials (SRS 6.9)
+@release R1
+
+## Industry context
+Building materials are bulky, valuable and easy to lose: cement gets wet, rebar is stolen, sand is over-issued. A contractor runs a **central warehouse** and a **store on each site**, and moves material between them. Every movement has a document: **receipt** (goods in, against a PO), **issue** (goods out, charged to a project cost code), **transfer** (between stores) and **adjustment** (after a count). Stock is kept in a **base unit** (for example kilograms) even though it is bought in bags and tonnes.
+
+Stock must be **valued**. When the same item is bought at different prices, the system uses **weighted average cost (WAC)** or **FIFO** per tenant policy; the policy decides what a project is charged and the stock subledger must always equal the inventory account in the general ledger, with **zero unexplained difference** (R1).
+
+@term Base unit = The unit in which stock is stored (for example kg); purchase and issue units convert to it.
+@term Stock count = Physical counting of stock and comparing with the system; differences become adjustments.
+@term Reservation = Quantity set aside for a planned activity so it is not issued elsewhere.
+@term Heat number = The steel mill's batch identifier for rebar, tied to its test certificate.
+@term Wastage = Material used beyond the theoretical quantity in the BOQ.
+
+@case T-INV-01 | Receipts, issues to cost codes, and approved transfers between stores | R1 | INV-01 | STORE, SITE, PM
+pre: ST-101 holds 1,000 bags of cement at ETB 900 (fixture). W-01 central warehouse has 3,000 bags.
+1. As store.a record a goods receipt of 400 bags at ETB 960 against a PO into ST-101.
+2. Issue 300 bags to project P-101, cost code 03-100.
+3. As store.b create a transfer of 500 bags from W-01 to ST-101; have it approved by a second person; dispatch it.
+4. As store.a receive the transfer.
+5. Try to change a posted receipt quantity.
+=> Receipt increases ST-101 by 400 bags; issue reduces it by 300 and charges 03-100.
+=> The transfer needs approval by someone other than the requester; during transport the stock shows "in transit" (not in either store); after receipt W-01 is 2,500 and ST-101 increases by 500.
+=> The posted receipt is immutable (correction by adjustment/return only).
+
+@case T-INV-02 | Stock is valued by the tenant policy and reconciles to the ledger with zero difference | R1 | INV-02, FIN-05, NFR-DAT-03 | STORE, FIN
+pre: Policy WAC. Start: 1,000 bags at ETB 900. Record S0 (quantity) and V0 (value).
+1. Receive 400 bags at ETB 960.
+2. Issue 300 bags to 03-100.
+3. Open the stock valuation and the reconciliation of stock subledger to the inventory control account.
+4. Switch a second test tenant to FIFO, repeat steps 1-2.
+=> After step 1: quantity 1,400 bags; value **1,284,000.00**; average cost **917.14** (917.142857 held at full precision).
+=> Issue of 300 bags is charged at **275,142.86** to 03-100; remaining value **1,008,857.14** for 1,100 bags.
+=> The subledger equals the inventory control account; the unexplained difference is exactly 0.00.
+=> FIFO tenant: the 300 bags issued cost **270,000.00** (oldest layer at 900); remaining value **1,014,000.00** (700 bags at 900 plus 400 bags at 960).
+why: A wrong stock value means a wrong cost on every job and a wrong balance sheet.
+
+@case T-INV-03 | A stock count is approved by someone other than the counter, and the adjustment journal is posted by a third person | R1 | INV-03, IAM-08 | STORE, FIN
+pre: System stock at ST-101 after T-INV-02: 1,400 bags (before the issue; or use the figure on your sheet), average cost 917.14.
+1. As store.a start a count and enter 1,390 bags counted.
+2. Submit; try to approve as store.a; approve as store.b.
+3. Have fin.a post the generated adjustment journal; try the same as store.b.
+=> Variance = -10 bags x 917.142857 = **-9,171.43** (loss), shown by item with the reason code.
+=> Counter cannot approve; the second person can. The journal (debit stock loss / credit inventory) is balanced and must be posted by someone who neither counted nor approved.
+=> After posting the stock quantity is 1,390 and the subledger still equals the control account.
+why: Storekeepers who count their own stock and adjust it themselves can hide theft.
+
+@case T-INV-04 | Units of measure convert correctly; stock is stored in the base unit | R1 | INV-04, ORG-07 | STORE, SITE
+1. Receive 800 bags of cement. Open the stock card.
+2. Issue 2.5 tonnes. Issue 30 kg.
+3. Try to issue 1 bag of a product that has no conversion defined.
+=> Stock card shows 40,000 kg (= 40 tonnes = 800 bags). Issue of 2.5 tonnes = 2,500 kg = 50 bags; 30 kg is accepted as 0.6 bag.
+=> Step 3 is refused naming the missing conversion.
+
+@case T-INV-05 | Material requests and reservations against schedule activities | R1 | INV-05, SCH-01 | SITE, STORE, PM
+1. As site.a create a material request of 200 bags of cement for activity "Slab level 2" for next Monday.
+2. As store.a reserve the quantity.
+3. Try to issue the reserved bags to another project.
+=> Available quantity (on hand minus reserved) is shown separately; the reservation is linked to the activity.
+=> Issuing reserved stock to an unrelated demand is refused or requires releasing the reservation with a reason.
+
+@case T-INV-06 | Batches, heat numbers and serial numbers with linked test certificates | R3 | INV-06, QA-04 | STORE, QA
+1. Receive 20 tonnes of Y12 rebar and enter heat numbers H-4471 (12 t) and H-4472 (8 t); attach mill certificates.
+2. Issue 5 tonnes from H-4471.
+3. Search for where heat H-4471 went.
+=> Stock is held per heat; issues name the heat; the certificate is attached to the batch.
+=> The trace shows receipt, issues, and the cost code or work package that received it (forward traceability).
+
+@case T-INV-07 | Reorder points, minimum/maximum levels and suggested requisitions | R1 | INV-07 | STORE, PROC
+pre: Cement at ST-101: min 200 bags, max 1,500 bags, reorder point 300.
+1. Issue stock until the system quantity is 180 bags.
+2. Open the suggested requisitions.
+=> A suggestion appears to buy up to the maximum: 1,500 - 180 = **1,320 bags**; the suggestion does not become a requisition until a person creates it.
+
+@case T-INV-08 | Returns to supplier and surplus transfer between projects at valuation | R2 | INV-08 | STORE, PM, FIN
+1. Return 20 damaged bags to S-01 against the original receipt.
+2. Transfer 100 surplus bags from P-101 to P-102.
+=> The return reduces stock at the original receipt cost, creates a debit note/claim against the supplier and cannot exceed the quantity received.
+=> The surplus transfer charges P-102 and credits P-101 at the current valuation, with approval, and both project cost reports update.
+
+@case T-INV-09 | Consumption is compared with the theoretical quantity from the BOQ; wastage reported | R2 | INV-09 | PM, STORE
+pre: BOQ theory: 7 bags of cement per m3 of C-25 concrete. 100 m3 poured. 770 bags issued to 03-100.
+1. Open the material consumption report.
+=> Theoretical 700 bags; actual 770; **wastage 70 bags = 10%** with value at average cost; drill-down to the issues.
+
+@case T-INV-10 | Barcode or QR labels and mobile scanning | R3 | INV-10, EI-HW-01 | STORE
+1. Print a QR label for a bin and for a heat batch.
+2. Scan with the phone to open the item or confirm a receipt line.
+=> The scan opens the correct item/location and the receipt line is filled; Demo verification.
+
+@case T-INV-11 | Stock can never go negative and movements are immutable | R1 | INV-01, NFR-DAT-01, NFR-DAT-02 | STORE, UAT
+1. With 1,100 bags in stock try to issue 1,200 bags.
+2. Try to delete an issue document. Try to change its quantity.
+3. Reverse the issue properly.
+=> Step 1 is refused with the available quantity stated.
+=> Step 2 is refused. Step 3 creates a reversal movement and journal; the original remains and both are visible.
+

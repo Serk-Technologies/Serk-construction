@@ -1,0 +1,259 @@
+# 1. How to use this manual
+
+## 1.1 What this manual is, and what it is not
+This is the **User Acceptance Test (UAT) manual** for SERK Construction OS. It is the human acceptance layer on top of the automated tests: a person with a real job title performs real work and decides whether the system does what we promised.
+
+**It is written from the Software Requirements Specification (SRS v1.0), not from the current build.** Every test case names the SRS requirement IDs it verifies, and the expected results state what the SRS says the system *shall* do. If today's software behaves differently, that is a finding, not a reason to change the test. The SRS "Baseline" column (Exists / Partial / New) is shown in Appendix C only to help planning; it never lowers what must pass.
+
+> Screen names in this manual are deliberately generic (for example "the requisition screen"). If your screen uses a different label, write the actual label in the Notes box. That is a documentation finding, not a failure. Behaviour is what is tested, not menu names.
+
+## 1.2 Who does what
+The manual is organised by **business workflow** (the order a contractor lives it: win, plan, buy, build, bill, pay, close) so that a tester learns the industry while testing. Each test case also lists the **role** that performs it. Chapter "Role execution sheets" regroups every case by role, so a storekeeper can run only the storekeeper's cases, and an auditor only the auditor's.
+
+| Release tag | Meaning (SRS section 9.2) |
+| R1 | Financial core and procure-to-pay (general availability): identity, ledger, AP/AR, treasury, P2P, inventory, contracts-to-cash, workflow, audit, reports, exports |
+| R2 | Project controls and commercial: budget revisions, forecasting, WIP and IFRS 15, subcontracts, claims, bonds, payroll, fixed assets, consolidation, tax returns |
+| R3 | Field, documents and QHSE: mobile app, timesheets, equipment, document control, RFIs, quality, HSE, P6 integration |
+| R4 | Intelligence and scale: document AI, predictive risk, portals, BI connectors, report builder, load and soak at enterprise scale |
+
+Run only the cases tagged with the release being accepted. A case tagged R2 is not a defect if R1 is the release under test; it is simply out of scope for that sign-off.
+
+## 1.3 Test case format
+Every case is a box with an ID, role(s), SRS references, optional "before you start" data, numbered steps, the expected result and a result column. Tick exactly one of Pass, Fail or Blocked.
+
+| Result | Meaning |
+| Pass | Every bullet of the expected result was observed exactly. |
+| Fail | Any expected result not observed, a wrong figure, a control that did not refuse, or an unexplained error. Raise a defect (Appendix A). |
+| Blocked | Could not run (missing data, environment, access, or the feature is not yet delivered in the release under test). Say why; re-run later. |
+
+The grey **"Why it matters in practice"** line under many cases explains the real-world reason for the control. Read it: it is how you learn the industry, and it helps you judge whether a surprising behaviour is a defect.
+
+## 1.4 Defect severity
+| Severity | Definition | Examples |
+| Critical | Money, stock, security or audit integrity wrong; data lost; a segregation-of-duties, isolation or budget control bypassed | A user approves their own payment; a posted journal can be edited; tenant A sees tenant B |
+| High | A Must requirement blocked or wrong with no workaround | Cannot post a goods receipt; retention calculated wrongly |
+| Medium | Works with a workaround, or a wrong label, format or unclear message | Refusal does not say what to do next; wrong column in an export |
+| Low | Cosmetic | Alignment, spelling |
+
+SRS section 9.1: **no Critical or High defect may be open at release.**
+
+## 1.5 Ground rules for testers
+- Never test on a live company. Use the UAT sandbox tenant loaded with the fictional data in chapter 4.
+- **Record starting figures** (stock quantity, budget remaining, ledger balances) before any money or stock test and the ending figures after it. Most expected results are differences against the start.
+- Posted documents can never be edited or deleted, by design. A mistake is corrected by reversal, credit note or adjustment. Plan the order of your tests and keep a list of document numbers (section 4.4).
+- **Do not skip negative tests** (things that must be refused). They are the controls the owners are accepting. A refusal must be explained in plain language that names the rule and the action that would satisfy it (NFR-USB-06). Judge every refusal by that standard.
+- When a case says "(checker)" or "second user", use a *different* person's login. Testing maker/checker with one login proves nothing.
+- Fresh MFA is required for sensitive actions. Have the authenticator device of each test user at hand.
+- If a case needs a feature your release does not include, mark it Blocked with the reason "not in release"; do not Pass it by inference.
+
+@term UAT = User acceptance testing: business users confirm the system does their job as agreed, before go-live.
+@term SRS = Software Requirements Specification: the agreed list of what the system shall do and the qualities it shall have.
+@term Maker / checker = The person who prepares a document and a different person who approves it. Also called segregation of duties.
+@term Idempotent = Doing the same command twice has the same effect as doing it once, so retries and duplicates are safe.
+
+# 2. Understanding the construction business (industry primer)
+
+This chapter is for testers who are not from construction or finance. Ten minutes here makes every later test case make sense.
+
+## 2.1 What a contractor sells and why it is hard
+A **contractor** (here: Abay Builders PLC) agrees to build something for a **client** (the employer or owner) for a price, to a quality, by a date. Unlike a shop, the product is made on the customer's site, takes months or years, and the price is agreed *before* the true cost is known. Profit is the difference between what the contractor is paid and what it actually spends, and that difference is easily lost through a few classic failures:
+- Spending more than the budget (materials wasted, prices rise, rework).
+- Building more than the contract pays for, or not being paid for changes the client ordered ("variations").
+- Missing a contractual deadline for a claim notice (a "time bar") and losing the right to be paid.
+- Paying a supplier or subcontractor twice, or paying for work not done.
+- Cash running out because the client pays 45-60 days after the work while wages and suppliers must be paid sooner.
+
+SERK Construction OS exists to make those failures visible and, where possible, impossible. That is why so many tests are about *refusals*.
+
+## 2.2 The life of a project (follow the money)
+| Stage | What happens in the real world | Key records | SRS area |
+| 1. Win | Find a tender, decide go/no-go, price it from quantities and rates, submit a bid, win the contract | Opportunity, estimate, BOQ, tender package | EST |
+| 2. Baseline | The agreed BOQ becomes the project budget; the work is broken into a WBS and cost codes; a schedule is built | Budget, WBS, cost codes, schedule baseline | EST, ORG, PCC, SCH |
+| 3. Buy | Site asks for materials; procurement gets quotes, awards, issues purchase orders; subcontractors are appointed | Requisition, RFQ, quotes, PO, subcontract | PRC, SUB |
+| 4. Receive and store | Goods arrive, are checked against the PO, stored, then issued to the work | Goods receipt (GRN), stock, issue | INV |
+| 5. Build | Crews, plant and subcontractors do the work; the site records it daily; quality and safety are controlled | Diary, timesheet, equipment hours, inspection, permit, incident | SIT, HCM, EQP, QA, HSE |
+| 6. Measure and bill | Each month the quantity surveyor measures completed work; the consultant certifies; the contractor invoices the client | Measurement, interim payment certificate (IPC), invoice | CON |
+| 7. Pay out | Supplier invoices are matched to orders and receipts; subcontractors are certified; payroll is run; treasury pays | AP invoice, subcontract certificate, payroll, payment | PRC, SUB, HCM, TRS |
+| 8. Control | Every month: actual cost vs budget, forecast to finish, earned value, profit recognised, books closed | Cost report, forecast, WIP, journal, period close | PCC, EVM, FIN |
+| 9. Hand over | Practical completion, defects period, retention released, final account | Completion certificate, retention release, final account | CON |
+
+## 2.3 Four numbers every project controller watches
+| Number | Meaning | Example (cost code Reinforcement steel) |
+| Budget | What we planned to spend | ETB 9,000,000 |
+| Commitment | What we have legally promised to spend (approved purchase orders and subcontracts), even before delivery | ETB 8,200,000 |
+| Actual cost | What has really been incurred and posted to the ledger | ETB 5,100,000 |
+| Forecast (EAC) | What we now expect the code to cost at the end | ETB 9,400,000 |
+
+Rule of thumb: **budget is a ceiling for commitments**. The system refuses a new order that would push commitments above the budget unless an authorised person overrides it with fresh MFA and a reason (SRS R8). Commitment is checked at *order* time, not at invoice time, because by invoice time the money is already spent.
+
+## 2.4 Money terms that confuse newcomers
+| Term | Plain meaning | Typical value |
+| BOQ | Bill of quantities: the priced list of every item of work and its quantity | Thousands of lines |
+| IPC | Interim payment certificate: the monthly certified value of work done, from which the client pays | Monthly |
+| Retention | A percentage withheld from each payment as security that defects will be fixed; released later | 5-10% |
+| Advance payment | Money the client pays up front to mobilise; recovered gradually from later IPCs; usually backed by an advance-payment guarantee | 10-20% |
+| Variation | A client-ordered change to the work that changes price and/or time | Any |
+| Claim / EOT | A contractor's request for more money or more time, e.g. because the client delayed access; has strict notice deadlines | FIDIC: notice within 28 days |
+| Back-charge | Cost charged to a subcontractor for something the contractor had to do or fix on their behalf | Case by case |
+| Three-way match | Paying a supplier invoice only if it agrees with the purchase order *and* the goods receipt | Always |
+| WAC / FIFO | Weighted average cost / first in first out: two ways of valuing stock when prices change | Policy per tenant |
+| WIP / over-under billing | Work in progress schedule: compares revenue earned by progress with amount billed | Monthly |
+| EVM | Earned value management: measures cost and schedule performance with PV, EV, AC, SPI, CPI | Monthly |
+| Liquidated damages | Daily penalty payable to the client for late completion | e.g. 0.1% of contract value per day, capped |
+
+@term BOQ = Bill of quantities: the priced list of work items and quantities that forms the basis of a contract and a budget.
+@term IPC = Interim payment certificate: certified value of work done to date, from which the client pays after retention and advance recovery.
+@term Retention = A percentage withheld from payments as security for defects; released at practical completion and the end of the defects period.
+@term Advance payment = Up-front money from the client to mobilise; recovered from later IPCs; normally guaranteed by a bond.
+@term Variation = A change to the work ordered by the client that changes the contract price and/or time.
+@term EOT = Extension of time: contractual relief for delay not caused by the contractor.
+@term Time bar = A contractual deadline after which a claim right is lost, for example a 28-day notice period.
+@term Back-charge = A cost recovered from a subcontractor for work or damage the contractor had to deal with.
+@term Commitment = A promise to spend backed by an approved purchase order or subcontract; counted against the budget immediately.
+@term Three-way match = Checking a supplier invoice against the purchase order and the goods receipt before it is approved for payment.
+@term WAC = Weighted average cost: stock valued at the running average of purchase prices.
+@term FIFO = First in, first out: stock valued as if the oldest purchases are used first.
+@term WIP = Work in progress schedule showing revenue earned vs billed, and so over- or under-billing.
+@term EVM = Earned value management: PV, EV, AC, SPI, CPI and forecasts that measure project performance objectively.
+@term WBS = Work breakdown structure: the hierarchical breakdown of the project into manageable parts, each with cost codes.
+@term Cost code = The account on which budget, commitments and actual cost are tracked within a project.
+@term GRN = Goods receipt note: the record that goods arrived, in what quantity and condition.
+@term PO = Purchase order: the controlled commitment to buy.
+@term RFQ = Request for quotation: asking several suppliers to price the same requirement.
+@term FIDIC = International standard conditions of contract (Red, Yellow, Silver Books) widely used in construction.
+@term LTIFR = Lost-time injury frequency rate: lost-time injuries per million hours worked.
+@term CDE = Common data environment: the controlled place where project documents live (ISO 19650).
+@term RFI = Request for information: a formal question to the designer or consultant, tracked until answered.
+@term NCR = Non-conformance report: a record that work or material did not meet requirements, with corrective action.
+@term ITP = Inspection and test plan: the list of inspections, hold points and witness points for an activity.
+@term Hold point = A point in the work beyond which work must not proceed until an inspection is released.
+@term Imprest = A petty-cash float topped up to a fixed amount against receipts.
+
+## 2.5 Who does what on a real project
+| Role | A day in their life | What the system must help them do | What the system must stop them doing |
+| Estimator | Prices tenders from drawings and cost database | Build and version BOQs | Edit a BOQ after submission |
+| Commercial manager / QS | Measures work, values subcontractors, prepares IPCs, chases variations and claims | Trace every quantity to a contract line; track notice deadlines | Certify work they prepared themselves |
+| Project manager | Runs the site, schedule, budget and forecast | See ready/blocked work and cost to complete | Approve their own budget increase |
+| Site engineer / foreman | Records the day, requests materials, receives goods, inspects, reports incidents, often with no signal | Capture everything offline and sync safely | Create authoritative money or stock facts from a phone |
+| Procurement | Gets quotes, awards, places orders | Compare quotes, enforce rules, track delivery | Award to one supplier without justification; split orders under the approval limit |
+| Storekeeper | Receives, issues, counts | Know what is in each store and what it cost | Adjust stock without independent approval |
+| Equipment manager | Allocates plant, tracks hours, fuel and servicing | Charge plant to projects by usage | Charge a project without recorded usage |
+| HR / payroll | Pays salaried staff and daily labour correctly | Apply statutory rules by effective date | Release payroll without a second approver |
+| Accountant / controller | Journals, reconciliations, month-end close | Post balanced entries; reconcile subledgers | Post into a closed period; approve own journal |
+| Treasury | Prepares and releases payments; imports bank statements | Dual approval, payment files | Release payments they prepared; mark paid without bank evidence |
+| QA/QC and HSE | Inspect, stop unsafe or defective work, investigate incidents | Block progress at a hold point; track actions to closure | Lose or quietly alter a safety record |
+| Auditor | Tests whether the books and controls can be trusted | Read-only access to everything, including the audit log | Change any data |
+| Administrator | Configures roles, workflows, devices | Compose roles; revoke devices | Have financial authority just by being an administrator |
+| Client / consultant / supplier / subcontractor | Review and respond in their own scope | See only their own records | See anyone else's data |
+
+## 2.6 Why so many controls? Typical frauds and errors
+Each control tested in this manual exists because of a real way that construction companies lose money. Keep this list in mind:
+- **Ghost supplier / bank-account substitution:** a supplier's bank details are quietly changed before a payment run. Control: bank accounts are dual-approved with MFA and shown masked (ORG-03, adversarial case A04).
+- **Split purchasing:** one 600,000 purchase becomes two 300,000 orders to dodge a 500,000 approval limit. Control: split detection (PRC-08).
+- **Duplicate invoice:** the same invoice is entered twice with a trivial change. Control: duplicate detection (PRC-08).
+- **Self-approval:** one person prepares and approves their own payment. Control: maker/checker in the application and in the database (IAM-08).
+- **Phantom stock or workers:** counts and timesheets that do not match reality. Control: independent count approval (INV-03), supervisor-approved timesheets (HCM-02).
+- **Over-certification:** paying a subcontractor for work not measured or not inspected. Control: QS certificate by someone other than the preparer (SUB-02), hold points (QA-02).
+- **Missed claim deadline:** the right to extra time or money lapses. Control: time-bar register with alerts (CON-04).
+- **Altered history:** records changed after the fact. Control: immutable posted records and a hash-chained audit log (AUD-01..03).
+
+# 3. The rules the system must keep (SRS section 3, in plain language)
+
+The SRS defines nine **invariants**. They are the non-negotiable behaviours. Any failure blocks production approval. Each one appears below with what a tester should *see*, and the chapters where it is tested.
+
+| ID | The rule | What you will observe | Tested in |
+| R1 | Every posted journal balances, uses whole minor units (cents/santim), lies in an open period, is immutable, and reconciles to its sources | Unbalanced or closed-period entries are refused; posted entries have no edit or delete, only reversal | Finance, Inventory |
+| R2 | No one approves, certifies, posts or releases their own work (maker/checker), in the app *and* the database | "You cannot approve your own document" with an explanation; same result if the app is bypassed | Identity, Workflow, Treasury, every approval |
+| R3 | Only authenticated humans decide. Automation, service and AI principals cannot approve, post, pay or release | Rules and the assistant can notify or draft; the decision button needs a person | Workflow, AI |
+| R4 | Tenant, entity and project data are isolated; exports show no more than the screen | Another project's or company's records simply do not appear, and a direct link is refused and logged | Identity, Reports, Security |
+| R5 | Exactly one effect per command or event, whatever the retries, duplicates or reordering | Pressing submit twice, or a replayed sync, never doubles a payment or stock movement | Sync, Integration, Finance |
+| R6 | Offline devices only prepare commands; conflicts are shown, never merged silently | A phone can record a goods receipt offline, but the server decides; a conflict appears in a list for the author | Site and mobile |
+| R7 | The assistant sees only what the user may see, uses only computed numbers, and cannot act | Answers cite sources; a number that is not in the facts never appears | AI |
+| R8 | No commitment beyond the approved budget without an attested, MFA-backed override | An over-budget requisition/PO/subcontract is refused; an override needs fresh MFA and a reason | Project controls, Procurement, Subcontracts |
+| R9 | Tampering is detectable and a backup restores to a consistent, verifiable system | Integrity scan reports clean; a restored copy reconciles to the original | Audit, Operations |
+
+## 3.1 The standard document lifecycle (SRS 3.2)
+Almost every controlled document (requisition, PO, invoice, certificate, journal, payroll, payment) moves through the same states. Learn this once:
+| From | To | Who and what guards it |
+| Draft | Submitted | The maker submits; content is frozen and attested |
+| Submitted | Approved or Rejected | A checker **other than the maker**; scope, limits, MFA if required; mandatory workflow quorum if published |
+| Approved | Posted / Released / Certified | A further distinct person where configured; period open; budget and policy re-checked |
+| Posted | Reversed | A reversal document by an authorised person. The original **never** changes |
+| Any open state | Cancelled | Authorised cancel with a reason; commitments are released |
+| Offline draft | Recorded, Conflict or Refused | The server re-validates on sync; a conflict goes back to the author |
+
+## 3.2 How to test a refusal properly
+Whenever a case says "the system refuses", check all five points. Any missing point is at least a Medium defect (NFR-USB-06, EI-UI-02):
+- The action did not happen (no document, journal, stock movement or payment was created or changed).
+- The message is in plain language and names **the rule** ("Purchase orders above the remaining budget need an override").
+- The message names **what would satisfy it** ("Ask a user with budget-override authority to approve with MFA").
+- The attempt is visible afterwards in the audit trail (user, time, what was refused).
+- The same refusal happens when the action is tried a second way (direct link, API call, a second browser tab).
+
+# 4. Test environment, cast and test data
+
+## 4.1 Environment
+| Item | Requirement |
+| Tenant | A dedicated UAT sandbox tenant ("Abay Builders PLC") loaded with the fictional data below. Never production. (ADM-07: sandbox with personal data masked.) |
+| Browsers | Current and previous major versions of Chrome, Edge, Firefox and Safari; one Android 10+ phone for site/mobile cases (NFR-MNT-08) |
+| Network | A way to switch a phone to airplane mode, and to throttle to a 3G-like speed |
+| Identity | Test users with MFA (TOTP or passkey) for every approval, posting, payment, security and admin role |
+| Clock | Know today's date (D0). Many cases use "D0 + 28 days" style dates; write the real dates in the data sheet |
+| Evidence | A folder for screenshots and exported files; name each file with the case ID |
+| Time zone | Africa/Addis_Ababa display; timestamps stored in UTC (NFR-USB-05) |
+
+## 4.2 The UAT cast (test users)
+Passwords and MFA devices are issued by the administrator; **never write them in this manual**. Where a case needs a maker and a checker of the same role, two accounts exist ("a" and "b"). Fictional names are used for readability only.
+| User ID | Display name | Role | Scope | Used for |
+| exe.a | Selam Tadesse | Executive / Owner | All projects, read | Dashboards, portfolio, high-value approval |
+| cfo.a | Mekdes Alemu | CFO | Tenant-wide | Period reopen, policy approval, high-value payment approval |
+| fin.a / fin.b / fin.c | Dawit, Rahel, Biniam | Accountant / Controller / Finance manager | Tenant-wide | Journals: preparer / approver / poster |
+| ap.a / ap.b | Hirut, Yonas | AP clerk / AP supervisor | Tenant-wide | Supplier invoices, customer invoices and receipts |
+| trs.a / trs.b / trs.c | Aster, Kebede, Lemlem | Treasury officer (prepares) / Treasury manager (releases) / Bank statement officer (imports statements only, holds no payment permission) | Tenant-wide | Payment prepare and release; independent statement import |
+| est.a | Hana Girma | Estimator | Opportunities and own bids | BOQ drafting |
+| qs.a / qs.b | Tigist, Henok | Quantity surveyor / Commercial manager | P-101, P-102 | Measurement, IPC, certificates: preparer / certifier |
+| pm.a / pm.b | Abel, Liya | Project manager / Project controls | P-101 (pm.a), P-102 (pm.b) | Budget, requisitions, schedule, forecast |
+| site.a / site.b | Fikru, Meron | Site engineer / Foreman | P-101 only | Requisitions, diaries, receipts, timesheets (mobile) |
+| proc.a / proc.b | Samson, Bethlehem | Procurement officer / manager | Tenant-wide | RFQ, award, PO: creator / approver |
+| store.a / store.b | Getachew, Zewditu | Storekeeper / Inventory controller | ST-101 (a), W-01 (b) | Receipts, issues, counts |
+| eqp.a | Mulugeta | Equipment manager | Tenant-wide | Plant register, usage |
+| hr.a / hr.b | Almaz, Tesfaye | HR officer / Payroll checker | Tenant-wide | Employees, payroll: maker / checker |
+| qa.a | Rediet | QA/QC officer | P-101 | ITP, inspection, NCR |
+| hse.a | Yared | HSE officer | P-101 | Permits, incidents, KPIs |
+| aud.a | Genet | External auditor | Read-only, time-boxed | Audit log, control review |
+| adm.a / adm.b | Nahom, Saron | Security / workflow administrator | Tenant admin; no financial permissions | Roles, devices, workflows |
+| ext.client / ext.consultant / ext.supplier / ext.sub | Zenith Properties PLC, Meskel Consulting, Nile Cement Distributors, Selam Finishing | External portal users | Own records only | Portal cases |
+
+## 4.3 Fictional organisation and project data
+Currency is Ethiopian birr (ETB). All names and figures are invented for testing. **Tax and payroll rates below are test fixtures only:** the real statutory values must come from the adviser-signed fixture (SRS D-04, D-06, NFR-PRV-05); if the signed fixture differs, use the signed fixture and update this table.
+
+| Item | Value |
+| Tenant / legal entities | E1 Abay Builders PLC (ETB, contractor); E2 Abay Plant and Logistics PLC (ETB, plant owner; used for intercompany tests) |
+| Project P-101 | Lideta Residence G+7. Client: Zenith Properties PLC. Consultant: Meskel Consulting Engineers. Unit-rate (remeasurable) contract |
+| P-101 contract value | ETB 120,000,000 excluding VAT. Original cost budget 100,000,000 (planned margin 20,000,000) |
+| P-101 contract policy | VAT 15% on gross certified value; retention 5% (half released at practical completion, half at end of defects period); advance 10% = 12,000,000 recovered at 10% of each gross IPC; liquidated damages 0.1% of contract value per day, capped at 10%; withholding tax per signed fixture (test value 2%) |
+| Project P-102 | Adama Cold Store (small project; client Oromia Foods PLC). Used for project-scope and isolation tests. Contract 30,000,000 |
+| Cost codes (P-101 budget) | 02-100 Earthworks 6,000,000; 03-100 Concrete 22,000,000; 03-200 Reinforcement steel 9,000,000; 04-100 Masonry 7,000,000; 06-100 Formwork and carpentry 4,000,000; 09-100 Plaster and finishes (subcontract) 21,000,000; 15-100 MEP (subcontract) 14,000,000; 01-100 Preliminaries 9,000,000; 01-200 Plant 5,000,000; 99-900 Contingency 3,000,000. **Total 100,000,000** |
+| Commitments at start | 03-200 Reinforcement steel: 8,200,000 committed (remaining 800,000). All other codes: below 60% committed |
+| Suppliers | S-01 Nile Cement Distributors PLC (cement); S-02 Rift Steel Mills PLC (rebar); S-03 Awash Aggregates (sand and gravel); S-04 Tana Hardware PLC (general) |
+| Subcontractors | SC-01 Selam Finishing PLC (plaster and finishes, subcontract value 20,000,000); SC-02 Gojo MEP Works (14,000,000 package) |
+| Stores | ST-101 P-101 site store; W-01 central warehouse |
+| Cement OPC | Purchase unit bag (50 kg); base unit kg; 20 bags = 1 tonne. Opening stock at ST-101: 1,000 bags at ETB 900 (policy: weighted average) |
+| Reinforcement bar | Purchase unit tonne; base unit kg. 03-200 price test: Y12 bar 10 tonnes at ETB 85,000 per tonne |
+| Plant | EX-01 Excavator 20 t, owned by E2: cost 6,000,000, residual 600,000, 5-year straight line; internal hire rate ETB 1,500 per working hour. TR-02 Tipper truck (hired in) |
+| Workers | 1 salaried site engineer; a crew of 10 daily labourers (test day rate 450). Statutory deductions come from the signed fixture |
+| Accounting periods | P0 = last month (closed); P1 = current month (open); P2 = next month (not yet open) |
+| FX (fixture) | 1 USD = ETB 120.00 approved rate for UAT; policy selects the approved rate by date |
+| Approval thresholds (fixture) | Purchase order approval limit for procurement manager 500,000; above that CFO with MFA. Payment dual approval above 1,000,000. Minimum 3 suppliers per RFQ |
+
+## 4.4 Test data sheet (fill in as you go)
+| Item | Value |
+| Date D0 (UAT start) | |
+| Period P1 start / end | |
+| 03-200 remaining budget at start | |
+| Cement stock at ST-101 at start (bags / value) | |
+| Cement average cost at start | |
+| Equipment EX-01 hours at start | |
+| Bank statement file name used | |
+| Documents created (PR, RFQ, PO, GRN, INV, IPC, JNL, PAY...) | |
+

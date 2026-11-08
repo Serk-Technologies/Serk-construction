@@ -1,0 +1,162 @@
+# 25. Audit, compliance and traceability (SRS 6.22)
+@release R1
+
+## Industry context
+An external auditor, a client's financial controller or a regulator will ask: "who did this, when, on whose authority, and has the record been changed since?" SERK answers with a **hash-chained, append-only audit log**: each record includes a fingerprint of the previous one, so removing or altering any entry breaks the chain and is detected. Posted records are protected by database triggers even against the database owner. The auditor also needs **end-to-end traceability**: from a payment back to the invoice, receipt, order, award, requisition, budget line and BOQ item.
+
+@term Hash chain = Each audit record contains a fingerprint of the previous record, so tampering is detectable.
+@term Integrity scan = A routine that re-computes fingerprints and checks immutability to find out-of-band changes.
+@term Control review report = A report of exceptions: segregation-of-duties exceptions, budget overrides, approvals outside SLA, reopened periods and revealed bank details.
+
+@case T-AUD-01 | Every command, decision, export, reveal, login and configuration change is in the audit log | R1 | AUD-01 | AUD, UAT
+1. Perform one of each: sign in, create a requisition, approve a PO, export a report, reveal a bank account, change a role, change a policy.
+2. As aud.a find each entry in the audit log and open its detail.
+3. Ask the vendor to run the audit-chain verification.
+=> Each action has an entry with who, when, what, before/after where relevant, the principal kind, the source (web, mobile, API) and the correlation identifier.
+=> The chain verifies end to end with zero breaks; no entry contains a password, token or full bank number (NFR-SEC-08).
+
+@case T-AUD-02 | The business change, its audit record and its outbox event commit together or not at all | R1 | AUD-02, NFR-AVL-03 | UAT
+pre: Vendor test hook to force a failure after the main write but before commit.
+1. Approve a PO while the hook fails the transaction.
+2. Retry the approval normally.
+3. Check the PO, the audit log and the notification/webhook list.
+=> After the failure: the PO is unchanged, no audit record and no notification exist for it.
+=> After the retry: all three exist exactly once.
+
+@case T-AUD-03 | Posted records are immutable even to the database owner; an integrity scan detects tampering | R1 | AUD-03, NFR-DAT-01, NFR-DAT-02 | UAT, AUD
+1. Vendor attempts, as the schema owner in a test copy, to UPDATE and DELETE a posted journal line.
+2. Vendor then disables the protection trigger in a **restored copy only**, alters an amount directly, and runs the integrity scan.
+3. Run the integrity scan on the live UAT system.
+=> Step 1 is refused by the database. Step 2: the scan reports the exact altered rows (journal, line, expected vs actual fingerprint).
+=> Step 3 reports zero rows. Evidence is kept with the case ID.
+
+@case T-AUD-04 | The audit log is readable only by authorised roles; reading is itself audited; external auditors are time-boxed | R1 | AUD-04 | AUD, ADM, SITE
+1. As site.a try to open the audit log.
+2. As adm.a grant aud.a access valid for 7 days and as read-only; set the end date.
+3. As aud.a read the log and try to change a record; wait past the end date (or set it to expire in 5 minutes) and read again.
+=> Site.a is refused. aud.a can read everything and change nothing. aud.a's reads are logged.
+=> After expiry access is gone without administrator action.
+
+@case T-AUD-05 | The control review report lists exceptions | R1 | AUD-05, PCC-02, FIN-03, ORG-03 | AUD, CFO
+pre: In this UAT you have already produced a budget override (T-PCC-04), a period reopening (T-FIN-03), a revealed bank account (T-ORG-03), a SoD conflict acceptance (T-IAM-08) and an approval past its SLA (T-WFL-07).
+1. As aud.a open the control review report for the UAT period.
+=> The report lists each of the five exceptions with who, when, amount, reason and the approver; counts per category are shown; every row drills to the document.
+
+@case T-AUD-06 | End-to-end traceability in both directions | R1 | AUD-06, FIN-T02 | AUD, FIN
+1. Start from the payment of 3,400,000 to SC-01; follow links back to certificate, measurement, subcontract and budget line.
+2. Start from the supplier payment for cement; follow back to invoice, GRN, PO, award, RFQ, requisition, budget line and BOQ item.
+3. Start from the client receipt (IPC-01); follow back to invoice, IPC, measurement and contract line.
+=> Each hop is a clickable link naming the document number, status and approver. No dead ends.
+
+@case T-AUD-07 | A period evidence pack for the external auditor | R2 | AUD-07 | AUD, FIN
+1. Generate the evidence pack for P1.
+=> One package with trial balance, subledger reconciliations, approvals sample, control review report, audit-chain verification result and list of reopened periods, sealed with a hash.
+
+# 26. Collaboration, notifications and portals (SRS 6.23)
+@release R1
+
+@case T-COL-01 | In-app notifications come from events after commit | R1 | COL-01, AUD-02 | PM, FIN
+1. Submit a requisition so that pm.a has a task. Check pm.a's notifications.
+2. Trigger a refused submission (over budget) and check pm.a again.
+=> A notification arrives only for the successful, committed submission, linking to the task. Refused or rolled-back actions notify nobody.
+
+@case T-COL-02 | Email, SMS and chat notifications by role and preference, with retry | R3 | COL-02, EI-CM-02 | PM, ADM
+1. Set pm.a's preferences: email for approvals, SMS for payments. Trigger both.
+2. Break the email gateway; trigger again; restore the gateway.
+=> Messages arrive on the chosen channel; the failed one is retried and arrives after restoration, once; the outbox shows the retry history.
+
+@case T-COL-03 | External portals show only the external party's own records and actions | R4 | COL-03, IAM-01 | EXT
+1. Sign in as ext.supplier (Nile Cement Distributors): view own RFQs, POs, invoices.
+2. Try to open another supplier's PO link and the client's IPC.
+3. Sign in as ext.client and ext.sub and repeat.
+=> Each external user sees only their own records and actions; other links are refused without revealing existence; every access is audited.
+
+@case T-COL-04 | Comments and mentions on any record, retained with its audit trail | R3 | COL-04 | PM, QS
+1. Comment on IPC-01 and mention qs.b. Edit then delete the comment.
+=> The mentioned user is notified; edits are versioned and deletions leave a tombstone; the comment stays within the record's permission scope.
+
+# 27. Integration and interoperability (SRS 6.24)
+@release R1
+
+@case T-INT-01 | Versioned, documented, authenticated, rate-limited APIs with idempotency keys | R1 | INT-01, IAM-12 | UAT
+1. Inspect the OpenAPI document: paths are under a version prefix; authentication and rate-limit headers are described.
+2. Call a create-document command twice with the same idempotency key, then once with a new key.
+=> The OpenAPI document validates and covers every endpoint used by the web console. Two identical keys give one document and the same response; a new key creates a second document.
+
+@case T-INT-02 | Signed webhooks from the transactional outbox, ordered, retried, replayable | R1 | INT-02 | UAT, ADM
+1. Subscribe a test endpoint to purchase-order events. Approve three POs in sequence.
+2. Make the endpoint fail for the second event; restore it; then replay from the dead-letter queue.
+=> Each delivery carries a timestamp and HMAC signature that the receiver can verify; events for the same PO arrive in order; failed deliveries are retried with back-off and appear in the dead-letter queue; replay delivers once more without duplicate business effect at the sender.
+
+@case T-INT-03 | Bulk import and export through a validated staging area | R1 | INT-03, DR-02 | PROC, ADM
+1. Download the supplier template. Fill 100 rows, with 3 invalid (missing TIN, duplicate, bad bank account format).
+2. Upload; review staging; fix the invalid rows; commit as a different user than the importer if policy requires.
+3. Export suppliers to CSV and Excel.
+=> Staging lists each error with row and reason, commits nothing until review, and then commits exactly the valid rows (97 first, 100 after fix). Imported suppliers still follow the supplier approval workflow.
+=> The export equals the screen content.
+
+@case T-INT-04 | Connectors to P6, MS Project, Microsoft 365/SharePoint, Google Drive and Power BI | R4 | INT-04 | PM, ADM
+1. Connect SharePoint; attach a SharePoint file to a record. Open a Power BI report on the analytics feed.
+=> Connections are authorised per tenant, scoped to the user's rights, and revocable.
+
+@case T-INT-05 | Bank and mobile-money integrations where available | R2 | INT-05, TRS-03 | TRS
+1. Use the integration chosen for release 1 (decision D-08) with the bank sandbox.
+=> Files or API calls exchange payment instructions and statements; settlement still only comes from statements. Blocked if D-08 chooses file import only.
+
+@case T-INT-06 | An outside system failure never blocks internal transactions | R1 | INT-06, NFR-AVL-04 | UAT
+1. Take the email gateway, the bank adapter and the webhook endpoint offline (vendor fault injection).
+2. Perform requisition, PO approval, goods receipt and journal posting.
+=> All internal transactions succeed within the normal response time. The admin health view shows the failing adapters, retries and the open circuit breakers; after recovery queued items drain.
+
+@case T-INT-07 | Migration tooling with reconciliation reports | R2 | INT-07, NFR-DAT-05, DR-02 | FIN, UAT
+pre: A legacy extract (Excel and QuickBooks or Peachtree export) with opening balances, open invoices and stock.
+1. Load the extract through the migration tool into a rehearsal tenant.
+2. Open the reconciliation report.
+=> Opening trial balance, open payables/receivables and stock totals equal the source system totals to the cent; any difference is listed by record. Finance signs the reconciliation (required before go-live).
+
+# 28. Administration, configuration and localisation (SRS 6.25)
+@release R1
+
+@case T-ADM-01 | Guided tenant onboarding | R1 | ADM-01 | ADM, FIN
+1. Create a new tenant and follow the guided onboarding: entities, chart of accounts (construction IFRS template), taxes, banks, users, roles, policies.
+=> Each step is validated; the tenant cannot go live until mandatory steps (a balanced opening chart, at least two users in each maker/checker pair) are done. Demo verification.
+
+@case T-ADM-02 | Operational policies are versioned, maker/checker approved and audited | R1 | ADM-02, IAM-13 | ADM, CFO, FIN
+1. Prepare a new stock policy version (FIFO to WAC) effective next period; submit.
+2. Try to approve as the preparer; approve as cfo.a.
+=> Self-approval refused; the change takes effect only from its effective date; the old version remains visible and audited. Same for P2P, contract, FX and threshold policies.
+
+@case T-ADM-03 | Company settings: letterhead, numbering, locale and portal branding | R1 | ADM-03, RPT-02 | ADM
+1. Upload a letterhead and set a document numbering pattern (PO-{project}-{year}-{seq}).
+2. Create a PO and export it.
+=> The new document gets the pattern number without gaps or duplicates under concurrent creation; the export shows the letterhead; the portal shows the branding.
+
+@case T-ADM-04 | English and Amharic at launch; another language can be added without code; translation never alters data | R1 | ADM-04, NFR-USB-04 | ADM, SITE
+1. Switch a user to Amharic. Open a requisition, a report and an exported PDF.
+2. As adm.a add Afaan Oromo via a translation file (no software release).
+3. Create a document in Amharic and look at it in English.
+=> Screens, messages and exports render Ethiopic script correctly in Amharic; the added language appears after upload.
+=> Amounts, codes, dates and statuses are the same in every language; free-text entered stays exactly as typed.
+
+@case T-ADM-05 | Custom fields per document type | R2 | ADM-05 | ADM
+1. Add a custom field "Delivery gate" (list) to goods receipts.
+=> The field is validated, appears on the document and in the report builder and exports, and is audited; removing it never deletes stored values.
+
+@case T-ADM-06 | Administrators see backup, queue, sync and integration health | R1 | ADM-06, NFR-MNT-06 | ADM
+1. Open the health view.
+=> It shows last backup time and result, outbox lag, sync queue per device, integration status and alerts, each with a timestamp.
+
+@case T-ADM-07 | Sandbox copies of a tenant with personal data masked | R2 | ADM-07, NFR-PRV-01 | ADM, UAT
+1. Create a sandbox copy of the UAT tenant.
+2. Look at employees, supplier bank accounts and phone numbers in the copy.
+=> Personal data and bank details are masked or randomised; business totals still reconcile; the sandbox cannot send real email or payment files.
+
+@case T-ADM-08 | Configurable retention periods and legal holds | R2 | ADM-08, NFR-PRV-03, DR-01 | ADM, AUD
+1. Set a retention rule for a record type; place a legal hold on project P-101 documents.
+2. Run the purge job.
+=> Records under legal hold are never purged; purge of eligible records needs an approved purge request and leaves a tombstone; financial, contract and audit records are never hard-deleted (NFR-DAT-02).
+
+@case T-ADM-09 | A tenant can export all its data in open formats at any time | R2 | DR-04, NFR-MNT-05 | ADM, UAT
+1. Request a full tenant export.
+=> A package in documented open formats (CSV/JSON plus files) with a manifest and checksums; row counts equal the system; the request is audited and needs approval.
+

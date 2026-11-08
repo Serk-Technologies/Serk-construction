@@ -35,6 +35,11 @@ export function rolesWith(perm, roles) {
 
 // One sentence per document type: what it is in the business.
 export const DOC_PURPOSE = {
+  forecast_cycle: 'A cost forecast is the monthly estimate, by cost code, of what each part of the project will cost at completion. The system supplies cost to date and commitments; the project manager chooses how the remaining cost is estimated; a different person approves it with a fresh multi-factor sign-in. A line forecast above its budget must carry an explanation; an approved forecast never changes.',
+  change_event: 'A change event records a change to the money or time of a project before it is agreed: a request for information that costs money, a site instruction, a client request, a design change. It carries its expected cost per cost code, its revenue impact and its schedule impact in days. One person prepares it; a different person decides it with a fresh multi-factor sign-in. Approving it drafts a budget revision for the cost lines; the budget moves only when that revision is approved by yet another person.',
+  contract_notice: 'A contract notice records an event that may entitle the contractor to more time or money, and the date by which the contract requires it to be notified (commonly 28 days). The system computes that date and shows whether the notice is open, due soon, overdue, sent on time or sent late. A sent notice never changes.',
+  contract_claim: 'A claim asks the client for more time, more money or both, usually following a notice. One person prepares it; a different person approves it for sending with a fresh multi-factor sign-in. If its notice is missing or was late it needs a stated reason. After approval you record the client\'s answer once, with their reference; agreed money and days cannot exceed what was claimed.',
+  project_stage_gate: 'A stage gate is the controlled step from one phase of a project\'s life to the next (bid, mobilisation, execution, practical completion, defects, closed). One person prepares it with the evidence; a different person decides it with a fresh multi-factor sign-in, and only then does the project move.',
   uom_conversion: 'A unit conversion lets people count stock in another unit (a bag, a bundle, a truck). It is exact, applies only after a different person approves it, and there is one approved factor per pair of units.',
   authority_matrix: 'An authority matrix says who may approve how much: for each document type and amount band, the permission an approver must hold, and whether a fresh multi-factor sign-in is needed. One matrix is in force at a time.',
   delegation: 'A delegation lends part of your own approval authority to a colleague for a limited time, for example during leave. A third person approves it and you can revoke it at any time.',
@@ -85,7 +90,7 @@ export const FORM_DOC = {
   stocktransfer: 'stock_transfer', stockissue: 'stock_issue', stockcount: 'stock_count', policy: 'p2p_policy',
   rfq: 'rfq', quote: 'rfq_quote', po: 'purchase_order', grn: 'grn', invoice: 'supplier_invoice', payment: 'payment_instruction',
   measurement: 'measurement', ipc: 'ipc', receipt: 'customer_receipt', variation: 'contract_variation',
-  creditnote: 'customer_credit_note', putaway: 'stock_receipt', retention: 'retention_release',
+  creditnote: 'customer_credit_note', project: 'project_stage_gate', projectedit: 'project_stage_gate', forecast: 'forecast_cycle', change_event: 'change_event', notice: 'contract_notice', claim: 'contract_claim', stagegate: 'project_stage_gate', putaway: 'stock_receipt', retention: 'retention_release',
   supplierbank: 'supplier_bank_account', uom_conversion: 'uom_conversion', authority_matrix: 'authority_matrix', delegation: 'delegation', sod_exception: 'sod_exception',
 };
 
@@ -188,6 +193,28 @@ export const PAGES = {
     steps: ['Choose the store and item.', 'Enter the minimum (below this is low), the maximum (the level to reach) and the smallest sensible order.'],
     rules: ['It only reports and suggests: nothing is ordered automatically.', 'Available stock means on hand minus reserved.'],
   },
+  setup: {
+    what: 'The things a new company needs in place before it can run a project, in a sensible order. Each is ticked automatically when its records exist.',
+    steps: ['Work down the groups: company, finance policies, structure, a first project, then suppliers, customers and stock.', 'Open a step to do it; each says who does it and why.', 'Use Data imports to load many suppliers, customers or stock items at once.'],
+    rules: ['Nothing is ticked by hand: the page reads the real records.', 'Optional steps are marked; the progress bar counts only required ones.', 'Setup follows the same approvals as daily work: a policy, a bank account or a supplier still needs a second person.'],
+    related: [['#/imports', 'Data imports'], ['#/projects', 'Projects'], ['#/org', 'Organisation']],
+  },
+  imports: {
+    what: 'Load suppliers, customers or stock items from a spreadsheet saved as CSV, safely: the file is checked first, a different person commits it, and the records still need their normal approval.',
+    steps: ['Choose what to import and fill in the template or choose your file.', 'Stage it: every row is checked and nothing is created.', 'Review the errors, fix the source and stage again if needed.', 'A different person counts the rows in the original source and commits.'],
+    rules: ['Rows with errors are never created.', 'The person who staged a file cannot commit it, and the confirmed row count must equal the staged file.', 'Each record is created through the ordinary command, so a supplier or stock item still needs approval by someone else.', 'A partly failed import can be committed again; records that already exist are never duplicated.'],
+  },
+  projects: {
+    what: 'Every project you may see with its master data: client, region, business unit, contract type, manager, dates and phase.',
+    steps: ['Create a project (it starts PLANNED, in phase BID).', 'Edit its details as the work becomes clear.', 'Request the next stage gate when its evidence is ready.'],
+    rules: ['The phase moves only through a stage gate approved by a different person with a fresh multi-factor sign-in.', 'A project in the bid phase takes no part in costs; it becomes active when it mobilises.', 'The code and company never change once a project exists.'],
+    related: [['#/list/project_stage_gate', 'Stage gates'], ['#/org', 'Regions and business units']],
+  },
+  org: {
+    what: 'The company structure used for roll-ups (regions and business units) and the company calendar of holidays and exceptional working days.',
+    steps: ['Add regions and business units, then assign them to projects.', 'Enter the holidays of the year ahead, including movable ones.'],
+    rules: ['Only the people who manage the organisation can change it; everyone who reads projects can see it.', 'Nothing is assumed about movable holidays: enter them each year.'],
+  },
   reservations: {
     what: 'Stock set aside for projects. Reserved stock cannot be issued to anyone else, so material promised to one pour is not used by another.',
     steps: ['Reserve stock for a project and a date.', 'Issue against the reservation when the work starts: approving that issue uses the reservation up.', 'Release a reservation you no longer need, with a reason.'],
@@ -211,6 +238,42 @@ export const PAGES = {
     steps: ['Read the matrix in force: an approval above a band needs the permission shown there.', 'Use "Delegate my authority" before leave so work is not blocked.', 'A process owner proposes a new matrix version; the CFO approves it.'],
     rules: ['An approval above a band is refused unless the approver holds the permission the band needs (checked by the server; budget approvals also by the database).', 'A delegate acts only within what you hold yourself, never on documents you prepared, and never for permissions that would give them a conflict of duties.', 'Delegations end automatically and can be revoked at any time.'],
     related: [['#/list/authority_matrix', 'Matrix versions'], ['#/list/delegation', 'Delegations'], ['#/list/sod_exception', 'Duty-conflict exceptions']],
+  },
+  people: {
+    what: 'The company directory. Everyone who has signed in appears here with the roles their sign-in gave them. Once an administrator manages a person\'s access here, the roles and projects on this page are the ones in force on every request, whatever the sign-in says.',
+    steps: ['Find a person with the search box or the filters; click a card to open their sheet.', 'To change access: give a reason, then "Manage access here", give or remove roles, tick their projects, or disable them.',
+      'The Duty map shows who prepares, approves, releases and governs; highlight a role to see who holds it.', 'Roles: open a product role to see what it gives; compose a company role from the fixed permission list.',
+      'Access history lists every change with who made it and why.'],
+    rules: ['Nobody changes their own access; the database refuses it too.', 'A role is refused if it would give the person both halves of a control (for example raising and approving purchase orders), unless an approved duty-conflict exception covers that pair.',
+      'A company role can never hold both halves of a control, and cannot be changed so that a holder would.', 'Changes need a fresh multi-factor sign-in and a reason. Removed roles stay in the history.',
+      'Disabling a person refuses their next request and signs them out on every device.'],
+    related: [['#/authority', 'Authority and duties'], ['#/list/sod_exception', 'Duty-conflict exceptions'], ['#/list/delegation', 'Delegations'], ['#/me', 'My profile']],
+  },
+  obligations: {
+    what: 'Every obligation the contracts set, on either side: what must be done, under which clause, by whom and by when.',
+    steps: ['Add an obligation from a contract’s clause, naming its owner here.', 'Filter for what is due within 7 days or overdue.', 'Close it once it is met (say how) or waived (say why).',
+      'A process owner can add alert rules (Obligation due, Notice due, Guarantee expiring) that warn at 14, 7 and 2 days and when late.'],
+    rules: ['An obligation is closed once and never reopened; it cannot be closed with a future date.', 'A waiver needs its reason.'],
+    related: [['#/list/contract_notice', 'Contract notices'], ['#/list/contract_claim', 'Claims'], ['#/automation', 'Alert rules']],
+  },
+  bonds: {
+    what: 'The bank guarantees held against each contract (bid, advance payment, performance, retention), and the price adjustment the contract allows when published price indices move.',
+    steps: ['Guarantees: treasury registers each guarantee as the bank issued it; the cards show how much of its term has run and what expires within 30 days.',
+      'Check "Advance payment cover": the advance not yet recovered through certified payment certificates should stay covered by an advance guarantee in force.',
+      'Price indices: a quantity surveyor proposes each month’s published value; a commercial manager approves it.',
+      'Price adjustment: set the contract’s formula once, then for each certified payment certificate choose the month of the indices, compute, and submit the adjustment for approval.'],
+    rules: ['A guarantee’s value can only go down and its expiry only later, each with a reason. Releasing or recording a call needs another person than the one who registered it, with a recent second-factor sign-in.',
+      'An expired guarantee cannot be called. A released or called guarantee never changes.',
+      'An index value is approved by someone other than its proposer, is never for a future month, and once approved never changes.',
+      'The formula’s fixed portion and weights add up to exactly 1; the factor and the adjustment are computed by the database from approved values only and computed again at approval.'],
+    related: [['#/list/contract', 'Contracts'], ['#/list/ipc', 'Payment certificates'], ['#/list/price_adjustment', 'Price adjustments'], ['#/list/guarantee', 'Guarantees (list)']],
+  },
+  me: {
+    what: 'Your profile: who you are in this company, what you may do and why, where, and what you did last.',
+    steps: ['Keep your name, job title and phone current; colleagues see them in the directory.', '"What you may do" groups your permissions by business area; the colour shows the stage of work.',
+      'Use "Sign out everywhere" if you lost a device or suspect someone used your account.'],
+    rules: ['Your roles and projects are set by your administrator or your sign-in; you cannot change them here.', 'Approvals, payments and access changes need a multi-factor sign-in made within the last 10 minutes.'],
+    related: [['#/home', 'My work'], ['#/authority', 'Authority and duties']],
   },
   site: {
     what: 'Field devices registered for offline work on site.',

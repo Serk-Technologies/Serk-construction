@@ -262,6 +262,60 @@ var reportDefs = []ReportDef{
 		         WHERE c.project_id = $2::uuid AND j.status IN ('POSTED', 'REVERSED') AND ` + sf("c.project_id") + `
 		         GROUP BY c.id, c.code, date_trunc('month', j.business_event_at)) x
 		       WHERE ($3::date IS NULL OR month >= to_char($3::date, 'YYYY-MM')) AND ($4::date IS NULL OR month <= to_char($4::date, 'YYYY-MM')) ORDER BY cost_code, month`},
+
+	{ID: "forecast-summary", Title: "Cost forecast against budget", Group: "Project controls", Perm: "p2p.read", Filters: []string{"entity", "project"},
+		Description: "The latest approved cost forecast of each project, by cost code: current budget, cost to date, estimate to complete, estimate at completion and the variance (budget - EAC; negative is a forecast overrun).",
+		Columns: []ReportCol{col("project", "Project", "text"), col("period_end", "Forecast as at", "date"), col("cost_code", "Cost code", "text"), col("budget", "Current budget", "money"),
+			col("cost_to_date", "Cost to date", "money"), col("etc", "Estimate to complete", "money"), col("eac", "Estimate at completion", "money"), col("vac", "Variance", "money"), col("method", "Method", "text")},
+		Totals: []string{"budget", "cost_to_date", "etc", "eac", "vac"},
+		SQL: `SELECT pr.code AS project, f.period_end::text AS period_end, cc.code AS cost_code, l.budget::text, l.cost_to_date::text, l.etc::text, l.eac::text, l.vac::text, l.method
+		   FROM forecast_cycles f JOIN projects pr ON pr.id = f.project_id JOIN forecast_lines l ON l.cycle_id = f.id JOIN cost_codes cc ON cc.id = l.cost_code_id
+		  WHERE f.status = 'APPROVED' AND pr.legal_entity_id = $1::uuid AND ($2::uuid IS NULL OR f.project_id = $2::uuid) AND ` + sf("f.project_id") + `
+		    AND f.period_end = (SELECT max(f2.period_end) FROM forecast_cycles f2 WHERE f2.project_id = f.project_id AND f2.status = 'APPROVED')
+		  ORDER BY pr.code, cc.code`},
+
+	{ID: "wip-schedule", Title: "Work in progress: over and under billing", Group: "Revenue", Perm: "p2p.read", Filters: []string{"entity", "project"},
+		Description: "Cost-to-cost percent complete from the latest approved forecast (cost to date / estimate at completion), earned revenue (contract value x percent complete), work billed up to the forecast date and the difference. Positive = over-billed (a liability); negative = under-billed (an asset). A project whose estimate at completion exceeds its active contract value shows the total expected loss (none is shown for a project with no active contract yet).",
+		Columns: []ReportCol{col("project", "Project", "text"), col("period_end", "As at", "date"), col("contract_value", "Contract value", "money"), col("eac", "Estimate at completion", "money"),
+			col("cost_to_date", "Cost to date", "money"), col("percent_complete", "Percent complete", "text"), col("earned_revenue", "Earned revenue", "money"),
+			col("billed", "Billed to date", "money"), col("over_under", "Over / (under) billed", "money"), col("expected_loss", "Expected total loss", "money")},
+		Totals: []string{"contract_value", "eac", "cost_to_date", "earned_revenue", "billed", "over_under", "expected_loss"},
+		SQL: `SELECT project, period_end, contract_value::text, eac::text, cost_to_date::text,
+		        CASE WHEN eac > 0 THEN round(100 * least(cost_to_date / eac, 1), 2)::text ELSE '0' END || '%' AS percent_complete,
+		        earned::text AS earned_revenue, billed::text, (billed - earned)::text AS over_under, (CASE WHEN contract_value > 0 THEN greatest(eac - contract_value, 0) ELSE 0 END)::text AS expected_loss FROM (
+		        SELECT pr.code AS project, f.period_end::text AS period_end,
+		               COALESCE((SELECT sum(c.contract_value) FROM contracts c WHERE c.project_id = f.project_id AND c.status = 'ACTIVE'), 0) AS contract_value,
+		               t.eac, t.cost_to_date,
+		               round(COALESCE((SELECT sum(c.contract_value) FROM contracts c WHERE c.project_id = f.project_id AND c.status = 'ACTIVE'), 0)
+		                     * CASE WHEN t.eac > 0 THEN least(t.cost_to_date / t.eac, 1) ELSE 0 END, 2) AS earned,
+		               COALESCE((SELECT sum(ci.gross) FROM customer_invoices ci WHERE ci.project_id = f.project_id AND ci.status = 'APPROVED' AND ci.invoice_date <= f.period_end), 0) AS billed
+		          FROM forecast_cycles f JOIN projects pr ON pr.id = f.project_id
+		          JOIN LATERAL (SELECT sum(eac) AS eac, sum(cost_to_date) AS cost_to_date FROM forecast_lines WHERE cycle_id = f.id) t ON true
+		         WHERE f.status = 'APPROVED' AND pr.legal_entity_id = $1::uuid AND ($2::uuid IS NULL OR f.project_id = $2::uuid) AND ` + sf("f.project_id") + `
+		           AND f.period_end = (SELECT max(f2.period_end) FROM forecast_cycles f2 WHERE f2.project_id = f.project_id AND f2.status = 'APPROVED')) x
+		       ORDER BY project`},
+
+	{ID: "notice-register", Title: "Contract notices and time bars", Group: "Revenue", Perm: "p2p.read", Filters: []string{"entity", "project"},
+		Description: "Every contract notice with the date it must be sent by, the date it was sent and its standing: open, due soon (within 7 days), overdue (time-barred risk), sent on time or sent late.",
+		Columns: []ReportCol{col("number", "Notice", "text"), col("contract", "Contract", "text"), col("project", "Project", "text"), col("clause", "Clause", "text"), col("subject", "Subject", "text"),
+			col("event_date", "Event", "date"), col("due_on", "Notify by", "date"), col("sent_on", "Sent", "date"), col("standing", "Standing", "text"), col("days_left", "Days left", "text")},
+		SQL: `SELECT n.number, c.number AS contract, pr.code AS project, n.clause_ref AS clause, n.subject, n.event_date::text AS event_date, n.due_on::text AS due_on, COALESCE(n.sent_on::text, '') AS sent_on,
+		        CASE WHEN n.sent_on IS NOT NULL AND n.sent_on <= n.due_on THEN 'SENT' WHEN n.sent_on IS NOT NULL THEN 'SENT_LATE' WHEN current_date > n.due_on THEN 'OVERDUE'
+		             WHEN n.due_on - current_date <= 7 THEN 'DUE_SOON' ELSE 'OPEN' END AS standing,
+		        CASE WHEN n.sent_on IS NULL THEN (n.due_on - current_date)::text ELSE '' END AS days_left
+		   FROM contract_notices n JOIN contracts c ON c.id = n.contract_id JOIN projects pr ON pr.id = c.project_id
+		  WHERE c.legal_entity_id = $1::uuid AND ($2::uuid IS NULL OR c.project_id = $2::uuid) AND ` + sf("c.project_id") + ` ORDER BY n.due_on, n.number`},
+
+	{ID: "claims-register", Title: "Claims register", Group: "Revenue", Perm: "p2p.read", Filters: []string{"entity", "project"},
+		Description: "Claims for time and cost by contract: what was claimed, where each stands, and what the client agreed.",
+		Columns: []ReportCol{col("number", "Claim", "text"), col("contract", "Contract", "text"), col("project", "Project", "text"), col("kind", "Kind", "text"), col("title", "Title", "text"),
+			col("claimed_amount", "Amount claimed", "money"), col("claimed_days", "Days claimed", "text"), col("status", "Status", "text"), col("client_outcome", "Client's answer", "text"),
+			col("agreed_amount", "Amount agreed", "money"), col("agreed_days", "Days agreed", "text")},
+		Totals: []string{"claimed_amount", "agreed_amount"},
+		SQL: `SELECT k.number, c.number AS contract, pr.code AS project, k.kind, k.title, k.amount::text AS claimed_amount, k.days::text AS claimed_days, k.status,
+		        COALESCE(k.client_outcome, '') AS client_outcome, COALESCE(k.agreed_amount, 0)::text AS agreed_amount, COALESCE(k.agreed_days, 0)::text AS agreed_days
+		   FROM contract_claims k JOIN contracts c ON c.id = k.contract_id JOIN projects pr ON pr.id = c.project_id
+		  WHERE c.legal_entity_id = $1::uuid AND ($2::uuid IS NULL OR c.project_id = $2::uuid) AND ` + sf("c.project_id") + ` ORDER BY k.created_at, k.number`},
 }
 
 // ReportCatalogue lists the reports the caller may run (permission and scope).

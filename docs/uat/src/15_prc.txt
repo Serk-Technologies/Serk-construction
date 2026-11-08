@@ -1,0 +1,105 @@
+# 10. Procurement and supply chain (SRS 6.7)
+@release R1
+
+## Industry context
+Materials are typically 40-60% of a building contractor's cost, so **procure-to-pay (P2P)** is where most money is lost or saved. The chain is: the site raises a **requisition**; procurement sends a **request for quotation (RFQ)** to several suppliers; quotes are compared on price and technical compliance; an **award** is made; a **purchase order (PO)** commits the money; goods arrive and are recorded on a **goods receipt note (GRN)**; the supplier's **invoice** is matched to the PO and the GRN (**three-way match**); and only then is payment prepared. Each step is a controlled document with its own approver.
+
+In Ethiopia, import is a major route (steel, MEP, finishes) and brings extra steps: pro-forma invoice, letter of credit, shipping, customs clearance, and duty, freight and insurance that must be spread over the items as **landed cost**. This chapter tests both local and import procurement.
+
+@term Landed cost = The full cost of imported goods on arrival: purchase price plus freight, insurance, duty and clearing, spread over the items.
+@term Blanket order / call-off = A framework agreement with agreed prices, from which individual deliveries are called off.
+@term Single-source justification = A recorded reason for buying from only one supplier.
+@term Expediting = Chasing suppliers to meet delivery dates.
+
+@case T-PRC-01 | The full procure-to-pay chain, each step a controlled document | R1 | PRC-01, PRC-03 | SITE, PROC, STORE, AP, PM
+pre: Cost code 03-100 Concrete has budget available. Use cement as the material (50 kg bags).
+1. As site.a create a requisition for 800 bags of cement on 03-100 and submit.
+2. As pm.a approve the requisition.
+3. As proc.a create an RFQ to S-01, S-03 and S-04, record three quotes, do the technical evaluation and award.
+4. As proc.a create the purchase order from the award; as proc.b approve it.
+5. As store.a record the goods receipt of 800 bags against the PO and confirm it.
+6. As ap.a enter the supplier invoice; match it; as ap.b approve it.
+=> Each step is a separate document with its own number, state and approver, and references its predecessor (requisition, RFQ, quote, award, PO, GRN, invoice).
+=> Every approval was made by someone other than the document's maker. Budget commitment appears at PO approval; stock appears at GRN confirmation; the payable appears at invoice approval.
+=> From the invoice you can navigate back to the GRN, PO, award, RFQ, requisition and budget line (AUD-06).
+
+@case T-PRC-02 | An RFQ needs a minimum number of suppliers; a non-lowest award needs a reason | R1 | PRC-02 | PROC
+pre: Policy minimum 3 suppliers per RFQ. Rebar quotes per tonne: S-02 ETB 85,000; S-04 ETB 88,000; S-03 ETB 91,000. S-02 is technically non-compliant (mill certificates missing); S-04 is compliant.
+1. As proc.a try to issue an RFQ to only two suppliers.
+2. Record the single-source justification "Only licensed distributor for this brand" and issue.
+3. Issue a proper RFQ to three suppliers; record the quotes and the technical evaluation (S-02 non-compliant).
+4. Award to S-03 (91,000) and then try to award instead to S-04 (88,000).
+=> Step 1 is refused: minimum suppliers not met, stating the policy; step 2 is accepted with the justification stored on the RFQ.
+=> The system identifies S-04 as the lowest *compliant* quote.
+=> Awarding to a higher price than the lowest compliant quote (S-03) is refused until a written reason is entered, and the reason appears on the award and the control review report.
+
+@case T-PRC-03 | Purchase-order approval follows the delegation matrix and the budget control | R1 | PRC-03, IAM-13, PCC-02 | PROC, CFO
+1. Create PO-A for 450,000 on 03-100 (budget available). As proc.b approve.
+2. Create PO-B for 600,000 on 03-100. As proc.b try to approve.
+3. As cfo.a approve PO-B with fresh MFA.
+4. Create PO-C for 900,000 on 03-200 (remaining budget is 800,000) and try to approve it.
+=> PO-A is approved by procurement manager. PO-B is refused for proc.b (above his limit) and routed to the CFO; cfo.a approves.
+=> PO-C is refused for budget; message offers the override route (see T-PCC-04).
+=> The creator of each PO could not approve it.
+
+@case T-PRC-04 | Framework agreements and call-offs against agreed prices | R2 | PRC-04 | PROC
+1. Create a framework agreement with S-01 for cement: price ETB 900 per bag valid for 6 months, ceiling 5,000,000.
+2. Call off 1,000 bags at the agreed price.
+3. Try to call off at ETB 950.
+4. Call off until the ceiling is exceeded.
+=> Call-off at the agreed price needs no new RFQ and consumes the ceiling; the remaining balance is shown.
+=> A different price or exceeding the ceiling is refused or routed for approval, with the reason stated.
+
+@case T-PRC-05 | E-sourcing: sealed quotes opened at the due time by two people | R4 | PRC-05, COL-03 | PROC, EXT
+1. Invite S-01, S-03 and S-04 through the supplier portal; each submits a quote before the due time.
+2. As proc.a try to view quotes before the due time.
+3. After the due time, try to open the quotes alone; then with a second user.
+=> No one can see the quotes before the due time, not even the procurement officer.
+=> Opening requires two different people; the opening is logged with both names and time.
+
+@case T-PRC-06 | Import procurement and landed-cost allocation | R2 | PRC-06, TRS-05 | PROC, FIN, STORE
+pre: Pro-forma from a foreign supplier: Y12 bar 60 tonnes USD 30,000 and Y16 bar 40 tonnes USD 22,500 (rate 120.00). Extra costs in ETB: freight 400,000, insurance 60,000, duty 1,200,000, clearing 40,000. Policy: allocate by value.
+1. Create the import order; record the pro-forma, letter of credit reference and shipping documents.
+2. Record customs clearance and the four extra costs.
+3. Receive the goods and run the landed-cost allocation.
+=> Goods value: Y12 3,600,000; Y16 2,700,000 (total 6,300,000). Extra costs total **1,700,000**.
+=> Allocation by value: Y12 receives 971,428.57 and Y16 728,571.43 (the total exactly equals 1,700,000, no lost cent).
+=> Landed cost: Y12 **4,571,428.57** (76,190.48 per tonne); Y16 **3,428,571.43** (85,714.29 per tonne). Stock is valued at landed cost.
+=> Changing the allocation method to "by weight" gives 1,020,000 and 680,000 and is audited.
+why: If duty and freight are not spread over the stock, margins on steel are overstated and later jobs are under-priced.
+
+@case T-PRC-07 | Expediting and supplier performance scoring | R2 | PRC-07, QA-05 | PROC
+1. Open the expediting list of overdue deliveries; record a promised new date and a call note.
+2. Complete a delivery with 2 days delay and one rejected item.
+=> The overdue list shows days late, supplier, PO and next action.
+=> The supplier score updates on price, time and quality with the underlying events visible.
+
+@case T-PRC-08 | Duplicate invoices and split purchases are flagged | R1 | PRC-08 | AP, PROC
+pre: Approval threshold 500,000.
+1. Enter supplier invoice 9001 for S-01 of 300,000. Enter it again with the same number and amount.
+2. Enter a third invoice with the same amount and date but number "9001A".
+3. Create two POs of 300,000 each to S-01 on the same cost code on the same day.
+=> The second entry is flagged as probable duplicate and blocked from payment until a reviewer decides; the "9001A" case is flagged on amount and date.
+=> The pair of POs is flagged as a possible split under the 500,000 limit, with the combined value and a reviewer step.
+=> Flags and reviewer decisions are in the audit trail.
+why: Typical fraud, but also an honest-error catcher: the same delivery note invoiced twice.
+
+@case T-PRC-09 | Purchase order changes are versioned and re-approved | R2 | PRC-09 | PROC, PM
+1. Approve a PO of 400,000 for 400 bags of cement.
+2. Change only the delivery contact name.
+3. Increase quantity to 460 bags (value 460,000).
+4. Compare versions.
+=> Step 2 is recorded as a new version without re-approval, or per tenant setting; record which.
+=> Step 3 sends the PO back for approval at the amount-based level; commitment is updated only when approved.
+=> The version comparison lists the changes.
+
+@case T-PRC-10 | Three-way match holds an invoice that disagrees with the order or the receipt | R1 | PRC-01, PRC-08 | AP, STORE
+pre: PO 200 bags cement at ETB 950 = 190,000. GRN confirmed for 180 bags.
+1. As ap.a enter a supplier invoice for 200 bags at 950 and match it.
+2. Have store.a confirm a second GRN of 20 bags; re-match.
+3. Enter another invoice with price 970 per bag for the same quantity.
+=> Step 1: the invoice is **held**: invoiced quantity exceeds received quantity by 20 bags (19,000). The message names the three documents compared.
+=> Step 2: match passes and the invoice can go to approval.
+=> Step 3: price variance beyond tolerance is held for review with the difference in amount.
+why: Paying for goods that never arrived is the classic collusion between a supplier and a storekeeper.
+
