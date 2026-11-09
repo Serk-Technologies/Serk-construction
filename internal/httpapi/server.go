@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -89,6 +90,9 @@ type Server struct {
 	authFail  limiter // invalid credentials per client IP, with lockout
 	inflight  chan struct{}
 	m         serverMetrics
+	// seen throttles the directory's sign-in bookkeeping (Touch) to one
+	// write per person every few minutes.
+	seen sync.Map
 }
 
 // Metrics returns the registry holding the API's instruments.
@@ -296,6 +300,29 @@ func (s *Server) authed(next func(http.ResponseWriter, *http.Request)) http.Hand
 				writeErr(w, http.StatusServiceUnavailable, "unavailable", "session verification unavailable")
 				return
 			}
+		}
+		// People directory (0048): record the person, refuse a disabled one,
+		// and apply roles and projects managed in the company. Fails closed.
+		if s.cfg.Kernel != nil {
+			key := p.TenantID + "/" + p.UserID
+			if last, ok := s.seen.Load(key); !ok || time.Since(last.(time.Time)) > 3*time.Minute {
+				if err := s.cfg.Kernel.Touch(r.Context(), p); err == nil {
+					s.seen.Store(key, time.Now())
+				}
+			}
+			dp, err := s.cfg.Kernel.ApplyDirectory(r.Context(), p)
+			if errors.Is(err, kernel.ErrAccountDisabled) {
+				s.cfg.Logger.Warn("security", "event", "disabled_account_used", "tenant", p.TenantID, "sub", p.UserID)
+				writeErr(w, http.StatusForbidden, "account_disabled", "your account is disabled in this company; ask your administrator")
+				return
+			}
+			if err != nil {
+				s.cfg.Logger.Error("security", "event", "directory_check_failed", "err", err)
+				w.Header().Set("Retry-After", "5")
+				writeErr(w, http.StatusServiceUnavailable, "unavailable", "access verification unavailable")
+				return
+			}
+			p = dp
 		}
 		// Delegation of authority (0040): add what colleagues have lent this
 		// person. Never fails the request; on error the person simply has less.
@@ -557,7 +584,7 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 	case errors.Is(err, workflow.ErrInvalid), errors.Is(err, workflow.ErrConditionCurrency):
 		writeErr(w, http.StatusUnprocessableEntity, "validation", err.Error())
 	case errors.Is(err, auth.ErrSoD):
-		writeErr(w, http.StatusConflict, "segregation_of_duties", err.Error())
+		writeErr(w, http.StatusConflict, "segregation_of_duties", strings.TrimPrefix(err.Error(), "auth: "))
 	case errors.Is(err, auth.ErrForbidden):
 		writeErr(w, http.StatusForbidden, "forbidden", "insufficient permission")
 	case errors.Is(err, postgres.ErrIdempotencyConflict):

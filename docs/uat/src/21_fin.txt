@@ -1,0 +1,137 @@
+# 16. Finance and accounting (SRS 6.13)
+@release R1
+
+## Industry context
+The general ledger is the company's single book of record. Every business event (stock issued to a job, supplier invoice approved, IPC certified, payroll approved) produces a **journal**: a set of debit and credit lines that must be equal. Once **posted** a journal can never be changed; mistakes are fixed by a **reversing journal** so an auditor can always see what originally happened. Books are kept in monthly **accounting periods**; once a period is **closed**, nothing can be posted into it unless a senior person formally reopens it, and that act is itself audited.
+
+Contractors have special finance needs: **retention and advances** (long-lived balances), **revenue recognised over time** by progress (IFRS 15) rather than on invoicing, **foreign currency** for imports, **withholding tax and VAT**, **fixed assets** such as plant, and **several legal entities** whose mutual charges must disappear when the group is consolidated.
+
+Amounts are exact decimals in whole minor units (cents/santim): never floating-point.
+
+@term Journal = A balanced set of debit and credit lines recording a financial event.
+@term Posting = Making a journal permanent in the ledger.
+@term Reversal = A new journal that cancels an earlier posted journal; the original is never altered.
+@term Accounting period = A month or similar slice of the financial year that is open for posting or closed.
+@term Subledger = Detailed ledger (payables, receivables, stock, fixed assets) that must equal one control account in the general ledger.
+@term Remeasurement = Revaluing foreign-currency balances at the period-end rate (IAS 21).
+@term Contract asset / liability = IFRS 15 balances showing revenue earned but not billed (asset) or billed but not earned (liability).
+@term Intercompany = Transactions between group companies, eliminated on consolidation.
+
+@case T-FIN-01 | Unbalanced, closed-period, fractional and self-approved journals are refused; corrections are by reversal | R1 | FIN-01, FIN-03, NFR-DAT-03, FIN-T01 | FIN
+1. As fin.a prepare a journal with debits 100,000 and credits 99,000 and submit.
+2. Prepare a balanced journal dated in closed period P0 and submit.
+3. Enter an amount with a third decimal (100.005) on a line.
+4. Prepare a valid journal of 250,000 (debit 5100 cost, credit 2100 payables), approve with fin.b, post with fin.c.
+5. Try to edit and delete the posted journal. Then reverse it.
+=> Step 1 refused: debits and credits differ by 1,000.00; step 2 refused: period closed; step 3 refused or rounded exactly per the stated rounding rule, never stored with hidden fractions.
+=> Step 4 posts; the preparer, approver and poster are three different people.
+=> Step 5: edit and delete are impossible; the reversal creates a second journal linked to the original; both appear in the ledger and net to zero.
+note: Inspection evidence (R1): the automated suite shows the same refusals when attempted directly in the database, as tenant login and as schema owner.
+
+@case T-FIN-02 | The same business event can never be posted twice | R1 | FIN-02 | AP, FIN, UAT
+1. Approve supplier invoice INV-777 for 600,000 and note the journal.
+2. Double-click Approve, then press Back and Approve again, then repeat the same request through the API with the same idempotency key.
+3. Search the ledger for the invoice.
+=> Exactly one journal exists for INV-777; extra attempts return the same result or an explanation, never a second posting.
+=> Each journal carries a unique source-event identifier visible on the journal.
+
+@case T-FIN-03 | Accounting periods: closed periods refuse posting; reopening is privileged and audited | R1 | FIN-03, AUD-05 | FIN, CFO, AUD
+1. Leave one mandatory reconciliation open (for example the bank reconciliation). As fin.c try to close P1.
+2. Complete the reconciliations and close P1 (see UC-10). Then try to post a journal dated in P1.
+3. As fin.c try to reopen P1; then as cfo.a reopen it with a reason and fresh MFA.
+4. Post the journal; close P1 again.
+=> Close is refused while mandatory reconciliations are open; the message lists them.
+=> Posting into a closed period is refused. Reopen by fin.c is refused; the CFO reopening is accepted and appears in the control review report (who, why, how long it was open, what was posted).
+
+@case T-FIN-04 | Multi-currency with approved rates and period-end remeasurement | R1 | FIN-04, ORG-01 | FIN, AP
+pre: Approved FX policy: rate selected by transaction date. Rates: 120.00 on the invoice date, 125.00 on the payment date. Month-end closing rate 126.00.
+1. Enter a USD 10,000 supplier invoice dated at rate 120. Pay it later at rate 125.
+2. Enter another USD 5,000 invoice at 120.00 and leave it unpaid at month-end.
+3. Run period-end remeasurement.
+4. Try to enter a transaction using a manually typed rate that is not an approved rate.
+=> Invoice books ETB 1,200,000. Payment 1,250,000 settles it; **realised FX loss 50,000**.
+=> The open USD 5,000 payable (booked 600,000) is revalued at 126 = 630,000; **unrealised loss 30,000**, reversed automatically next period.
+=> Step 4 is refused unless the rate is approved under the FX policy.
+
+@case T-FIN-05 | AP and AR subledgers with ageing, reconciled to control accounts | R1 | FIN-05 | AP, FIN
+1. Open the AP ageing and the AR ageing at the period end.
+2. Compare each total with its control account in the trial balance.
+3. Settle one invoice and refresh.
+=> Ageing buckets (current, 30, 60, 90+) sum to the subledger total; the subledger equals the control account with **zero difference**.
+=> The settled invoice leaves the ageing and both sides stay equal.
+
+@case T-FIN-06 | Fixed assets: acquisition, components, depreciation, transfer, revaluation, impairment and disposal | R2 | FIN-06, EQP-01 | FIN, EQP
+pre: EX-01 cost 6,000,000, residual 600,000, 5-year straight line, in service this month.
+1. Capitalise EX-01 with a component (engine 1,000,000, life 3 years) and the body (5,000,000, life 5 years).
+2. Run depreciation for the month.
+3. After 12 months of depreciation dispose of EX-01 for 4,000,000.
+4. Test transfer to entity E1 and an impairment of 500,000 on a copy.
+=> Whole-asset monthly depreciation (without the component split) = (6,000,000 - 600,000) / 60 = **90,000**; with components each is depreciated over its life; total is shown in the register.
+=> After 12 months net book value = 6,000,000 - 1,080,000 = **4,920,000**; disposal at 4,000,000 gives **loss 920,000**.
+=> Transfer, revaluation and impairment create journals with the required approvals; history is retained.
+note: For the component split the finance lead gives the expected figures from the signed policy.
+
+@case T-FIN-07 | VAT, withholding tax and excise rules are data, effective-dated, with return schedules | R1 | FIN-07, RPT-08, NFR-PRV-05 | FIN, AP
+pre: Signed tax fixture: output VAT 15%, input VAT 15%, withholding tax per fixture (test value 2%).
+1. Approve a supplier invoice: net 1,000,000.
+2. Post a customer invoice: net 2,000,000.
+3. Change the effective date of a tax rule to next month; post one invoice before and one after.
+4. Produce the VAT return schedule and the withholding-tax schedule.
+=> Input VAT 150,000; output VAT 300,000; withholding tax as per the fixture on the supplier payment; the rule applied depends on the document date.
+=> The schedules list each document and agree with the ledger VAT and withholding accounts.
+=> No tax rate is hard-coded: changing the rule data changes behaviour.
+note: Compliance is not claimed by the software; the qualified tax adviser signs the mapping (NFR-PRV-05).
+
+@case T-FIN-08 | Consolidation with automatic intercompany elimination | R2 | FIN-08 | FIN, CFO
+pre: The plant hire charge from E2 to E1 of 180,000 (T-EQP-02).
+1. Run consolidation for the period for E1 and E2.
+2. Review the elimination journal and the unmatched list.
+3. Alter one side only (post a charge in E2 not mirrored in E1) and rerun.
+=> The intercompany revenue and cost of 180,000 are eliminated; consolidated profit equals the sum of entity profits less any unrealised intercompany profit per policy.
+=> The one-sided charge appears in an unmatched list with the amount and reason; consolidation does not silently force a match.
+
+@case T-FIN-09 | Statements per entity and consolidated, in IFRS presentation | R1 | FIN-09, RPT-06 | FIN, CFO
+1. Open the trial balance, general ledger, income statement, balance sheet and cash-flow statement for E1, E2 and consolidated.
+2. Check totals.
+=> Trial balance debits = credits. Balance sheet balances (assets = liabilities + equity) and net profit on the balance sheet equals the income statement. Cash-flow statement closing cash equals bank and cash balances.
+=> Each report shows filters and a data-freshness time and exports with letterhead.
+
+@case T-FIN-10 | Recurring journals, accruals and prepayments with automatic reversal | R2 | FIN-10 | FIN
+1. Create an accrual of 500,000 dated the last day of the month with auto-reversal on day 1 of the next month; get it approved and posted.
+2. Create a monthly recurring journal for insurance prepayment 120,000.
+=> The reversal journal is created by the system for the first day of the next month (still requiring the normal approval path as configured) and nets the accrual to zero.
+=> Recurring journals are generated on schedule as drafts or approved per policy; none posts without the required human approval.
+
+@case T-FIN-11 | Overhead allocation to projects by rule | R2 | FIN-11 | FIN
+pre: Head-office overhead of 1,000,000 for the month; rule: allocate by share of contract value (P-101 120,000,000; P-102 30,000,000).
+1. Run the allocation.
+=> P-101 receives **800,000** (80%) and P-102 **200,000** (20%); the journal is balanced and the rule version is recorded.
+
+@case T-FIN-12 | Corporate (overhead) budgets with variance reporting | R2 | FIN-12 | FIN
+1. Create the corporate budget for administration; post actual expenses; open the variance report.
+=> Variance = budget - actual per account and period, with drill-down to journals.
+
+@case T-FIN-13 | Ethiopian fiscal year and calendar display | R2 | FIN-13, NFR-USB-05 | FIN, EXE
+1. Set the fiscal calendar to start in Hamle and end in Sene.
+2. Switch date display to the Ethiopian calendar and back.
+3. Check a document created at 23:30 Addis time and the same timestamp in an export.
+=> Periods follow the Ethiopian fiscal year; the Ethiopian date display is correct for several sample dates (for example 11 September 2026 = Meskerem 1, 2019 E.C.; verify against the official calendar supplied by the client).
+=> Stored timestamps are UTC; screens default to Africa/Addis_Ababa; the calendar choice never changes the stored value.
+
+@case T-FIN-14 | Revenue over time (IFRS 15) and contract assets and liabilities reconcile to the WIP schedule | R2 | FIN-15, PCC-06, REV-T01 | FIN, PM
+pre: P-101 figures from T-PCC-09: revenue earned to date 30,000,000; billed to date 12,000,000.
+1. Run the period revenue recognition for P-101.
+2. Compare the contract asset account with the WIP schedule.
+3. Run it again for the same period.
+=> The revenue journal recognises revenue to date of 30,000,000 (cumulative, adjusted for amounts recognised earlier); the **contract asset (under-billing) is 18,000,000**.
+=> The ledger agrees with the WIP schedule with zero difference.
+=> Re-running does not duplicate revenue (R5).
+
+@case T-FIN-15 | Tax-authority e-invoicing and fiscal receipt adapter | R2 | FIN-14 | FIN, UAT
+1. Review the decision record D-06 and the adapter specification.
+=> Evidence check (Analysis): the tax adviser has confirmed which obligations apply and in what format; the adapter either exists and issues test documents accepted by the authority sandbox, or the decision records that it is not applicable. Mark Blocked until D-06 is closed.
+
+@case T-FIN-16 | Procure-to-pay, contract-to-cash and stock journeys all reconcile to the ledger | R1 | FIN-05, INV-02, AUD-06, FIN-T02 | FIN, AUD
+1. After running scenarios UC-02/03/04 (buy, receive, pay) and UC-06 (bill the client), open the reconciliation report.
+=> Supplier payables, client receivables and stock each reconcile to their ledger control accounts with zero difference; the integrity scan reports zero rows.
+

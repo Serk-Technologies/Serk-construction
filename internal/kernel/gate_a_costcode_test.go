@@ -57,7 +57,7 @@ func TestSC10_CostCodesAreValidatedAgainstApprovedWBS(t *testing.T) {
 
 	// A second project with its own approved WBS.
 	var p2 string
-	_ = f.app.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
+	_ = f.db.AdminStore.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
 		var err error
 		p2, err = postgres.CreateProject(ctx, tx, f.tenant, f.entity, "P-002", "Adigrat Road", "ETB")
 		return err

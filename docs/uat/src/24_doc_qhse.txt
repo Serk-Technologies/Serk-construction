@@ -1,0 +1,142 @@
+# 19. Document control and BIM (SRS 6.16)
+@release R3
+
+## Industry context
+Construction runs on documents: drawings, specifications, method statements, correspondence. The danger is **working from an out-of-date drawing**: a wall built to revision B when revision C moved it costs real money. A **common data environment (CDE)** following ISO 19650 holds every document in a state (**work in progress**, **shared**, **published**, **archived**) with numbering rules and metadata. Questions to the designer go through an **RFI** (request for information) with a clear "ball in court" (who must answer next) and a due date; delays caused by late answers become claims.
+
+@term Transmittal = A formal cover record of documents sent to named recipients, who acknowledge receipt.
+@term Ball in court = The party who currently has to act on an RFI or submittal.
+@term Submittal = A document (shop drawing, material sample) the contractor submits for approval before using it.
+@term BCF = BIM collaboration format for exchanging model-based issues.
+@term IFC = Open file format for building models.
+
+@case T-DOC-01 | The common data environment: states, numbering rules and metadata | R3 | DOC-01 | ADM, PM
+1. Define a numbering rule: PROJECT-DISCIPLINE-TYPE-NNNN (for example P101-ST-DR-0001).
+2. Upload a drawing: the number is generated; set metadata (discipline, level, revision).
+3. Move it from Work in progress to Shared to Published; try to skip a state.
+=> Numbers follow the rule and cannot be duplicated. States change only in order, each change recording user, date and, for publication, the approver.
+=> Search and filters by metadata work.
+
+@case T-DOC-02 | A superseded revision is never presented as current | R3 | DOC-02 | PM, SITE
+1. Publish revision B of drawing P101-ST-DR-0001, then publish revision C.
+2. As site.a open the drawing from the register, from an old transmittal link and from a work package.
+=> Every path shows revision C as current and revision B marked "Superseded" with a banner; the old revision remains retrievable but cannot be printed without the banner.
+=> Work packages that referenced B are flagged for readiness re-check (spec scenario A11).
+why: Building from a superseded drawing is among the costliest site errors.
+
+@case T-DOC-03 | Transmittals with recipient acknowledgement | R3 | DOC-03 | PM, EXT
+1. Create a transmittal of 3 documents to the consultant and the client.
+2. The consultant acknowledges on the portal; the client does not.
+=> The transmittal records which revision each recipient was sent; the register shows Acknowledged / Outstanding for each recipient with dates and a reminder for overdue acknowledgements.
+
+@case T-DOC-04 | RFIs with ball-in-court, due dates, responses and cost and schedule impact | R3 | DOC-04, UC-13 | SITE, PM, EXT
+1. As site.a raise RFI-01 about a beam depth conflict, due in 7 days, assigned to the consultant.
+2. The consultant responds on day 5 referencing drawing revision D. Site accepts or reopens.
+3. Link the RFI to a change event for potential cost 400,000 and 3 days.
+=> Ball in court moves from site to consultant to site; overdue RFIs are flagged.
+=> The response links to the new drawing revision; the change event shows its source RFI.
+
+@case T-DOC-05 | Submittals with review status and stamps | R3 | DOC-05 | PM, QA, EXT
+1. Submit a cement test certificate and a shop drawing; the consultant stamps them "Approved", "Approved as noted" or "Rejected".
+=> The review status and stamp appear on the document; only approved submittals can be referenced by purchase requisitions if the policy is on.
+
+@case T-DOC-06 | Drawing register and browser mark-up | R3 | DOC-06 | PM
+1. Open a drawing, add a mark-up note, share it.
+=> The register lists all drawings with current revision; the markup is stored as an annotation layer, not as a change to the drawing.
+
+@case T-DOC-07 | IFC models in the browser and BCF issues | R3 | DOC-07 | PM
+1. Open an IFC model; create a clash issue with a viewpoint; export it as BCF; import into another BCF tool.
+=> The viewpoint survives export and import with the same elements highlighted.
+
+@case T-DOC-08 | Files are encrypted, scanned and served only by short-lived signed links | R3 | DOC-08, NFR-SEC-02 | UAT, ADM
+1. Upload the standard EICAR anti-malware test file.
+2. Upload a normal drawing; copy its download link; use it as a different user without access; wait for the link to expire.
+=> The EICAR file is quarantined and not downloadable; the uploader is told why.
+=> The link works only after an authorisation check, is short-lived, and fails for a user without access (and the refusal is audited).
+note: Inspection evidence: files encrypted at rest (storage configuration).
+
+@case T-DOC-09 | Permission-filtered full-text search, including text extracted by OCR | R3 | DOC-09, IAM-06 | PM, SITE
+1. Upload a scanned PDF containing the word "waterproofing membrane". Search for the phrase as pm.a (assigned) and as a user on another project.
+=> The assigned user finds the document with a snippet; the other user gets no result and no hint. Search responds in about one second at the test size.
+
+# 20. Quality management (SRS 6.17)
+@release R3
+
+## Industry context
+Quality in construction is managed with an **inspection and test plan (ITP)** for each work type, which lists **hold points** (work must stop until the inspector releases it) and **witness points** (inspector may attend). A concrete pour does not start until the reinforcement inspection is signed off; a defect found is raised as a **non-conformance report (NCR)** with root cause, corrective and preventive action and verified closure. Quality records also protect the contractor in disputes.
+
+@case T-QA-01 | Inspection and test plans with hold and witness points | R3 | QA-01 | QA
+1. Create an ITP for "Slab level 2 reinforced concrete": steel inspection (hold), formwork check (witness), cube test (record).
+=> Each point has a type, responsible role and acceptance criteria; the ITP is attached to the work package and versioned.
+
+@case T-QA-02 | An unreleased hold point blocks progress or measurement when configured | R3 | QA-02, EVM-01 | QA, SITE, QS
+pre: Tenant setting "block progress at unreleased hold point" is ON.
+1. As site.a request the steel inspection; as qa.a record "fail", then later "pass" and release the hold.
+2. Before release, as pm.a try to approve 100% progress, and as qs.a try to include the quantity in a measurement.
+3. After release repeat step 2.
+=> Before release, both are refused naming the hold point and who can release it; after release they succeed.
+=> A failed inspection raises an NCR automatically or on request.
+why: This is the control that stops paying for concrete poured over defective steel.
+
+@case T-QA-03 | NCRs: root cause, corrective and preventive action, cost impact and verified closure | R3 | QA-03 | QA, PM, SITE
+1. Raise NCR-01: "honeycombing on column C4", attach photos.
+2. Enter root cause, corrective and preventive actions, cost impact 120,000 and responsible person.
+3. The responsible person marks actions done; try to close the NCR as that same person; close as qa.a.
+=> Closure needs verification by someone other than the person who performed the corrective action.
+=> The cost impact appears as a change event/back-charge candidate; open NCRs are visible on the dashboard until closed.
+
+@case T-QA-04 | Material test results linked to batches | R3 | QA-04, INV-06 | QA, STORE
+pre: Specified 28-day cube strength 25 MPa (test fixture).
+1. Record three cube results: 27.5, 26.0, 24.0 MPa for a pour linked to cement batch B-12 and mix design M-1.
+2. Record a result of 21.0 MPa for another pour.
+=> The three results are stored with sample date, test age and batch; the system applies the acceptance rule stated in the fixture (average 25.8 meets 25 MPa).
+=> The 21.0 MPa result is flagged non-compliant and proposes an NCR; the link to the batch shows where the batch was used.
+
+@case T-QA-05 | Quality outcomes feed supplier and subcontractor ratings | R3 | QA-05, PRC-07 | PROC, QA
+1. Record two NCRs against SC-01 and a rejected delivery from S-01.
+=> The supplier/subcontractor scorecards change with the quality component visible and traceable to the NCRs.
+
+# 21. Health, safety and environment (SRS 6.18)
+@release R3
+
+## Industry context
+Construction is one of the most dangerous industries. HSE records must be **timely and impossible to quietly lose**: an incident hidden today becomes a legal problem tomorrow. Work like hot work, confined space, work at height, excavation and lifting needs a **permit to work** with conditions and an expiry. Companies report standard indicators: **LTIFR** (lost-time injuries per million hours worked), **TRIR** (total recordable incident rate) and **severity rate**. The hours worked come from approved timesheets, so HSE statistics depend on correct time recording.
+
+@term Near miss = An event that could have caused injury or damage but did not.
+@term Permit to work = A formal authorisation, with conditions and expiry, to do a dangerous task.
+@term TRIR = Total recordable incident rate, per 200,000 or 1,000,000 hours depending on the tenant standard.
+
+@case T-HSE-01 | Incident and near-miss reporting, offline, with investigation and actions to closure | R3 | HSE-01, UC-12 | SITE, HSE, PM
+1. On the phone offline report a near miss (falling object) with photo, then sync.
+2. Report a lost-time injury (2 days lost) from the web.
+3. As hse.a investigate: root cause, corrective actions with owners and dates.
+4. Try to delete or alter the original report. Close the incident after actions are verified.
+=> Reports sync and notify the HSE officer and project manager. The original report cannot be deleted or altered; additions are dated entries.
+=> The incident closes only when all actions are complete and verified.
+
+@case T-HSE-02 | Permits to work with approvals, conditions and expiry | R3 | HSE-02 | HSE, SITE
+1. As site.a request a hot-work permit for level 3 for today 08:00-16:00.
+2. As hse.a approve it with conditions (fire watcher, extinguisher).
+3. After 16:00 try to start or extend the work under the permit.
+=> The permit shows conditions, approver and validity. After expiry it is shown as expired and cannot be used (for example for timesheets or inspections linked to it); an extension is a new approval.
+
+@case T-HSE-03 | Inductions, toolbox talks and training can block timesheets or access | R3 | HSE-03, HCM-02 | HSE, HR, SITE
+pre: Policy "block timesheets for workers without induction" is ON.
+1. Record induction for 9 of 10 labourers.
+2. Enter a crew timesheet including the 10th.
+=> The system refuses or flags the un-inducted worker by name; after induction the timesheet can be saved. Toolbox talk attendance is recorded.
+
+@case T-HSE-04 | Safety inspections and observation checklists | R3 | HSE-04 | HSE
+1. Run the scaffold checklist: 12 items, 2 failed with photos and actions.
+=> Failed items create corrective actions with owners; inspection history is retained and counts feed dashboards.
+
+@case T-HSE-05 | HSE indicators are computed from approved timesheet hours | R3 | HSE-05, HCM-02 | HSE, EXE
+pre: Over the period: hours worked from approved timesheets 800,000; lost-time injuries 2; recordable incidents 5; days lost 30. Tenant factors: LTIFR per 1,000,000 hours; TRIR per 200,000 hours; severity rate per 1,000,000 hours.
+1. Open the HSE dashboard for the period.
+=> LTIFR = 2 x 1,000,000 / 800,000 = **2.5**. TRIR = 5 x 200,000 / 800,000 = **1.25**. Severity rate = 30 x 1,000,000 / 800,000 = **37.5**.
+=> The formulas, hour source and factors are documented on the dashboard; the hours match the approved timesheet total.
+
+@case T-HSE-06 | Environmental aspects: waste, spills and environmental permits | R4 | HSE-06 | HSE
+1. Record a 50-litre diesel spill and the cleanup action; record an environmental permit with expiry.
+=> Entries are stored with action tracking and expiry alerts. "May" priority.
+

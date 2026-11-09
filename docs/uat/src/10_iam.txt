@@ -1,0 +1,184 @@
+# 5. Identity, tenancy and access control (SRS 6.1)
+@release R1
+
+## Industry context
+A construction company is a web of people with very different authority: a foreman may request materials but must never approve a payment; a storekeeper may count stock but must never approve the adjustment; an auditor may see everything but change nothing. Most losses in contractors come from one person holding too many powers, so this chapter is the foundation for every later chapter. **If these cases fail, no other approval result can be trusted.**
+
+Three ideas to keep in mind while testing:
+- **Who you are** (authentication, MFA), **what you may do** (roles), and **where you may do it** (project scope) are three separate checks. All three must pass for every command and every read.
+- **Administrator is not a superpower.** An administrator configures the system but holds no financial authority unless separately granted (SRS 2.3, R2).
+- **Humans decide; machines prepare.** A service account or the AI assistant can notify and draft but can never approve, post, pay or release (R3).
+
+@term Tenant = One construction company using the product, completely isolated from every other company.
+@term RBAC / ABAC = Role-based / attribute-based access control: permissions from roles, further limited by attributes such as project, amount band or device.
+@term MFA / step-up = Multi-factor authentication / a fresh MFA challenge required for one specific sensitive action.
+@term SoD = Segregation of duties: preparing, approving and posting are done by different people.
+@term DoA = Delegation-of-authority matrix: who may approve what, up to which amount.
+@term SSO = Single sign-on through the company identity provider (OpenID Connect or SAML).
+@term SCIM = A standard for automatically creating and removing users from the identity provider.
+@term Principal = Any actor the system recognises: a human, a service or an AI.
+
+@case T-IAM-01 | A second company can never see this company's data | R1 | IAM-01 | UAT, ADM
+pre: Two sandbox tenants exist: "Abay Builders PLC" and "Zambezi Constructors PLC". Each has a user with the Project manager role. Note one document number from Abay (for example a purchase order) and its direct link.
+1. Sign in as the Zambezi project manager.
+2. Search the document number noted from Abay and open the saved direct link.
+3. Open the supplier list, project list and global search; look for any Abay supplier (Nile Cement Distributors PLC) or project (Lideta Residence).
+4. Sign in as the Abay project manager and check the same items are visible.
+=> The Zambezi user finds no Abay record in any list, search result or report, and the direct link shows a refusal that does not reveal whether the record exists.
+=> The refusal is recorded in the audit trail.
+=> The Abay user sees their own records normally.
+why: A construction group may host many contractors in one SaaS. A leak of one company's bids, rates or supplier prices to a competitor is commercially fatal.
+note: Inspection evidence (separate from this click test): the vendor shows the automated cross-tenant probe results run as the tenant database login and as the schema owner (NFR-SEC-06, test ISO-T01). Tenant must come from the database login, never from a value the client can set.
+
+@case T-IAM-02 | Sign in with company SSO, or with local credentials plus MFA | R1 | IAM-02, IAM-04 | UAT, ADM
+pre: One tenant configured with an identity provider (OpenID Connect or SAML). A second tenant has no identity provider.
+1. In the SSO tenant, press Sign in and complete the identity-provider login.
+2. In the tenant without SSO, sign in with the local username and password.
+3. Sign in as a user holding any approval, posting, payment, security or admin permission.
+4. Sign in as a read-only user with no such permission.
+=> SSO users arrive signed in with their company identity and the roles assigned in the system (not roles claimed by the provider).
+=> The tenant without SSO accepts local credentials.
+=> Every user in step 3 is forced through MFA (passkey or authenticator code) before reaching the application; SMS is offered only if the tenant has enabled it.
+=> Whether the read-only user is asked for MFA follows the tenant policy and is stated on screen.
+note: Inspection evidence: local passwords are stored only as Argon2id hashes (vendor shows the credential store design and a sample hash prefix; the plain password is never retrievable).
+
+@case T-IAM-03 | Sensitive actions demand a fresh MFA, bound to that action | R1 | IAM-04 | FIN, CFO, UAT
+pre: User fin.b (approver) is signed in. The tenant step-up freshness window is the default 10 minutes. A journal prepared by fin.a is waiting for approval.
+1. Approve the journal immediately after signing in with MFA.
+2. Wait 11 minutes (or the configured window plus one minute) without signing out.
+3. Open another journal waiting for approval and try to approve it.
+4. Complete the new MFA prompt and approve.
+=> Step 1 succeeds (MFA is fresh).
+=> Step 3 does not approve; it asks for a new MFA challenge that states which action it is for.
+=> Step 4 succeeds, and the audit record shows the MFA assertion time next to the approval.
+why: An unlocked laptop left in the finance office should not let a colleague approve payments for the rest of the day.
+
+@case T-IAM-04 | Compose a custom role; a role that is both maker and checker is refused | R1 | IAM-05, IAM-08 | ADM, UAT
+1. Sign in as adm.a and open the role catalogue. Check that the seed roles of the SRS (estimator, QS/commercial, project manager, site, procurement, storekeeper, AP/AR, treasury, finance/controller, CFO, HR, auditor, administrator) exist.
+2. Create a new role "Site Buyer" from the permission list: requisition create, goods receipt create.
+3. Create a role "Super Buyer" that includes both purchase-order create and purchase-order approve.
+4. Create a role that includes both journal create and journal post.
+=> Step 2 succeeds and the role can be assigned.
+=> Steps 3 and 4 are refused, naming the pair of permissions that would let one person be maker and checker of the same control and saying to split the permissions across two roles.
+=> No role was created in steps 3 and 4.
+why: "Super user" roles are how a single employee ends up able to raise and pay a fake invoice.
+
+@case T-IAM-05 | A user sees only the projects assigned to them | R1 | IAM-06 | PM, SITE, UAT
+pre: site.a is assigned to P-101 only. pm.b is assigned to P-102 only. A P-102 purchase requisition exists; note its link.
+1. Sign in as site.a. Open the project selector, requisition list, stock list and reports.
+2. Paste the P-102 requisition link.
+3. Try to create a requisition on P-102 (by API or by switching project in the URL if the screen allows).
+4. Sign in as a tenant-wide user (cfo.a) and open the same lists.
+=> site.a sees only P-101 records everywhere, including lists, search, reports and exports.
+=> Steps 2 and 3 are refused with an explanation that the project is not assigned; each attempt is audited.
+=> cfo.a (tenant-wide scope) sees both projects.
+why: The cost-plus sub-contracts on one project must not be visible to a foreman on another project; also a basic defence against collusion.
+
+@case T-IAM-06 | Attribute rules apply on top of roles (entity, amount band, classification, device) | R1 | IAM-07 | UAT, ADM, PROC
+pre: Rules configured for the test: purchase orders over 500,000 need the CFO; documents marked "Restricted" are visible only to users holding the Restricted attribute; mobile devices cannot approve payments.
+1. As proc.b (procurement manager) approve a purchase order of 450,000.
+2. As proc.b try to approve a purchase order of 600,000.
+3. As a user without the Restricted attribute, search for a Restricted contract.
+4. On a registered phone, sign in as a user with payment-approval rights and try to approve a payment.
+=> Step 1 succeeds. Step 2 is refused and routed to the CFO, stating the amount-band rule.
+=> Step 3 returns nothing, with no hint that a restricted document exists.
+=> Step 4 is refused with a message that payments cannot be approved from a mobile device.
+note: The SRS lists the attribute types; the exact thresholds are tenant configuration. Record the real values used in the data sheet.
+
+@case T-IAM-07 | Nobody approves their own work | R1 | IAM-08, FIN-01 | FIN, AP, UAT
+pre: Use any controlled document, for example a journal. fin.a prepares it.
+1. As fin.a, prepare a balanced journal and submit it.
+2. As fin.a, try to approve the same journal.
+3. As fin.b, approve it.
+4. As fin.b, try to post it. Then as fin.c, post it.
+=> Step 2 is refused: the preparer cannot approve; the message names the maker/checker rule and says another approver is needed.
+=> Step 3 succeeds. Where the tenant configures "checker differs from poster", step 4 by fin.b is refused and fin.c succeeds.
+=> The audit trail shows three different people for prepare, approve and post.
+note: Inspection evidence: the automated forged-approval probes (tests SOD-T01) show the same refusal when the attempt is made directly in SQL, as the tenant login and as the schema owner. The control is enforced in the database too (R2).
+
+@case T-IAM-08 | Conflicting roles are caught before they are assigned | R1 | IAM-09 | ADM, UAT
+pre: The tenant conflict rule set contains: "AP invoice entry" conflicts with "Supplier bank-account maintenance".
+1. As adm.a assign a user the role containing supplier invoice entry.
+2. Assign the same user a role containing supplier bank-account maintenance.
+3. Try to accept the conflict without a mitigating control; then record a documented mitigating control and accept.
+=> Step 2 shows the conflict before saving, naming both permissions.
+=> Without a documented mitigating control the assignment cannot proceed.
+=> With one it succeeds and the exception appears in the control review report (AUD-05).
+why: Entering invoices and changing bank accounts in the same hands is the textbook route to supplier fraud.
+
+@case T-IAM-09 | A service or AI principal can never approve, post, pay or release | R1 | IAM-10, AI-02 | ADM, UAT
+pre: A service principal and an AI principal exist. Try to give each a powerful role.
+1. As adm.a assign the service principal the Finance manager role and the Treasury role.
+2. Using the principal's own credentials (API token supplied by the vendor for the test), attempt to approve a requisition, post a journal and release a payment.
+3. Ask the AI assistant to "approve purchase order PO-xxxx".
+=> No role can lift a service or AI principal into a deciding principal; any attempt at step 2 is refused, naming the rule that only human principals may decide.
+=> The assistant declines and may offer only to prepare a draft for a person.
+=> All attempts are in the audit trail with the principal kind.
+note: Inspection evidence: governed-AI/service-principal refusal tests in Go and SQL (AI-T01).
+
+@case T-IAM-10 | Removing a role or revoking a session takes effect immediately everywhere | R1 | IAM-11 | ADM, FIN, UAT
+pre: fin.b is signed in on two browsers (and, if the environment has two API replicas, requests are spread across them).
+1. As adm.a remove the approver permission from fin.b.
+2. On either of fin.b's browsers, perform the next approval click without signing in again.
+3. As adm.a revoke fin.b's session.
+4. On both browsers, perform any action.
+=> Step 2 is refused on the very next request on both browsers.
+=> Step 4 forces sign-in on both browsers.
+=> Both changes are in the audit trail.
+why: A dismissed employee must lose access at the moment of dismissal, not when their token expires.
+
+@case T-IAM-11 | Repeated failed sign-ins lock the account and warn the security administrator | R1 | IAM-12 | ADM, UAT
+pre: The lockout threshold is configured (record it: e.g. 5 failures in 15 minutes).
+1. Enter a wrong password for a test user the configured number of times, from two different browsers.
+2. Enter the correct password.
+3. As adm.a check notifications.
+4. Rapidly call a read API endpoint more times per minute than the documented limit.
+=> The account is temporarily locked after the threshold, even when attempts came from different replicas/browsers; step 2 is refused with a message about the lock and how long it lasts.
+=> adm.a has a notification about the lock.
+=> Step 4 returns a "too many requests" response with a retry time; normal use resumes afterwards.
+
+@case T-IAM-12 | The delegation-of-authority matrix is versioned and itself needs two people | R1 | IAM-13, ADM-02 | CFO, FIN, PROC
+1. As fin.a prepare a new version of the matrix raising the procurement manager purchase-order limit from 500,000 to 800,000. Submit it.
+2. As fin.a try to approve it. Then as cfo.a approve it.
+3. As proc.b approve a purchase order of 700,000 before and after the new version takes effect.
+4. Open the matrix history.
+=> Step 2: self-approval is refused; the CFO approval succeeds.
+=> The 700,000 order is refused before the effective date and accepted after it.
+=> History shows both versions, who prepared and approved each, and the effective dates; the old version is never changed.
+why: Whoever can raise an approval limit can approve anything; so changing limits is itself a controlled decision.
+
+@case T-IAM-13 | Delegation during leave: time-bound, scoped, and never beyond the delegator | R1 | IAM-14, WFL-07 | PM, PROC, UAT
+pre: proc.b has a 500,000 purchase-order limit. A third colleague proc.a has a 100,000 limit.
+1. As proc.b delegate PO approval to proc.a for the next 3 days, project P-101 only.
+2. As proc.a approve a 90,000 order on P-101; then a 400,000 order on P-101; then a 400,000 order on P-102.
+3. As proc.a, who prepared a PO, try to approve that same PO under the delegation.
+4. After the end date, try again.
+=> The 90,000 order on P-101 succeeds. The 400,000 order on P-101 succeeds only if it is within the limits the delegator holds (500,000); record how the system treats the delegate's own lower limit (100,000) and keep that rule for the data sheet. The P-102 order is refused (outside the delegated scope).
+=> Step 3 is refused: delegation never enables self-approval.
+=> Step 4 is refused after expiry. Tasks in the inbox are redirected during the delegation (WFL-07).
+
+@case T-IAM-14 | A deprovisioned user loses all access within 60 seconds | R1 | IAM-03 | ADM, UAT
+pre: SCIM connection from the test identity provider.
+1. Create a user in the identity provider and wait for them to appear in the system.
+2. Sign that user in.
+3. Disable the user in the identity provider and start a stopwatch.
+4. Keep using the signed-in session until it fails.
+=> The user is created automatically with no roles until assigned.
+=> The session is refused no later than 60 seconds after step 3; the revocation is audited.
+
+@case T-IAM-15 | Break-glass access is possible, loud and reviewed | R1 | IAM-15 | ADM, AUD
+1. As an authorised emergency user request break-glass access without typing a reason.
+2. Repeat with a typed reason.
+3. Use the access for one action.
+4. Wait for expiry. As aud.a open the control review.
+=> Step 1 is refused: a reason is mandatory.
+=> Step 2 grants time-limited access; all security administrators receive a notification immediately.
+=> After expiry the elevated rights are gone; the event is flagged for review in the control review report with reason, duration and every action performed.
+
+@case T-IAM-16 | Optional conditional access (IP allow-list, country) | R1 | IAM-16 | ADM, UAT
+pre: Policy enabled in a test tenant: sign-in only from the office network range.
+1. Sign in from inside the allowed range.
+2. Sign in from outside it (mobile data).
+=> Step 1 succeeds. Step 2 is refused with a message naming the policy; the attempt is audited.
+note: "May" priority in the SRS. Mark Blocked if the tenant does not enable the policy.
+

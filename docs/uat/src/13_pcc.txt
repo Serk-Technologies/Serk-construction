@@ -1,0 +1,123 @@
+# 8. Project controls: budget, commitment, cost and forecast (SRS 6.4)
+@release R2
+
+## Industry context
+This is the heart of a construction ERP. A project controller must know, at any moment and for every cost code, four numbers: what was **budgeted**, what is **committed** (ordered but not yet delivered or paid), what has been **spent**, and what it will **finally cost**. Finance systems alone show only spent money, which is too late; spreadsheets show commitments but drift from the ledger. SERK keeps all four in one system fed by the same documents.
+
+The key control (invariant **R8**) is that **commitment may not exceed the approved budget** without an attested, MFA-backed override. Real projects overrun because purchase orders are issued "because we need it", and nobody sees the total until the invoices arrive. Throughout this chapter the P-101 cost code **03-200 Reinforcement steel** is used: budget 9,000,000, committed 8,200,000, remaining 800,000.
+
+@term Original budget = The budget at baseline, never changed. Shown beside the current (revised) budget.
+@term Budget transfer = Moving approved budget from one cost code to another; total unchanged.
+@term Contingency = A budget reserve held for unforeseen cost; drawn down only by approved transfer.
+@term EAC / ETC = Estimate at completion / estimate to complete: expected final cost and expected remaining cost.
+@term Change event = A potential or real change (client instruction, design change, delay) tracked from "potential" to "approved" with cost and time impact.
+@term P50 / P80 = The cost contingency that will be enough 50% / 80% of the time according to a risk simulation.
+
+@case T-PCC-01 | A budget revision and a contingency draw-down are approved by someone else; original and current budget stay visible | R2 | PCC-01 | PM, FIN, CFO
+pre: 03-200 original budget 9,000,000. Contingency 99-900 original 3,000,000.
+1. As pm.a prepare a budget revision: transfer 500,000 from 99-900 contingency to 03-200 with a reason. Submit.
+2. As pm.a try to approve it; then as fin.a approve it.
+3. Open the cost report for 03-200 and 99-900.
+=> Self-approval is refused (step 2); approval by a different person succeeds.
+=> 03-200 shows **original 9,000,000, current 9,500,000**; 99-900 shows original 3,000,000, current 2,500,000. Totals of the project budget are unchanged at 100,000,000.
+=> The transfer is traceable from both cost codes and appears in the audit trail.
+why: Project managers are always tempted to "fix" a budget to make a report green. Showing the original beside the current exposes it.
+
+@case T-PCC-02 | Budget increase (not a transfer) changes the project total only through an approved revision | R2 | PCC-01 | PM, CFO
+1. As pm.a prepare a revision that increases 04-100 Masonry by 300,000 with no offsetting decrease (for example approved client variation).
+2. Submit and approve it with a different user (fin.a or cfo.a according to the delegation matrix).
+=> The project current total becomes 100,300,000 while the original total remains 100,000,000.
+=> The revision references its justification (for example the variation number) and appears in the revision history.
+
+@case T-PCC-03 | A requisition above the remaining budget is refused | R1 | PCC-02, PRC-03 | SITE, PM
+pre: 03-200 remaining budget 800,000 (use the original fixture, before T-PCC-01).
+1. As site.a raise a requisition for 10 tonnes of Y12 bar at ETB 85,000 per tonne = 850,000 on cost code 03-200.
+2. Submit it. Then reduce the quantity to 9 tonnes (765,000) and submit again.
+=> Step 2 first submission is refused: the order is 50,000 above the remaining budget. The message names the cost code, the budget, the committed amount, the remaining amount and says an authorised person can override with MFA and a reason.
+=> The 9-tonne requisition is accepted.
+=> The refusal is visible in the audit trail.
+why: A requisition is where overspend is cheapest to stop.
+
+@case T-PCC-04 | Budget override needs fresh MFA, a reason, and an authorised person | R1 | PCC-02 | PM, CFO, AUD
+pre: A purchase order of 850,000 on 03-200 is waiting.
+1. As the order's creator try to override the budget block.
+2. As an authorised user without fresh MFA (sign in more than 10 minutes ago) try the override.
+3. As the authorised user with fresh MFA, enter the reason "Urgent rebar for level 3 slab; supplier price expires Friday" and override.
+4. As aud.a open the control review report.
+=> Steps 1 and 2 are refused with a message naming the missing authority or MFA.
+=> Step 3 succeeds. The commitment is recorded, 03-200 now shows commitment above budget by 50,000 flagged as overridden.
+=> The control review report lists the override: who, when, amount, reason, MFA time.
+why: The override is a legitimate tool, but it must be loud and rare.
+
+@case T-PCC-05 | Commitments update in real time and are released on cancellation | R1 | PCC-02, PRC-01 | PROC, PM
+pre: 03-200 commitment 8,200,000 (fixture).
+1. Approve a purchase order of 400,000 on 03-100 Concrete. Immediately view 03-100 commitments.
+2. Cancel the order with a reason.
+3. Approve a subcontract of 2,000,000 on 15-100 MEP and view commitments.
+=> Commitment on 03-100 rises by exactly 400,000 at approval, with no overnight batch; a draft or submitted order does not count until approved.
+=> After cancellation the commitment is released and the budget remaining returns.
+=> The subcontract is a commitment on 15-100 equal to its approved value.
+
+@case T-PCC-06 | Actual cost comes from posted journals and drills down to source documents | R1 | PCC-03, AUD-06 | PM, FIN
+1. Open the P-101 cost report and pick the actual cost of 03-100 Concrete.
+2. Drill down from the figure to the list of journals; open one; then open its source document (for example goods issue or supplier invoice).
+3. Post a new goods issue of 5 bags of cement to 03-100 and refresh.
+=> Every actual figure drills down to the journal lines and from there to the originating business document.
+=> The cost report actual for 03-100 equals the sum of posted journal lines on that project and cost code; draft documents are not included.
+=> The newly posted issue increases actual cost by the value of 5 bags at the average cost.
+
+@case T-PCC-07 | Cost forecasting: ETC and EAC by method, versions and an approved monthly cycle | R2 | PCC-04 | PM, QS, FIN
+pre: Cost code 03-200: budget (BAC) 9,000,000; actual cost to date (AC) 5,100,000; earned value (EV) 4,500,000.
+1. As pm.a create forecast version "Month 1" using the **CPI method** for 03-200.
+2. Create a second version using the **remaining-budget method**.
+3. Create a third version with a **manual** estimate to complete of 4,000,000.
+4. Submit the monthly forecast; try to approve as pm.a; then approve as fin.a.
+=> CPI = 4,500,000 / 5,100,000 = 0.8824; **EAC = 9,000,000 / CPI = 10,200,000**; ETC = 10,200,000 - 5,100,000 = 5,100,000.
+=> Remaining-budget method: EAC = AC + (BAC - EV) = 5,100,000 + 4,500,000 = **9,600,000**; ETC 4,500,000.
+=> Manual: ETC 4,000,000, **EAC 9,100,000**.
+=> Each version is stored separately; the approved version is the official forecast and cannot be overwritten. Self-approval is refused.
+
+@case T-PCC-08 | The cost report shows every required column and agrees with its parts | R2 | PCC-05, RPT-06 | PM, FIN
+1. Open the P-101 cost report for the current period.
+2. Check the columns: original budget, revised budget, committed, actual, accrued, forecast, variance to budget, variance to last forecast.
+3. Add up the cost-code rows and compare with the project total row.
+4. Check the report header.
+=> All eight columns exist for every cost code.
+=> The project total equals the sum of its cost codes in every column.
+=> The report shows its filters (project, period, version) and the data-freshness timestamp (RPT-06).
+
+@case T-PCC-09 | Work-in-progress schedule: percentage complete, earned revenue, billed, over/under-billing | R2 | PCC-06, FIN-15 | FIN, PM
+pre: P-101: contract value 120,000,000; estimated total cost at completion 100,000,000; cost to date 25,000,000; billed to date (gross IPCs) 12,000,000. Method: input method (cost-to-cost), per decision D-05.
+1. Open the WIP schedule for P-101 for the period.
+=> Percent complete = 25,000,000 / 100,000,000 = **25%**; revenue earned to date = 25% x 120,000,000 = **30,000,000**.
+=> Billed to date 12,000,000, so **under-billed by 18,000,000** (shown as a contract asset).
+=> The figures reconcile to the general ledger accounts (see T-FIN-14 for the journal).
+note: If the owners decide on the output method instead (D-05), replace the method and the expected percentage, but keep the structure of the check.
+
+@case T-PCC-10 | Change events from potential to approved, linked to variations and subcontract changes | R2 | PCC-07, CON-03, SUB-03 | PM, QS
+1. As pm.a log change event CE-01 "Client adds basement waterproofing": status Potential, estimated cost 1,500,000, time impact 14 days.
+2. Move it to Pending when the client instruction arrives, then link a client variation request and a subcontract change.
+3. Approve the client variation (see CON chapter) and observe CE-01.
+=> The change event keeps its history of status changes with user and date.
+=> Linked variation and subcontract change are visible from the event, and the approved variation moves the event to Approved and raises the contract value.
+=> Cost and time impact appear in the forecast as a separate line, not hidden inside actuals.
+
+@case T-PCC-11 | Risk and opportunity register with P50 and P80 contingency | R2 | PCC-08 | PM, EXE
+pre: Two risks on P-101: Risk A probability 40%, impact 2,000,000. Risk B probability 25%, impact 5,000,000. Simulation of at least 10,000 trials.
+1. Enter both risks in the register.
+2. Run the Monte Carlo simulation. Run it a second time with the same seed (if the seed is shown).
+=> Possible outcomes are 0, 2,000,000, 5,000,000 and 7,000,000; **P50 = 2,000,000** and **P80 = 5,000,000** within the sampling accuracy shown.
+=> Mean is close to the expected value 2,050,000 (within 3%).
+=> The same seed gives the same result; the inputs and run are stored.
+
+@case T-PCC-12 | Project figures roll up by entity, region, business unit, client, contract type and portfolio | R2 | PCC-09, RPT-02 | EXE, FIN
+1. Open the portfolio view; group by entity, then region, business unit, client and contract type.
+2. Compare totals with the sum of the underlying project cost reports.
+3. As site.a (assigned to P-101 only) open the same view.
+=> Every grouping totals to the same portfolio figure.
+=> site.a sees only P-101 (project scope), not the portfolio total.
+
+@case T-PCC-13 | Project cash flow as planned, actual and forecast S-curves | R2 | PCC-10 | PM, EXE
+1. Open the P-101 cash-flow S-curve.
+=> Planned, actual and forecast cumulative lines are shown with the date of the last actual; hovering shows the amounts; the actual line agrees with posted cash movements.
+

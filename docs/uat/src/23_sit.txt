@@ -1,0 +1,84 @@
+# 18. Site operations and the offline mobile application (SRS 6.15)
+@release R3
+
+## Industry context
+Construction happens in places with weak or no mobile coverage: basements, remote roads, rural sites. A site tool that needs internet is useless exactly when it is needed. The mobile application therefore works **offline-first**: the foreman records the diary, timesheets, goods receipts, inspections, incidents and photos on the phone, and the phone synchronises when a signal appears.
+
+The key safety idea (invariant **R6**): **a phone only prepares requests; the server decides.** An offline phone must never create money, stock or approvals on its own authority. When the server finds that the request no longer makes sense (someone else changed the same record, the device was revoked, the quantity is no longer available), it returns a **conflict** to the author instead of guessing or merging silently. All requests carry a unique ID so a retry never doubles anything (R5).
+
+@term Offline-first = The application works fully without a connection and synchronises later.
+@term Sync = Sending queued commands from the phone to the server and receiving results.
+@term Conflict = The server cannot accept a queued command as it was, because the underlying record changed; it is returned to the author with before and after.
+@term Device registration = Enrolling a specific phone to a specific user so the server can recognise and revoke it.
+@term Site diary = The daily record of weather, labour, equipment, work done, delays and instructions.
+@term Snag / punch list = The list of small defects to fix before handover.
+
+@case T-SIT-01 | Daily site diary is approved by someone other than the author | R1 | SIT-01 | SITE, PM
+1. As site.a record today's diary for P-101: weather, 10 labourers, EX-01 6 hours, work done, a client instruction received.
+2. Submit; try to approve as site.a; approve as pm.a.
+3. Try to edit the approved diary.
+=> Self-approval refused. The approved diary is read-only; additions are made as dated amendments.
+=> The diary is linked to timesheets and equipment hours of the same day.
+
+@case T-SIT-02 | Only registered devices can sync, and a device can be revoked | R1 | SIT-02, IAM-11 | SITE, ADM
+1. Register site.a's phone to site.a. Record a diary offline and sync successfully.
+2. As adm.a revoke the device.
+3. Record another entry offline on the revoked phone and try to sync.
+4. Try to sync from an unregistered phone with site.a's login.
+=> Step 1 syncs. Step 3 and 4 are refused with an explanation (device revoked / not registered) and **no data from the refused sync changes anything on the server**.
+=> Revocation and refusals appear in the audit trail.
+
+@case T-SIT-03 | Duplicate, reordered and interrupted syncs have exactly one effect | R3 | SIT-02, NFR-AVL-03, SYN-T01 | SITE, UAT
+1. On the phone, offline, create three commands: record goods receipt of 100 bags, then a note, then a timesheet.
+2. Force the app to send the same batch twice (retry button or interrupted connection).
+3. Cut the network halfway through the sync and reconnect.
+4. Check the server for each document.
+=> Exactly one goods receipt, one note and one timesheet exist; duplicate sends return the original result.
+=> The interrupted sync resumes without duplicates or lost items. Each command's result (Recorded / Conflict / Refused) is shown per item.
+
+@case T-SIT-04 | Conflicts are returned to the author, never merged silently | R3 | SIT-02, SIT-04 | SITE, STORE
+pre: Goods receipt GRN-X for 180 bags was drafted by site.a on the phone offline, based on version 1.
+1. While the phone is offline, store.b online changes GRN-X quantity to 175 and confirms it (version 2).
+2. Reconnect the phone and sync site.a's command to set 180.
+3. Open the conflict list.
+=> The command is **not** applied. It appears in site.a's conflict list showing base version, the server's current value (175), the phone's value (180) and the allowed actions (accept server value, resubmit with a reason).
+=> Stock shows 175 bags; nothing changed silently.
+why: Silent "last writer wins" merging causes phantom stock and double payments in field systems.
+
+@case T-SIT-05 | The mobile application covers the field workflows | R3 | SIT-03, EI-UI-03 | SITE, STORE, HSE
+1. On an Android 10+ phone, offline, perform: a diary, a crew timesheet, a goods receipt, an inspection, an incident report, a photo, and an approval of a timesheet by a supervisor.
+2. Check the sync indicator on each record.
+3. Reconnect.
+=> Every function above works offline. Each record shows clearly whether it is Synced, Pending or in Conflict (EI-UI-03).
+=> After reconnect all items reach the server and show Synced. Demo verification; see D-01 (native app or PWA).
+
+@case T-SIT-06 | An offline phone cannot create authoritative money or stock facts, or approve payments | R3 | SIT-04, IAM-07 | SITE, UAT
+1. Offline, record a goods receipt of 500 bags. Look at the stock on the phone and on the web console.
+2. Offline, try to approve a payment, post a journal or release stock for a different project.
+3. Reconnect and sync.
+=> Until sync the server stock does not change; the phone shows the entry as "Pending, not yet in stock".
+=> Step 2 is not possible from the phone, offline or online.
+=> After sync the server validates (PO exists, quantity within tolerance, user assigned to the project) before accepting.
+
+@case T-SIT-07 | Photos carry GPS position, time and a watermark and can be linked to any record | R3 | SIT-05, EVM-05 | SITE
+1. Take a photo with the app attached to a goods receipt.
+2. Turn off GPS and take another.
+=> Photo shows capture time, GPS and a watermark with project and user; the server also stores its own receipt time (NFR-DAT-04). Without GPS the photo is flagged "no position" and not rejected.
+
+@case T-SIT-08 | Punch and snag lists with assignees, due dates and close-out photos | R3 | SIT-06 | SITE, PM, QA
+1. Create 3 snag items with location, assignee and due date.
+2. The assignee fixes one and uploads a close-out photo; QA verifies.
+=> The item closes only after a different person verifies it; overdue items are flagged; counts per assignee are reported.
+
+@case T-SIT-09 | Site instructions and meeting minutes with tracked actions | R3 | SIT-07 | SITE, PM
+1. Record a site instruction; hold a meeting and enter minutes with two actions.
+=> Actions have owner and due date, appear in each owner's task list, and are carried to the next meeting until closed.
+
+@case T-SIT-10 | Drone and 360-degree captures linked to locations and dates | R4 | SIT-08 | SITE
+1. Upload a 360-degree capture linked to "Level 3, 2026-11-07".
+=> The capture is searchable by location and date and opens in a viewer. "May" priority.
+
+@case T-SIT-11 | Device time is evidence; the server clock is the authority | R3 | NFR-DAT-04, SIT-04 | UAT
+1. Set the phone clock one day ahead. Record a diary offline and sync.
+=> The record shows both "device time" (as evidence) and "server received time"; business rules (period, approvals) use the server time.
+

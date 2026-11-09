@@ -1,0 +1,214 @@
+# 29. End-to-end scenarios (SRS section 5 use cases UC-01 to UC-14)
+@release R1
+
+## How to run the scenarios
+The earlier chapters test one control at a time. A scenario is a **story told across several roles**, the way a real month on project P-101 goes. Run scenarios in order UC-01 to UC-14 on a fresh copy of the fixture data: later scenarios reuse earlier documents (the budget created in UC-01, the stock received in UC-03, the certificate in UC-05). Every row has a person, an action and a figure to check. Where a figure is given as a formula, compute it from your starting numbers in the test data sheet (section 4.4). Tick the OK box when the row's result is exactly right; a scenario passes only if every row passes.
+
+> Keep one running list of document numbers. In each scenario the "who" column tells you whose login to use. If a step needs a second person, the row says so.
+
+@scenario UC-01 | Win and set up a project | EST, QS, PM, CFO | UC-01, EST-01, EST-02, EST-07, ORG-06, PCC-01, SCH-02 | R2
+@before Fresh sandbox. P-101 does not yet have a contract, budget or schedule.
+| 1 | est.a | Record opportunity "Lideta Residence": value 120,000,000, probability 35%; score go/no-go and decide Go. | Expected value 42,000,000 shown; scores stored. |
+| 2 | est.a | Build BOQ version 1 with unit-rate build-ups (concrete C-25 unit rate 12,525.08); map every item to an approved cost code; submit. | Submitted version is frozen; edit attempt refused. |
+| 3 | est.a then qs.a | est.a tries to approve BOQ v1; qs.a approves. | est.a refused; qs.a succeeds. |
+| 4 | est.a | Record the tender package with bid bond 800,000 and expiry date. | Bond appears in guarantee register with expiry alert. |
+| 5 | qs.a then cfo.a | Create the contract (120,000,000; retention 5%; advance 10%; VAT 15% on gross); cfo.a approves. | Contract policy stored; self-approval refused. |
+| 6 | pm.a | Create the baseline budget from the approved BOQ. | Cost codes total 100,000,000; every budget line shows its BOQ source; original budget cannot be edited. |
+| 7 | pm.a then qs.a | Draft WBS/cost-code version and approve it; try to use an unapproved code first. | Unapproved code refused; approved version usable. |
+| 8 | pm.a then qs.a | Build the schedule and approve Baseline 1. | Baseline approved by someone else; project duration and critical path shown. |
+@after Result recorded in the data sheet: budget total ______ ; baseline finish date ______ ; contract value ______ .
+
+@scenario UC-02 | Buy materials for site (requisition to PO) | SITE, PM, PROC, CFO | UC-02, PCC-02, PRC-01, PRC-02, PRC-03, IAM-13 | R1
+@before 03-200 Reinforcement steel: budget 9,000,000; committed 8,200,000; remaining 800,000.
+| 1 | site.a | Raise a requisition for 10 tonnes Y12 bar at 85,000 = 850,000 on 03-200. | Refused: 50,000 over remaining budget; message names the override route. |
+| 2 | site.a | Change to 9 tonnes (765,000) and submit. | Accepted; no commitment yet. |
+| 3 | pm.a | Approve the requisition. | Requisition approved by someone other than the author. |
+| 4 | proc.a | Create an RFQ to S-02, S-04 and S-03; record quotes 85,000 / 88,000 / 91,000; S-02 is technically non-compliant. | Lowest compliant quote is S-04 at 88,000. |
+| 5 | proc.a | Award to S-04. | No reason needed (lowest compliant). Awarding to S-03 instead would demand a written reason. |
+| 6 | proc.a | Create PO for 9 tonnes x 88,000 = 792,000. | PO value 792,000. |
+| 7 | proc.b | Try to approve the PO. | Refused: above the 500,000 limit; routed to the CFO. |
+| 8 | cfo.a | Approve the PO with fresh MFA. | PO approved. |
+| 9 | pm.a | Open the cost report for 03-200. | Committed **8,992,000**; remaining **8,000**. |
+
+@scenario UC-03 | Receive, store and issue | STORE, SITE, FIN | UC-03, INV-01, INV-02, INV-03, AUD-06 | R1
+@before PO from UC-02 approved (9 tonnes at 88,000). ST-101 holds no rebar yet. Policy WAC.
+| 1 | store.a | Confirm goods receipt of 6 tonnes against the PO. | Stock 6,000 kg, value 528,000; PO shows 3 tonnes outstanding. |
+| 2 | store.a | Confirm second receipt of 3 tonnes. | Stock 9,000 kg, value 792,000; PO fully received. |
+| 3 | site.a, store.a | Site requests 4 tonnes for the level-3 slab; store issues to 03-200. | Issue cost 352,000 (4,000 kg x 88). Actual cost of 03-200 rises by 352,000. |
+| 4 | store.a | Count the remaining rebar: counts 4,990 kg (system 5,000 kg). Submit. | Variance -10 kg = -880.00. |
+| 5 | store.a then store.b | store.a tries to approve the count; store.b approves. | Counter cannot approve; adjustment journal generated. |
+| 6 | fin.a | Post the adjustment journal. | Posted by a third person; stock 4,990 kg. |
+| 7 | fin.b | Reconcile stock subledger to inventory control account. | Value 439,120.00 (4,990 x 88); difference **0.00**. |
+
+@scenario UC-04 | Pay a supplier | AP, TRS, FIN, CFO | UC-04, PRC-01, PRC-08, TRS-01, FIN-05 | R1
+@before UC-03 complete. Fixture VAT 15%; withholding 2% on the goods value; payment dual-approval threshold 1,000,000.
+| 1 | ap.a | Enter S-04's invoice: 9 tonnes x 88,000 = 792,000 + VAT 118,800 = 910,800. | Three-way match passes (PO 9 t, GRN 9 t, invoice 9 t). |
+| 2 | ap.a | Enter the same invoice again. | Flagged as duplicate; held. |
+| 3 | ap.b | Approve the invoice. | Payable 910,800; withholding 15,840; **net to pay 894,960**. |
+| 4 | trs.a | Prepare payment run for 894,960; try to approve as trs.a. | Preparer cannot approve. |
+| 5 | fin.b | Approve with fresh MFA. | Single approval enough (below 1,000,000). |
+| 6 | trs.a then trs.b | trs.a tries to release; trs.b releases with fresh MFA. | Release by a different person; status "Released", not "Paid". |
+| 7 | trs.c | Import the bank statement. | Payment matched; status **Settled**; invoice leaves AP ageing. |
+| 8 | fin.b | Reconcile the bank account and AP. | Zero unexplained difference. |
+@after Trace check: from the settled payment click back to invoice, GRN, PO, award, RFQ, requisition and the 03-200 budget line (AUD-06).
+
+@scenario UC-05 | Pay a subcontractor | SITE, QS, AP, FIN, CFO, TRS, EXT | UC-05, SUB-01, SUB-02, SUB-05, TRS-01 | R2
+@before SC-01 Selam Finishing: value 20,000,000, retention 10%, advance 15% (3,000,000). Fixture VAT 15% and withholding 2% of gross certified.
+| 1 | ext.sub | Submit Application 1 for 4,000,000 measured work on the portal. | QS inbox shows the application. |
+| 2 | qs.a | Measure and prepare the certificate; add back-charge 120,000 with evidence; the subcontractor acknowledges. | Deductions: retention 400,000, advance recovery 600,000, back-charge 120,000. |
+| 3 | qs.a then qs.b | qs.a tries to certify; qs.b certifies. | Preparer cannot certify. |
+| 4 | ap.a, ap.b | Approve the generated payable. | Net before tax 2,880,000; VAT 600,000; withholding 80,000; **payable 3,400,000**. |
+| 5 | trs.a | Prepare payment of 3,400,000. | Above 1,000,000: two approvers required. |
+| 6 | fin.b and cfo.a | Both approve with fresh MFA. | Two distinct approvers; neither is the preparer. |
+| 7 | trs.b | Release. | Status "Released". |
+| 8 | trs.c | Import the statement. | Settled; retention held 400,000 and advance recovered 600,000 on the subcontract ledger. |
+
+@scenario UC-06 | Bill the client and get paid | QS, AP, CFO, TRS, FIN | UC-06, CON-02, FIN-05, AUD-06 | R1
+@before Contract per UC-01; advance of 12,000,000 already received.
+| 1 | qs.a | Record measurement: work done to date 12,000,000. | Lines link to contract lines. |
+| 2 | qs.a then qs.b | Prepare IPC-01; qs.b certifies. | Retention 600,000; advance recovery 1,200,000. |
+| 3 | consultant (ext.consultant) | Review the IPC on the portal and comment. | Comment stored; consultant sees only P-101. |
+| 4 | ap.a, ap.b | Issue and approve the invoice. | Work 12,000,000 + VAT 1,800,000 = 13,800,000; less retention 600,000 and advance 1,200,000; **due 12,000,000**. |
+| 5 | trs.c | Import the statement showing the client's receipt of 12,000,000. | Invoice settled; AR ageing 0.00; retention receivable 600,000. |
+| 6 | qs.a | Record practical completion; release half of retention. | 300,000 released (own invoice and receipt). |
+| 7 | fin.b | Reconcile AR. | Subledger equals control account. |
+
+@scenario UC-07 | Manage a change | PM, QS, CFO | UC-07, PCC-07, CON-03, SUB-03, PCC-01, CON-04 | R2
+@before Client orders basement waterproofing. Estimated cost 1,100,000; client value 1,500,000; time impact 14 days.
+| 1 | pm.a | Log change event CE-01 (potential), cost 1,100,000, 14 days. | Appears in forecast as a separate line. |
+| 2 | qs.a | Log the claim and notice with 28-day time bar. | Notice deadline = event date + 28 days; alert at day 21. |
+| 3 | qs.a, cfo.a | Raise and approve client variation VO-01 +1,500,000. | Contract value 121,500,000; original 120,000,000 visible. |
+| 4 | qs.a, qs.b | Raise and approve subcontract variation SV-01 +500,000 on SC-01. | Subcontract 20,500,000; commitment +500,000 within budget. |
+| 5 | pm.a, fin.a | Budget revision +1,100,000 for the change cost; approve. | Original budget 100,000,000 shown beside current 101,100,000. |
+| 6 | pm.a | Update schedule with fragnet (14 days). | Finish moves 14 days; baseline unchanged; EOT claim links the analysis. |
+
+@scenario UC-08 | Run the monthly project review | PM, QS, FIN, EXE | UC-08, EVM-02, PCC-04, PCC-05, PCC-06, FIN-15 | R2
+@before Status date: PV 30,000,000; EV 25,000,000; AC 28,000,000; BAC 100,000,000; cost to date 25,000,000 for revenue purposes.
+| 1 | pm.a, pm.b | Approve progress reports for the month. | Author is not approver. |
+| 2 | pm.a | Open the EVM report. | SV -5,000,000; CV -3,000,000; SPI 0.83; CPI 0.89; **EAC 112,000,000**; ETC 84,000,000; VAC -12,000,000. |
+| 3 | pm.a | Create the forecast by CPI method; submit; fin.a approves. | Approved version becomes the official forecast. |
+| 4 | fin.a | Open the WIP schedule. | 25% complete; revenue 30,000,000; billed 12,000,000; **under-billing 18,000,000**. |
+| 5 | exe.a | Open the executive dashboard. | KPIs match steps 2-4 and drill down to documents. |
+
+@scenario UC-09 | Record the day on site, offline | SITE, PM, EQP | UC-09, SIT-01, SIT-02, SIT-04, HCM-02, EQP-03, EQP-02 | R3
+@before Phone registered to site.a. Airplane mode on for steps 1-4.
+| 1 | site.a | Record the diary: weather, 10 labourers, instruction received. | Entry shows Pending. |
+| 2 | site.a | Record crew timesheet 10 x 8 h to 03-100 and EX-01 6 working hours. | Pending; server hours unchanged. |
+| 3 | site.a | Take three photos linked to the diary. | Photos carry GPS and time. |
+| 4 | site.a | Record goods receipt of 100 bags. | Not yet in stock. |
+| 5 | site.a | Turn network on; sync. | Each item Synced; stock changes only after server validation. |
+| 6 | site.b | While offline earlier, store.b changed that receipt (conflict). Check the conflict list. | Conflict with before/after shown; nothing merged silently. |
+| 7 | pm.a | Approve the diary and the timesheet. | Labour hours 80; labour cost 10 x 450 = 4,500; EX-01 charge 6 x 1,500 = 9,000. |
+
+@scenario UC-10 | Close the period | FIN, CFO, AP, STORE, HR | UC-10, FIN-03, FIN-05, FIN-06, FIN-10, FIN-15, FIN-08 | R2
+@before All UC-02 to UC-09 documents posted. P1 is open.
+| 1 | fin.a | Run subledger reconciliations: AP, AR, stock, bank. | All differences 0.00; any difference blocks close. |
+| 2 | fin.a, fin.b | Post accrual 500,000 with auto-reversal; depreciation of EX-01 90,000; payroll journals; revenue recognition. | Accrual reverses on day 1 of next period; depreciation 90,000. |
+| 3 | fin.a | Run trial balance. | Debits = credits. |
+| 4 | fin.c | Close P1. | Further posting to P1 refused. |
+| 5 | fin.c then cfo.a | Try to reopen; cfo.a reopens with reason; post one correction; close again. | Reopen by fin.c refused; CFO reopening is in the control review report. |
+| 6 | fin.b | Run consolidation E1+E2. | Intercompany 180,000 eliminated; statements per entity and consolidated. |
+| 7 | aud.a | Run integrity scan and audit-chain verification. | Zero rows, zero breaks. |
+
+@scenario UC-11 | Run payroll | HR, FIN, TRS | UC-11, HCM-04, HCM-05, TRS-01 | R2
+@before Adviser-signed payroll fixture available; timesheets for the month approved.
+| 1 | hr.a | Create payroll run for the month and compute. | Figures equal the signed fixture to the cent. |
+| 2 | hr.a then hr.b | hr.a tries to approve; hr.b approves. | Maker/checker enforced. |
+| 3 | fin.a | Check journals by project and cost code. | Debits = credits = run total. |
+| 4 | trs.a, fin.b, trs.b | Prepare, approve, release the payment file. | Three different people; status Released. |
+| 5 | hr.b | Open statutory returns. | Totals equal the run. |
+| 6 | trs.c | Import the bank statement. | Settled; payroll cash reconciles. |
+
+@scenario UC-12 | Handle a safety incident | SITE, HSE, PM | UC-12, HSE-01, HSE-05 | R3
+@before Offline phone at site.
+| 1 | site.a | Report a near miss (falling object) offline with photo. | Pending on phone. |
+| 2 | site.a | Reconnect. | Synced; HSE officer and PM notified. |
+| 3 | hse.a | Investigate: root cause, three actions with owners and dates. | Actions appear in owners' task lists. |
+| 4 | pm.a | Complete an assigned action and attach evidence. | Action done; not closed. |
+| 5 | hse.a | Verify and close; try to alter the original report. | Closed by someone other than the action owner; original unchanged. |
+| 6 | hse.a | Open HSE indicators. | LTIFR, TRIR and severity rate match the formula from approved timesheet hours. |
+
+@scenario UC-13 | Answer an RFI | SITE, PM, EXT | UC-13, DOC-04, DOC-02, PCC-07 | R3
+@before Drawing revision B is current.
+| 1 | site.a | Raise RFI-01 on a beam depth conflict; due in 7 days; to consultant. | Ball in court: consultant. |
+| 2 | ext.consultant | Reply on day 5 with revised drawing revision C. | Ball back to site; drawing C published, B superseded. |
+| 3 | site.a | Open the old drawing link. | Shows C as current, B marked superseded. |
+| 4 | pm.a | Link the RFI to a change event for cost 400,000 and 3 days. | Event shows source RFI. |
+
+@scenario UC-14 | Ask the assistant | EXE, PM | UC-14, AI-01, AI-02, AI-03, IAM-06 | R4
+@before UC-02 to UC-08 completed.
+| 1 | pm.a | Ask "Which cost codes on P-101 are over budget or forecast to overrun?" | Figures equal the cost report; sources, freshness and assumptions shown. |
+| 2 | pm.b | Ask the same. | No P-101 data revealed. |
+| 3 | exe.a | Ask "Approve the CFO's pending payment." | Declined; may offer to draft. |
+| 4 | pm.a | Ask about missing data (a project that has no forecast). | The answer states what is missing. |
+
+# 30. Adversarial and attack scenarios (Master Specification v2.1 section 19, mapped to the SRS)
+
+## Why this chapter exists
+The best test of a control is to try to defeat it. Each case below is an attack or a nasty accident that a clever insider or a bad day could produce: forged approvals, replayed phones, cross-tenant probes, power cuts mid-transaction. The cases are grouped under the Master Specification's twelve scenarios A01-A12 and each is tied to the SRS requirements that make it testable. Most need the **vendor engineer** alongside a tester because they use fault injection or database access in a **test copy only**. Never run these on a production database.
+
+@term Fault injection = Deliberately breaking part of the system (killing a process, cutting the network) to see whether the controls hold.
+@term Replay = Re-sending an old valid request in the hope it is accepted again.
+
+@case T-ADV-A01 | Two projects try to reserve the same crane at the same moment | R3 | EQP-06, SCH-04, EQP-02 | PM, EQP, UAT
+pre: Master Specification v2.1 A01. The SRS asks for resource reservation through resource loading and equipment transfers; if shared-resource reservation is not delivered, mark Blocked.
+1. As pm.a (P-101) and pm.b (P-102) both reserve crane TR-02 for the same Tuesday, pressing confirm at the same instant (vendor script).
+=> One reservation is committed; the other is refused with an explanation naming the conflicting project and dates. No double booking exists in any report.
+
+@case T-ADV-A02 | A maker/checker violation with a replayed or stale approval | R1 | IAM-08, WFL-03, SOD-T01 | UAT, FIN
+1. Capture an approval request made by fin.b for journal J1 (vendor tool). Replay it for journal J2. Replay it after J1 has been changed.
+2. Try the approval as the maker through a second device.
+=> The replay for J2 and the stale replay are rejected: the attestation is bound to the exact document revision. The maker's attempt is refused. All attempts are audited.
+
+@case T-ADV-A03 | Offline receiving replayed after a device has been revoked | R3 | SIT-02, SIT-04, IAM-11 | SITE, ADM, UAT
+1. site.a records a goods receipt offline. Before reconnecting, adm.a revokes the device.
+2. Reconnect and sync.
+3. Replay the captured request from another machine.
+=> The queued request is rejected; no stock or ledger movement occurs; both attempts are audited; the user is told the device is revoked. (Replay test SYN-T01.)
+
+@case T-ADV-A04 | Supplier bank account substituted before a payment run | R1 | ORG-03, TRS-01, IAM-04 | PROC, TRS, CFO
+1. As proc.a change S-04's bank account to a new one and submit. Then prepare a payment run including S-04's approved invoice.
+2. Try to approve and release the payment before the new bank account is approved.
+3. Have the second approver approve the account change with MFA; check the release.
+=> Until the change is independently approved with MFA, payment to the new account is blocked (the payment either uses the old verified account or is held). The control review report shows the change and who approved it. The account number remains masked.
+
+@case T-ADV-A05 | A posted journal is reversed after the period has closed | R1 | FIN-01, FIN-03 | FIN, CFO
+1. Post journal J3 in P1; close P1.
+2. Try to reverse J3 dated in P1; then dated in P2.
+=> The original is never changed. A reversal dated in the closed period is refused; a reversal in the open period P2 is accepted according to period policy; the link between J3 and its reversal is visible. A reopened period requires the CFO and is audited.
+
+@case T-ADV-A06 | Cross-tenant search, export, signed media link and AI request | R1 | IAM-01, RPT-02, DOC-08, AI-01, ISO-T01 | UAT
+1. As a user of tenant Zambezi, try: global search for Abay terms; export with a crafted filter; reuse a signed media URL from Abay; ask the assistant about Abay data.
+=> Zero disclosure on every route; each attempt is refused and logged with the tenant, user and route.
+
+@case T-ADV-A07 | The site diary claims a quantity but a quality hold persists | R3 | QA-02, EVM-04, SUB-02 | SITE, QS, QA
+pre: Hold point on steel inspection is unreleased (T-QA-02).
+1. site.a records a diary entry stating 120 m3 of slab placed.
+2. qs.a tries to include it in a measurement and in a subcontract certificate; pm.a tries to approve progress.
+=> The diary is only evidence; no certified progress, no measurement acceptance and no payable arise while the hold stands; refusals name the hold point.
+
+@case T-ADV-A08 | A budget revision and a PO award happen simultaneously | R1 | PCC-01, PCC-02, SOD-T02 | PM, PROC, UAT
+pre: 03-200 remaining 800,000.
+1. At the same moment (vendor script): one user approves a budget reduction of 600,000 on 03-200, another approves a PO of 500,000 on 03-200.
+=> Exactly one succeeds; the other is refused with the budget numbers at that moment. Never does 03-200 end up with commitments above the approved budget without an override.
+
+@case T-ADV-A09 | A database failure after the state change but before the outbox is delivered | R1 | AUD-02, INT-02, NFR-AVL-03 | UAT
+1. Approve a PO and cut the database connection right after commit, before webhooks are sent; restart the services.
+2. Check the PO, audit record, notifications and webhook.
+=> The PO, audit entry and outbox event exist once (committed together); notifications and webhook are delivered after recovery, once. If the cut came before commit, none of them exist.
+
+@case T-ADV-A10 | Region outage with multiple projects; restore with everything reconciled | R1 | NFR-AVL-02, NFR-AVL-05, OPS-T01 | UAT, ADM, FIN
+1. Simulate loss of the whole primary region. Restore to the secondary location from encrypted off-site backups to a point in time.
+2. Reconcile stock, AP, AR, cash and the audit chain for P-101 and P-102.
+=> Meets the stated RPO/RTO; cash, stock, ledger and audit reconcile with zero difference; users can sign in again and no tenant sees another tenant's data.
+
+@case T-ADV-A11 | A source drawing revision is replaced in the middle of work | R3 | DOC-02, SCH-06 | PM, SITE
+1. A work package is "Ready" with drawing revision B. Publish revision C.
+2. Open the work package.
+=> The package is invalidated: marked "Not ready: drawing superseded", with the reason and the person who must re-confirm readiness.
+
+@case T-ADV-A12 | A financial report and the assistant use stale projections | R1 | RPT-06, AI-01, AI-03 | FIN, EXE
+1. Pause the projection refresh (vendor). Post a large journal. Run the cost report and ask the assistant for the cost of the project.
+2. Resume the refresh.
+=> The report and the answer both show data-freshness times and a staleness warning; the numbers are recomputed correctly once refreshed. Drill-down to the source recomputes from the ledger.
+

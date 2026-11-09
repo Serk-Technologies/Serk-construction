@@ -2,7 +2,7 @@
 GO ?= go
 ADMIN_DSN ?= postgres://postgres:dev-only-postgres-password-not-for-production@localhost:5432/serk_construction?sslmode=disable
 
-.PHONY: all build test test-unit test-integration vet fmt migrate up seed reset dev-up dev-down check-prod-config clean
+.PHONY: gen-docs all build test test-unit test-integration vet fmt migrate up seed reset dev-up dev-down check-prod-config clean
 
 all: fmt vet test build
 
@@ -51,3 +51,10 @@ check-prod-config:
 
 clean:
 	rm -rf bin
+
+# Regenerate the documents that are generated from the code (a test fails if they are out of date),
+# and add stubs to api/openapi.yaml for any new route.
+gen-docs:
+	python3 tools/gen_openapi.py
+	UPDATE_KPI_DOC=1 $(GO) test ./internal/kernel -run 'TestKPICatalogueDocumentIsCurrent|TestReportCatalogueDocumentIsCurrent'
+	UPDATE_ROLE_DOC=1 $(GO) test ./pkg/auth -run TestRoleMatrixDocumentIsCurrent

@@ -1,0 +1,107 @@
+# 9. Planning, scheduling, progress and earned value (SRS 6.5 and 6.6)
+@release R2
+
+## Industry context
+A **schedule** is a network of activities linked by logic ("pour the slab *after* the formwork is inspected"). The **critical path** is the longest chain of linked activities; any delay on it delays the whole project. Activities off the critical path have **float**: they may slip a little without harm. Planners build the network once, get it approved as a **baseline**, and compare reality against it every week.
+
+**Earned value management (EVM)** answers two questions with one set of numbers: "are we on time?" and "are we on budget?". It compares what we planned to have done (PV), what we actually did measured in budget terms (EV), and what it actually cost (AC). Without EVM a project that has spent 70% of its budget and finished 50% of the work can still look "under budget".
+
+@term Critical path = The chain of activities that determines the earliest possible finish; zero total float.
+@term Float = How long an activity can slip without delaying the project (total float) or its successor (free float).
+@term Baseline = The approved schedule or budget against which progress is measured.
+@term Lag = A delay between two linked activities, such as concrete curing time.
+@term PV / EV / AC = Planned value / earned value / actual cost: budgeted cost of work scheduled / of work done / actually spent.
+@term SPI / CPI = Schedule performance index EV/PV and cost performance index EV/AC. Below 1.0 is behind schedule / over cost.
+@term PPC = Percent plan complete: share of the weekly planned tasks finished.
+@term Fragnet = A small network of delay events inserted into the schedule to measure the time impact of a change.
+
+@case T-SCH-01 | Critical path calculation with all four relationship types, lag, calendar and float | R2 | SCH-01 | PM
+pre: Use a 7-day continuous calendar. Build: A (4 days); B (6 days) finish-to-start after A; C (5 days) start-to-start +2 after A; D (3 days) finish-to-start after B and after C; E (4 days) finish-to-finish +3 after C. Project starts day 0.
+1. As pm.a enter the activities and links, then run the schedule calculation.
+2. Read early/late start and finish, total float and free float of each activity.
+=> A: 0-4; B: 4-10; C: 2-7; D: 10-13; E: 6-10. **Project duration 13 days.**
+=> **Critical path A, B, D** (total float 0). C has total float 3 and free float 0 (E's finish-to-finish +3 holds it). E has total float 3.
+=> Changing B to 8 days moves the project finish to 15 and the critical path remains A, B, D.
+
+@case T-SCH-02 | Approved baselines (maker/checker) and comparison with several baselines | R2 | SCH-02 | PM, QS
+1. As pm.a submit the schedule as Baseline 1; try to approve it; then approve as qs.a.
+2. Update progress so activity B slips by 5 days; save Baseline 2 (also approved by another person).
+3. Compare the current schedule against Baseline 1 and against Baseline 2.
+=> Self-approval refused. Approved baselines cannot be edited.
+=> The comparison shows start/finish variance per activity against each baseline separately, and the project finish variance.
+
+@case T-SCH-03 | Constraints, activity codes and a WBS hierarchy | R2 | SCH-03 | PM
+1. Set activity C to "start no earlier than day 5". Set D to "finish no later than day 12". Set a mandatory date on a milestone.
+2. Recalculate. Assign activity codes (area, trade) and place activities under WBS elements.
+3. Filter and group by an activity code and by WBS.
+=> C starts day 5 (not day 2); the calculation then reports D cannot meet its finish constraint and shows the negative float.
+=> The mandatory date is honoured and flagged in the calculation.
+=> Grouping and filtering by code and WBS roll up durations and costs correctly.
+
+@case T-SCH-04 | Resource loading, levelling and histograms | R2 | SCH-04 | PM, EQP
+1. Assign a crew of 10 labourers and excavator EX-01 to overlapping activities.
+2. View the labour and plant histograms; run levelling.
+=> Over-allocation is highlighted in the histogram; after levelling activities are delayed within their float where possible and the new finish date is reported.
+
+@case T-SCH-05 | Import and export Primavera P6 (XER, XML) and MS Project XML with an integrity report | R2 | SCH-05, INT-04 | PM, UAT
+pre: Sample files: a P6 XER with 50 activities and 60 relationships, a P6 XML, and an MS Project XML. Include one feature the system does not support (for example a unit-of-measure calendar exception or user-defined field type).
+1. Import each file; read the integrity report.
+2. Export the schedule back to each format and re-import the export.
+=> Counts of activities and relationships match the source; dates, durations and relationship types match.
+=> The integrity report lists everything not carried over (the planted unsupported item must be named). Nothing is dropped silently.
+=> Re-import of an export yields an identical schedule.
+
+@case T-SCH-06 | Look-ahead planning and weekly work plans with percent plan complete | R3 | SCH-06 | PM, SITE
+1. Open the 3-week look-ahead; select 10 activities for the coming week and assign foremen.
+2. At week end mark 8 as done and 2 not done with reason codes.
+=> **PPC = 8 / 10 = 80%** and the reasons for the two failures are reported by category (materials, access, weather, etc.).
+=> Blocked or ready status of work packages reflects readiness (materials, drawings, permits, predecessors).
+
+@case T-SCH-07 | Delay analysis with fragnets and as-planned vs as-built, linked to extension-of-time claims | R3 | SCH-07, CON-04 | PM, QS
+1. Insert a fragnet "Client late access, 12 days" into the schedule.
+2. Run the time-impact analysis; compare as-planned to as-built dates.
+3. Link the result to an extension-of-time claim.
+=> The analysis shows the effect on the project finish (days) with the critical path before and after.
+=> The claim carries the analysis as evidence and the chosen method name.
+
+@case T-SCH-08 | Schedule activities linked to model elements for 4D viewing | R3 | SCH-08 | PM
+1. Link activity "Slab level 2" to the model elements of that slab; play the 4D timeline.
+=> Elements appear according to the activity dates. Demonstration only.
+
+@case T-SCH-09 | Schedule quality check (DCMA-style assessment) | R3 | SCH-09 | PM
+1. Run the schedule quality check on the imported schedule.
+=> Reports open ends, lags, leads, long durations, hard constraints, negative float and similar tests with counts and the pass/fail threshold for each. "May" priority; Blocked if not delivered.
+
+@case T-EVM-01 | Progress is recorded per activity or cost code and approved by someone other than the author | R2 | EVM-01 | SITE, PM
+1. As site.a record progress for "Slab level 2": 60% complete as at today.
+2. Submit; try to approve as site.a; approve as pm.a.
+3. Try to edit the approved progress report.
+=> Self-approval refused. The approved record is read-only; corrections are made by a new progress report.
+=> The history shows each report with its author, approver and date.
+
+@case T-EVM-02 | Earned value indicators are computed with a documented price basis and provenance | R2 | EVM-02, PCC-03 | PM, EXE
+pre: Project total budget at completion (BAC) 100,000,000. At the status date: planned value PV 30,000,000; earned value EV 25,000,000; actual cost AC 28,000,000. Price basis nominal.
+1. Open the EVM report for P-101 for the status date.
+2. Open the provenance of PV, EV and AC.
+=> SV = EV - PV = **-5,000,000**; CV = EV - AC = **-3,000,000**.
+=> SPI = 25 / 30 = **0.83**; CPI = 25 / 28 = **0.89**.
+=> EAC = BAC / CPI = **112,000,000**; ETC = EAC - AC = **84,000,000**; VAC = BAC - EAC = **-12,000,000**.
+=> Each input is traceable: PV to the baseline schedule and budget, EV to approved progress and rules of credit, AC to posted journals. The price basis (nominal or constant) is displayed.
+
+@case T-EVM-03 | Rules of credit are configurable per cost code | R2 | EVM-03 | PM, QS
+pre: Cost code 03-200 uses weighted milestones: fabricate 30%, place 50%, inspect 20%.
+1. Record that fabrication and placing are complete but inspection is not.
+2. Switch another cost code to "units installed" (installed 400 of 1,000 m) and another to 50/50 start/finish.
+=> The 03-200 item is credited **80%** of its budget.
+=> Units installed credits 40%. A started item under 50/50 is credited 50% and 100% only when finished.
+=> Level-of-effort items are credited by elapsed time.
+
+@case T-EVM-04 | Installed quantities captured on site feed progress and client measurement | R3 | EVM-04, SIT-01 | SITE, QS
+1. As site.a record installed quantity 120 m3 of slab concrete for yesterday in the diary and sync.
+2. As qs.a open the measurement for the month.
+=> The quantity appears as a proposed measurement line linked to the diary entry; the QS accepts, adjusts or rejects it (with reason). The site entry itself is never counted as certified quantity.
+
+@case T-EVM-05 | Photo and geotag evidence on progress records | R3 | EVM-05, SIT-05 | SITE, PM
+1. Attach three photos taken on site to a progress record.
+=> Each photo shows capture time, GPS position and a watermark and is linked to the progress record; photos cannot be edited, only superseded.
+

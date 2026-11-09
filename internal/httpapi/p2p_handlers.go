@@ -76,6 +76,10 @@ func (s *Server) registerP2P() {
 	})))
 	s.registerAuthority(m) // authority matrix, delegation, SoD exceptions (0040)
 	s.registerStockPlus()  // unit conversions, reservations, reorder rules (0041)
+	s.registerOrg()        // project master, stage gates, regions, business units, calendar (0042)
+	s.registerPeople()     // people directory, company roles, profiles (0048)
+	s.registerBonds()      // guarantees, price indices, escalation (0050)
+	s.registerImports()    // staged imports and the setup checklist (0043)
 	// Financial control dashboard (WP-1.4): GET /v1/dashboard?preset=executive|project|finance|procurement&entity_id=
 	m.Handle("GET /v1/dashboard", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		preset := r.URL.Query().Get("preset")
@@ -87,7 +91,14 @@ func (s *Server) registerP2P() {
 			writeErr(w, http.StatusNotFound, "not_found", "not found")
 			return
 		}
-		out, err := s.cfg.Kernel.Dashboard(r.Context(), principalFrom(r.Context()), preset, entity)
+		for _, k := range []string{"region_id", "business_unit_id"} {
+			if v := r.URL.Query().Get(k); v != "" && !canonicalUUID(v) {
+				writeErr(w, http.StatusNotFound, "not_found", "not found")
+				return
+			}
+		}
+		out, err := s.cfg.Kernel.DashboardFor(r.Context(), principalFrom(r.Context()), preset, kernel.DashboardFilter{EntityID: entity,
+			RegionID: r.URL.Query().Get("region_id"), BusinessUnitID: r.URL.Query().Get("business_unit_id")})
 		if err != nil {
 			s.fail(w, err)
 			return

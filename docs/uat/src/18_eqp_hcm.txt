@@ -1,0 +1,96 @@
+# 13. Equipment and fleet (SRS 6.10)
+@release R3
+
+## Industry context
+Excavators, cranes, tippers and mixers are expensive and idle plant loses money every hour. A contractor treats plant as an internal **business**: the plant owner (here entity E2) charges each project an hourly or daily **hire rate**, and the project pays it as a cost. This shows the true cost of using plant, makes managers hand idle machines back, and covers depreciation, fuel, repair and operators. Plant also breaks down: preventive maintenance by hours or distance is far cheaper than a breakdown during a pour.
+
+@term Hire rate = The internal (or external) charge per hour, day or kilometre for using a machine.
+@term Preventive maintenance = Planned servicing triggered by hours, distance or calendar before a breakdown.
+@term Telematics = Machine data (hours, fuel, location) sent automatically by the machine.
+
+@case T-EQP-01 | Equipment register linked to fixed assets | R3 | EQP-01, FIN-06 | EQP, FIN
+1. Create EX-01 Excavator 20 t (owned by E2), TR-02 Tipper (hired in) and a leased item.
+2. For EX-01 link the fixed asset record (cost 6,000,000, residual 600,000, 5 years).
+=> Ownership type, operating cost, hire rate and the linked fixed asset are stored. The asset register and equipment register show the same item.
+
+@case T-EQP-02 | Plant usage is charged to a project cost code through generated journals | R3 | EQP-02, FIN-01 | EQP, PM, FIN
+pre: EX-01 internal hire rate ETB 1,500 per working hour.
+1. Record 120 working hours of EX-01 on P-101, cost code 01-200, approved by pm.a.
+2. Open the generated journal.
+=> Charge = 120 x 1,500 = **180,000**: debit project cost 01-200 (E1), credit plant recovery (E2); intercompany lines match in both entities.
+=> The usage cannot be charged without a recorded usage document; self-approval by the recorder is refused.
+
+@case T-EQP-03 | Daily working, idle and breakdown hours are recorded | R3 | EQP-03, SIT-01 | SITE, EQP
+1. In the site diary record for EX-01: 6 working, 1 idle, 1 breakdown hours.
+=> The hours sum to the shift; only working hours are chargeable per policy; idle and breakdown appear on the utilisation report.
+
+@case T-EQP-04 | Preventive maintenance, work orders and spare parts from inventory | R3 | EQP-04, INV-01 | EQP, STORE
+1. Define service every 250 hours for EX-01. Record usage to cross 250 hours.
+2. Open the generated work order; issue an oil filter from inventory; close the order.
+=> The work order is raised automatically; the spare part is issued from stock to the work order; maintenance cost is attached to EX-01.
+
+@case T-EQP-05 | Fuel issues and anomaly flags | R3 | EQP-05 | EQP, STORE
+1. Issue 120 litres of diesel to EX-01 for a day with 6 working hours (normal is about 15 litres per hour).
+=> The consumption rate is shown (20 l/h) and flagged against the expected range with the reason.
+
+@case T-EQP-06 | Transfers between sites with condition reports | R3 | EQP-06 | EQP, SITE
+1. Transfer EX-01 from P-101 to P-102 with a condition report and photos at dispatch and arrival.
+=> Both condition reports are stored with the transfer; project charging switches on the transfer date.
+
+@case T-EQP-07 | Telematics import | R4 | EQP-07 | EQP
+1. Import an ISO 15143-3 sample feed.
+=> Hours and fuel appear as suggested usage entries to be confirmed. "May" priority.
+
+# 14. Workforce, time and payroll (SRS 6.11)
+@release R2
+
+## Industry context
+Construction pays two kinds of people: **salaried staff** (engineers, managers) and **daily labourers** who may be hired for weeks and paid by the day, often in cash or mobile money. Both must be **costed to the project and cost code** where they worked, otherwise labour cost disappears into overhead. Payroll rules are strict and change: income tax bands, pension contributions and overtime rules are set by law, so the system holds them as **effective-dated data** and a qualified adviser signs the rules before go-live (SRS D-04). Payroll is high-risk (ghost employees, inflated hours), so it is approved by a second person and every run produces journals, a payment file and statutory returns.
+
+@term Ghost worker = A person on the payroll who does not work for the company.
+@term Effective-dated = A rule that applies from a given date and keeps its history.
+@term Imprest = A petty-cash float topped up to a fixed amount against receipts.
+
+@case T-HCM-01 | Employee master for salaried staff and daily labourers | R2 | HCM-01 | HR
+1. Create an engineer (salaried, grade, bank account) and a daily labourer (trade mason, day rate 450, mobile-money number).
+2. Open both as a payroll checker and as a general user.
+=> Contracts, grade, trade, rate, certifications are stored. Bank and mobile-money details are masked; viewing the full value needs the reveal permission and is audited.
+
+@case T-HCM-02 | Timesheets per person or crew, offline, approved by a supervisor other than the recorder | R3 | HCM-02, SIT-02 | SITE, PM
+1. On the phone, offline, record a crew timesheet: 10 labourers, 8 hours each, project P-101, cost code 03-100.
+2. Reconnect and sync. Try to approve as the recorder, then as pm.a.
+=> The timesheet is saved offline and syncs; its status shows pending until the supervisor approves; the recorder cannot approve it.
+=> Approved hours flow to payroll and to project labour cost (10 x 8 = 80 hours, 10 x 450 = 4,500).
+
+@case T-HCM-03 | Attendance from biometric terminals or geofenced mobile check-in | R3 | HCM-03, EI-HW-02 | SITE, HR
+1. Check in on the phone inside the P-101 geofence and again outside it.
+=> Check-in inside the fence is accepted with GPS evidence; outside it is flagged for supervisor review, not silently accepted.
+
+@case T-HCM-04 | Payroll is computed from data-driven, effective-dated statutory rules | R2 | HCM-04, PAY-T01 | HR, FIN
+pre: The adviser-signed fixture set (employee examples with expected gross, income tax, employee and employer pension, overtime and net) is available. D-04 is closed.
+1. Run payroll for each fixture employee for the fixture month.
+2. Change the effective date of a tax band to the next month and rerun the earlier month.
+=> Every computed figure equals the signed fixture to the cent (no difference accepted).
+=> Re-running the earlier month uses the earlier rule; history is kept.
+note: If D-04 is not closed this case is Blocked. Do not use invented tax values to pass it.
+
+@case T-HCM-05 | Payroll maker/checker; journals by project; payment file; statutory returns | R2 | HCM-05, TRS-01, FIN-01 | HR, FIN, TRS
+1. As hr.a create the payroll run for the month, compute, submit.
+2. Try to approve as hr.a; approve as hr.b.
+3. Open the payroll journals; open the bank or mobile-money payment file; open the statutory schedules.
+=> Self-approval refused. Journals are posted by project and cost code; total debit equals total credit and agrees to the run.
+=> The payment file totals the net pay; the statutory returns (income tax, pension) agree with the run totals.
+=> The payroll cannot be edited after approval; corrections are made in the next period or by reversal.
+
+@case T-HCM-06 | Leave and overtime requests | R2 | HCM-06 | HR, SITE
+1. Request 2 hours of overtime and 3 days of leave; approve as supervisor.
+=> Approved overtime goes to payroll under the overtime rule; leave adjusts attendance. The requester cannot approve their own.
+
+@case T-HCM-07 | Labour productivity against the estimate | R3 | HCM-07, EST-03 | PM
+1. Open the productivity report for concrete: 120 m3 installed in 360 person-hours.
+=> 0.33 m3 per person-hour compared with the estimate's productivity (6 hours/m3 in T-EST-03 is 0.167 m3/h, so the actual is 2.0 times faster); variance is shown with its inputs.
+
+@case T-HCM-08 | Recruitment and onboarding of site workers with induction records | R4 | HCM-08, HSE-03 | HR, HSE
+1. Onboard a new labourer; complete the safety induction record.
+=> Induction record is linked to the worker and visible to HSE. "May" priority.
+

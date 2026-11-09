@@ -1,0 +1,96 @@
+# 15. Client contracts, revenue and claims (SRS 6.12)
+@release R1
+
+## Industry context
+This is the "contract to cash" side: how the contractor gets paid. Each month the **quantity surveyor measures** the work completed, the **consultant checks and certifies** it in an **interim payment certificate (IPC)**, the contractor issues an **invoice**, and the client pays after deductions: **retention** is withheld as security, and the **advance payment** is recovered gradually. Construction contracts are full of dates that cost money if missed: a claim for extra time or money usually needs a **notice within 28 days** of the event (FIDIC-style), otherwise the right is lost. Contracts also carry **guarantees** (bonds) that expire, **price-adjustment formulas** for inflation, and **liquidated damages** for lateness.
+
+The whole chain must trace: **receipt ← invoice ← IPC ← measurement ← contract line** (SRS 8.1, AUD-06). Throughout this chapter the P-101 contract is 120,000,000 (excl. VAT); retention 5%; advance 10% = 12,000,000 recovered at 10% of each gross IPC; VAT 15% on the gross certified value (test fixture).
+
+@term Practical completion = The date the works are substantially finished and the defects period starts.
+@term Defects liability period = The period (often 12 months) after completion during which the contractor must fix defects.
+@term Price adjustment = Adjusting contract payments for changes in labour and material price indices by a formula.
+@term Guarantee / bond = A bank or insurer's promise to pay the client if the contractor fails (bid, advance-payment, performance, retention bonds).
+
+@case T-CON-01 | A client contract with lines or rates, payment terms and a contract policy is approved by someone else | R1 | CON-01, IAM-08 | QS, CFO
+1. As qs.a create the P-101 contract: lines or unit rates from the approved BOQ, total 120,000,000, payment terms 45 days, policy (retention 5%, advance 10%, VAT base gross).
+2. Submit; try to approve as qs.a; approve as cfo.a.
+3. Try to change the policy on the approved contract.
+=> Self-approval refused. The contract policy is stored with the contract and used by every IPC.
+=> Step 3 requires a new policy version approved by maker/checker, with effective date; past IPCs keep the old policy.
+
+@case T-CON-02 | Measurement, IPC, invoice and receipt with server-computed retention and advance recovery | R1 | CON-02, FIN-05 | QS, AP, CFO, FIN
+pre: P-101 contract with the policy above. Advance 12,000,000 already received and in the books.
+1. As qs.a record the measurement for the month: work done to date 12,000,000 (gross), each line linked to contract lines.
+2. Prepare IPC-01 and submit; certify it as qs.b (certifier different from preparer).
+3. As ap.a issue the receivable invoice from the IPC. Approve with ap.b.
+4. Record the client's receipt for the amount due.
+=> Retention 5% = **600,000**; advance recovery 10% = **1,200,000**; VAT 15% on gross = **1,800,000**.
+=> Invoice: work 12,000,000 + VAT 1,800,000 = 13,800,000; less retention 600,000; less advance recovery 1,200,000; **amount due 12,000,000** (the system shows each line).
+=> The client receipt of 12,000,000 settles the invoice; AR ageing shows 0.00 for this invoice; retention receivable shows 600,000; the advance liability falls by 1,200,000.
+=> The computation is by the server: editing amounts in the browser console or API has no effect.
+=> Trace: from the receipt you can reach the invoice, IPC, measurement lines and contract lines.
+note: In this fixture VAT applies to the gross certified value and the deductions carry no VAT. If the signed tax fixture treats VAT on retention or advance differently, the finance lead pre-computes the lines and the tester checks the system against that sheet.
+
+@case T-CON-03 | Retention is released in two stages | R1 | CON-02 | QS, AP
+1. After IPC-01, record practical completion.
+2. Release 50% of retention held.
+3. After the defects period release the balance.
+=> At completion 300,000 is released (invoice and receipt follow the same controls as an IPC); at the end of the defects period the final 300,000. The release cannot exceed retention held.
+
+@case T-CON-04 | Advance recovery follows each IPC and stops at the advance amount | R1 | CON-02 | QS, FIN
+1. Prepare IPC-02 with cumulative work to date 30,000,000 (this month 18,000,000).
+2. Prepare a hypothetical IPC with cumulative work 125,000,000 in a test copy.
+=> IPC-02 recovers 1,800,000 this month; cumulative recovered 3,000,000.
+=> The hypothetical IPC recovers only up to the 12,000,000 advance; further IPCs recover nothing.
+
+@case T-CON-05 | Client variations change the contract value only when approved | R1 | CON-03, PCC-07 | QS, CFO
+1. Create variation VO-01 +1,500,000; submit; try to approve as the creator; approve as cfo.a.
+2. Create VO-02 +400,000 and reject it with a reason.
+=> After approval the contract value becomes 121,500,000 (original 120,000,000 stays visible); the variation appears as a contract line and a change event.
+=> The rejected variation does not change the value and its history is kept.
+
+@case T-CON-06 | Claims and extension-of-time register with 28-day time bars and alerts | R2 | CON-04 | QS, PM
+pre: Tenant time-bar alert lead 7 days (record the value). Event date E = D0 (client delayed site access).
+1. Log claim CL-01 with event date, type EOT + cost, and contractual notice period 28 days.
+2. Check the notice deadline and the alert schedule.
+3. On day 22 (or by changing the system date in the test environment) see the alert.
+4. After day 28 try to submit the notice.
+=> Notice deadline is **E + 28 days**; an alert is raised at **E + 21 days** to the QS and PM.
+=> After the bar the submission is allowed only as "late notice" with a visible warning, and the claim is flagged "time-barred risk". The record and alerts are audited.
+why: Losing a claim of millions because a letter was sent on day 29 is one of the most common and preventable losses in the industry.
+
+@case T-CON-07 | Contract price adjustment from published indices | R2 | CON-05 | QS, FIN
+pre: Formula P = P0 x (a + b x L/L0 + c x M/M0) with a = 0.15, b = 0.35, c = 0.50. Indices: L/L0 = 1.10, M/M0 = 1.20. Base IPC value 12,000,000.
+1. Enter the formula coefficients and index values for the month.
+2. Calculate the adjustment for IPC-01.
+=> Factor = 0.15 + 0.35 x 1.10 + 0.50 x 1.20 = **1.135**; adjustment = 12,000,000 x 0.135 = **1,620,000**.
+=> The index source and date are recorded; index values are effective-dated and audited.
+
+@case T-CON-08 | Liquidated damages and bonuses from contract dates | R2 | CON-06 | QS
+pre: LD 0.1% of contract value per day, capped at 10%. Contract 120,000,000.
+1. Set the completion date and an actual completion 20 days late.
+2. Test again with 150 days late.
+=> 20 days: 0.1% x 120,000,000 x 20 = **2,400,000**.
+=> 150 days would be 18,000,000 but is capped at **12,000,000**.
+=> Early completion bonus (if configured) is computed the same way from dates.
+
+@case T-CON-09 | Register of guarantees and bonds with expiry alerts | R2 | CON-07, EST-06 | QS, TRS
+1. Register an advance-payment guarantee 12,000,000 (issuer bank, expiry D0 + 90 days, reduction rule).
+2. Register a performance bond 6,000,000.
+3. Record the reduction of the advance guarantee as the advance is recovered.
+=> The register shows issuer, amount, expiry and status; an alert comes before expiry at the configured lead time; the reduced amount matches advance recovery after IPC-01 (guarantee 10,800,000).
+=> Release and expiry are recorded with user and date.
+
+@case T-CON-10 | Configurable contract templates | R2 | CON-08 | QS
+1. Create a contract from the FIDIC Red Book template and from the Ethiopian public-procurement template.
+=> Default retention, advance, notice periods and DLP are pre-filled from the template and can be edited under maker/checker approval. Depends on decision D-07.
+
+@case T-CON-11 | Contract obligations register | R2 | CON-09 | QS, PM
+1. Record obligation "Submit insurance certificate within 14 days of commencement" with owner and due date.
+=> The obligation appears in the owner's task list, is flagged overdue after the due date and its completion is audited.
+
+@case T-CON-12 | Clients and consultants review measurements and IPCs on the portal | R4 | CON-10, COL-03 | EXT, QS
+1. Share IPC-01 with the consultant on the portal. The consultant comments and recommends certification.
+2. The consultant tries to open another project's IPC.
+=> Comments are stored on the IPC; the consultant sees only the shared documents on P-101. Demo verification.
+

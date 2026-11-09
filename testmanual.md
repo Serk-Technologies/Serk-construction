@@ -131,6 +131,7 @@ persona. "Scoped" personas see only the seeded projects; the others are company-
 | `u-planner` | planner | yes | Builds schedules and progress |
 | `u-site-engineer` | site_engineer | yes | Raises requisitions, evaluates RFQs, confirms goods receipts, verifies measurements |
 | `u-buyer` | procurement_officer | yes | Suppliers, RFQs, purchase orders |
+| `u-buyer-2` | procurement_officer | yes | A second procurement officer, so a staged supplier or stock-item import can be committed by someone else |
 | `u-proc-manager` | procurement_manager | yes | Approves suppliers, awards RFQs, approves POs |
 | `u-storekeeper` | storekeeper | yes | Goods receipts, stock receive, issue, count, transfer |
 | `u-inventory` | inventory_controller | yes | Approves stock adjustments and transfers |
@@ -139,6 +140,7 @@ persona. "Scoped" personas see only the seeded projects; the others are company-
 | `u-ap-clerk` | ap_clerk | yes | Enters supplier invoices |
 | `u-ap-supervisor` | ap_supervisor | yes | Approves supplier invoices |
 | `u-ar-clerk` | ar_clerk | no | Customers, customer invoices, receipts, credit notes |
+| `u-ar-clerk-2` | ar_clerk | no | A second AR clerk, so a staged customer import can be committed by someone else |
 | `u-ar-supervisor` | ar_supervisor | no | Approves customer invoices, confirms receipts |
 | `u-treasury` | treasury_officer | no | Prepares and releases payments |
 | `u-treasury-2` | treasury_officer | no | Second treasury officer (release must differ from preparer) |
@@ -161,7 +163,7 @@ tok(){ curl -s -X POST $B/staging/token -H 'Content-Type: application/json' \
 curl -s -H "Authorization: Bearer $(tok u-accountant)" $B/v1/identity/me
 ```
 
-For any role or subject outside the 26 personas (including AI and service
+For any role or subject outside the 28 personas (including AI and service
 principals), mint a token with the development token tool:
 
 ```bash
@@ -190,7 +192,7 @@ invent figures in expected results; compute them from your recorded start values
 |---|---|---|
 | 1. Open the console.<br>2. Choose the company, persona `u-estimator`, enter the passphrase, **Sign in as persona**.<br>3. Note the menu, then **Sign out**.<br>4. Repeat for every persona in 2.3. | - Each persona reaches **My work**.<br>- Menus differ by role: an item appears only when the persona's role holds its permission (see Appendix D). For example `u-estimator` has no Risks or Ask.<br>- No error page for any persona. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 
-*Reference run 2026-11-05 (API): all 26 personas obtained a token.*
+*Reference run 2026-11-05 (API): all 26 personas obtained a token (28 since 2026-11-07).*
 
 **AUTH-02 · Wrong passphrase refused** — Role: any
 
@@ -282,6 +284,40 @@ invent figures in expected results; compute them from your recorded start values
 
 *Reference run 2026-11-07 (kernel and HTTP tests): TestAuthority_MatrixGovernanceAndLimits, TestAuthority_DatabaseRefusesBypass (13 raw-SQL forgeries refused), TestAuthority_DelegationLifecycle, TestAuthority_ConflictingDelegationIsDroppedUnlessExcepted, TestAuthority_MatrixLimitsPurchaseOrders, TestAPI_AuthorityAndDelegationOverHTTP, TestDelegatedAuthority, TestDelegationAllowed, TestSoDViolations: PASS.*
 
+**ORG-01 · Create a project and move it through stage gates** — Role: u-commercial, u-pm, u-cfo
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. As `u-controller` open **Governance → Organisation & calendar** and add a region (`EAST`) and a business unit (`ROADS`).<br>2. As `u-commercial`: **Projects & planning → Projects → New project**: code `P-003`, a name, region, unit, contract type, dates. Create.<br>3. Sign in as a project manager whose token includes the new project (or as `u-cfo`, who sees all) and open **Projects**: use **Request mobilisation** with evidence text.<br>4. Submit; as the same person look for Approve; as `u-cfo` (fresh sign-in) **Approve**. | - The project is PLANNED in phase BID and is not offered in cost forms.<br>- A gate cannot skip a phase and only one gate is open per project.<br>- The author cannot approve; `u-cfo` approves and the project becomes ACTIVE, phase Mobilisation.<br>- The phase column cannot be changed any other way (API or database). | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**ORG-02 · Project master data and roll-ups** — Role: u-pm, u-cfo
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. As `u-pm` open **Projects → Edit** on a project in scope: set manager, dates, location, region and business unit.<br>2. Try a finish date before the start date.<br>3. As `u-cfo` open **Overview → Dashboard** and pick the region.<br>4. As `u-controller` add a holiday in **Organisation & calendar**; try the same day twice. | - Details save; a finish before the start is refused.<br>- The dashboard budget and risk tiles narrow to that region's projects (cash and ledger stay company-wide).<br>- A day can have only one calendar entry. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+*Reference run 2026-11-07: TestOrg_ProjectLifecycleThroughGates, TestOrg_MasterDataRegionsAndRollups, TestAPI_ProjectMasterAndGates: PASS.*
+
+**SET-01 · The setup checklist reads real state** — Role: u-cfo, u-pm
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. Open **Overview → Company setup**.<br>2. Note which steps are ticked; do one (for example create a region in **Organisation & calendar**, or approve a BOQ) and reload the page. | - Each step says why, who does it and links to the page; optional steps are marked.<br>- A step ticks itself only when the records exist (nothing can be ticked by hand); the progress bar counts required steps only. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**IMP-01 · Stage, review and commit an import with two people** — Role: u-buyer, u-proc-manager
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. As `u-buyer`: **Governance → Data imports**: choose Suppliers, click **Fill in the template**, add a few rows (include one with a code that already exists and one with a name of 2 letters), **Stage for review**.<br>2. Review the rows: errors are shown per row. Try to commit as `u-buyer`.<br>3. Sign in as `u-buyer-2` (the second procurement officer) and open the batch; enter a wrong row count, then the right one, and commit.<br>4. Open **Procurement → Suppliers**. | - Staging creates nothing; invalid rows show their reasons.<br>- The stager cannot commit; a wrong confirmed row count is refused with a clear message.<br>- The valid rows are created as suppliers waiting for approval (still PENDING); the batch is Partial if some rows were invalid, Committed if all were valid.<br>- Committing again never duplicates records. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**IMP-02 · Stock items and customers** — Role: u-buyer, u-ar-clerk
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. Stage stock items with an unknown inventory account code and a method other than FIFO or WAC.<br>2. As `u-ar-clerk` stage customers (commit as `u-ar-clerk-2`); try the same as `u-buyer`. | - The unknown account and method are reported per row.<br>- Customers can be staged only by people who may manage customers; each person sees only the kinds they manage. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+*Reference run 2026-11-07: TestImports_StageReviewCommit (database forgeries refused), TestImports_StockItemsAndCustomers, TestSetup_ChecklistReadsRealState, TestAPI_ImportsAndSetup: PASS.*
+
 ---
 
 ## 4. BOQ and budget
@@ -349,6 +385,44 @@ invent figures in expected results; compute them from your recorded start values
 | 1. As `u-pm`, submit a revision, a transfer and a drawdown.<br>2. Still as `u-pm`, look for **Approve** on each. | - No Approve button is shown to the author; calling the API directly is refused (403/409).<br>- `u-commercial` sees all three under **My work → Budget ... to approve**. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 
 *Reference run 2026-11-07 (kernel and HTTP tests): TestBudget_ArithmeticAndControls, TestBudget_DatabaseRefusesBypass, TestBudget_ConcurrentTransfersCannotOverspend, TestAPI_BudgetRevisionOverHTTP all PASS.*
+
+**FC-01 · Monthly cost forecast: prepare, explain, approve** — Role: u-pm, u-cfo
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. Sign in as `u-pm` (with an approved budget on the project). **Projects & planning → Cost forecasts → New**: choose the project, keep today\'s date, **Create forecast**.<br>2. On the forecast page set a cost code to **Manual estimate** above its current budget and leave the note empty, then try **Submit**.<br>3. Enter a note of at least 10 characters for that code, then **Submit**.<br>4. Still as `u-pm`, look for **Approve**.<br>5. Sign in as `u-cfo` and **Approve**. | - Step 1: a table with one row per cost code that has money on it; Cost to date, Committed and Current budget are plain text, not editable.<br>- Step 2: refused with a message naming the cost code and asking for an explanation.<br>- Step 3: the forecast is SUBMITTED.<br>- Step 4: no Approve button; the API refuses the author.<br>- Step 5: status APPROVED; totals show Estimate at completion and Variance (budget - EAC, negative = overrun). The page is now read-only. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+*Reference run 2026-11-07 (kernel test): TestForecast_MethodsAndGuards PASS.*
+
+**CHG-01 · Change event: raise, decide, budget draft** — Role: u-pm, u-commercial, u-cfo
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. As `u-pm`, **Projects & planning → Change events → New**: source Client request, revenue impact `80000`, 5 days, two cost lines (`+50000`, `-10000`). Create and **Submit**.<br>2. Still as `u-pm`, look for **Approve**.<br>3. Sign in as `u-commercial` (fresh MFA) and **Approve**.<br>4. Open the page again. | - Step 2: no Approve button.<br>- Step 3: status APPROVED.<br>- Step 4: **Effect on the budget** shows cost impact 40,000, margin impact 40,000 and a link to a DRAFT budget revision; the budget overview has **not** changed until `u-pm` submits that revision and `u-cfo` approves it. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+*Reference run 2026-11-08 (kernel test): TestChange_EventToBudgetDraft PASS.*
+
+**CLM-01 · Notice, time bar and claim** — Role: u-qs, u-commercial
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. As `u-qs`, **Commercial & revenue → Contract notices → New**: clause `20.1`, event date 40 days ago, 28 days to notify. Open the list.<br>2. Prepare a **Claim** (Time and cost, 450,000 and 9 days) linked to that notice, leaving the reason empty; **Submit**.<br>3. Record the notice as sent today. Prepare the claim again with the reason "Engineer waived the time bar in writing" and **Submit**.<br>4. As `u-commercial` (fresh MFA) **Approve**. As `u-qs` record the client\'s answer: Agreed, 300,000 and 6 days. Try 450,001. | - Step 1: the notice shows Overdue (12 days past).<br>- Step 2: refused: the notice was late, state why the claim stands.<br>- Step 3: after the notice is sent it shows Sent late; the claim with a reason submits.<br>- Step 4: approved; the answer is recorded once; 450,001 is refused (cannot exceed the claim); **Reports → Claims register** shows the agreed amount. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+*Reference run 2026-11-08 (kernel test): TestClaims_NoticesAndClaims PASS.*
+
+**ACC-01 · People, roles and duty conflicts** — Role: u-security-admin, u-planner
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. Sign in as `u-security-admin`. Open **Governance → People & access**. Try the filters, the **Table** view, then the **Duty map** tab and highlight *Procurement officer*.<br>2. **People** tab: open the **Planner** card. Type the reason "Directory rollout for planning" and click **Manage access here**.<br>3. In **Choose a role to give…** pick *Project manager*, read the preview, click **Give role**.<br>4. Give *Auditor* instead; then **Remove** it (same reason box).<br>5. Open your own card (**Security admin**).<br>6. **New company role**: tick *Prepare purchase orders* and *Approve purchase orders*; then untick *Approve*, code `site_buyer`, name "Site buyer", a reason; **Create role**.<br>7. Open the Planner again, reason "Left the company", **Disable and sign out**. In another browser sign in as `u-planner`. Then **Enable** the planner again. | - Step 1: 28 people; each card shows avatar, role, stage colour, where its roles come from ("From sign-in" or "Managed here") and when last seen; the map places each person at Prepare, Approve, Release or Govern and dims everyone but the two procurement officers.<br>- Step 2: the planner now shows "Managed here" with the same role as before (nothing changes at the switch).<br>- Step 3: the preview says *Will be refused* (Schedules); the server refuses with the control named.<br>- Step 4: *Auditor* appears with who gave it, when and why; after removal it stays in **Role history** as removed.<br>- Step 5: "This is you": no buttons to change your own access.<br>- Step 6: the two ticked labels turn red with *Not allowed*; creating with both is refused; with one it is created and listed under **Company roles**.<br>- Step 7: the planner\'s sign-in is refused (*account is disabled in this company*); after **Enable** they can sign in again. **Access history** lists every change with reason. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**ACC-02 · My profile** — Role: u-pm, u-security-admin
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. Sign in as `u-pm`. Click your name (with the avatar) in the top band.<br>2. Read **Your roles**, **What you may do**, **Where you work** and **This sign-in**.<br>3. In **Your details** set the job title "Project manager, Mekelle" and **Save**.<br>4. Open **Governance** in the menu.<br>5. As `u-security-admin` open **People & access** and find the project manager. | - Step 1: **My profile** opens: avatar, name, stage chip *Approve*, *Multi-factor sign-in*.<br>- Step 2: one role (Project manager); permissions grouped by area in plain words; the assigned project(s); sign-in time.<br>- Step 3: saved; the job title shows under the name.<br>- Step 4: no **People & access** link (only user/role administrators and auditors see it).<br>- Step 5: the card shows the new job title. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+*Reference run 2026-11-08 (kernel and API tests): TestPeople_DirectoryRolesAndProfile, TestAPIPeopleDirectory PASS.*
 
 **DASH-01 · The dashboard agrees with the reports** — Role: u-cfo, u-pm
 
@@ -499,6 +573,34 @@ configuration used as test data; they are not a statement of any jurisdiction's 
 | Steps | Expected result | Result |
 |---|---|---|
 | 1. Approve (`u-finance-manager`) and post (`u-controller`) all five journals.<br>2. As `u-auditor` check the contract and **Receivables aging**. | - Contract value 23,060,000; measured = certified **8,640,000**; retention held **432,000**; advance received and recovered **1,000,000 / 1,000,000**. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**JB-06 · Guarantees and advance cover** — Role: u-treasury, u-commercial
+
+**Before you start:** an active contract (the demo has `CTR-2026-000001`, Mekelle ring road lot 2). Page: **Commercial & revenue → Guarantees & price adjustment**.
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-treasury`: **Register a guarantee**: Advance payment, 1,500,000, issued 20 Aug 2026, expiring in 25 days.<br>2. Register a Performance guarantee of 1,675,000 expiring 31 Dec 2027.<br>3. Try to register one with amount −5. | - Two cards; the advance one shows **Expires soon** and the tile "Expire within 30 days" is 1.<br>- "Held (ETB)" shows 3,175,000.<br>- The negative amount is refused with a message. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. Open the advance card; give a later expiry and a reason; **Record the change**.<br>5. Try a higher value. | - The card is back to **In force**; the change count goes up.<br>- A higher value is refused: a guarantee can only be reduced. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 6. `u-treasury` opens a card. <br>7. `u-commercial` opens the Performance card: **Release or record a call** → Released, letter reference, reason → **Record**. | - Treasury sees no release form (it registered the guarantee).<br>- Release succeeds only with a sign-in that used a second factor in the last 10 minutes; the card then shows **Released** and cannot be changed. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**JB-07 · Price indices, formula and price adjustment** — Role: u-qs, u-commercial
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-qs`, **Price indices** tab: **Add an index** CEM and FUEL.<br>2. **Propose a monthly value**: CEM Jul 2026 = 2410.5, Oct 2026 = 2652; FUEL Jul 2026 = 88.4, Oct 2026 = 97.6.<br>3. Try a month in the future. | - Each value waits for approval; the QS has no Approve button.<br>- A future month is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. `u-commercial`: approve the four values. Propose a second CEM Oct 2026 value as `u-qs`. | - Cards show the latest value, the change from the previous month and a small trend line.<br>- The second value for an approved month is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 5. `u-qs`, **Price adjustment** tab: fixed portion 0.30, base month Jul 2026, CEM 0.45, FUEL 0.20.<br>6. Change FUEL to 0.25, **Save formula**, then **Submit** on the formula page.<br>7. `u-commercial` approves it. | - With 0.20 the box reads "a + Σb = 0.950000 — must add up to exactly 1" (red) and saving is refused.<br>- With 0.25 it reads 1.000000 (green).<br>- Submitting is refused if a base-month value is not approved. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 8. `u-qs`: on the certified payment certificate choose Oct 2026 → **Compute** → **Prepare and submit for approval**.<br>9. `u-commercial` approves it from **Price adjustments to approve** on My work. | - Factor **1.071102** = 0.30 + 0.45 × 2652/2410.5 + 0.25 × 97.6/88.4.<br>- Adjustment = 1,830,000 × 0.071102 = **130,116.66 ETB**.<br>- A second adjustment for the same certificate is refused; the tile "Approved adjustment" shows 130,116.66. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**JB-08 · Time for completion, damages and obligations** — Role: u-qs, u-commercial
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-qs`: open an active contract; in *Time for completion and liquidated damages* enter a completion date in the past, 15,000 a day, a cap; **Save and submit for approval**.<br>2. Try a cap above the contract value. | - The terms wait for approval; a cap above the contract value is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. `u-commercial` approves them from *Damages terms to approve*. | - Tiles: days late today, damages to date = days late × 15,000 (never above the cap). | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. Record a claim's client answer as AGREED with 8 days (see the claims cases). | - *Extensions agreed* shows +8 d; the revised completion moves 8 days and the damages fall accordingly. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 5. **Contract obligations**: add one due in 5 days and one due 3 days ago; close the first as Done with a letter reference; try to waive the second without a reason. | - *Due within 7 days* and *Overdue* tiles count them; the waiver without a reason is refused; a closed obligation shows its note and cannot be reopened. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 
 ---
 
@@ -735,7 +837,7 @@ Project ids: `GET http://127.0.0.1:8080/staging/personas` (companies list) or `d
 ## Appendix D: Role and capability reference
 
 The authoritative definition of every role and permission is `pkg/auth/auth.go`
-(the `roles` map). The 26 personas map one-to-one to those roles (section 2.3).
+(the `roles` map). The 28 personas map one-to-one to those roles (section 2.3).
 Approve, post, pay and release actions are reserved to human principals by the
 database (`approval_is_draft_action`), so AI and service sign-ins can only draft
 (AUTH-06).

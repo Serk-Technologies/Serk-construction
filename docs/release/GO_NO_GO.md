@@ -41,3 +41,17 @@ This record is assembled by the engineering agent from evidence in the repositor
 | Operations / SRE | | | | |
 | Finance / accounting policy | | | | |
 | Product owner | | | | |
+
+## Update 2026-11-07: release 1 build status
+
+**Decision unchanged: NO-GO.** Nothing below is a human sign-off.
+
+| Item | State |
+|---|---|
+| Automated suite (kernel, API, database probes, five browser journeys) | PASS on every work package of this release; evidence in `docs/release/evidence/` |
+| Budget control, authority matrix, delegation, duty-conflict exceptions, dashboard, report catalogue, stock reservations and conversions, project master and stage gates, staged imports | Built and verified in a real browser; known limits in `RELEASE_NOTES_R1.md` |
+| Security finding closed in this release | Company logins could insert active projects directly; now attested, PLANNED and gated |
+| API contract | Every served route is in `api/openapi.yaml`; a test keeps it so |
+| Generated documents | Role matrix, KPI catalogue and report catalogue are generated from code and tested for drift |
+| Still BLOCKED (infrastructure or people) | Identity provider with step-up and revocation; staging with TLS and vault; HSM-held signing key; observability stack; external penetration test; load and soak test; supply-chain checks against the checksum database; finance, tax and legal sign-offs |
+| UAT | Plan written (`UAT_PLAN_R1.md`); not yet run by the area leads |

@@ -19,8 +19,9 @@ import (
 //
 //   - project documents (BOQ, requisition, RFQ, quote, PO, GRN, invoice):
 //     the principal's effective scope must include the document's project;
-//   - supplier, customer and stock item master (code, name): any p2p.read
-//     holder, because every project role must recognise them;
+//   - supplier, customer and stock item master (code, name) and published
+//     price index values: any p2p.read holder, because every project role
+//     must recognise them;
 //   - supplier bank accounts: tenant-wide scope, or supplier.manage (the
 //     procurement officers who enter them); always masked;
 //   - entity-level finance documents (payment instructions, P2P and contract
@@ -40,7 +41,7 @@ func (s *Service) canSee(p auth.Principal, docType, project string) bool {
 		return true
 	}
 	switch docType {
-	case "supplier", "customer", "stock_item", "uom_conversion":
+	case "supplier", "customer", "stock_item", "uom_conversion", "price_index_value":
 		return true
 	case "supplier_bank_account":
 		return s.authz.Has(p, auth.PermSupplierManage)

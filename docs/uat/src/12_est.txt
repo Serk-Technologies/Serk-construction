@@ -1,0 +1,86 @@
+# 7. Business development, estimating and tendering (SRS 6.3)
+@release R2
+
+## Industry context
+Contractors win work by **tendering**: the client issues drawings and a bill of quantities (BOQ); the contractor prices every line, adds overheads, risk and margin, and submits a sealed bid. Price too high and the bid is lost; price too low and the contractor wins a loss-making job. Good estimating therefore needs (1) a maintained **cost database** of material, labour and plant rates, (2) **unit-rate build-ups** that show how each rate was made, and (3) a way to reuse the winning estimate as the project's **baseline budget** so nobody has to type the numbers again.
+
+Two controls matter here: a **submitted BOQ is frozen** (you cannot quietly change the numbers you bid), and an **approved BOQ becomes the budget through a controlled transition**, never by editing in place (EST-02, EST-07).
+
+@term Unit rate = The price for one unit of an item of work, built up from labour, plant, material and subcontract costs plus overhead, risk and margin.
+@term Take-off = Measuring quantities from drawings or a model to fill the BOQ.
+@term Bid bond = A guarantee issued with a bid so the client is protected if the winner refuses to sign.
+@term Addendum = A formal change issued by the client during the tender period.
+@term Go/no-go = The decision whether a tender is worth bidding for.
+
+@case T-EST-01 | Opportunity and bid pipeline with go/no-go scoring | R2 | EST-01 | EST, EXE
+1. As est.a create an opportunity "Hawassa Hotel": client, source, value 80,000,000, probability 35%, bid due date.
+2. Score the go/no-go criteria (fit, client, competition, capacity, margin).
+3. Open the pipeline view and the bid calendar.
+=> Expected value is computed as 80,000,000 x 35% = 28,000,000 and shown beside the value.
+=> The go/no-go total is stored with the individual scores and who scored them.
+=> The bid calendar shows the due date; the pipeline totals match the sum of its rows.
+
+@case T-EST-02 | A submitted BOQ is frozen; changing it needs a new version; approval is by another person | R1 | EST-02 | EST, QS
+pre: BOQ version 1 for P-101 with at least 5 items (item, unit, quantity, rate, cost code).
+1. As est.a map every BOQ item to an approved cost code, then submit version 1.
+2. Try to change a quantity in the submitted version.
+3. Create version 2 as a copy; change one rate; compare the two versions.
+4. As est.a try to approve version 2; then as qs.a approve it.
+=> Step 2 is refused; the message explains that submitted versions are immutable and that a new version is required.
+=> The version comparison lists exactly the changed items, with old and new amounts and the difference.
+=> Self-approval is refused; qs.a succeeds. All versions remain readable.
+why: If a bid can be changed after submission, either the company cannot prove what it offered, or someone can alter it unseen.
+
+@case T-EST-03 | Resource-based estimate: a unit rate built from labour, plant, material, productivity, overhead, risk and margin | R2 | EST-03 | EST
+pre: Cost database rates: cement ETB 900 per bag, sand ETB 1,800 per m3, gravel ETB 2,200 per m3, labour ETB 56.25 per hour (day rate 450 / 8 hours), mixer and vibrator ETB 800 per hour. Policy: productivity factor 1.10 on labour only; overhead 8% and risk 2% on direct cost; margin 15% on the subtotal; the rate is rounded to 2 decimals before multiplying by quantity.
+1. As est.a build the rate for 1 m3 of C-25 concrete: cement 7 bags, sand 0.45 m3, gravel 0.85 m3, water and admixture lump sum 150, labour 6 hours, plant 0.5 hour.
+2. Apply the policy and read the resulting rate.
+3. Price a BOQ line of 1,000 m3 with this rate.
+=> Materials 9,130.00; labour 337.50, with productivity 371.25; plant 400.00; direct cost 9,901.25.
+=> Overhead 792.10; risk 198.03 (198.025 shown to the rounding rule); subtotal 10,891.38; margin applied; **unit rate 12,525.08**.
+=> The 1,000 m3 line amount is **12,525,080.00** (rate rounded first, then multiplied) and the rounding rule is visible.
+=> Change the cement price in the database: a newly priced estimate changes, the already-approved version does not.
+note: Tolerance of 0.01 is allowed on the intermediate lines; the final rate and line amount must match exactly. The tenant rounding policy is documented in the data sheet.
+why: Tender rates must be explainable. When the client asks why a concrete rate is high, the estimator opens the build-up.
+
+@case T-EST-04 | Compare estimate versions and markup scenarios; price in source currency with approved FX | R2 | EST-04 | EST
+pre: FX rate 1 USD = ETB 120.00 approved for the UAT date.
+1. Create an estimate with an imported steel item priced at USD 700 per tonne.
+2. Compare two markup scenarios (margin 12% and 18%).
+3. Change the approved FX rate to 130 and refresh.
+=> The imported item is shown in USD and in ETB at 120.00 (84,000 per tonne).
+=> The comparison shows total price, margin and difference per scenario.
+=> After the rate change the ETB value updates only because the FX rate was changed through the approved FX policy; the previous version keeps its rate.
+
+@case T-EST-05 | Quantity take-off from drawings or an IFC model, linked to BOQ items | R3 | EST-05 | EST, QS
+1. Open a 2D drawing. Measure a slab area with the take-off tool; assign the quantity to BOQ item "Slab concrete".
+2. Load an IFC model (sample provided) and select the model elements for the same item.
+3. Open the BOQ item.
+=> Each quantity keeps a link to its drawing or model element, revision, measurer and date.
+=> Opening the BOQ item shows its linked take-off lines; if the drawing revision is superseded the link shows a warning.
+note: Demo verification in the SRS: run with the vendor and record the demonstration, not performance numbers.
+
+@case T-EST-06 | Tender package: documents, clarifications, addenda, bid bond, submission checklist | R2 | EST-06 | EST, QS
+1. Create tender package "Hawassa Hotel": attach documents, log two clarifications and one addendum.
+2. Record a bid bond of 800,000 with issuer and expiry date.
+3. Complete the submission checklist; try to mark the package submitted with an item unchecked.
+=> The addendum is shown against the documents it changes and each clarification has a status.
+=> The bid bond appears in the guarantee register (see CON-07) with its expiry alert.
+=> Submission is refused until every mandatory checklist item is ticked, naming the missing items.
+
+@case T-EST-07 | An approved BOQ becomes the baseline budget; it is never edited in place | R1 | EST-07, PCC-01 | QS, PM
+pre: BOQ version 2 for P-101 is approved (T-EST-02).
+1. As pm.a request "Create baseline budget from approved BOQ".
+2. Open the budget: original budget lines per cost code and their BOQ item links.
+3. Try to edit the original budget amount of a cost code.
+4. Try to edit the approved BOQ.
+=> The budget is created by a recorded transition, line by line traceable to BOQ items (a budget line shows its BOQ source).
+=> Totals reconcile: sum of cost codes = 100,000,000 for P-101.
+=> Steps 3 and 4 are refused. Changes can only be made through a budget revision or a new BOQ version (see T-PCC-01).
+why: The original budget is the yardstick for the whole project. If it can be quietly adjusted, no overrun is ever visible.
+
+@case T-EST-08 | Benchmark unit rates and productivity against completed projects | R4 | EST-08 | EST
+1. Open the rate benchmark for concrete C-25.
+=> Rates and productivity from completed projects are shown with the number of samples and the date range.
+note: "May" priority; mark Blocked if not delivered.
+

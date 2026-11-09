@@ -186,8 +186,8 @@ func TestAPI_ReportCatalogue(t *testing.T) {
 		t.Fatalf("unauthenticated catalogue: %d", st)
 	}
 	all := a.call(200, "GET", "/v1/reports/catalogue", cfo, nil)
-	if l, _ := all["reports"].([]any); len(l) != 15 {
-		t.Fatalf("CFO catalogue has %d reports, want 15", len(l))
+	if l, _ := all["reports"].([]any); len(l) != 19 {
+		t.Fatalf("CFO catalogue has %d reports, want 19", len(l))
 	}
 	mine := a.call(200, "GET", "/v1/reports/catalogue", pm, nil)
 	for _, x := range mine["reports"].([]any) {
@@ -244,5 +244,106 @@ func TestAPI_StockPlus(t *testing.T) {
 	l := a.call(200, "GET", "/v1/stock/reservations", site, nil)
 	if _, ok := l["reservations"]; !ok {
 		t.Fatalf("reservation list: %v", l)
+	}
+}
+
+// The project master over HTTP: a project is created PLANNED, moves through a
+// stage gate prepared and decided by different people, and regions work.
+func TestAPI_ProjectMasterAndGates(t *testing.T) {
+	a := newP2PAPI(t)
+	cm := a.tok("u-cm-p", nil, true, "commercial_manager")
+	cfo := a.tok("u-cfo-p", nil, true, "cfo")
+	ctl := a.tok("u-ctl-p", nil, false, "controller")
+	est := a.tok("u-est-p", []string{a.project}, false, "estimator")
+
+	if st, _ := a.do("GET", "/v1/projects", "", nil); st != 401 {
+		t.Fatalf("unauthenticated project list: %d", st)
+	}
+	if st, _ := a.do("POST", "/v1/projects", est, map[string]any{"legal_entity_id": a.entity, "code": "P-X", "name": "Not allowed"}); st != 403 {
+		t.Fatalf("an estimator created a project: %d", st)
+	}
+	reg := a.id("POST", "/v1/org/regions", ctl, map[string]any{"Code": "EAST", "Name": "Eastern region"})
+	id := a.id("POST", "/v1/projects", cm, map[string]any{"legal_entity_id": a.entity, "code": "P-HTTP", "name": "Dire Dawa Water Supply", "region_id": reg, "contract_type": "LUMP_SUM"})
+	l := a.call(200, "GET", "/v1/projects", cfo, nil)
+	var found map[string]any
+	for _, x := range l["projects"].([]any) {
+		if m := x.(map[string]any); m["id"] == id {
+			found = m
+		}
+	}
+	if found == nil || found["phase"] != "BID" || found["status"] != "PLANNED" || found["region"] != "Eastern region" {
+		t.Fatalf("created project: %v", found)
+	}
+	pm := a.tok("u-pm-p", []string{id}, false, "project_manager")
+	if st, _ := a.do("POST", "/v1/projects/"+id+"/gates", pm, map[string]any{"to_phase": "EXECUTION", "notes": "Skipping mobilisation entirely"}); st < 400 {
+		t.Fatalf("a gate skipped a phase over HTTP (%d)", st)
+	}
+	g := a.id("POST", "/v1/projects/"+id+"/gates", pm, map[string]any{"to_phase": "MOBILISATION", "notes": "Contract signed and bond lodged"})
+	a.call(200, "POST", "/v1/project-gates/"+g+"/submit", pm, map[string]any{})
+	if st, _ := a.do("POST", "/v1/project-gates/"+g+"/approve", pm, map[string]any{}); st < 400 {
+		t.Fatalf("the author approved their own gate (%d)", st)
+	}
+	a.call(200, "POST", "/v1/project-gates/"+g+"/approve", cfo, map[string]any{})
+	l = a.call(200, "GET", "/v1/projects", cfo, nil)
+	for _, x := range l["projects"].([]any) {
+		if m := x.(map[string]any); m["id"] == id && (m["phase"] != "MOBILISATION" || m["status"] != "ACTIVE") {
+			t.Fatalf("after approval: %v", m)
+		}
+	}
+	a.call(200, "PUT", "/v1/projects/"+id, pm, map[string]any{"name": "Dire Dawa Water Supply Phase 1", "project_manager": "u-pm-p", "start_date": "2027-03-01", "planned_finish": "2028-03-01"})
+	if st, _ := a.do("PUT", "/v1/projects/"+id, pm, map[string]any{"name": "Bad dates", "start_date": "2027-03-01", "planned_finish": "2026-03-01"}); st < 400 {
+		t.Fatalf("finish before start over HTTP (%d)", st)
+	}
+	d := a.call(200, "GET", "/v1/dashboard?preset=project&region_id="+reg, cfo, nil)
+	if d["projects_in_scope"] == nil {
+		t.Fatalf("dashboard by region: %v", d)
+	}
+}
+
+// Staged imports and the setup checklist over HTTP.
+func TestAPI_ImportsAndSetup(t *testing.T) {
+	a := newP2PAPI(t)
+	P := []string{a.project}
+	b1 := a.tok("u-buyer-i1", P, false, "procurement_officer")
+	b2 := a.tok("u-buyer-i2", P, false, "procurement_officer")
+	est := a.tok("u-est-i", P, false, "estimator")
+	pm := a.tok("u-pm-i", P, false, "project_manager")
+
+	if st, _ := a.do("GET", "/v1/setup", "", nil); st != 401 {
+		t.Fatalf("unauthenticated setup: %d", st)
+	}
+	s := a.call(200, "GET", "/v1/setup", pm, nil)
+	if steps, _ := s["steps"].([]any); len(steps) < 10 {
+		t.Fatalf("setup steps: %v", s)
+	}
+	tpl := a.call(200, "GET", "/v1/imports/templates/supplier", b1, nil)
+	if tpl["csv"] == nil || !strings.HasPrefix(tpl["csv"].(string), "code,name,tax_id") {
+		t.Fatalf("template: %v", tpl)
+	}
+	if st, _ := a.do("GET", "/v1/imports/templates/galaxy", b1, nil); st != 404 {
+		t.Fatalf("unknown template: %d", st)
+	}
+	body := map[string]any{"kind": "supplier", "legal_entity_id": a.entity, "filename": "s.csv", "content": "code,name,tax_id\nHTTP-ONE,Http One PLC,\nHTTP-TWO,Http Two PLC,\n"}
+	if st, _ := a.do("POST", "/v1/imports", est, body); st != 403 {
+		t.Fatalf("an estimator staged an import over HTTP: %d", st)
+	}
+	id := a.id("POST", "/v1/imports", b1, body)
+	got := a.call(200, "GET", "/v1/imports/"+id, b1, nil)
+	if got["status"] != "STAGED" || got["valid_count"] != float64(2) {
+		t.Fatalf("staged batch: %v", got)
+	}
+	if st, _ := a.do("POST", "/v1/imports/"+id+"/commit", b1, map[string]any{"expected_rows": 2}); st < 400 {
+		t.Fatalf("the stager committed over HTTP (%d)", st)
+	}
+	if st, _ := a.do("POST", "/v1/imports/"+id+"/commit", b2, map[string]any{"expected_rows": 7}); st < 400 {
+		t.Fatalf("a wrong row count was accepted over HTTP (%d)", st)
+	}
+	done := a.call(200, "POST", "/v1/imports/"+id+"/commit", b2, map[string]any{"expected_rows": 2})
+	if done["status"] != "COMMITTED" {
+		t.Fatalf("committed batch: %v", done)
+	}
+	l := a.call(200, "GET", "/v1/imports", b2, nil)
+	if x, _ := l["imports"].([]any); len(x) != 1 {
+		t.Fatalf("import list: %v", l)
 	}
 }

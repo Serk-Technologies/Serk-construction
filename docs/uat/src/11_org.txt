@@ -1,0 +1,87 @@
+# 6. Organisation and master data (SRS 6.2)
+@release R1
+
+## Industry context
+**Master data** is the list of "things" every transaction refers to: companies, projects, suppliers, customers, cost codes, materials. In a contractor the quality of master data decides the quality of every report: a project with the wrong client, a supplier with two records, or a cost code that is not in the approved structure produces numbers nobody can trust. Master data is also where fraud starts (a fake supplier, a changed bank account), so it is controlled at least as tightly as a payment.
+
+@term Legal entity = A separately registered company within the group, with its own currency, tax registration and books.
+@term Master data = Reference records (projects, suppliers, customers, cost codes, resources) that transactions point to.
+@term TIN = Tax identification number of a business partner.
+@term Pre-qualification = Checking that a supplier or subcontractor is licensed, insured and tax-compliant before use.
+
+@case T-ORG-01 | The group is modelled with entities, regions, business units and projects | R1 | ORG-01 | FIN, ADM
+1. Open the organisation structure. Confirm E1 Abay Builders PLC and E2 Abay Plant and Logistics PLC exist.
+2. Open each entity's settings. Compare functional currency, tax registration, chart-of-accounts mapping and fiscal calendar.
+3. Create a region "Addis Ababa" and a business unit "Residential"; assign project P-101 to both.
+4. Change E2's fiscal calendar start and confirm E1 is unaffected.
+=> Each entity holds its own currency, tax registration, chart mapping and fiscal calendar, editable independently.
+=> The project belongs to exactly one legal entity and may be tagged with region and business unit.
+=> Changes to master data are audited with before and after values.
+why: A group often has a plant-hire company, a property company and joint ventures with different tax numbers; mixing their books breaks statutory reporting.
+
+@case T-ORG-02 | The project master carries everything a project needs, with stage-gate history | R1 | ORG-02 | PM, QS
+1. Open project P-101. Check code, name, client, contract type, location with GPS coordinates, key dates, project manager, phase and status.
+2. Move the phase from "Tender" to "Mobilisation" through the stage gate. Enter a reason.
+3. Open the stage-gate history.
+=> All listed fields exist and are validated (for example GPS coordinates must be valid latitude/longitude).
+=> The phase change is recorded with user, date and reason; earlier phases are still visible and cannot be edited.
+
+@case T-ORG-03 | New suppliers need approval; bank accounts are dual-approved, masked and reveal is audited | R1 | ORG-03, IAM-08, AUD-01 | PROC, AP, TRS, AUD
+1. As proc.a create supplier S-05 "Blue Nile Paints PLC" with a bank account. Submit.
+2. As proc.a try to approve it. Then as proc.b approve.
+3. Open the supplier as ap.a. Look at the bank account number.
+4. As a user holding the reveal permission (trs.a) press Reveal; give a reason.
+5. As proc.b block the supplier, then try to raise a purchase order to it.
+=> Self-approval is refused (step 2). The bank account needs its own approval by a second user with fresh MFA before it can be used for payment.
+=> Step 3 shows the account masked (for example last four digits only). Step 4 reveals it and writes an audit record with who, when and the reason.
+=> A blocked supplier cannot receive purchase orders; the screen says the supplier is blocked and by whom.
+why: Substituting a bank account just before a payment run is the most common supplier fraud.
+
+@case T-ORG-04 | The customer master holds TIN, credit limit and terms, and is approved | R1 | ORG-04 | AP, FIN
+1. As ap.a create customer "Zenith Properties PLC" with TIN, credit limit 150,000,000 and payment terms 30 days. Submit.
+2. Try to approve as ap.a, then as ap.b.
+3. Create a second customer with the same TIN.
+=> Self-approval refused; second user approves.
+=> All fields are mandatory where the SRS lists them (TIN, limit, terms); the screen explains missing fields.
+=> Step 3: see T-ORG-08 for the duplicate warning.
+
+@case T-ORG-05 | Supplier and subcontractor pre-qualification with expiry alerts | R1 | ORG-05, SUB-04 | PROC, QA
+pre: Supplier S-05 has an insurance certificate expiring in 25 days and a tax-clearance certificate that has already expired.
+1. Open S-05 pre-qualification: trade licence, contractor grade, tax clearance, VAT registration, insurance with expiry dates.
+2. Wait for or trigger the expiry alert job.
+3. Record a performance rating after a delivery (price, time, quality).
+=> Expired documents are clearly marked. An alert (notification) is raised before expiry at the configured lead time (record it).
+=> The performance rating is stored with its inputs and visible when choosing suppliers.
+
+@case T-ORG-06 | Cost codes and the WBS are versioned and approved; documents use only approved versions | R1 | ORG-06, EST-07 | PM, FIN, PROC
+1. As pm.a draft a new WBS version for P-101 adding code 04-200 "External plaster".
+2. Before approval, try to raise a requisition on 04-200.
+3. As pm.a try to approve the version; then as qs.a approve it.
+4. Raise the requisition on 04-200 again.
+=> Step 2 is refused: only approved versions can be referenced.
+=> Step 3: self-approval refused; second approver succeeds. The old version remains visible in history.
+=> Step 4 succeeds.
+why: If anyone can invent a cost code, costs get hidden in codes nobody monitors.
+
+@case T-ORG-07 | The resource library knows units and conversions | R1 | ORG-07, INV-04 | PROC, STORE, EST
+1. Open the resource library. Check labour trades, plant types, materials and subcontract packages.
+2. Open "Cement OPC": purchase unit bag, base unit kg, 1 bag = 50 kg; 20 bags = 1 tonne.
+3. Try to save a resource with a unit that has no conversion to the base unit while another document needs it.
+=> The conversion factors are stored with the resource and used everywhere (see inventory chapter).
+=> Step 3 is refused with an explanation of which conversion is missing.
+
+@case T-ORG-08 | Probable duplicate partners are flagged for review | R1 | ORG-08 | PROC, AP
+1. Create supplier "Nile Cement Distribution Plc" (note: similar name) with the same TIN as S-01.
+2. Create a supplier with a new name but S-01's bank account number.
+=> Both are saved as drafts but flagged as probable duplicates with the matching reason (TIN, bank account or similar name) and routed to a reviewer.
+=> The flagged supplier cannot be used for orders until the reviewer clears or merges it.
+
+@case T-ORG-09 | Working calendars include Ethiopian holidays, shifts and non-working days | R1 | ORG-09 | PM, HR
+1. Open the working calendar for E1 and for P-101.
+2. Check Ethiopian public holidays for the year (for example Meskel, Enkutatash, Timkat) appear as non-working.
+3. Define a shift (06:00-14:00) and a site non-working day (rain day).
+4. Schedule an activity of 5 working days starting on the Thursday before a holiday weekend.
+=> Holidays and non-working days are excluded from durations; the activity finish date moves accordingly.
+=> Project calendar overrides the entity calendar; changes are audited.
+note: The list of public holidays must be confirmed by the client (it changes yearly, including movable religious holidays).
+
