@@ -1746,3 +1746,882 @@ paths:
       x-generated: true  # stub: replace with a hand-written description
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/projects/{id}/s-curve:
+    get:
+      summary: "Read s curve (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/projects/{id}/revenue-preview:
+    get:
+      summary: "Read revenue preview (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/projects/{id}/revenue-runs:
+    get:
+      summary: "Read revenue runs (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    post:
+      summary: "Create revenue runs (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/revenue/policies:
+    get:
+      summary: "Read policies (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    post:
+      summary: "Create policies (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/revenue-runs/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: revenue runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/revenue/policies/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): policies"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/revenue/policies/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): policies"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/revenue/projects:
+    get:
+      summary: "Read projects (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/change-events/{id}/variations:
+    post:
+      summary: "Create variations (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontracts/{id}:
+    get:
+      summary: "Read subcontracts (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-applications/{id}/certify:
+    post:
+      summary: "Certify (a human decision): subcontract applications"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-applications/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): subcontract applications"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-applications/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): subcontract applications"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-backcharges/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): subcontract backcharges"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-backcharges/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): subcontract backcharges"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-backcharges/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): subcontract backcharges"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-policies:
+    post:
+      summary: "Create subcontract policies (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-policies/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): subcontract policies"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-policies/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): subcontract policies"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontracts:
+    post:
+      summary: "Create subcontracts (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontracts/{id}/applications:
+    post:
+      summary: "Create applications (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontracts/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): subcontracts"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontracts/{id}/backcharges:
+    post:
+      summary: "Create backcharges (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontracts/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): subcontracts"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontracts/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): subcontracts"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/suppliers/{id}/subcontractor-documents:
+    get:
+      summary: "Read subcontractor documents (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-payments:
+    post:
+      summary: "Create subcontract payments (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-payments/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): subcontract payments"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-payments/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: subcontract payments"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-payments/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): subcontract payments"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-payments/{id}/release:
+    post:
+      summary: "Release (a human decision by a different person): subcontract payments"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontract-payments/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): subcontract payments"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/subcontractor-documents:
+    post:
+      summary: "Create subcontractor documents (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/assets:
+    get:
+      summary: "Read assets (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    post:
+      summary: "Create assets (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/depreciation/preview:
+    get:
+      summary: "Read preview (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/asset-classes:
+    post:
+      summary: "Create asset classes (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/asset-disposals:
+    post:
+      summary: "Create asset disposals (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/asset-disposals/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): asset disposals"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/asset-disposals/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): asset disposals"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/asset-disposals/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): asset disposals"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/assets/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): assets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/assets/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): assets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/assets/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): assets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/depreciation-runs:
+    post:
+      summary: "Create depreciation runs (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/depreciation-runs/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: depreciation runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/fiscal-periods:
+    get:
+      summary: "Read fiscal periods (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/overhead/preview:
+    get:
+      summary: "Read preview (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/period-end:
+    get:
+      summary: "Read period end (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/accruals:
+    post:
+      summary: "Create accruals (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/accruals/reverse-due:
+    post:
+      summary: "Create reverse due (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/fiscal-years:
+    post:
+      summary: "Create fiscal years (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/overhead-allocations:
+    post:
+      summary: "Create overhead allocations (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/recurring-journals:
+    post:
+      summary: "Create recurring journals (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/recurring-journals/run:
+    post:
+      summary: "Create run (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/roles/{code}/adjustment:
+    put:
+      summary: "Change adjustment (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: code, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/cash-forecast:
+    get:
+      summary: "Read cash forecast (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/cash-plan:
+    post:
+      summary: "Create cash plan (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/cash-plan/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: cash plan"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/bank-file:
+    get:
+      summary: "Read bank file (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/payroll:
+    get:
+      summary: "Read payroll (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/employees:
+    post:
+      summary: "Create employees (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/employees/{id}/leave:
+    post:
+      summary: "Create leave (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs:
+    post:
+      summary: "Create pay runs (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): pay runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/calculate:
+    post:
+      summary: "Create calculate (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: pay runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/inputs:
+    post:
+      summary: "Create inputs (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): pay runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/release:
+    post:
+      summary: "Release (a human decision by a different person): pay runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): pay runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/payroll-policies:
+    post:
+      summary: "Create payroll policies (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/payroll-policies/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): payroll policies"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/payroll-policies/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): payroll policies"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/payroll-rule-sets:
+    post:
+      summary: "Create payroll rule sets (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/payroll-rule-sets/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): payroll rule sets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/payroll-rule-sets/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): payroll rule sets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/payroll-rule-sets/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): payroll rule sets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation:
+    get:
+      summary: "Read consolidation (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation-runs/{id}:
+    get:
+      summary: "Read consolidation runs (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation-groups:
+    post:
+      summary: "Create consolidation groups (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation-groups/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): consolidation groups"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation-groups/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): consolidation groups"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation-runs:
+    post:
+      summary: "Create consolidation runs (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation-runs/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): consolidation runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation-runs/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: consolidation runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/consolidation-runs/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): consolidation runs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/intercompany-accounts:
+    post:
+      summary: "Create intercompany accounts (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/tax:
+    get:
+      summary: "Read tax (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/customer-invoices/{id}/e-invoice:
+    post:
+      summary: "Create e invoice (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/tax-accounts:
+    post:
+      summary: "Create tax accounts (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/tax-returns:
+    post:
+      summary: "Create tax returns (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/tax-returns/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): tax returns"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/tax-returns/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: tax returns"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/tax-returns/{id}/file:
+    post:
+      summary: "Create file (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/tax-returns/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): tax returns"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment:
+    get:
+      summary: "Read equipment (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    post:
+      summary: "Create equipment (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/hse:
+    get:
+      summary: "Read hse (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/roster:
+    get:
+      summary: "Read roster (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/timesheets/{id}:
+    get:
+      summary: "Read timesheets (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/capas/{id}/done:
+    post:
+      summary: "Create done (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/capas/{id}/verify:
+    post:
+      summary: "Verify (a human decision): capas"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-hire-runs:
+    post:
+      summary: "Create equipment hire runs (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-usage:
+    post:
+      summary: "Create equipment usage (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-usage/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): equipment usage"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-usage/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: equipment usage"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-usage/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): equipment usage"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-usage/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): equipment usage"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-work-orders:
+    post:
+      summary: "Create equipment work orders (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-work-orders/{id}/complete:
+    post:
+      summary: "Create complete (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment/{id}/status:
+    post:
+      summary: "Create status (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/hse/induction-gate:
+    post:
+      summary: "Create induction gate (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/incidents:
+    post:
+      summary: "Create incidents (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/incidents/{id}/actions:
+    post:
+      summary: "Create actions (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/incidents/{id}/close:
+    post:
+      summary: "Close (a human decision): incidents"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/incidents/{id}/investigate:
+    post:
+      summary: "Create investigate (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/inductions:
+    post:
+      summary: "Create inductions (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/pay-runs/{id}/import-timesheets:
+    post:
+      summary: "Create import timesheets (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/permits:
+    post:
+      summary: "Create permits (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/permits/{id}/accept:
+    post:
+      summary: "Create accept (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/permits/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: permits"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/permits/{id}/close:
+    post:
+      summary: "Close (a human decision): permits"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/permits/{id}/issue:
+    post:
+      summary: "Issue: permits"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/safety-inspections:
+    post:
+      summary: "Create safety inspections (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/timesheets:
+    post:
+      summary: "Create timesheets (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/timesheets/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): timesheets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/timesheets/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: timesheets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/timesheets/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): timesheets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/timesheets/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): timesheets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/toolbox-talks:
+    post:
+      summary: "Create toolbox talks (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/quality:
+    get:
+      summary: "Read quality (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/site-records:
+    get:
+      summary: "Read site records (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/inspection-requests:
+    post:
+      summary: "Create inspection requests (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/inspection-requests/{id}/fail:
+    post:
+      summary: "Create fail (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/inspection-requests/{id}/pass:
+    post:
+      summary: "Create pass (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/itps:
+    post:
+      summary: "Create itps (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/itps/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): itps"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/itps/{id}/cancel:
+    post:
+      summary: "Cancel with a reason: itps"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/itps/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): itps"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/itps/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): itps"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/material-tests:
+    post:
+      summary: "Create material tests (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/meeting-actions/{id}/done:
+    post:
+      summary: "Create done (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/meetings:
+    post:
+      summary: "Create meetings (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/meetings/{id}/issue:
+    post:
+      summary: "Issue: meetings"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/ncrs:
+    post:
+      summary: "Create ncrs (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/ncrs/{id}/action:
+    post:
+      summary: "Create action (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/ncrs/{id}/close:
+    post:
+      summary: "Close (a human decision): ncrs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/punch-items:
+    post:
+      summary: "Create punch items (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/punch-items/{id}/close:
+    post:
+      summary: "Close (a human decision): punch items"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/punch-items/{id}/fix:
+    post:
+      summary: "Create fix (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/punch-items/{id}/reopen:
+    post:
+      summary: "Reopen (a human decision with fresh MFA): punch items"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/site-instructions:
+    post:
+      summary: "Create site instructions (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/site-instructions/{id}/acknowledge:
+    post:
+      summary: "Create acknowledge (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/site-instructions/{id}/close:
+    post:
+      summary: "Close (a human decision): site instructions"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }

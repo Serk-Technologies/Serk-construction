@@ -163,6 +163,30 @@ const DOCS = {
   contract_claim: { title: 'Claims', one: 'Claim', base: '/v1/claims', create: 'claim.manage', form: 'claim',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
+  subcontract: { title: 'Subcontracts', one: 'Subcontract', base: '/v1/subcontracts', create: 'subcontract.manage', form: 'subcontract',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CLOSED'],
+    actions: { DRAFT: [['submit', 'subcontract.manage']], SUBMITTED: [['approve', 'subcontract.approve', 'opt'], ['reject', 'subcontract.approve', 'req']] } },
+  subcontract_application: { title: 'Subcontract applications', one: 'Subcontract application', base: '/v1/subcontract-applications', create: null, form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'CERTIFIED', 'REJECTED'], actions: { DRAFT: [['submit', 'subcontract.apply']], SUBMITTED: [['reject', 'subcontract.certify', 'req']] } },
+  subcontract_backcharge: { title: 'Back-charges', one: 'Back-charge', base: '/v1/subcontract-backcharges', create: null, form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'subcontract.manage']], SUBMITTED: [['approve', 'subcontract.approve', 'opt'], ['reject', 'subcontract.approve', 'req']] } },
+  subcontract_payment: { title: 'Subcontract payments', one: 'Subcontract payment', base: '/v1/subcontract-payments', create: null, form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'RELEASED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'payment.prepare'], ['cancel', 'payment.prepare', 'req']], SUBMITTED: [['approve', 'payment.approve', 'opt'], ['reject', 'payment.approve', 'req']],
+      APPROVED: [['release', 'payment.release'], ['cancel', 'payment.approve', 'req']] } },
+  timesheet: { title: 'Timesheets', one: 'Timesheet', base: '/v1/timesheets', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'timesheet.record'], ['cancel', 'timesheet.record']], SUBMITTED: [['approve', 'timesheet.approve'], ['reject', 'timesheet.approve', 'req']] } },
+  equipment_usage: { title: 'Equipment usage', one: 'Usage record', base: '/v1/equipment-usage', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'equipment.record'], ['cancel', 'equipment.record']], SUBMITTED: [['approve', 'equipment.approve'], ['reject', 'equipment.approve', 'req']] } },
+  itp: { title: 'Inspection plans', one: 'Inspection plan', base: '/v1/itps', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'quality.manage'], ['cancel', 'quality.manage']], SUBMITTED: [['approve', 'quality.approve'], ['reject', 'quality.approve', 'req']] } },
+  fixed_asset: { title: 'Fixed assets', one: 'Fixed asset', base: '/v1/assets', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'ACTIVE', 'REJECTED', 'DISPOSED'],
+    actions: { DRAFT: [['submit', 'asset.manage']], SUBMITTED: [['approve', 'asset.approve', 'opt'], ['reject', 'asset.approve', 'req']] } },
+  asset_disposal: { title: 'Asset disposals', one: 'Asset disposal', base: '/v1/asset-disposals', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'asset.manage']], SUBMITTED: [['approve', 'asset.approve', 'opt'], ['reject', 'asset.approve', 'req']] } },
+  subcontract_policy: { title: 'Subcontract policies', one: 'Subcontract policy', base: '/v1/subcontract-policies', create: null, form: null,
+    statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'RETIRED'], actions: { DRAFT: [['approve', 'contract.policy.approve', 'opt'], ['reject', 'contract.policy.approve', 'req']] } },
   ld_terms: { title: 'Damages terms', one: 'Damages terms', base: '/v1/ld-terms', create: 'claim.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
   guarantee: { title: 'Guarantees', one: 'Guarantee', base: '/v1/guarantees', create: 'bond.manage', form: null, statuses: ['ACTIVE', 'RELEASED', 'CALLED'], actions: {} },
@@ -312,11 +336,14 @@ const NAV = [
     ['#/list/customer_invoice', 'Customer invoices', 'p2p.read'], ['#/list/customer_credit_note', 'Credit notes', 'p2p.read'],
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
+  ['Site workforce & safety', [['#/timesheets', 'Timesheets', 'timesheet.record|timesheet.approve'], ['#/equipment', 'Equipment and fleet', 'equipment.manage|equipment.record|equipment.approve|equipment.charge'], ['#/hse', 'Health and safety', 'hse.report|hse.manage'], ['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct']]],
+  ['Subcontracts', [['#/list/subcontract', 'Subcontracts', 'p2p.read'], ['#/list/subcontract_application', 'Applications and certificates', 'p2p.read'], ['#/list/subcontract_backcharge', 'Back-charges', 'p2p.read'], ['#/list/subcontract_payment', 'Subcontract payments', 'p2p.read|payment.prepare|payment.approve|payment.release'], ['#/subpolicy', 'Subcontract accounts', 'contract.policy.manage|contract.policy.approve']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
-  ['Treasury & banking', [['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
+  ['Treasury & banking', [['#/cash', 'Cash forecast', 'payment.prepare|intelligence.read'], ['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
     ['#/list/supplier_bank_account', 'Supplier banks', 'p2p.read']]],
-  ['Accounting', [['#/journals', 'Journals', 'journal.read'], ['#/recon', 'Reconciliation', 'journal.read'], ['#/tb', 'Trial balance', 'journal.read']]],
+  ['Accounting', [['#/journals', 'Journals', 'journal.read'], ['#/assets', 'Fixed assets', 'asset.manage|asset.approve|journal.read'], ['#/periodend', 'Period end', 'journal.create|journal.read|period.close'], ['#/tax', 'Tax returns & e-invoices', 'tax.prepare|tax.approve'], ['#/consolidation', 'Consolidation', 'consolidation.manage|consolidation.approve'], ['#/revenue', 'Revenue & WIP', 'revenue.run|contract.policy.manage|contract.policy.approve|journal.approve'], ['#/recon', 'Reconciliation', 'journal.read'], ['#/tb', 'Trial balance', 'journal.read']]],
+  ['Workforce', [['#/payroll', 'Payroll', 'payroll.prepare|payroll.approve|payment.release|contract.policy.manage|contract.policy.approve']]],
   ['Governance', [['#/people', 'People & access', 'user.manage|role.manage|audit.read'], ['#/org', 'Organisation & calendar', 'p2p.read|org.manage'], ['#/authority', 'Authority & duties', 'p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
     ['#/list/delegation', 'Delegations', 'delegation.create|delegation.approve'], ['#/list/sod_exception', 'Duty-conflict exceptions', 'authority.manage|authority.approve'],
     ['#/imports', 'Data imports', 'supplier.manage|customer.manage|stock.item.manage'], ['#/list/p2p_policy', 'P2P policies', 'scope.tenant_wide'], ['#/list/contract_policy', 'Contract policies', 'scope.tenant_wide'],
@@ -336,6 +363,14 @@ const QUEUES = [
   ['change.approve', 'change_event', 'SUBMITTED', 'Change events to decide'],
   ['claim.approve', 'contract_claim', 'SUBMITTED', 'Claims to approve for sending'],
   ['claim.approve', 'ld_terms', 'SUBMITTED', 'Damages terms to approve'],
+  ['subcontract.approve', 'subcontract', 'SUBMITTED', 'Subcontracts to approve'],
+  ['subcontract.certify', 'subcontract_application', 'SUBMITTED', 'Subcontractor applications to certify'],
+  ['subcontract.approve', 'subcontract_backcharge', 'SUBMITTED', 'Back-charges to approve'],
+  ['contract.policy.approve', 'subcontract_policy', 'DRAFT', 'Subcontract policies to approve'],
+  ['payment.approve', 'subcontract_payment', 'SUBMITTED', 'Subcontract payments to approve'],
+  ['asset.approve', 'fixed_asset', 'SUBMITTED', 'Assets to activate'],
+  ['asset.approve', 'asset_disposal', 'SUBMITTED', 'Asset disposals to approve'],
+  ['payment.release', 'subcontract_payment', 'APPROVED', 'Subcontract payments to release'],
   ['escalation.approve', 'price_index_value', 'SUBMITTED', 'Index values to approve'],
   ['escalation.approve', 'escalation_formula', 'SUBMITTED', 'Price adjustment formulas to approve'],
   ['escalation.approve', 'price_adjustment', 'SUBMITTED', 'Price adjustments to approve'],
@@ -382,6 +417,10 @@ const QUEUES = [
   ['schedule.approve', 'schedule_version', 'SUBMITTED', 'Schedules to approve'],
   ['schedule.approve', 'schedule_progress', 'DRAFT', 'Progress reports to approve'],
   ['site.diary.manage', 'site_diary', 'DRAFT', 'Site diaries to submit'],
+  ['quality.approve', 'itp', 'SUBMITTED', 'Inspection plans to approve'],
+  ['timesheet.record', 'timesheet', 'DRAFT', 'Timesheets to submit'],
+  ['timesheet.approve', 'timesheet', 'SUBMITTED', 'Timesheets to approve'],
+  ['equipment.approve', 'equipment_usage', 'SUBMITTED', 'Equipment usage to approve'],
   ['site.diary.approve', 'site_diary', 'SUBMITTED', 'Site diaries to approve'],
   ['stock.item.approve', 'stock_item', 'PENDING', 'Stock items to approve'],
   ['stock.receive', 'grn', 'CONFIRMED', 'Goods receipts to put away'],
@@ -533,6 +572,7 @@ function markNav() {
 async function route() {
   clearError();
   closeSheet();
+  setAcct(false);
   if (!S.token) return renderSignin();
   markNav();
   const [, view, a, b] = location.hash.split('/');
@@ -569,6 +609,19 @@ async function route() {
       case 'me': return await renderMe();
       case 'bonds': return await renderBonds(a);
       case 'obligations': return await renderObligations();
+      case 'revenue': return await renderRevenue();
+      case 'subpolicy': return await renderSubPolicy();
+      case 'assets': return await renderAssets(a);
+      case 'periodend': return await renderPeriodEnd(a);
+      case 'cash': return await renderCash();
+      case 'payroll': return await renderPayroll(a);
+      case 'consolidation': return await renderConsolidation(a);
+      case 'tax': return await renderTax(a);
+      case 'timesheets': return await renderTimesheets(a);
+      case 'equipment': return await renderEquipment(a);
+      case 'hse': return await renderHSE(a);
+      case 'quality': return await renderQuality(a);
+      case 'siterecords': return await renderSiteRecords(a);
       default: return await renderHome();
     }
   } catch (e) {
@@ -592,9 +645,13 @@ function renderSignin(msg) {
       try { S.company = await api('GET', '/v1/tenant/settings'); } catch { S.company = null; }
       brandCompany();
       paintWho(S.me.user_id);
-      $('mebtn').title = `Your profile — ${S.me.roles.join(', ') || 'no role'}`;
+      $('acct-id').textContent = S.me.user_id;
+      $('acct-roles').textContent = S.me.roles.length ? S.me.roles.map((r) => words(r.replace(/^custom:/, ''))).join(' · ') : 'No role';
+      $('acct-people').hidden = !['user.manage', 'role.manage', 'audit.read'].some((x) => S.can.has(x));
       api('GET', '/v1/me/profile').then((pr) => { if (pr.display_name) paintWho(pr.display_name); }).catch(() => { /* the id is shown */ });
-      $('who-mfa').hidden = !S.me.mfa;
+      $('who-mfa').textContent = S.me.mfa ? 'Signed in with a second factor: approvals and releases are allowed (for 10 minutes after sign-in).' : 'Signed in with a password only: approvals and releases need a sign-in with a second factor.';
+      $('who-mfa').className = `acctmfa ${S.me.mfa ? 'ok' : 'warn'}`;
+      $('who-mfa').hidden = false;
       $('who').hidden = false;
       buildNav();
       startBell();
@@ -812,7 +869,27 @@ async function renderDoc(type, id) {
       h('p', {}, `Cost impact ${money(ce.total_cost_impact)} · revenue impact ${money(ce.revenue_impact)} · margin impact ${money(ce.margin_impact)} · schedule ${ce.schedule_impact_days} day(s).`),
       ce.budget_version_id ? h('p', {}, 'A budget revision for the cost lines was drafted. The budget moves only when it is submitted and approved: ', h('a', { href: `#/doc/budget_version/${ce.budget_version_id}` }, 'open the drafted revision'), '.')
         : h('p', { class: 'hint' }, 'This change event has no cost lines, so no budget revision was drafted.')));
+    const rec = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Recovered from the client'),
+      h('p', {}, `Revenue impact ${money(ce.revenue_impact)} · recovered through approved variations ${money(ce.recovered_value)}`,
+        Number(ce.revenue_impact) > 0 && Number(ce.recovered_value) < Number(ce.revenue_impact) ? h('span', { class: 'delta up' }, ` (${money(String((Number(ce.revenue_impact) - Number(ce.recovered_value)).toFixed(2)))} not yet recovered)`) : ''),
+      table('Variations carrying this change', [{ label: 'Variation', cell: (v) => h('a', { href: `#/doc/contract_variation/${v.id}` }, v.number) }, { label: 'Contract', cell: (v) => v.contract_number },
+        { label: 'Title', cell: (v) => v.title }, { label: 'Value change', num: true, cell: (v) => money(v.value_change) }, { label: 'Status', cell: (v) => chip(v.status) }], ce.variations, 'No variation linked yet.'));
+    if (S.can.has('change.manage')) {
+      const linked = new Set(ce.variations.map((v) => v.id));
+      const all = (await api('GET', '/v1/p2p/contract_variation')).items.filter((v) => v.project_id === ce.project_id && !linked.has(v.id) && !['REJECTED', 'CANCELLED'].includes(v.status));
+      if (all.length) {
+        const sel = select('variation_id', all.map((v) => ({ value: v.id, label: `${v.number} ${v.label} (${words(v.status.toLowerCase())})` })));
+        const b = h('button', { type: 'button' }, 'Link variation');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/change-events/${d.id}/variations`, { variation_id: sel.value }); say('Variation linked.'); route(); } catch (e) { showError(e); } });
+        rec.append(h('div', { class: 'actions' }, field('Variation of this project', sel), b));
+      }
+    }
+    parts.push(rec);
   }
+  if (type === 'subcontract') parts.push(await subcontractPanel(d));
+  if (type === 'subcontract_application') parts.push(await applicationPanel(d));
+  if (type === 'fixed_asset') parts.push(await disposalPanel(d));
+  if (type === 'timesheet') parts.push(await timesheetPanel(d));
   if (type === 'contract_notice' && d.status === 'OPEN' && S.can.has('claim.manage')) {
     const on = input('sent_on', { type: 'date', required: true, value: new Date().toISOString().slice(0, 10) });
     const btn = h('button', { type: 'button', class: 'primary' }, 'Record as sent');
@@ -873,10 +950,45 @@ function revealPanel(type, d) {
 // The forecast page: each cost code's budget, cost to date and commitments (frozen
 // by the database), the method that sets the estimate to complete, and the
 // resulting estimate at completion (EAC) and variance (VAC = budget - EAC).
+// Planned, earned and actual cost by month, with the forecast at completion.
+async function sCurvePanel(project) {
+  let sc;
+  try { sc = await api('GET', `/v1/projects/${project}/s-curve`); } catch { return null; }
+  const box = h('div', { class: 'scurve' }, h('h3', {}, 'S-curve: planned, earned and actual cost'));
+  if (!sc.baseline || !sc.points.length) { box.append(h('p', { class: 'hint' }, 'No baseline schedule yet: approve one under Schedules to see the planned and earned curves.')); return box; }
+  const W = 720; const H = 260; const L = 64; const B = 28; const T = 12; const R = 12;
+  const eac = sc.latest_eac ? Number(sc.latest_eac) : 0;
+  const all = sc.points.flatMap((p) => [Number(p.pv), Number(p.ev || 0), Number(p.ac || 0)]);
+  const top = Math.max(...all, Number(sc.bac), eac) * 1.08 || 1;
+  const n = sc.points.length;
+  const x = (i) => L + (n === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1));
+  const y = (v) => H - B - (Number(v) / top) * (H - B - T);
+  const line = (key, cls, label) => {
+    const pts = sc.points.map((p, i) => (p[key] == null ? null : `${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`)).filter(Boolean);
+    return pts.length ? svg('polyline', { points: pts.join(' '), class: `sc ${cls}` }, svg('title', {}, label)) : null;
+  };
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => {
+    const v = top * f; const yy = y(v);
+    return [svg('line', { x1: L, x2: W - R, y1: yy, y2: yy, class: 'grid' }), svg('text', { x: L - 6, y: yy + 4, class: 'ax', 'text-anchor': 'end' }, `${(v / 1e6).toFixed(1)}M`)];
+  }).flat();
+  const months = sc.points.map((p, i) => (n <= 12 || i % Math.ceil(n / 12) === 0 ? svg('text', { x: x(i), y: H - 8, class: 'ax', 'text-anchor': i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle' }, monthName(p.month)) : null));
+  const flat = (v, cls, label) => (v ? [svg('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: `sc ${cls}` }), svg('text', { x: W - R, y: y(v) - 4, class: `ax ${cls}`, 'text-anchor': 'end' }, label)] : []);
+  const last = [...sc.points].reverse().find((p) => p.ev != null) || {};
+  const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'schart', role: 'img',
+    'aria-label': `S-curve. Budget at completion ${money(sc.bac)}; planned ${money(last.pv)}, earned ${money(last.ev)}, actual ${money(last.ac)} at ${last.month || ''}${eac ? '; forecast at completion ' + money(sc.latest_eac) : ''}.` },
+    ...ticks, ...months, ...flat(Number(sc.bac), 'bac', 'Scheduled budget'), ...flat(eac, 'eacl', 'Forecast at completion (whole project)'),
+    line('pv', 'pv', 'Planned value'), line('ev', 'ev', 'Earned value'), line('ac', 'ac', 'Actual cost'));
+  const key = (cls, label) => h('span', { class: `sckey ${cls}` }, label);
+  box.append(h('div', { class: 'chartwrap' }, chart),
+    h('div', { class: 'flowlegend' }, key('pv', 'Planned value'), key('ev', 'Earned value'), key('ac', 'Actual cost'), key('bac', 'Scheduled budget (BAC)'), eac ? key('eacl', 'Latest approved forecast, whole project') : null),
+    h('p', { class: 'hint' }, `At ${sc.status_date}: CPI ${sc.cpi ?? '— (no posted cost yet)'} (earned ÷ actual), SPI ${sc.spi ?? '—'} (earned ÷ planned). Below 1 means over cost or behind plan. Planned and earned value cover the budget placed on the baseline schedule's activities; the forecast covers every cost code.`));
+  return box;
+}
+
 async function forecastPanel(d) {
   const c = await api('GET', `/v1/forecasts/${d.id}`);
   const edit = d.status === 'DRAFT' && c.created_by === S.me.user_id && S.can.has('forecast.prepare');
-  const METHODS = [['REMAINING_BUDGET', 'Remaining budget'], ['OPEN_COMMITMENTS', 'Open commitments only'], ['MANUAL', 'Manual estimate']];
+  const METHODS = [['REMAINING_BUDGET', 'Remaining budget'], ['OPEN_COMMITMENTS', 'Open commitments only'], ['CPI', 'Cost performance (CPI)'], ['MANUAL', 'Manual estimate']];
   const cols = [
     { label: 'Cost code', cell: (l) => l.cost_code },
     { label: 'Current budget', num: true, cell: (l) => money(l.budget) },
@@ -886,9 +998,12 @@ async function forecastPanel(d) {
     { label: 'Estimate to complete', num: true, cell: (l) => money(l.etc) },
     { label: 'Estimate at completion', num: true, cell: (l) => money(l.eac) },
     { label: 'Variance (budget - EAC)', num: true, cell: (l) => money(l.vac) },
+    { label: 'Last approved EAC', num: true, cell: (l) => (l.prev_eac == null ? '—' : money(l.prev_eac)) },
+    { label: 'Change', num: true, cell: (l) => { if (l.prev_eac == null) return ''; const ch = Number(l.eac) - Number(l.prev_eac); const big = Math.abs(ch) > Math.max(Number(l.budget), 0) * 0.1;
+      return h('span', { class: big ? 'delta up' : '' }, `${ch > 0 ? '+' : ch < 0 ? '−' : ''}${money(String(Math.abs(ch).toFixed(2)))}`); } },
     { label: 'Why / note', cell: (l) => (l.total ? '' : edit ? noteCell(l) : l.note || '') },
   ];
-  const rows = !(c.lines || []).length ? [] : [...c.lines, { cost_code: 'Total', budget: c.total_budget, committed: '', cost_to_date: c.total_cost_to_date, method: '', etc: c.total_etc, eac: c.total_eac, vac: c.total_vac, note: '', total: true }];
+  const rows = !(c.lines || []).length ? [] : [...c.lines, { cost_code: 'Total', budget: c.total_budget, committed: '', cost_to_date: c.total_cost_to_date, method: '', etc: c.total_etc, eac: c.total_eac, vac: c.total_vac, prev_eac: c.total_prev_eac, note: '', total: true }];
   const cells = new Map();
   const save = async (l, method, manual, note) => {
     clearError();
@@ -918,7 +1033,9 @@ async function forecastPanel(d) {
     h('p', { class: 'hint' }, edit
       ? `Change a line's method or add a note; each change saves at once and the figures are recomputed by the database. ${over ? over + ' line(s) are forecast above budget and need an explanation before you can submit.' : ''}`
       : 'Figures are frozen by the database from the cost position when the line was last saved. A negative variance is a forecast overrun.'),
-    table('Estimate at completion by cost code', cols, rows, 'No cost codes have money on them yet.'));
+    table('Estimate at completion by cost code', cols, rows, 'No cost codes have money on them yet.'),
+    h('p', { class: 'hint' }, 'CPI method: the estimate to complete is the budget not yet earned divided by the project’s cost performance index (earned value ÷ actual cost from the baseline schedule). A line that moves by more than 10% of its budget since the last approved forecast needs an explanation before submission.'),
+    await sCurvePanel(c.project_id));
 }
 
 async function positionPanel(id) {
@@ -1294,6 +1411,38 @@ const FORMS = {
       say('Project updated.');
       location.hash = '#/projects';
     });
+  },
+
+  async subcontract() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const sup = select('supplier_id', await docOpts('supplier', 'ACTIVE'), { required: true });
+    const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '200', placeholder: 'Scope of the subcontract' });
+    const pct = (n, v) => input(n, { inputmode: 'decimal', value: v, autocomplete: 'off' });
+    const ret = pct('retention_pct', '0.05'); const cap = pct('retention_cap', '0'); const adv = pct('advance_amount', '0'); const rec = pct('advance_recovery_pct', '0'); const wht = pct('wht_rate', '0.02');
+    const expense = S.ref.accounts.filter((a) => a.kind === 'EXPENSE');
+    let grid;
+    const holder = h('div');
+    const load = async () => {
+      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+      grid = lineGrid('Schedule of values (quantity × rate on a cost code and an expense account)', [
+        { key: 'description', label: 'Description', make: txt('description', { maxlength: '300' }) },
+        { key: 'unit', label: 'Unit', make: txt('unit', { maxlength: '20', size: '5' }) },
+        { key: 'quantity', label: 'Quantity', make: num('quantity') }, { key: 'rate', label: 'Rate', make: num('rate') },
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+        { key: 'account_id', label: 'Expense account', make: () => select('account_id', expense.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))) },
+      ], [], true);
+      holder.replaceChildren(grid);
+    };
+    proj.addEventListener('change', load);
+    formPage('Prepare a subcontract', 'A subcontractor (an approved supplier), its schedule of values, retention (as a fraction, e.g. 0.05, with an optional cap), the advance and how fast it is recovered, and withholding. Another person approves it; approval commits its value against the budget and is refused if a cost code has no room.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Subcontractor', sup), field('Title', title), field('Retention (fraction)', ret), field('Retention cap (0 = none)', cap),
+        field('Advance', adv), field('Advance recovery (fraction of each certificate)', rec), field('Withholding (fraction)', wht)), holder], 'Create subcontract', async () => {
+        const lines = grid.rows().filter((r) => r.description).map((r, i) => ({ line_no: i + 1, ...r }));
+        const res = await api('POST', '/v1/subcontracts', { project_id: proj.value, supplier_id: sup.value, title: title.value.trim(), retention_pct: ret.value || '0', retention_cap: cap.value || '0',
+          advance_amount: adv.value || '0', advance_recovery_pct: rec.value || '0', wht_rate: wht.value || '0', lines });
+        created('subcontract', res, 'Subcontract');
+      });
+    await load();
   },
 
   async change_event() {
@@ -3218,7 +3367,7 @@ const PEOPLE_EVENTS = {
   'people.person_added': 'was added to the directory', 'people.details_changed': 'had their details changed',
   'people.managed': 'had their access taken under management', 'people.disabled': 'was disabled and signed out everywhere',
   'people.enabled': 'was enabled again', 'people.role_granted': 'was given', 'people.role_removed': 'lost',
-  'people.role_created': 'was created', 'people.role_changed': 'was changed', 'people.role_retired': 'was retired',
+  'people.role_created': 'was created', 'people.role_changed': 'was changed', 'people.role_retired': 'was retired', 'people.role_adjusted': 'was adjusted for the company',
   'people.profile_changed': 'updated their own profile',
 };
 // Conflicting duties in a permission set, by the server's control catalogue.
@@ -3272,8 +3421,8 @@ const roleOf = (code) => (PV && PV.roles.find((r) => r.code === code)) || { code
 const labelOf = (code) => (PV && PV.permissions.find((p) => p.code === code)) || { code, label: code, area: 'Other', stage: 'prepare' };
 
 // Permissions grouped by area; tickable when `pick` is a Set to edit.
-function permGroups(codes, pick, onChange) {
-  const catalogue = pick ? PV.permissions : codes.map(labelOf);
+function permGroups(codes, pick, onChange, only) {
+  const catalogue = only ? only.map(labelOf) : pick ? PV.permissions : codes.map(labelOf);
   const areas = new Map();
   for (const p of catalogue) { if (!areas.has(p.area)) areas.set(p.area, []); areas.get(p.area).push(p); }
   const wrap = h('div', { class: 'permgroups' });
@@ -3312,7 +3461,7 @@ async function renderPeople(tab) {
     kpi(v.people.length - active.length, 'Disabled', true), kpi(active.filter((p) => p.conflicts.length).length, 'Holding conflicting duties', true),
     kpi(v.roles.filter((r) => r.kind === 'company' && r.status === 'ACTIVE').length, 'Company roles'));
 
-  const TABS = [['people', 'People', v.people.length], ['map', 'Duty map', null], ['roles', 'Roles', v.roles.filter((r) => r.status === 'ACTIVE').length], ['history', 'Access history', v.history.length]];
+  const TABS = [['people', 'People', v.people.length], ['map', 'Dependency graph', null], ['roles', 'Roles', v.roles.filter((r) => r.status === 'ACTIVE').length], ['history', 'Access history', v.history.length]];
   let cur = TABS.some(([k]) => k === tab) ? tab : 'people';
   const content = h('div', { role: 'tabpanel' });
   const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'People and access' });
@@ -3321,7 +3470,7 @@ async function renderPeople(tab) {
     for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
     history.replaceState(null, '', `#/people/${k}`);
     content.textContent = '';
-    content.append(k === 'map' ? dutyMap(v, nameOf) : k === 'roles' ? rolesTab(v) : k === 'history' ? historyTab(v, nameOf) : peopleTab(v));
+    content.append(k === 'map' ? dutyView(v, nameOf) : k === 'roles' ? rolesTab(v) : k === 'history' ? historyTab(v, nameOf) : peopleTab(v));
   };
   for (const [k, label, n] of TABS) {
     tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label, n == null ? null : h('span', { class: 'n' }, String(n))));
@@ -3385,6 +3534,127 @@ function peopleTab(v) {
   return h('div', {}, h('div', { class: 'toolbar' }, find, pills, h('span', { class: 'spacer' }), viewp), out);
 }
 
+// Dependency graph (Serk Finance style): who hands work to whom. For every
+// control (two permissions that must be held by different people), each
+// person holding the earlier-stage half feeds each person holding the later
+// half. Columns are the stage of work.
+function dutyView(v, nameOf) {
+  let mode = 'graph';
+  const pills = h('div', { class: 'pills', role: 'group', 'aria-label': 'View' });
+  const body = h('div');
+  const draw = () => {
+    for (const b of pills.children) b.setAttribute('aria-pressed', String(b.dataset.k === mode));
+    body.textContent = '';
+    body.append(mode === 'graph' ? dependencyGraph(v, nameOf) : dutyMap(v, nameOf));
+  };
+  for (const [k, label] of [['graph', 'Dependency graph'], ['columns', 'Columns']]) pills.append(h('button', { type: 'button', 'data-k': k, on: { click: () => { mode = k; draw(); } } }, label));
+  draw();
+  return h('div', {}, h('div', { class: 'toolbar' }, pills), body);
+}
+
+function dependencyGraph(v, nameOf) {
+  const rank = Object.fromEntries(STAGES.map(([k], i) => [k, i]));
+  const people = v.people.filter((x) => x.status === 'ACTIVE' && x.stage && x.stage !== 'read');
+  const cols = STAGES.filter(([k]) => k !== 'read' && people.some((x) => x.stage === k));
+  if (!people.length) return h('p', { class: 'empty panel' }, 'Nobody prepares or approves anything yet.');
+  const NW = 186; const NH = 54; const GX = 78; const GY = 14; const PAD = 24; const HEAD = 44;
+  const pos = new Map();
+  cols.forEach(([k], ci) => people.filter((x) => x.stage === k).sort((a, b) => personName(a).localeCompare(personName(b)))
+    .forEach((x, ri) => pos.set(x.user_id, { x: PAD + ci * (NW + GX), y: HEAD + PAD + ri * (NH + GY), col: ci })));
+  const W = PAD * 2 + cols.length * NW + (cols.length - 1) * GX;
+  const H = HEAD + PAD * 2 + Math.max(...cols.map(([k]) => people.filter((x) => x.stage === k).length)) * (NH + GY);
+  // Edges from the controls.
+  const edges = new Map();
+  const holds = (x, perm) => (x.permissions || []).includes(perm);
+  for (const c of v.controls || []) {
+    if (c.Perms.length < 2) continue;
+    const [a, b] = [...c.Perms].sort((p1, p2) => (rank[labelOf(p1).stage] ?? 0) - (rank[labelOf(p2).stage] ?? 0));
+    for (const x of people) {
+      if (!holds(x, a)) continue;
+      for (const y of people) {
+        if (y.user_id === x.user_id || !holds(y, b)) continue;
+        const key = `${x.user_id}>${y.user_id}`;
+        if (!edges.has(key)) edges.set(key, { from: x.user_id, to: y.user_id, controls: [] });
+        edges.get(key).controls.push(c.Control);
+      }
+    }
+  }
+  const surface = h('div', { class: 'gsurface' });
+  surface.style.width = `${W}px`; surface.style.height = `${H}px`;
+  const lines = svg('svg', { class: 'glines', width: W, height: H, viewBox: `0 0 ${W} ${H}`, 'aria-hidden': 'true' },
+    svg('defs', {}, svg('marker', { id: 'garrow', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, svg('path', { d: 'M0 1 L10 5 L0 9 z', class: 'gtip' }))));
+  cols.forEach(([k, name, what], ci) => {
+    const x = PAD + ci * (NW + GX);
+    lines.append(svg('text', { x: x + 2, y: 22, class: `ghead st-${k}` }, name), svg('text', { x: x + 2, y: 38, class: 'gsub' }, what));
+    if (ci) lines.append(svg('line', { x1: x - GX / 2, y1: 8, x2: x - GX / 2, y2: H - 8, class: 'gdiv' }));
+  });
+  const paths = [];
+  for (const e of edges.values()) {
+    const a = pos.get(e.from); const b = pos.get(e.to);
+    if (!a || !b) continue;
+    let d;
+    if (a.col === b.col) {
+      const x = a.x + NW; const y1 = a.y + NH / 2; const y2 = b.y + NH / 2;
+      d = `M ${x} ${y1} C ${x + 60} ${y1}, ${x + 60} ${y2}, ${x} ${y2}`;
+    } else {
+      const forward = b.col > a.col;
+      const x1 = forward ? a.x + NW : a.x; const x2 = forward ? b.x : b.x + NW;
+      const y1 = a.y + NH / 2; const y2 = b.y + NH / 2; const dx = (x2 - x1) * 0.45;
+      d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+    }
+    const p = svg('path', { d, class: 'gedge', 'marker-end': 'url(#garrow)' }, svg('title', {}, `${nameOf(e.from)} → ${nameOf(e.to)}: ${e.controls.join(', ')}`));
+    p.dataset.from = e.from; p.dataset.to = e.to;
+    paths.push(p); lines.append(p);
+  }
+  surface.append(lines);
+  const nodes = [];
+  const side = h('aside', { class: 'gside', 'aria-live': 'polite' });
+  let selected = null;
+  const focus = (id) => {
+    for (const p of paths) {
+      const on = id && (p.dataset.from === id || p.dataset.to === id);
+      p.classList.toggle('on', !!on); p.classList.toggle('in', !!on && p.dataset.to === id); p.classList.toggle('dim', !!id && !on);
+    }
+    for (const n of nodes) {
+      const linked = id && (n.dataset.id === id || paths.some((p) => (p.dataset.from === id && p.dataset.to === n.dataset.id) || (p.dataset.to === id && p.dataset.from === n.dataset.id)));
+      n.classList.toggle('dim', !!id && !linked); n.classList.toggle('sel', n.dataset.id === id);
+    }
+  };
+  const describe = (id) => {
+    side.textContent = '';
+    if (!id) { side.append(h('p', { class: 'hint' }, 'Select a person to see whom they hand work to and whom they receive it from, control by control.')); return; }
+    const x = v.people.find((q) => q.user_id === id);
+    const out = [...edges.values()].filter((e) => e.from === id); const inn = [...edges.values()].filter((e) => e.to === id);
+    const list = (title, arr, key) => h('section', {}, h('h4', {}, `${title} (${arr.length})`), arr.length ? h('ul', {}, arr.map((e) => h('li', {}, h('strong', {}, nameOf(e[key])), ' — ', e.controls.join(', ')))) : h('p', { class: 'hint' }, 'Nobody.'));
+    side.append(...[h('div', { class: 'row' }, avatar(x.user_id, personName(x)), h('div', { class: 'pwho' }, h('div', { class: 'nm' }, personName(x)), h('div', { class: 'sub' }, x.roles.map((r) => roleOf(r).name).join(', ')))),
+      stageChip(x.stage), list('Hands work to', out, 'to'), list('Receives work from', inn, 'from'),
+      x.conflicts.length ? h('p', { class: 'callout bad' }, `Holds both halves of: ${x.conflicts.map((c) => c.Control).join(', ')}`) : null,
+      h('div', { class: 'actions' }, h('button', { type: 'button', on: { click: () => personSheet(id) } }, 'Open person'))].filter(Boolean));
+  };
+  for (const x of people) {
+    const pp = pos.get(x.user_id);
+    const n = h('button', { type: 'button', class: `gnode st-${x.stage}`, 'data-id': x.user_id, 'aria-label': `${personName(x)}, ${STAGE_NAME[x.stage]}: show hand-offs`,
+      on: { click: () => { selected = selected === x.user_id ? null : x.user_id; focus(selected); describe(selected); },
+            mouseenter: () => { if (!selected) focus(x.user_id); }, mouseleave: () => { if (!selected) focus(null); } } },
+      avatar(x.user_id, personName(x), 'sm'), h('span', { class: 'pwho' }, h('span', { class: 'nm' }, personName(x), x.conflicts.length ? ' ⚠' : ''), h('span', { class: 'sub' }, x.roles.map((r) => roleOf(r).name).join(', ') || 'No role')));
+    n.style.left = `${pp.x}px`; n.style.top = `${pp.y}px`; n.style.width = `${NW}px`; n.style.height = `${NH}px`;
+    nodes.push(n); surface.append(n);
+  }
+  describe(null);
+  let zoom = 1;
+  const zl = h('span', { class: 'zl' }, '100%');
+  const setZoom = (z) => { zoom = Math.min(1.3, Math.max(0.6, z)); surface.style.transform = `scale(${zoom})`; surface.style.transformOrigin = 'top left'; zl.textContent = `${Math.round(zoom * 100)}%`; vp.style.height = `${Math.ceil(H * zoom) + 4}px`; };
+  const vp = h('div', { class: 'gview' }, surface);
+  const tools = h('div', { class: 'gtools' },
+    h('span', { class: 'hint' }, `${people.length} people · ${edges.size} hand-offs across ${(v.controls || []).length} controls`),
+    h('span', { class: 'spacer' }),
+    h('button', { type: 'button', class: 'ghost', 'aria-label': 'Zoom out', on: { click: () => setZoom(zoom - 0.1) } }, '−'), zl,
+    h('button', { type: 'button', class: 'ghost', 'aria-label': 'Zoom in', on: { click: () => setZoom(zoom + 0.1) } }, '+'),
+    h('button', { type: 'button', class: 'ghost', on: { click: () => { selected = null; focus(null); describe(null); setZoom(1); } } }, 'Reset'));
+  setZoom(1);
+  return h('div', { class: 'gwrap' }, h('div', {}, tools, vp), side);
+}
+
 function dutyMap(v, nameOf) {
   const roles = v.roles.filter((r) => r.status === 'ACTIVE' && r.holders > 0);
   const hl = select('highlight', [{ value: '', label: 'Highlight who holds… (any role)' }, ...roles.map((r) => ({ value: r.code, label: `${r.name} (${r.holders})` }))]);
@@ -3443,7 +3713,7 @@ function rolesTab(v) {
     for (const r of rows) {
       out.append(h('button', { type: 'button', class: `rolecard st-${r.stage || 'none'}`, on: { click: () => roleSheet(r.code) } },
         h('h4', {}, r.name), h('p', {}, r.kind === 'company' ? (r.description || 'Company role') : 'Product role'),
-        h('div', { class: 'meta' }, stageChip(r.stage), h('span', {}, `${r.permissions.length} permissions`), h('span', {}, `${r.holders} ${r.holders === 1 ? 'person' : 'people'}`),
+        h('div', { class: 'meta' }, stageChip(r.stage), h('span', {}, `${r.permissions.length} permissions`), r.withheld && r.withheld.length ? h('span', { class: 'conflictflag' }, `${r.withheld.length} withheld`) : null, h('span', {}, `${r.holders} ${r.holders === 1 ? 'person' : 'people'}`),
           r.kind === 'company' ? h('span', { class: 'rolechip company' }, 'company') : null)));
     }
   };
@@ -3585,12 +3855,36 @@ function roleSheet(code) {
   const parts = [];
   if (r) {
     const holders = PV.people.filter((x) => x.status === 'ACTIVE' && x.roles.includes(r.code));
-    parts.push(h('p', { class: 'callout' }, r.kind === 'company' ? (r.description || 'A company role.') + (r.updated_by ? ` Last changed by ${nameOf(r.updated_by)} ${ago(r.updated_at)}.` : '') : 'A product role: fixed by SERK and tested never to hold both halves of a control. Give it to people; build a company role if it does not fit.'));
+    parts.push(h('p', { class: 'callout' }, r.kind === 'company' ? (r.description || 'A company role.') + (r.updated_by ? ` Last changed by ${nameOf(r.updated_by)} ${ago(r.updated_at)}.` : '') : (r.withheld && r.withheld.length ? `A product role, narrowed for this company: ${r.withheld.length} permission(s) withheld. ` : 'A product role, tested never to hold both halves of a control. ') + 'The company may withhold any of its permissions at any time; to give more, build a company role.'));
     parts.push(h('section', {}, h('h3', {}, `Held by (${holders.length})`), holders.length
       ? h('div', { class: 'rolechips' }, holders.map((x) => h('button', { type: 'button', class: 'ghost', on: { click: () => personSheet(x.user_id) } }, avatar(x.user_id, personName(x), 'sm'), personName(x))))
       : h('p', { class: 'hint' }, 'Nobody holds this role.')));
   }
-  if (!editable) {
+  if (r && r.kind === 'seed' && me.can_manage_roles) {
+    // 0060: narrow a product role (untick to withhold); restore by ticking again.
+    const def = r.definition || r.permissions;
+    const keep = new Set(r.permissions);
+    const locked = new Set(['user.manage', 'role.manage']);
+    const summary = h('p', { class: 'hint' });
+    const paint = () => { const w = def.filter((x) => !keep.has(x)); summary.textContent = w.length ? `${w.length} of ${def.length} withheld from everyone holding this role in the company.` : `All ${def.length} permissions of the product role apply.`; };
+    const groups = permGroups(null, keep, paint, def);
+    for (const l of groups.querySelectorAll('label[data-perm]')) if (locked.has(l.dataset.perm)) { const cb = l.querySelector('input'); cb.disabled = true; l.title = 'User and role administration are never withheld'; }
+    paint();
+    const reason = reasonInput('Why? For example: purchase order approval moves to the CFO');
+    const save = h('button', { type: 'submit', class: 'primary' }, 'Save adjustment');
+    parts.push(h('form', { novalidate: true, on: { submit: async (ev) => {
+      ev.preventDefault();
+      try {
+        const why = needReason(reason);
+        await refreshAfter(async () => { await api('PUT', `/v1/roles/${encodeURIComponent(r.code)}/adjustment`, { withheld: def.filter((x) => !keep.has(x)), reason: why }); }, () => roleSheet(r.code));
+        say('Role adjusted; it applies from each holder\'s next action.');
+      } catch (e) { sheetError($('sheet').querySelector('.sheetbody'), e); }
+    } } },
+    h('h3', {}, 'Adjust this role for the company'),
+    h('p', { class: 'hint' }, 'Untick a permission to withhold it from everyone with this role, from their next action. Tick it again to restore it. To give more than the product role, build a company role.'),
+    r.adjusted_by ? h('p', { class: 'callout' }, `Last adjusted by ${nameOf(r.adjusted_by)}: ${r.adjustment_reason}`) : null,
+    summary, groups, field('Reason (kept in the access history)', reason), h('div', { class: 'actions' }, save)));
+  } else if (!editable) {
     parts.push(h('section', {}, h('h3', {}, `Permissions (${r.permissions.length})`), permGroups(r.permissions)));
   } else {
     const pick = new Set(r ? r.permissions : ['p2p.read']);
@@ -3677,8 +3971,17 @@ function addPersonSheet(v) {
 
 function paintWho(name) {
   $('who-name').textContent = name;
-  const av = $('who-av');
-  av.textContent = initials(name);
+  $('who-av').textContent = initials(name);
+  $('acct-name').textContent = name;
+  $('acct-av').textContent = initials(name);
+}
+// The account menu in the top band.
+function setAcct(open) {
+  const m = $('acctmenu');
+  if (!m) return;
+  m.hidden = !open;
+  $('mebtn').setAttribute('aria-expanded', String(open));
+  if (open) (m.querySelector('[role=menuitem]') || m).focus();
 }
 
 // ---------- guarantees and price adjustment (0050) ----------
@@ -4220,6 +4523,1360 @@ async function timePanel(contract) {
   return box;
 }
 
+// ---------- revenue over time and the WIP adjustment (0053) ----------
+const REV_METHOD = { INPUT_COST: 'Cost to cost (cost to date ÷ forecast at completion)', OUTPUT_MEASURED: 'Measured output (verified work ÷ contract value)' };
+let REV_PROJECT = '';
+async function renderRevenue() {
+  closeSheet();
+  const parts = [];
+  const pol = (await api('GET', '/v1/revenue/policies')).policies;
+  S.ref.legal_entities = S.ref.legal_entities || [];
+  const kpi = (v, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k));
+  if (pol.length || S.can.has('contract.policy.manage')) {
+    const decide = async (x, ok) => {
+      try {
+        let reason = '';
+        if (!ok) { reason = (prompt('Why is this revenue policy rejected?') || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'A rejection needs a reason of at least 5 characters.'); }
+        await api('POST', `/v1/revenue/policies/${x.id}/${ok ? 'approve' : 'reject'}`, { reason }); say(ok ? 'Revenue policy approved.' : 'Revenue policy rejected.'); renderRevenue();
+      } catch (e) { showError(e); }
+    };
+    const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Revenue policy'),
+      h('p', { class: 'hint' }, 'Per legal entity: how progress is measured, and the accounts for revenue earned but not billed (contract asset) and billed ahead of the work (contract liability). A controller proposes; the CFO approves.'),
+      table('Policies', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Version', num: true, cell: (x) => String(x.version) }, { label: 'Progress measure', cell: (x) => REV_METHOD[x.method] },
+        { label: 'Contract asset', cell: (x) => x.contract_asset_account }, { label: 'Contract liability', cell: (x) => x.contract_liability_account }, { label: 'Status', cell: (x) => chip(x.status) },
+        { label: '', cell: (x) => (x.status === 'DRAFT' && S.can.has('contract.policy.approve') && x.created_by !== S.me.user_id ? h('div', { class: 'rowacts' },
+          h('button', { type: 'button', class: 'primary', 'aria-label': `Approve ${x.entity} version ${x.version}`, on: { click: () => decide(x, true) } }, 'Approve'),
+          h('button', { type: 'button', class: 'ghost', 'aria-label': `Reject ${x.entity} version ${x.version}`, on: { click: () => decide(x, false) } }, 'Reject')) : '') }], pol, 'No revenue policy yet.'));
+    if (S.can.has('contract.policy.manage')) {
+      const ent = select('legal_entity_id', S.ref.legal_entities.map((e) => ({ value: e.id, label: `${e.code} — ${e.name}` })));
+      const method = select('method', Object.entries(REV_METHOD).map(([value, label]) => ({ value, label })));
+      const accts = (kind) => S.ref.accounts.filter((a) => a.kind === kind).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+      const asset = select('contract_asset_account_id', accts('ASSET'));
+      const liab = select('contract_liability_account_id', accts('LIABILITY'));
+      const b = h('button', { type: 'button' }, 'Propose');
+      b.addEventListener('click', async () => {
+        try { clearError(); await api('POST', '/v1/revenue/policies', { legal_entity_id: ent.value, method: method.value, contract_asset_account_id: asset.value, contract_liability_account_id: liab.value }); say('Revenue policy proposed for approval.'); renderRevenue(); } catch (e) { showError(e); }
+      });
+      box.append(h('div', { class: 'grid' }, field('Legal entity', ent), field('Progress measure', method), field('Contract asset account', asset), field('Contract liability account', liab)), h('div', { class: 'actions' }, b));
+    }
+    parts.push(box);
+  }
+  const projects = (await api('GET', '/v1/revenue/projects')).projects;
+  if (!projects.length) { page('Revenue & WIP', '', ...parts, h('p', { class: 'empty panel' }, 'No project in your scope.')); return; }
+  if (!projects.some((p) => p.id === REV_PROJECT)) REV_PROJECT = projects[0].id;
+  const proj = select('project', projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` })));
+  proj.value = REV_PROJECT;
+  const per = input('period_end', { type: 'date', value: today(), max: today() });
+  const body = h('div', { 'aria-live': 'polite' });
+  const load = async () => {
+    REV_PROJECT = proj.value;
+    body.textContent = '';
+    let pv = null; let perr = null;
+    try { pv = await api('GET', `/v1/projects/${proj.value}/revenue-preview?period_end=${per.value}`); } catch (e) { perr = e; }
+    let runs = [];
+    try { runs = (await api('GET', `/v1/projects/${proj.value}/revenue-runs`)).runs; } catch { runs = []; }
+    if (pv) {
+      const tot = pv;
+      body.append(h('div', { class: 'kpis' }, kpi(money(tot.contract_asset).replace(/\.00$/, ''), 'Contract asset (under-billed)'), kpi(money(tot.contract_liability).replace(/\.00$/, ''), 'Contract liability (over-billed)', Number(tot.contract_liability) > 0),
+        kpi(money(tot.revenue_movement).replace(/\.00$/, ''), 'Revenue adjustment this run')),
+        table(`Earned against billed at ${per.value} — ${REV_METHOD[pv.method]}`, [
+          { label: 'Contract', cell: (l) => h('a', { href: `#/doc/contract/${l.contract_id}` }, l.contract_number) }, { label: 'Contract value', num: true, cell: (l) => money(l.contract_value) },
+          { label: 'Progress', num: true, cell: (l) => `${(Number(l.progress) * 100).toFixed(2)}%` }, { label: 'Earned', num: true, cell: (l) => money(l.earned) },
+          { label: 'Billed', num: true, cell: (l) => money(l.billed) },
+          { label: 'Earned − billed', num: true, cell: (l) => h('span', { class: Number(l.cumulative) < 0 ? 'delta up' : '' }, money(l.cumulative)) },
+          { label: 'Already posted', num: true, cell: (l) => money(l.previous) }, { label: 'This run', num: true, cell: (l) => h('strong', {}, money(l.movement)) },
+        ], pv.lines, 'No active contract on this project.'),
+        h('p', { class: 'hint' }, 'Positive: revenue earned but not yet billed (contract asset). Negative: billed ahead of the work (contract liability). Computed by the database; the run posts only the change since the last posted run.'));
+      if (S.can.has('revenue.run')) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Prepare run and draft journal');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/projects/${proj.value}/revenue-runs`, { period_end: per.value }); say('Revenue run prepared; its journal waits for finance approval.'); load(); } catch (e) { showError(e); } });
+        body.append(h('div', { class: 'actions' }, b));
+      }
+    } else if (perr) {
+      body.append(h('p', { class: 'callout' }, perr.message || String(perr)));
+    }
+    const cancel = async (r) => {
+      try { const reason = (prompt(`Why cancel ${r.number}?`) || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); await api('POST', `/v1/revenue-runs/${r.id}/cancel`, { reason }); say('Run and its journal cancelled.'); load(); } catch (e) { showError(e); }
+    };
+    body.append(h('h3', {}, 'Runs'), table(`${runs.length} run(s)`, [
+      { label: 'Run', cell: (r) => r.number }, { label: 'Month end', cell: (r) => r.period_end }, { label: 'Measure', cell: (r) => words(r.method.toLowerCase()) },
+      { label: 'Contract asset', num: true, cell: (r) => money(r.contract_asset) }, { label: 'Contract liability', num: true, cell: (r) => money(r.contract_liability) },
+      { label: 'Adjustment', num: true, cell: (r) => money(r.revenue_movement) }, { label: 'Run', cell: (r) => chip(r.status) },
+      { label: 'Journal', cell: (r) => (r.journal_id ? [chip(r.journal_status), ' ', h('a', { href: '#/journals' }, 'journals')] : '') },
+      { label: '', cell: (r) => (r.status === 'PREPARED' && r.journal_status === 'DRAFT' && (S.can.has('journal.approve') || S.can.has('journal.post')) ? h('button', { type: 'button', class: 'ghost', on: { click: () => cancel(r) } }, 'Cancel…') : '') },
+    ], runs, 'No run yet.'));
+  };
+  proj.addEventListener('change', load); per.addEventListener('change', load);
+  page('Revenue & WIP', 'Revenue earned on each contract against what was billed, month by month. The run’s journal moves the difference into a contract asset or a contract liability; finance approves it and a different person posts it.',
+    ...parts, h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Month-end run'), h('div', { class: 'toolbar' }, field('Project', proj), field('Month end', per)), body));
+  await load();
+}
+
+// ---------- subcontracts (0055) ----------
+async function subcontractPanel(d) {
+  const v = await api('GET', `/v1/subcontracts/${d.id}`);
+  const sc = v.subcontract; const pos = v.position || {};
+  const kpi = (val, k) => h('div', { class: 'kpi' }, h('div', { class: 'v' }, val), h('div', { class: 'k' }, k));
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${sc.supplier}: schedule of values`),
+    h('div', { class: 'kpis' }, kpi(money(pos.value).replace(/\.00$/, ''), 'Subcontract value'), kpi(money(pos.certified).replace(/\.00$/, ''), 'Certified to date'),
+      kpi(money(pos.retention_held).replace(/\.00$/, ''), 'Retention held'), kpi(money(pos.advance_outstanding).replace(/\.00$/, ''), 'Advance outstanding'), kpi(money(pos.net_certified).replace(/\.00$/, ''), 'Net certified')),
+    h('p', { class: 'hint' }, `Retention ${(Number(sc.retention_pct) * 100).toFixed(2)}%${Number(sc.retention_cap) ? ', capped at ' + money(sc.retention_cap) : ''} · advance ${money(sc.advance_amount)} recovered at ${(Number(sc.advance_recovery_pct) * 100).toFixed(2)}% · withholding ${(Number(sc.wht_rate) * 100).toFixed(2)}%`),
+    table('Lines: certified to date', [{ label: 'Line', num: true, cell: (l) => String(l.line_no) }, { label: 'Description', cell: (l) => l.description }, { label: 'Cost code', cell: (l) => l.cost_code },
+      { label: 'Quantity', num: true, cell: (l) => `${l.quantity} ${l.unit}` }, { label: 'Rate', num: true, cell: (l) => money(l.rate) }, { label: 'Amount', num: true, cell: (l) => money(l.amount) },
+      { label: 'Certified qty', num: true, cell: (l) => String(l.certified_qty) }, { label: 'Certified value', num: true, cell: (l) => money(l.certified_value) },
+      { label: 'Progress', num: true, cell: (l) => `${((Number(l.certified_value) / Number(l.amount)) * 100).toFixed(1)}%` }], v.lines),
+    table('Applications and certificates', [{ label: 'Number', cell: (a) => h('a', { href: `#/doc/subcontract_application/${a.id}` }, a.number) }, { label: 'Period to', cell: (a) => a.period_to },
+      { label: 'Status', cell: (a) => chip(a.status) }, { label: 'This period', num: true, cell: (a) => (a.this_gross == null ? '' : money(a.this_gross)) },
+      { label: 'Retention', num: true, cell: (a) => (a.retention == null ? '' : money(a.retention)) }, { label: 'Advance', num: true, cell: (a) => (a.advance_recovery == null ? '' : money(a.advance_recovery)) },
+      { label: 'Back-charges', num: true, cell: (a) => (a.backcharges == null ? '' : money(a.backcharges)) }, { label: 'Withholding', num: true, cell: (a) => (a.wht == null ? '' : money(a.wht)) },
+      { label: 'Net payable', num: true, cell: (a) => (a.net_payable == null ? '' : h('strong', {}, money(a.net_payable))) }, { label: 'Journal', cell: (a) => (a.journal_status ? chip(a.journal_status) : '') }], v.applications, 'No application yet.'),
+    table('Back-charges', [{ label: 'Number', cell: (b) => h('a', { href: `#/doc/subcontract_backcharge/${b.id}` }, b.number) }, { label: 'Reason', cell: (b) => b.reason }, { label: 'Evidence', cell: (b) => b.evidence_ref },
+      { label: 'Amount', num: true, cell: (b) => money(b.amount) }, { label: 'Status', cell: (b) => chip(b.status) }, { label: 'Deducted', cell: (b) => (b.deducted_in ? 'Yes' : '') }], v.backcharges, 'No back-charge.'));
+  if (sc.status !== 'APPROVED') return box;
+  if (S.can.has('subcontract.apply') && !v.applications.some((a) => a.status === 'DRAFT' || a.status === 'SUBMITTED')) {
+    const to = input('period_to', { type: 'date', value: today(), max: today() });
+    const grid = lineGrid('Cumulative quantity claimed by the subcontractor', [
+      { key: 'line_no', label: 'Line', make: (vals) => h('span', {}, String(vals.line_no)) }, { key: 'desc', label: 'Description', make: (vals) => h('span', {}, vals.desc) },
+      { key: 'cumulative_qty', label: 'Cumulative quantity', make: num('cumulative_qty') }], v.lines.map((l) => ({ line_no: l.line_no, desc: `${l.description} (${l.quantity} ${l.unit})`, cumulative_qty: l.certified_qty })), false);
+    const b = h('button', { type: 'button', class: 'primary' }, 'Enter application and submit');
+    b.addEventListener('click', async () => {
+      try {
+        clearError();
+        const lines = grid.rows().map((r, i) => ({ line_no: v.lines[i].line_no, cumulative_qty: r.cumulative_qty || '0' })).filter((r) => Number(r.cumulative_qty) > 0);
+        const res = await api('POST', `/v1/subcontracts/${d.id}/applications`, { period_to: to.value, lines });
+        await api('POST', `/v1/subcontract-applications/${res.id}/submit`, {});
+        say('Application entered and submitted for certification.'); route();
+      } catch (e) { showError(e); }
+    });
+    box.append(h('h3', {}, 'New application'), field('Period to', to), grid, h('div', { class: 'actions' }, b));
+  }
+  // Subcontractor documents (insurance, tax clearance...): an expired required one blocks payment.
+  const docs = (await api('GET', `/v1/suppliers/${sc.supplier_id}/subcontractor-documents`)).documents;
+  const DST = { VALID: 'active', EXPIRING: 'expiring', EXPIRED: 'expired' };
+  box.append(table(`Subcontractor documents — an expired required one blocks payment`, [{ label: 'Type', cell: (x) => words(x.doc_type.toLowerCase()) }, { label: 'Reference', cell: (x) => x.reference },
+    { label: 'Expires', cell: (x) => x.expires_on }, { label: 'Required', cell: (x) => (x.required ? 'Yes' : 'No') },
+    { label: 'Standing', cell: (x) => h('span', { class: `gstand gs-${DST[x.standing]}` }, words(x.standing.toLowerCase())) }], docs, 'No document registered.'));
+  if (S.can.has('subcontract.manage')) {
+    const dt = select('doc_type', ['INSURANCE', 'TAX_CLEARANCE', 'LICENSE', 'BOND', 'OTHER'].map((v) => ({ value: v, label: words(v.toLowerCase()) })));
+    const ref = input('reference', { type: 'text', maxlength: '200' }); const iss = input('issued_on', { type: 'date', value: today() }); const exp = input('expires_on', { type: 'date', value: plusDays(365) });
+    const b = h('button', { type: 'button', class: 'ghost' }, 'Register document');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/subcontractor-documents', { supplier_id: sc.supplier_id, doc_type: dt.value, reference: ref.value.trim(), issued_on: iss.value, expires_on: exp.value, required: true }); say('Document registered.'); route(); } catch (e) { showError(e); } });
+    box.append(h('div', { class: 'grid' }, field('Document', dt), field('Reference', ref), field('Issued', iss), field('Expires', exp)), h('div', { class: 'actions' }, b));
+  }
+  const open = v.applications.filter((a) => a.status === 'CERTIFIED' && Number(a.open_amount) > 0);
+  if (S.can.has('payment.prepare') && open.length) {
+    const allSb = (await api('GET', '/v1/p2p/supplier_bank_account?status=APPROVED')).items;
+    const sb = allSb.filter((x) => (x.label || '').startsWith(`${sc.supplier_code} `));
+    const cb = (await api('GET', '/v1/p2p/company_bank_account?status=ACTIVE')).items;
+    const sbank = select('supplier_bank_id', sb.map((x) => ({ value: x.id, label: `${x.number || ''} ${x.label}` })));
+    const cbank = select('company_bank_id', cb.map((x) => ({ value: x.id, label: `${x.number || ''} ${x.label}` })));
+    const vd = input('value_date', { type: 'date', value: today() });
+    const amts = open.map((a) => input('amount', { inputmode: 'decimal', value: a.open_amount, 'aria-label': `Amount for ${a.number}` }));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Prepare and submit payment');
+    b.addEventListener('click', async () => {
+      try {
+        clearError();
+        const allocations = open.map((a, i) => ({ application_id: a.id, amount: amts[i].value.trim() })).filter((x) => Number(x.amount) > 0);
+        const res = await api('POST', '/v1/subcontract-payments', { subcontract_id: d.id, supplier_bank_id: sbank.value, company_bank_id: cbank.value, value_date: vd.value, allocations });
+        await api('POST', `/v1/subcontract-payments/${res.id}/submit`, {});
+        say('Payment submitted for approval.'); route();
+      } catch (e) { showError(e); }
+    });
+    if (!sb.length) box.append(h('p', { class: 'callout' }, 'The subcontractor has no approved bank account: procurement adds one on the supplier and finance approves it before a payment can be prepared.'));
+    box.append(h('h3', {}, 'Pay certificates'), h('div', { class: 'grid' }, field('Pay to (subcontractor bank)', sbank), field('From', cbank), field('Value date', vd)),
+      table('Open certificates', [{ label: 'Certificate', cell: (a) => a.number }, { label: 'Net payable', num: true, cell: (a) => money(a.net_payable) }, { label: 'Still open', num: true, cell: (a) => money(a.open_amount) },
+        { label: 'Pay now', cell: (a) => amts[open.indexOf(a)] }], open),
+      h('p', { class: 'hint' }, sc.pay_when_certified ? 'Pay when certified: approval and release wait until the client has certified this period.' : 'Finance approves; a different treasury officer releases.'),
+      h('div', { class: 'actions' }, b));
+  }
+  if (S.can.has('subcontract.manage')) {
+    const reason = input('reason', { type: 'text', maxlength: '500', placeholder: 'What is charged back' });
+    const ev = input('evidence_ref', { type: 'text', maxlength: '200', placeholder: 'Photo set, letter, delivery note' });
+    const amt = input('amount', { inputmode: 'decimal', autocomplete: 'off' });
+    const b = h('button', { type: 'button' }, 'Raise and submit back-charge');
+    b.addEventListener('click', async () => {
+      try { clearError(); const res = await api('POST', `/v1/subcontracts/${d.id}/backcharges`, { reason: reason.value.trim(), evidence_ref: ev.value.trim(), amount: amt.value.trim() });
+        await api('POST', `/v1/subcontract-backcharges/${res.id}/submit`, {}); say('Back-charge submitted for approval.'); route(); } catch (e) { showError(e); }
+    });
+    box.append(h('h3', {}, 'Back-charge'), h('div', { class: 'grid' }, field('Reason', reason), field('Evidence', ev), field('Amount', amt)), h('div', { class: 'actions' }, b));
+  }
+  return box;
+}
+
+async function applicationPanel(d) {
+  const det = (d.detail || {});
+  const head = det.h || {};
+  const v = await api('GET', `/v1/subcontracts/${head.subcontract_id}`);
+  const claimed = new Map((det.lines || []).map((l) => [l.line_no, l]));
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, `Certificate of ${v.subcontract.number} — ${v.subcontract.supplier}`));
+  if (d.status === 'CERTIFIED') {
+    const kv2 = [['This period', head.this_gross], ['Retention', head.retention], ['Advance recovery', head.advance_recovery], ['Back-charges', head.backcharges], ['Withholding', head.wht], ['Net payable', head.net_payable]];
+    box.append(h('div', { class: 'adjsum' }, kv2.map(([k, x]) => h('div', {}, h('span', { class: 'k' }, k), h('span', { class: 'v' }, money(x))))),
+      h('p', { class: 'hint' }, 'Computed by the database at certification; the certificate journal waits for finance under Accounting → Journals.'));
+    return box;
+  }
+  const can = d.status === 'SUBMITTED' && S.can.has('subcontract.certify') && d.created_by !== S.me.user_id;
+  const rows = v.lines.map((l) => ({ line_no: l.line_no, desc: `${l.description} (${l.quantity} ${l.unit})`, prev: l.certified_qty, claimed: claimed.get(l.line_no)?.claimed_cum_qty ?? '', cumulative_qty: claimed.get(l.line_no)?.claimed_cum_qty ?? '' }));
+  const grid = lineGrid('Cumulative quantities: previous certified, claimed, and certified now', [
+    { key: 'line_no', label: 'Line', make: (x) => h('span', {}, String(x.line_no)) }, { key: 'desc', label: 'Description', make: (x) => h('span', {}, x.desc) },
+    { key: 'prev', label: 'Previously certified', make: (x) => h('span', {}, String(x.prev)) }, { key: 'claimed', label: 'Claimed (to date)', make: (x) => h('span', {}, String(x.claimed)) },
+    ...(can ? [{ key: 'cumulative_qty', label: 'Certify (to date)', make: num('cumulative_qty') }] : [])], rows, false);
+  box.append(grid);
+  if (can) {
+    const b = h('button', { type: 'button', class: 'primary' }, 'Certify');
+    b.addEventListener('click', async () => {
+      try {
+        clearError();
+        const lines = grid.rows().map((r, i) => ({ line_no: rows[i].line_no, cumulative_qty: r.cumulative_qty })).filter((r, i) => r.cumulative_qty !== '' && claimed.has(rows[i].line_no));
+        await api('POST', `/v1/subcontract-applications/${d.id}/certify`, { lines });
+        say('Certified; the certificate journal waits for finance.'); route();
+      } catch (e) { showError(e); }
+    });
+    box.append(h('p', { class: 'hint' }, 'Certify cumulative quantities, never above the subcontract quantity. Retention (up to its cap), advance recovery, approved back-charges and withholding are deducted by the database. Needs a recent second-factor sign-in.'),
+      h('div', { class: 'actions' }, b));
+  }
+  return box;
+}
+
+async function renderSubPolicy() {
+  const list = (await api('GET', '/v1/p2p/subcontract_policy')).items;
+  const parts = [table('Subcontract policies', [{ label: 'Version', cell: (x) => h('a', { href: `#/doc/subcontract_policy/${x.id}` }, x.number) }, { label: 'Entity', cell: (x) => x.label }, { label: 'Status', cell: (x) => chip(x.status) }], list, 'No policy yet.')];
+  if (S.can.has('contract.policy.manage')) {
+    const ent = select('legal_entity_id', S.ref.legal_entities.map((e) => ({ value: e.id, label: e.name })));
+    const acc = (kinds) => S.ref.accounts.filter((a) => kinds.includes(a.kind)).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+    const sels = { payable_account_id: ['Subcontractor payable', ['LIABILITY']], retention_account_id: ['Retention payable', ['LIABILITY']], advance_account_id: ['Advances to subcontractors', ['ASSET']],
+      wht_account_id: ['Withholding tax payable', ['LIABILITY']], backcharge_account_id: ['Back-charge recoveries', ['EXPENSE', 'REVENUE']] };
+    const ctl = Object.fromEntries(Object.entries(sels).map(([k, [, kinds]]) => [k, select(k, acc(kinds))]));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Propose');
+    b.addEventListener('click', async () => {
+      try { clearError(); const body = { legal_entity_id: ent.value }; for (const k of Object.keys(ctl)) body[k] = ctl[k].value; await api('POST', '/v1/subcontract-policies', body); say('Subcontract accounts proposed for approval.'); renderSubPolicy(); } catch (e) { showError(e); }
+    });
+    parts.push(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Propose subcontract accounts'), h('div', { class: 'grid' }, field('Legal entity', ent), Object.entries(sels).map(([k, [label]]) => field(label, ctl[k]))), h('div', { class: 'actions' }, b)));
+  }
+  page('Subcontract accounts', 'The accounts a subcontract certificate posts to: what is owed to the subcontractor, retention held, advances recovered, withholding tax and back-charges. A controller proposes; the CFO approves on the policy page.', ...parts);
+}
+
+// ---------- fixed assets (0057) ----------
+const FA_METHOD = { SL: 'Straight line', DB: 'Double declining balance' };
+async function renderAssets(tab) {
+  closeSheet();
+  const reg = await api('GET', '/v1/assets');
+  const ent = (S.ref.legal_entities || [])[0] || {};
+  const acc = (kinds) => (S.ref.accounts || []).filter((a) => kinds.includes(a.kind)).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+  const sum = (k) => reg.assets.filter((a) => a.status === 'ACTIVE').reduce((t, a) => t + Number(a[k] || 0), 0);
+  const kpi = (v, k) => h('div', { class: 'kpi' }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k));
+  const TABS = [['register', 'Register'], ['depreciation', 'Depreciation'], ['classes', 'Classes']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'register';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Fixed assets' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/assets/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'depreciation' ? await faDepTab(reg, ent) : k === 'classes' ? faClassTab(reg, ent, acc) : faRegTab(reg, acc)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Fixed assets', 'Plant, vehicles and equipment the company owns: what each cost, how it is depreciated month by month, and what happens when it is sold. An accountant registers and runs depreciation; the CFO activates assets and approves disposals; finance approves and posts every journal.',
+    h('div', { class: 'kpis' }, kpi(String(reg.assets.filter((a) => a.status === 'ACTIVE').length), 'Assets in use'), kpi(money(sum('cost')).replace(/\.00$/, ''), 'Cost'),
+      kpi(money(sum('accumulated')).replace(/\.00$/, ''), 'Accumulated depreciation'), kpi(money(sum('nbv')).replace(/\.00$/, ''), 'Net book value')), tabs, content);
+  await show(cur);
+}
+
+function faRegTab(reg, acc) {
+  const out = h('div');
+  if (S.can.has('asset.manage') && reg.classes.length) {
+    const b = h('button', { type: 'button' }, 'Register an asset');
+    b.addEventListener('click', () => {
+      const cls = select('class_id', reg.classes.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })));
+      const desc = input('description', { type: 'text', maxlength: '300' });
+      const loc = input('location', { type: 'text', maxlength: '120', placeholder: 'Site or yard' });
+      const svc = input('in_service_on', { type: 'date', value: today(), max: today() });
+      const cost = input('cost', { inputmode: 'decimal' }); const res = input('residual', { inputmode: 'decimal', value: '0' });
+      const life = input('life_months', { inputmode: 'numeric', placeholder: 'class default' });
+      const meth = select('method', [{ value: '', label: 'Class default' }, ...Object.entries(FA_METHOD).map(([value, label]) => ({ value, label }))]);
+      const from = select('capitalised_from_account_id', acc(['ASSET', 'EXPENSE', 'LIABILITY']));
+      const save = h('button', { type: 'button', class: 'primary' }, 'Register and submit');
+      const sheet = openSheet('Register an asset', h('div', {}, h('h2', {}, 'Register an asset'), h('p', { class: 'hint' }, 'The CFO activates it; activation moves the cost from the account it was booked to (for example assets under construction) to the class’s cost account.')),
+        h('div', { class: 'grid' }, field('Class', cls), field('Description', desc), field('Location', loc), field('In service on', svc), field('Cost', cost), field('Residual value', res),
+          field('Useful life (months)', life), field('Method', meth), field('Capitalised from', from)), h('div', { class: 'actions' }, save));
+      save.addEventListener('click', async () => {
+        try {
+          const r = await api('POST', '/v1/assets', { class_id: cls.value, description: desc.value.trim(), location: loc.value.trim(), in_service_on: svc.value, cost: cost.value.trim(),
+            residual: res.value.trim() || '0', life_months: Number(life.value || 0), method: meth.value, capitalised_from_account_id: from.value });
+          await api('POST', `/v1/assets/${r.id}/submit`, {});
+          closeSheet(); say('Asset registered and submitted for activation.'); renderAssets('register');
+        } catch (e) { sheetError(sheet, e); }
+      });
+    });
+    out.append(h('div', { class: 'toolbar' }, b));
+  } else if (S.can.has('asset.manage')) out.append(h('p', { class: 'callout' }, 'Create an asset class first (Classes tab).'));
+  out.append(table('Asset register', [{ label: 'Number', cell: (a) => h('a', { href: `#/doc/fixed_asset/${a.id}` }, a.number) }, { label: 'Description', cell: (a) => a.description },
+    { label: 'Class', cell: (a) => a.class }, { label: 'In service', cell: (a) => a.in_service_on }, { label: 'Method', cell: (a) => `${a.method} · ${a.life_months} m` },
+    { label: 'Cost', num: true, cell: (a) => money(a.cost) }, { label: 'Accumulated', num: true, cell: (a) => money(a.accumulated) }, { label: 'Net book value', num: true, cell: (a) => h('strong', {}, money(a.nbv)) },
+    { label: 'Status', cell: (a) => chip(a.status) }], reg.assets, 'No asset registered.'));
+  return out;
+}
+
+async function faDepTab(reg, ent) {
+  const out = h('div');
+  const m = input('month', { type: 'month', value: today().slice(0, 7), max: today().slice(0, 7) });
+  const body = h('div', { 'aria-live': 'polite' });
+  const load = async () => {
+    body.textContent = '';
+    try {
+      const pv = (await api('GET', `/v1/depreciation/preview?entity=${ent.id}&month=${m.value}`)).lines;
+      const tot = pv.reduce((t, l) => t + Number(l.amount), 0);
+      body.append(table(`Charges for ${monthName(m.value)}: ${money(String(tot.toFixed(2)))}`, [{ label: 'Asset', cell: (l) => `${l.number} — ${l.description}` }, { label: 'Class', cell: (l) => l.class },
+        { label: 'Net book value before', num: true, cell: (l) => money(l.nbv_before) }, { label: 'This month', num: true, cell: (l) => h('strong', {}, money(l.amount)) }], pv, 'Nothing to depreciate this month.'));
+      if (S.can.has('asset.manage') && pv.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Prepare run and draft journal');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/depreciation-runs', { legal_entity_id: ent.id, month: m.value }); say('Depreciation run prepared; its journal waits for finance.'); renderAssets('depreciation'); } catch (e) { showError(e); } });
+        body.append(h('div', { class: 'actions' }, b));
+      }
+    } catch (e) { body.append(h('p', { class: 'callout' }, e.message || String(e))); }
+  };
+  m.addEventListener('change', load);
+  await load();
+  const cancel = async (r) => { try { const reason = (prompt(`Why cancel ${r.number}?`) || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); await api('POST', `/v1/depreciation-runs/${r.id}/cancel`, { reason }); say('Run and its journal cancelled.'); renderAssets('depreciation'); } catch (e) { showError(e); } };
+  out.append(h('div', { class: 'toolbar' }, field('Month', m)), body,
+    h('p', { class: 'hint' }, 'Straight line: (cost − residual) ÷ life each month. Double declining: net book value × 2 ÷ life. Never below the residual value; one run per month, in order; a run waits until its journal is posted before the next one.'),
+    table('Runs', [{ label: 'Run', cell: (r) => r.number }, { label: 'Month end', cell: (r) => r.period_end }, { label: 'Assets', num: true, cell: (r) => String(r.assets) },
+      { label: 'Total', num: true, cell: (r) => money(r.total) }, { label: 'Run', cell: (r) => chip(r.status) }, { label: 'Journal', cell: (r) => (r.journal_status ? chip(r.journal_status) : '') },
+      { label: '', cell: (r) => (r.status === 'PREPARED' && r.journal_status === 'DRAFT' && (S.can.has('journal.approve') || S.can.has('journal.post')) ? h('button', { type: 'button', class: 'ghost', on: { click: () => cancel(r) } }, 'Cancel…') : '') }],
+    reg.runs, 'No run yet.'));
+  return out;
+}
+
+function faClassTab(reg, ent, acc) {
+  const out = h('div', {}, table('Asset classes', [{ label: 'Code', cell: (c) => c.code }, { label: 'Name', cell: (c) => c.name }, { label: 'Method', cell: (c) => FA_METHOD[c.default_method] },
+    { label: 'Life (months)', num: true, cell: (c) => String(c.default_life_months) }, { label: 'Cost account', cell: (c) => c.cost_account }, { label: 'Accumulated', cell: (c) => c.accum_account },
+    { label: 'Expense', cell: (c) => c.expense_account }], reg.classes, 'No class yet.'));
+  if (S.can.has('asset.manage')) {
+    const code = input('code', { type: 'text', maxlength: '20', placeholder: 'e.g. PLANT' }); const name = input('name', { type: 'text', maxlength: '120' });
+    const cost = select('cost_account_id', acc(['ASSET'])); const accum = select('accum_account_id', acc(['ASSET'])); const exp = select('expense_account_id', acc(['EXPENSE'])); const gl = select('gain_loss_account_id', acc(['REVENUE', 'EXPENSE']));
+    const meth = select('default_method', Object.entries(FA_METHOD).map(([value, label]) => ({ value, label }))); const life = input('default_life_months', { inputmode: 'numeric', value: '60' });
+    const b = h('button', { type: 'button', class: 'primary' }, 'Add class');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/asset-classes', { legal_entity_id: ent.id, code: code.value.trim().toUpperCase(), name: name.value.trim(), cost_account_id: cost.value, accum_account_id: accum.value,
+        expense_account_id: exp.value, gain_loss_account_id: gl.value, default_method: meth.value, default_life_months: Number(life.value) }); say('Class added.'); renderAssets('classes'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Add a class'), h('div', { class: 'grid' }, field('Code', code), field('Name', name), field('Cost account', cost), field('Accumulated depreciation', accum),
+      field('Depreciation expense', exp), field('Gain or loss on disposal', gl), field('Method', meth), field('Useful life (months)', life)), h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+async function disposalPanel(d) {
+  if (d.status !== 'ACTIVE' || !S.can.has('asset.manage')) return null;
+  const date = input('disposed_on', { type: 'date', value: today(), max: today() });
+  const proceeds = input('proceeds', { inputmode: 'decimal', value: '0' });
+  const accts = (S.ref.accounts || []).filter((a) => a.kind === 'ASSET').map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+  const to = select('proceeds_account_id', accts); const why = input('reason', { type: 'text', maxlength: '500', placeholder: 'Sold, scrapped, written off…' });
+  const b = h('button', { type: 'button' }, 'Propose disposal');
+  b.addEventListener('click', async () => {
+    try { clearError(); const r = await api('POST', '/v1/asset-disposals', { asset_id: d.id, disposed_on: date.value, proceeds: proceeds.value.trim() || '0', proceeds_account_id: to.value, reason: why.value.trim() });
+      await api('POST', `/v1/asset-disposals/${r.id}/submit`, {}); say('Disposal submitted to the CFO.'); route(); } catch (e) { showError(e); }
+  });
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Dispose of this asset'), h('p', { class: 'hint' }, 'The database computes net book value and the gain or loss when the CFO approves; the disposal journal then waits for finance.'),
+    h('div', { class: 'grid' }, field('Date', date), field('Proceeds', proceeds), field('Proceeds to', to), field('Reason', why)), h('div', { class: 'actions' }, b));
+}
+
+// ---------- workforce and payroll (0061) ----------
+let PR_FLASH = '';
+function prDone(msg) { say(msg); PR_FLASH = msg; }
+const PAY_KIND = { SALARIED: 'Salaried (per month)', DAILY: 'Daily rate', HOURLY: 'Hourly rate' };
+async function renderPayroll(tab) {
+  closeSheet();
+  const v = await api('GET', '/v1/payroll');
+  const ent = (v.entities || [])[0] || (S.ref.legal_entities || [])[0] || {};
+  const kpi = (val, k) => h('div', { class: 'kpi' }, h('div', { class: 'v' }, val), h('div', { class: 'k' }, k));
+  const payPerm = S.can.has('payroll.prepare') || S.can.has('payroll.approve') || S.can.has('payment.release');
+  const TABS = payPerm ? [['runs', 'Pay runs'], ['employees', 'Employees'], ['rules', 'Tax and pension rules'], ['accounts', 'Accounts']] : [['accounts', 'Accounts']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : TABS[0][0];
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Payroll' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/payroll/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'employees' ? prEmployees(v, ent) : k === 'rules' ? prRules(v, ent) : k === 'accounts' ? prAccounts(v, ent) : await prRuns(v, ent)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  const runs = v.runs || [];
+  const last = runs.find((r) => ['APPROVED', 'PAID'].includes(r.status));
+  page('Payroll', 'Employees, the tax and pension rules in force, and the monthly pay run. A payroll officer prepares; the HR manager approves with fresh MFA; treasury pays — three different people. The database computes every pay line and the journals per project.',
+    payPerm ? h('div', { class: 'kpis' }, kpi(String((v.employees || []).filter((e) => e.status === 'ACTIVE').length), 'Active employees'),
+      kpi(String(runs.filter((r) => ['DRAFT', 'CALCULATED', 'SUBMITTED'].includes(r.status)).length), 'Runs in progress'),
+      kpi(last ? money(last.gross || '0').replace(/\.00$/, '') : '—', last ? `Gross, ${last.number}` : 'Last approved gross')) : null, tabs, content);
+  await show(cur);
+  if (PR_FLASH) { $('view').insertBefore(h('p', { class: 'notice', role: 'status' }, PR_FLASH), $('view').children[1]); PR_FLASH = ''; }
+}
+
+async function prRuns(v, ent) {
+  const out = h('div');
+  if (S.can.has('payroll.prepare')) {
+    const start = input('period_start', { type: 'date' }); const end = input('period_end', { type: 'date' }); const pay = input('pay_date', { type: 'date' });
+    const d = new Date(); const y = d.getFullYear(); const m = d.getMonth();
+    const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    start.value = iso(new Date(y, m - 1, 1)); end.value = iso(new Date(y, m, 0)); pay.value = end.value;
+    const b = h('button', { type: 'button', class: 'primary' }, 'Open a pay run');
+    b.addEventListener('click', async () => {
+      try { clearError(); const r = await api('POST', '/v1/pay-runs', { legal_entity_id: ent.id, period_start: start.value, period_end: end.value, pay_date: pay.value }); await renderPayroll('runs'); await prOpenRun(r.id, ent, 'Pay run opened; add the inputs.'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'New pay run'), h('div', { class: 'grid' }, field('Period from', start), field('Period to', end), field('Pay date', pay)), h('div', { class: 'actions' }, b)));
+  }
+  out.append(table('Pay runs', [{ label: 'Run', cell: (r) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); prOpenRun(r.id, ent); } } }, r.number) },
+    { label: 'Period', cell: (r) => `${r.period_start} – ${r.period_end}` }, { label: 'Pay date', cell: (r) => r.pay_date }, { label: 'Employees', num: true, cell: (r) => String(r.employees) },
+    { label: 'Gross', num: true, cell: (r) => (r.gross == null ? '' : money(r.gross)) }, { label: 'Net', num: true, cell: (r) => (r.net == null ? '' : money(r.net)) },
+    { label: 'Status', cell: (r) => chip(r.status) }, { label: 'Prepared by', cell: (r) => r.created_by }, { label: 'Approved by', cell: (r) => r.approved_by || '' }], v.runs || [], 'No pay run yet.'));
+  return out;
+}
+
+async function prOpenRun(id, ent, msg) {
+  const v = await api('GET', `/v1/payroll?run=${id}`);
+  const r = (v.runs || []).find((x) => x.id === id) || {};
+  const lines = v.lines || [];
+  const act = h('div', { class: 'actions' });
+  const body = h('div', {}, h('h2', {}, `Pay run ${r.number}`), h('p', { class: 'hint' }, `${r.period_start} – ${r.period_end} · pay date ${r.pay_date} · `, chip(r.status)));
+  const sheet = openSheet(`Pay run ${r.number}`, body);
+  if (msg) { say(msg); body.append(h('p', { class: 'notice', role: 'status' }, msg)); }
+  const go = async (path, payload, msg) => { try { await api('POST', `/v1/pay-runs/${id}/${path}`, payload || {}); prDone(msg); closeSheet(); renderPayroll('runs'); } catch (e) { sheetError(sheet, e); } };
+  const reason = (what) => { const t = (prompt(`Why ${what}?`) || '').trim(); if (t.length < 5) { sheetError(sheet, new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return t; };
+  if (r.status === 'DRAFT' && S.can.has('payroll.prepare')) {
+    const emps = (v.employees || []).filter((e) => e.status === 'ACTIVE').map((e) => ({ value: e.id, label: `${e.number} ${e.name}` }));
+    const projs = [{ value: '', label: 'Head office (no project)' }, ...opt(v.projects || S.ref.projects || [], (p) => `${p.code} — ${p.name}`)];
+    const grid = lineGrid('Inputs', [
+      { key: 'employee_id', label: 'Employee', make: () => select('employee_id', emps) },
+      { key: 'units', label: 'Months / days / hours', make: num('units', { value: '1' }) },
+      { key: 'overtime_hours', label: 'Overtime hours', make: num('overtime_hours', { value: '0' }) },
+      { key: 'allowances', label: 'Allowances', make: num('allowances', { value: '0' }) },
+      { key: 'project_id', label: 'Charged to', make: () => select('project_id', projs) }], lines.length ? [] : emps.map((e) => ({ employee_id: e.value })), true);
+    const add = h('button', { type: 'button' }, 'Save inputs');
+    add.addEventListener('click', async () => {
+      try { const rows = grid.rows().filter((x) => x.employee_id); await api('POST', `/v1/pay-runs/${id}/inputs`, { inputs: rows.map((x) => ({ ...x, units: x.units || '0', overtime_hours: x.overtime_hours || '0', allowances: x.allowances || '0' })) });
+        closeSheet(); prOpenRun(id, ent, 'Inputs saved; press Calculate.'); } catch (e) { sheetError(sheet, e); }
+    });
+    if (!lines.length) {
+      const imp = h('button', { type: 'button', class: 'ghost' }, 'Import approved timesheet hours');
+      imp.addEventListener('click', async () => { try { const r = await api('POST', `/v1/pay-runs/${id}/import-timesheets`, {}); closeSheet(); prOpenRun(id, ent, `${r.imported} people imported from approved timesheets; add salaried staff and allowances, then Calculate.`); } catch (e) { sheetError(sheet, e); } });
+      body.append(h('div', { class: 'actions' }, imp), grid, h('div', { class: 'actions' }, add));
+    }
+    if (lines.length) act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('calculate', null, 'Run calculated by the database.') } }, 'Calculate'));
+  }
+  if (lines.length) {
+    const tot = (k) => lines.reduce((t, l) => t + Number(l[k] || 0), 0).toFixed(2);
+    body.append(table('Pay lines', [{ label: 'Employee', cell: (l) => `${l.number} ${l.name}` }, { label: 'Charged to', cell: (l) => l.project || 'Head office' },
+      { label: 'Units', num: true, cell: (l) => String(Number(l.units)) }, { label: 'Basic', num: true, cell: (l) => (l.basic == null ? '' : money(l.basic)) },
+      { label: 'Overtime', num: true, cell: (l) => (l.overtime == null ? '' : money(l.overtime)) }, { label: 'Allowances', num: true, cell: (l) => (l.allowances == null ? '' : money(l.allowances)) },
+      { label: 'Gross', num: true, cell: (l) => (l.gross == null ? '' : h('strong', {}, money(l.gross))) }, { label: 'Income tax', num: true, cell: (l) => (l.income_tax == null ? '' : money(l.income_tax)) },
+      { label: 'Pension (employee)', num: true, cell: (l) => (l.pension_ee == null ? '' : money(l.pension_ee)) }, { label: 'Pension (employer)', num: true, cell: (l) => (l.pension_er == null ? '' : money(l.pension_er)) },
+      { label: 'Net pay', num: true, cell: (l) => (l.net == null ? '' : h('strong', {}, money(l.net))) }], lines, ''),
+    lines[0].gross == null ? h('p', { class: 'hint' }, 'Not calculated yet.') : h('p', { class: 'hint' }, `Totals: gross ${money(tot('gross'))} · tax ${money(tot('income_tax'))} · net ${money(tot('net'))} · employer pension ${money(tot('pension_er'))}.`));
+  }
+  if (r.status === 'CALCULATED' && S.can.has('payroll.prepare')) act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('submit', null, 'Submitted to the HR manager.') } }, 'Submit for approval'));
+  if (['DRAFT', 'CALCULATED'].includes(r.status) && S.can.has('payroll.prepare')) act.append(h('button', { type: 'button', class: 'ghost', on: { click: () => { const t = reason('cancel this run'); if (t) go('cancel', { reason: t }, 'Run cancelled.'); } } }, 'Cancel…'));
+  if (r.status === 'SUBMITTED' && S.can.has('payroll.approve')) {
+    act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('approve', null, 'Approved; one payroll journal per project waits for finance.') } }, 'Approve'),
+      h('button', { type: 'button', class: 'ghost', on: { click: () => { const t = reason('reject this run'); if (t) go('reject', { reason: t }, 'Run rejected.'); } } }, 'Reject…'));
+  }
+  if (r.status === 'APPROVED' && S.can.has('payment.release')) {
+    const cbanks = (await api('GET', '/v1/p2p/company_bank_account?status=ACTIVE')).items;
+    const bank = select('company_bank_id', cbanks.map((b) => ({ value: b.id, label: b.label })));
+    body.append(h('div', { class: 'grid' }, field('Pay from', bank)));
+    act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('release', { company_bank_id: bank.value }, 'Payroll paid; the payment journal waits for finance.') } }, 'Release payment'));
+  }
+  if (['APPROVED', 'PAID'].includes(r.status) && S.can.has('payment.release')) {
+    act.append(h('button', { type: 'button', class: 'ghost', on: { click: async () => {
+      try {
+        const res = await fetch(`/v1/pay-runs/${id}/bank-file`, { headers: { Authorization: 'Bearer ' + S.token } });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); const e = d.error || {}; throw new ApiError(res.status, e.code || 'error', e.message || res.statusText, res.headers.get('WWW-Authenticate')); }
+        const url = URL.createObjectURL(await res.blob());
+        const a = h('a', { href: url, download: `payroll-${r.number}.csv`, hidden: true });
+        document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+        prDone('Bank file downloaded (recorded in the audit trail).');
+      } catch (e) { sheetError(sheet, e); }
+    } } }, 'Download bank file'));
+  }
+  body.append(act);
+}
+
+function prEmployees(v, ent) {
+  const out = h('div');
+  if (S.can.has('payroll.prepare')) {
+    const b = h('button', { type: 'button' }, 'Add an employee');
+    b.addEventListener('click', () => {
+      const no = input('number', { type: 'text', maxlength: '30', placeholder: 'E-001' }); const name = input('name', { type: 'text', maxlength: '200' });
+      const kind = select('kind', Object.entries(PAY_KIND).map(([value, label]) => ({ value, label }))); const trade = input('trade', { type: 'text', maxlength: '80' });
+      const rate = input('base_rate', { inputmode: 'decimal' }); const tin = input('tin', { type: 'text', maxlength: '20' }); const pen = input('pension_no', { type: 'text', maxlength: '30' });
+      const bank = input('bank_name', { type: 'text', maxlength: '80' }); const acct = input('account_number', { type: 'text', inputmode: 'numeric', autocomplete: 'off', maxlength: '34' });
+      const start = input('starts_on', { type: 'date', value: today() });
+      const save = h('button', { type: 'button', class: 'primary' }, 'Save');
+      const sheet = openSheet('Add an employee', h('div', {}, h('h2', {}, 'Add an employee'), h('p', { class: 'hint' }, 'The bank account number is encrypted; screens show only its last four digits. The base rate is per month, per day or per hour depending on the pay type.')),
+        h('div', { class: 'grid' }, field('Employee number', no), field('Name', name), field('Pay type', kind), field('Trade or position', trade), field('Base rate', rate), field('TIN', tin),
+          field('Pension number', pen), field('Bank', bank), field('Account number', acct), field('Starts on', start)), h('div', { class: 'actions' }, save));
+      save.addEventListener('click', async () => {
+        try { await api('POST', '/v1/employees', { legal_entity_id: ent.id, number: no.value.trim().toUpperCase(), name: name.value.trim(), kind: kind.value, trade: trade.value.trim(), base_rate: rate.value.trim(),
+          tin: tin.value.trim(), pension_no: pen.value.trim(), bank_name: bank.value.trim(), account_number: acct.value.trim(), starts_on: start.value }); closeSheet(); prDone('Employee added.'); renderPayroll('employees'); } catch (e) { sheetError(sheet, e); }
+      });
+    });
+    out.append(h('div', { class: 'toolbar' }, b));
+  }
+  const leave = async (e) => { try { const d = (prompt(`Last working day of ${e.name} (YYYY-MM-DD)`, today()) || '').trim(); if (!d) return; await api('POST', `/v1/employees/${e.id}/leave`, { ends_on: d }); prDone('Leaving date recorded.'); renderPayroll('employees'); } catch (x) { showError(x); } };
+  out.append(table('Employees', [{ label: 'Number', cell: (e) => e.number }, { label: 'Name', cell: (e) => e.name }, { label: 'Pay type', cell: (e) => PAY_KIND[e.kind] || e.kind },
+    { label: 'Trade', cell: (e) => e.trade || '' }, { label: 'Base rate', num: true, cell: (e) => money(e.base_rate) }, { label: 'Bank', cell: (e) => [e.bank_name, e.account].filter(Boolean).join(' ') },
+    { label: 'Since', cell: (e) => e.starts_on }, { label: 'Status', cell: (e) => chip(e.status) },
+    { label: '', cell: (e) => (e.status === 'ACTIVE' && S.can.has('payroll.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => leave(e) } }, 'Leaves…') : '') }], v.employees || [], 'No employee yet.'));
+  return out;
+}
+
+function prRules(v, ent) {
+  const out = h('div');
+  const bandText = (bs) => (bs || []).map((b) => `${b.upto == null ? 'above' : 'to ' + Number(b.upto).toLocaleString()}: ${(Number(b.rate) * 100).toFixed(0)}%${Number(b.deduction) ? ' less ' + Number(b.deduction).toLocaleString() : ''}`).join(' · ');
+  const decide = async (rs, path, msg, why) => { try { const body = {}; if (why) { const t = (prompt('Why reject?') || '').trim(); if (t.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); body.reason = t; }
+    await api('POST', `/v1/payroll-rule-sets/${rs.id}/${path}`, body); prDone(msg); renderPayroll('rules'); } catch (e) { showError(e); } };
+  out.append(table('Rule sets', [{ label: 'Number', cell: (r) => r.number }, { label: 'In force from', cell: (r) => r.effective_from }, { label: 'Income tax bands', cell: (r) => bandText(r.tax_bands) },
+    { label: 'Pension', cell: (r) => `${(Number(r.pension_ee_rate) * 100).toFixed(1)}% + ${(Number(r.pension_er_rate) * 100).toFixed(1)}%` }, { label: 'Overtime', cell: (r) => `× ${Number(r.overtime_multiplier)}` },
+    { label: 'Source', cell: (r) => r.source_ref }, { label: 'Status', cell: (r) => chip(r.status) },
+    { label: '', cell: (r) => h('span', {}, r.status === 'DRAFT' && S.can.has('payroll.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => decide(r, 'submit', 'Submitted to the HR manager.') } }, 'Submit') : '',
+      r.status === 'SUBMITTED' && S.can.has('payroll.approve') ? h('button', { type: 'button', class: 'ghost', on: { click: () => decide(r, 'approve', 'Rule set approved.') } }, 'Approve') : '',
+      r.status === 'SUBMITTED' && S.can.has('payroll.approve') ? h('button', { type: 'button', class: 'ghost', on: { click: () => decide(r, 'reject', 'Rule set rejected.', true) } }, 'Reject…') : '') }], v.rule_sets || [], 'No rule set yet.'));
+  if (S.can.has('payroll.prepare')) {
+    const from = input('effective_from', { type: 'date', value: today() });
+    const ee = input('pension_ee_rate', { inputmode: 'decimal', value: '0.07' }); const er = input('pension_er_rate', { inputmode: 'decimal', value: '0.11' });
+    const ot = input('overtime_multiplier', { inputmode: 'decimal', value: '1.5' }); const src = input('source_ref', { type: 'text', maxlength: '300', placeholder: 'Proclamation or directive the rates come from' });
+    const grid = lineGrid('Income tax bands (ascending; leave "up to" empty on the last band)', [
+      { key: 'upto', label: 'Monthly gross up to', make: num('upto') }, { key: 'rate', label: 'Rate (e.g. 0.15)', make: num('rate') }, { key: 'deduction', label: 'Deduction', make: num('deduction', { value: '0' }) }],
+    [{ upto: '600', rate: '0', deduction: '0' }, { upto: '1650', rate: '0.10', deduction: '60' }, { upto: '3200', rate: '0.15', deduction: '142.50' }, { upto: '5250', rate: '0.20', deduction: '302.50' },
+      { upto: '7800', rate: '0.25', deduction: '565' }, { upto: '10900', rate: '0.30', deduction: '955' }, { upto: '', rate: '0.35', deduction: '1500' }], true);
+    const b = h('button', { type: 'button', class: 'primary' }, 'Prepare rule set');
+    b.addEventListener('click', async () => {
+      try { clearError(); const bands = grid.rows().filter((x) => x.rate !== '').map((x) => ({ upto: x.upto === '' ? null : x.upto, rate: x.rate, deduction: x.deduction || '0' }));
+        await api('POST', '/v1/payroll-rule-sets', { legal_entity_id: ent.id, effective_from: from.value, tax_bands: bands, pension_ee_rate: ee.value.trim(), pension_er_rate: er.value.trim(), overtime_multiplier: ot.value.trim(), source_ref: src.value.trim() });
+        prDone('Rule set prepared; submit it to the HR manager.'); renderPayroll('rules'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Prepare a rule set'), h('p', { class: 'hint' }, 'The prefilled bands are an example to edit, not a statement of current law. A rule set cannot take effect inside a period whose pay run is already approved.'),
+      h('div', { class: 'grid' }, field('In force from', from), field('Employee pension rate', ee), field('Employer pension rate', er), field('Overtime multiplier', ot), field('Source', src)), grid, h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+function prAccounts(v, ent) {
+  const out = h('div');
+  const decide = async (p, ok) => { try { const body = {}; if (!ok) { const t = (prompt('Why reject?') || '').trim(); if (t.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); body.reason = t; }
+    await api('POST', `/v1/payroll-policies/${p.id}/${ok ? 'approve' : 'reject'}`, body); prDone(ok ? 'Payroll accounts approved.' : 'Rejected.'); renderPayroll('accounts'); } catch (e) { showError(e); } };
+  out.append(table('Payroll accounts', [{ label: 'Version', num: true, cell: (p) => String(p.version) }, { label: 'Salaries', cell: (p) => p.salary }, { label: 'Employer pension', cell: (p) => p.pension_expense },
+    { label: 'Net pay payable', cell: (p) => p.net_payable }, { label: 'Income tax payable', cell: (p) => p.tax_payable }, { label: 'Pension payable', cell: (p) => p.pension_payable }, { label: 'Status', cell: (p) => chip(p.status) },
+    { label: '', cell: (p) => (p.status === 'DRAFT' && S.can.has('contract.policy.approve') ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: () => decide(p, true) } }, 'Approve'),
+      h('button', { type: 'button', class: 'ghost', on: { click: () => decide(p, false) } }, 'Reject…')) : '') }], v.policies || [], 'No payroll accounts yet.'));
+  if (S.can.has('contract.policy.manage')) {
+    const acc = (kind) => (S.ref.accounts || []).filter((a) => a.kind === kind).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+    const sal = select('salary_account_id', acc('EXPENSE')); const pe = select('pension_expense_account_id', acc('EXPENSE'));
+    const net = select('net_payable_account_id', acc('LIABILITY')); const tax = select('tax_payable_account_id', acc('LIABILITY')); const pp = select('pension_payable_account_id', acc('LIABILITY'));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Propose');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/payroll-policies', { legal_entity_id: ent.id, salary_account_id: sal.value, pension_expense_account_id: pe.value, net_payable_account_id: net.value, tax_payable_account_id: tax.value, pension_payable_account_id: pp.value });
+        prDone('Proposed; the CFO approves it.'); renderPayroll('accounts'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Propose payroll accounts'), h('div', { class: 'grid' }, field('Salaries and wages', sal), field('Employer pension expense', pe),
+      field('Net pay payable', net), field('Income tax payable', tax), field('Pension payable', pp)), h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+// ---------- consolidation and intercompany (0062) ----------
+let CON_FLASH = '';
+function conDone(msg) { say(msg); CON_FLASH = msg; }
+const CON_METHOD = { FULL: 'Full (line by line)', PROPORTIONATE: 'Proportionate share', EQUITY: 'Equity method' };
+async function renderConsolidation(tab) {
+  closeSheet();
+  const v = await api('GET', '/v1/consolidation');
+  const TABS = [['runs', 'Runs'], ['groups', 'Groups'], ['intercompany', 'Intercompany accounts']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'runs';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Consolidation' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/consolidation/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'groups' ? conGroups(v) : k === 'intercompany' ? conIC(v) : conRuns(v)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Consolidation', 'Group accounts across the legal entities: each member translated to the group currency, minority interests and associates, and intercompany balances eliminated. A controller prepares; the CFO approves with fresh MFA. Nothing is posted to any entity’s books.', tabs, content);
+  await show(cur);
+  if (CON_FLASH) { $('view').insertBefore(h('p', { class: 'notice', role: 'status' }, CON_FLASH), $('view').children[1]); CON_FLASH = ''; }
+}
+
+function conRuns(v) {
+  const out = h('div');
+  const groups = (v.groups || []).filter((g) => g.status === 'APPROVED');
+  if (S.can.has('consolidation.manage') && groups.length) {
+    const grp = select('group_id', groups.map((g) => ({ value: g.id, label: `${g.code} — ${g.name} (${g.presentation_currency})` })));
+    const d = new Date(); const y = d.getFullYear(); const q = Math.floor(d.getMonth() / 3);
+    const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    const start = input('period_start', { type: 'date', value: iso(new Date(y, q * 3 - 3, 1)) }); const end = input('period_end', { type: 'date', value: iso(new Date(y, q * 3, 0)) });
+    const src = input('rate_source', { type: 'text', maxlength: '300', placeholder: 'e.g. NBE closing rate and quarter average' });
+    const rates = h('div', { class: 'grid' });
+    const paint = () => {
+      rates.textContent = '';
+      const g = groups.find((x) => x.id === grp.value) || {};
+      const ccys = [...new Set((g.members || []).map((m) => m.currency).filter((c) => c && c !== g.presentation_currency))];
+      for (const c of ccys) rates.append(field(`${c} closing rate (${g.presentation_currency} per ${c})`, input(`closing_${c}`, { inputmode: 'decimal', 'data-ccy': c, 'data-k': 'closing' })),
+        field(`${c} average rate`, input(`average_${c}`, { inputmode: 'decimal', 'data-ccy': c, 'data-k': 'average' })));
+      if (!ccys.length) rates.append(h('p', { class: 'hint' }, 'Every member reports in the group currency: no rates needed.'));
+    };
+    grp.addEventListener('change', paint); paint();
+    const b = h('button', { type: 'button', class: 'primary' }, 'Prepare consolidation');
+    b.addEventListener('click', async () => {
+      try {
+        clearError();
+        const r = {};
+        for (const el of rates.querySelectorAll('input')) { const c = el.dataset.ccy; r[c] = r[c] || {}; r[c][el.dataset.k] = el.value.trim(); }
+        const res = await api('POST', '/v1/consolidation-runs', { group_id: grp.value, period_start: start.value, period_end: end.value, rates: r, rate_source: src.value.trim() });
+        conDone('Consolidation prepared; the CFO approves it.'); await renderConsolidation('runs'); await conOpenRun(res.id);
+      } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Prepare a consolidation'), h('div', { class: 'grid' }, field('Group', grp), field('Period from', start), field('Period to', end), field('Rate source', src)), rates,
+      h('p', { class: 'hint' }, 'Balance-sheet accounts at the closing rate, income and expense at the average rate, earlier results at the closing rate; the difference is the translation reserve.'), h('div', { class: 'actions' }, b)));
+  } else if (S.can.has('consolidation.manage')) out.append(h('p', { class: 'callout' }, 'Propose a group first (Groups tab); the CFO approves it.'));
+  out.append(table('Runs', [{ label: 'Run', cell: (r) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); conOpenRun(r.id); } } }, r.number) }, { label: 'Group', cell: (r) => r.group_code },
+    { label: 'Period', cell: (r) => `${r.period_start} – ${r.period_end}` }, { label: 'Rates', cell: (r) => Object.entries(r.rates || {}).map(([c, x]) => `${c} ${x.closing} / ${x.average}`).join(' · ') || '—' },
+    { label: 'Unmatched intercompany', num: true, cell: (r) => (Number(r.ic_difference) ? h('strong', {}, money(r.ic_difference)) : '0.00') }, { label: 'Status', cell: (r) => chip(r.status) },
+    { label: 'Prepared by', cell: (r) => r.created_by }, { label: 'Approved by', cell: (r) => r.approved_by || '' }], v.runs || [], 'No consolidation yet.'));
+  return out;
+}
+
+async function conOpenRun(id) {
+  const rep = await api('GET', `/v1/consolidation-runs/${id}`);
+  const t = rep.totals || {};
+  const kpi = (val, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, val), h('div', { class: 'k' }, k));
+  const ents = rep.entities || [];
+  const body = h('div', {}, h('h2', {}, `Consolidation ${rep.number}`), h('p', { class: 'hint' }, `Amounts in ${rep.currency}, debit positive · `, chip(rep.status)));
+  const sheet = openSheet(`Consolidation ${rep.number}`, body);
+  sheet.classList.add('wide');
+  body.append(h('div', { class: 'kpis' }, kpi(money(t.assets), 'Assets'), kpi(money(t.liabilities), 'Liabilities'), kpi(money(t.equity), 'Equity'), kpi(money(t.profit), 'Profit for the period'),
+    kpi(money(String(Math.abs(Number(t.suspense || 0)).toFixed(2))), 'Unmatched intercompany', Number(t.suspense || 0) !== 0)));
+  body.append(table('Consolidated trial balance', [{ label: 'Account', cell: (r) => `${r.account_code} ${r.account_name}` }, { label: 'Type', cell: (r) => words(r.account_type) },
+    ...ents.map((e) => ({ label: e, num: true, cell: (r) => (r.by_entity && r.by_entity[e] != null ? money(r.by_entity[e]) : '') })),
+    { label: 'Adjustments', num: true, cell: (r) => (Number(r.adjustments) ? money(r.adjustments) : '') }, { label: 'Eliminations', num: true, cell: (r) => (Number(r.eliminations) ? money(r.eliminations) : '') },
+    { label: 'Group', num: true, cell: (r) => h('strong', {}, money(r.total)) }], rep.trial_balance || [], 'No balances.'));
+  const act = h('div', { class: 'actions' });
+  const go = async (path, payload, msg) => { try { await api('POST', `/v1/consolidation-runs/${id}/${path}`, payload || {}); conDone(msg); closeSheet(); renderConsolidation('runs'); } catch (e) { sheetError(sheet, e); } };
+  const why = (w) => { const x = (prompt(`Why ${w}?`) || '').trim(); if (x.length < 5) { sheetError(sheet, new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return x; };
+  if (rep.status === 'PREPARED' && S.can.has('consolidation.approve')) act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('approve', null, 'Consolidation approved.') } }, 'Approve'),
+    h('button', { type: 'button', class: 'ghost', on: { click: () => { const x = why('reject'); if (x) go('reject', { reason: x }, 'Consolidation rejected.'); } } }, 'Reject…'));
+  if (rep.status === 'PREPARED' && S.can.has('consolidation.manage')) act.append(h('button', { type: 'button', class: 'ghost', on: { click: () => { const x = why('cancel'); if (x) go('cancel', { reason: x }, 'Run cancelled; prepare it again.'); } } }, 'Cancel…'));
+  body.append(h('details', {}, h('summary', {}, 'Every computed line'), table('Lines', [{ label: 'Entity', cell: (l) => l.entity || 'Group' }, { label: 'Account', cell: (l) => `${l.account_code} ${l.account_name}` },
+    { label: 'Kind', cell: (l) => words(l.kind) }, { label: 'Local', num: true, cell: (l) => (Number(l.local_amount) ? money(l.local_amount) : '') }, { label: 'Rate', num: true, cell: (l) => l.rate || '' },
+    { label: 'Amount', num: true, cell: (l) => money(l.amount) }], rep.lines || [], '')), act);
+}
+
+function conGroups(v) {
+  const out = h('div');
+  const decide = async (g, ok) => { try { const body = {}; if (!ok) { const x = (prompt('Why reject?') || '').trim(); if (x.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); body.reason = x; }
+    await api('POST', `/v1/consolidation-groups/${g.id}/${ok ? 'approve' : 'reject'}`, body); conDone(ok ? 'Group approved.' : 'Group rejected.'); renderConsolidation('groups'); } catch (e) { showError(e); } };
+  out.append(table('Groups', [{ label: 'Group', cell: (g) => `${g.code} v${g.version} — ${g.name}` }, { label: 'Currency', cell: (g) => g.presentation_currency },
+    { label: 'Members', cell: (g) => (g.members || []).map((m) => `${m.entity} ${(Number(m.ownership_pct) * 100).toFixed(2).replace(/\.00$/, '')}% ${words(m.method)}`).join(' · ') },
+    { label: 'Status', cell: (g) => chip(g.status) }, { label: 'Proposed by', cell: (g) => g.created_by },
+    { label: '', cell: (g) => (g.status === 'DRAFT' && S.can.has('consolidation.approve') ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: () => decide(g, true) } }, 'Approve'),
+      h('button', { type: 'button', class: 'ghost', on: { click: () => decide(g, false) } }, 'Reject…')) : '') }], v.groups || [], 'No group yet.'));
+  if (S.can.has('consolidation.manage')) {
+    const ents = (v.entities || []).map((e) => ({ value: e.id, label: `${e.name} (${e.functional_currency})` }));
+    const code = input('code', { type: 'text', maxlength: '20', placeholder: 'e.g. SERK' }); const name = input('name', { type: 'text', maxlength: '200' });
+    const ccy = input('presentation_currency', { type: 'text', maxlength: '3', value: ((v.entities || [])[0] || {}).functional_currency || 'ETB' });
+    const parent = select('parent_entity_id', ents);
+    const grid = lineGrid('Members', [{ key: 'legal_entity_id', label: 'Entity', make: () => select('legal_entity_id', ents) },
+      { key: 'ownership_pct', label: 'Ownership (e.g. 0.8)', make: num('ownership_pct', { value: '1' }) },
+      { key: 'method', label: 'Method', make: () => select('method', Object.entries(CON_METHOD).map(([value, label]) => ({ value, label }))) }], ents.map((e) => ({ legal_entity_id: e.value })), true);
+    const b = h('button', { type: 'button', class: 'primary' }, 'Propose group');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/consolidation-groups', { code: code.value.trim().toUpperCase(), name: name.value.trim(), presentation_currency: ccy.value.trim().toUpperCase(), parent_entity_id: parent.value,
+        members: grid.rows().filter((m) => m.legal_entity_id).map((m) => ({ ...m, ownership_pct: m.ownership_pct || '1' })) }); conDone('Group proposed; the CFO approves it.'); renderConsolidation('groups'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Propose a group (or its next version)'), h('p', { class: 'hint' }, 'The parent is a member at 100%, fully consolidated. Approving a new version retires the one in force.'),
+      h('div', { class: 'grid' }, field('Code', code), field('Name', name), field('Group currency', ccy), field('Parent entity', parent)), grid, h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+function conIC(v) {
+  const out = h('div', {}, table('Intercompany accounts', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Account', cell: (x) => `${x.code} ${x.name}` }, { label: 'Role', cell: (x) => words(x.role) },
+    { label: 'Counterparty', cell: (x) => x.counterparty }], v.intercompany || [], 'No intercompany account designated.'));
+  if (S.can.has('consolidation.manage')) {
+    const acc = select('account_id', (v.accounts || []).map((a) => ({ value: a.id, label: `${a.entity} · ${a.code} ${a.name} (${words(a.type)})` })));
+    const cp = select('counterparty_entity_id', (v.entities || []).map((e) => ({ value: e.id, label: e.name })));
+    const role = select('role', [['RECEIVABLE', 'Receivable (due from)'], ['PAYABLE', 'Payable (due to)'], ['REVENUE', 'Revenue from the counterparty'], ['EXPENSE', 'Expense to the counterparty']].map(([value, label]) => ({ value, label })));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Designate');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/intercompany-accounts', { account_id: acc.value, counterparty_entity_id: cp.value, role: role.value }); conDone('Account designated.'); renderConsolidation('intercompany'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Designate an intercompany account'), h('p', { class: 'hint' }, 'Balances on these accounts between members are eliminated; what does not match between a pair of entities is shown as an intercompany difference.'),
+      h('div', { class: 'grid' }, field('Account', acc), field('Counterparty', cp), field('Role', role)), h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+// ---------- tax returns and e-invoicing (0063) ----------
+let TAX_FLASH = '';
+function taxDone(msg) { say(msg); TAX_FLASH = msg; }
+const TAX_KIND = { OUTPUT_VAT: 'Output VAT (payable)', INPUT_VAT: 'Input VAT (recoverable)', WHT_PAYABLE: 'Withholding tax payable' };
+async function renderTax(tab) {
+  closeSheet();
+  const v = await api('GET', '/v1/tax');
+  const TABS = [['returns', 'Returns'], ['einvoice', 'E-invoices'], ['accounts', 'Tax accounts']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'returns';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Tax' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/tax/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'accounts' ? taxAccounts(v) : k === 'einvoice' ? taxEInvoices(v) : taxReturns(v)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Tax', 'VAT and withholding returns computed from posted journals, and e-invoice submissions. An accountant prepares and files; the CFO approves with fresh MFA. Amounts are always what the ledger holds.', tabs, content);
+  await show(cur);
+  if (TAX_FLASH) { $('view').insertBefore(h('p', { class: 'notice', role: 'status' }, TAX_FLASH), $('view').children[1]); TAX_FLASH = ''; }
+}
+
+function taxReturns(v) {
+  const out = h('div');
+  const ents = (v.entities || []).map((e) => ({ value: e.id, label: e.name }));
+  if (S.can.has('tax.prepare')) {
+    const ent = select('legal_entity_id', ents); const kind = select('kind', [{ value: 'VAT', label: 'VAT return' }, { value: 'WHT', label: 'Withholding return' }]);
+    const d = new Date(); const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    const start = input('period_start', { type: 'date', value: iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)) }); const end = input('period_end', { type: 'date', value: iso(new Date(d.getFullYear(), d.getMonth(), 0)) });
+    const b = h('button', { type: 'button', class: 'primary' }, 'Prepare return');
+    b.addEventListener('click', async () => {
+      try { clearError(); const r = await api('POST', '/v1/tax-returns', { legal_entity_id: ent.value, kind: kind.value, period_start: start.value, period_end: end.value }); taxDone('Return prepared; the CFO approves it.'); await renderTax('returns'); await taxOpen(r.id); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Prepare a return'), h('div', { class: 'grid' }, field('Entity', ent), field('Return', kind), field('Period from', start), field('Period to', end)),
+      h('p', { class: 'hint' }, 'Designate the entity’s tax accounts first (Tax accounts tab). Output VAT and withholding are payable; input VAT is recoverable and shown negative.'), h('div', { class: 'actions' }, b)));
+  }
+  out.append(table('Returns', [{ label: 'Return', cell: (r) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); taxOpen(r.id); } } }, r.number) }, { label: 'Entity', cell: (r) => r.entity },
+    { label: 'Type', cell: (r) => r.kind }, { label: 'Period', cell: (r) => `${r.period_start} – ${r.period_end}` }, { label: 'Net payable', num: true, cell: (r) => h('strong', {}, money(r.net)) },
+    { label: 'Status', cell: (r) => chip(r.status) }, { label: 'Filing reference', cell: (r) => r.filing_ref || '' }, { label: 'Prepared by', cell: (r) => r.created_by }], v.returns || [], 'No return yet.'));
+  return out;
+}
+
+async function taxOpen(id) {
+  const v = await api('GET', `/v1/tax?return=${id}`);
+  const r = (v.returns || []).find((x) => x.id === id) || {};
+  const body = h('div', {}, h('h2', {}, `${r.kind} return ${r.number}`), h('p', { class: 'hint' }, `${r.entity} · ${r.period_start} – ${r.period_end} · `, chip(r.status)));
+  const sheet = openSheet(`Tax return ${r.number}`, body);
+  body.append(table('Computed from posted journals', [{ label: 'Account', cell: (l) => `${l.account_code} ${l.account_name}` }, { label: 'Kind', cell: (l) => TAX_KIND[l.tax_kind] || l.tax_kind },
+    { label: 'Amount', num: true, cell: (l) => money(l.amount) }], v.lines || [], ''), h('p', { class: 'hint' }, `Net payable to the authority: ${money(r.net)}.`));
+  const act = h('div', { class: 'actions' });
+  const go = async (path, payload, msg) => { try { await api('POST', `/v1/tax-returns/${id}/${path}`, payload || {}); taxDone(msg); closeSheet(); renderTax('returns'); } catch (e) { sheetError(sheet, e); } };
+  const why = (w) => { const x = (prompt(`Why ${w}?`) || '').trim(); if (x.length < 5) { sheetError(sheet, new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return x; };
+  if (r.status === 'PREPARED' && S.can.has('tax.approve')) act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('approve', null, 'Return approved.') } }, 'Approve'),
+    h('button', { type: 'button', class: 'ghost', on: { click: () => { const x = why('reject'); if (x) go('reject', { reason: x }, 'Return rejected.'); } } }, 'Reject…'));
+  if (r.status === 'PREPARED' && S.can.has('tax.prepare')) act.append(h('button', { type: 'button', class: 'ghost', on: { click: () => { const x = why('cancel'); if (x) go('cancel', { reason: x }, 'Return cancelled.'); } } }, 'Cancel…'));
+  if (r.status === 'APPROVED' && S.can.has('tax.prepare')) {
+    const ref = input('filing_reference', { type: 'text', maxlength: '100', placeholder: 'The authority’s receipt or reference' });
+    body.append(h('div', { class: 'grid' }, field('Filing reference', ref)));
+    act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('file', { note: ref.value.trim() }, 'Return recorded as filed.') } }, 'Record filing'));
+  }
+  body.append(act);
+}
+
+function taxEInvoices(v) {
+  const submit = async (i) => { try { clearError(); const r = await api('POST', `/v1/customer-invoices/${i.id}/e-invoice`, {}); taxDone(r.status === 'ACCEPTED' ? `Accepted: ${r.reference}` : `Rejected: ${r.response}`); renderTax('einvoice'); } catch (e) { showError(e); } };
+  return h('div', {}, h('p', { class: 'hint' }, 'Approved customer invoices are sent through the e-invoicing adapter. Until the authority’s format is confirmed the adapter is a stand-in that accepts invoices whose customer has a TIN; what was sent is recorded with its hash.'),
+    table('Approved customer invoices', [{ label: 'Invoice', cell: (i) => i.number }, { label: 'Date', cell: (i) => i.invoice_date }, { label: 'Customer', cell: (i) => `${i.customer}${i.tax_id ? '' : ' (no TIN)'}` },
+      { label: 'VAT', num: true, cell: (i) => money(i.vat_amount) }, { label: 'Total', num: true, cell: (i) => money(i.total) }, { label: 'E-invoice', cell: (i) => (i.e_status ? chip(i.e_status) : '') },
+      { label: 'Reference', cell: (i) => i.e_reference || '' }, { label: '', cell: (i) => (i.e_status !== 'ACCEPTED' && S.can.has('tax.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => submit(i) } }, 'Send') : '') }], v.invoices || [], 'No approved invoice.'));
+}
+
+function taxAccounts(v) {
+  const out = h('div', {}, table('Designated tax accounts', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Account', cell: (x) => `${x.code} ${x.name}` }, { label: 'Kind', cell: (x) => TAX_KIND[x.kind] || x.kind }], v.tax_accounts || [], 'None designated.'));
+  if (S.can.has('tax.prepare')) {
+    const acc = select('account_id', (v.accounts || []).map((a) => ({ value: a.id, label: `${a.entity} · ${a.code} ${a.name} (${words(a.type)})` })));
+    const kind = select('kind', Object.entries(TAX_KIND).map(([value, label]) => ({ value, label })));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Designate');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/tax-accounts', { account_id: acc.value, kind: kind.value }); taxDone('Account designated.'); renderTax('accounts'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Designate a tax account'), h('p', { class: 'hint' }, 'Output VAT and withholding payable are liability accounts; input VAT is an asset account.'),
+      h('div', { class: 'grid' }, field('Account', acc), field('Kind', kind)), h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+// ---------- timesheets, equipment and HSE (0064) ----------
+let PG_FLASH = '';
+function flash(msg) { say(msg); PG_FLASH = msg; }
+// A page of tabs; the confirmation notice is added after the tab has rendered.
+async function tabbedPage(hashKey, title, lede, TABS, tab, build, head) {
+  closeSheet();
+  let cur = TABS.some(([k]) => k === tab) ? tab : TABS[0][0];
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': title });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/${hashKey}/${k}`);
+    content.textContent = '';
+    try { content.append(await build(k)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page(title, lede, head, tabs, content);
+  await show(cur);
+  if (PG_FLASH) { $('view').insertBefore(h('p', { class: 'notice', role: 'status' }, PG_FLASH), $('view').children[1]); PG_FLASH = ''; }
+}
+const fkpi = (val, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(val)), h('div', { class: 'k' }, k));
+const reasonPrompt = (what) => { const t = (prompt(`Why ${what}?`) || '').trim(); if (t.length < 5) { showError(new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return t; };
+const nowLocal = (plusH = 0) => { const d = new Date(Date.now() + plusH * 3600000); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+
+// ---- timesheets
+async function renderTimesheets(tab) {
+  const TABS = [['record', 'Record a day'], ['list', 'Timesheets']];
+  await tabbedPage('timesheets', 'Timesheets', 'Hours worked per person and day on each project. The site records and submits; a project manager approves; approved hours feed payroll. Nobody is paid for more than 16 approved hours a day or twice for the same project and day.', TABS, tab, async (k) => {
+    if (k === 'list') {
+      const items = (await api('GET', '/v1/p2p/timesheet')).items || [];
+      return table('Timesheets', [{ label: 'Number', cell: (t) => h('a', { href: `#/doc/timesheet/${t.id}` }, t.number) }, { label: 'Day and people', cell: (t) => t.label }, { label: 'Hours', num: true, cell: (t) => String(Number(t.amount)) },
+        { label: 'Status', cell: (t) => chip(t.status) }, { label: 'Recorded by', cell: (t) => t.created_by }], items, 'No timesheet yet.');
+    }
+    const out = h('div');
+    if (!S.can.has('timesheet.record')) return h('p', { class: 'callout' }, 'Recording hours is done by site engineers. Open the Timesheets tab to review and approve.');
+    const proj = select('project_id', opt(S.ref.projects || [], (p) => `${p.code} — ${p.name}`));
+    const date = input('work_date', { type: 'date', value: new Date(Date.now() - 86400000).toISOString().slice(0, 10), max: today() });
+    const notes = input('notes', { type: 'text', maxlength: '300' });
+    const slot = h('div');
+    let roster = [];
+    const paint = async () => {
+      slot.textContent = '';
+      roster = (await api('GET', `/v1/roster?project=${proj.value}`)).employees || [];
+      const emps = roster.map((e) => ({ value: e.id, label: `${e.number} ${e.name}${e.trade ? ' (' + e.trade + ')' : ''}` }));
+      slot.append(slot.grid = lineGrid('Hours', [{ key: 'employee_id', label: 'Person', make: () => select('employee_id', emps) }, { key: 'hours_normal', label: 'Normal hours', make: num('hours_normal', { value: '8' }) },
+        { key: 'hours_ot', label: 'Overtime hours', make: num('hours_ot', { value: '0' }) }], [{}], true));
+    };
+    proj.addEventListener('change', () => paint().catch(showError));
+    await paint();
+    const save = (submit) => async () => {
+      try {
+        clearError();
+        const lines = slot.grid.rows().filter((l) => l.employee_id).map((l) => ({ employee_id: l.employee_id, hours_normal: l.hours_normal || '0', hours_ot: l.hours_ot || '0' }));
+        const r = await api('POST', '/v1/timesheets', { project_id: proj.value, work_date: date.value, notes: notes.value.trim(), lines });
+        if (submit) await api('POST', `/v1/timesheets/${r.id}/submit`, {});
+        flash(submit ? 'Timesheet submitted for approval.' : 'Timesheet saved as a draft.'); renderTimesheets('list');
+      } catch (e) { showError(e); }
+    };
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a day'), h('div', { class: 'grid' }, field('Project', proj), field('Day', date), field('Notes', notes)), slot,
+      h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: save(true) } }, 'Save and submit'), h('button', { type: 'button', class: 'ghost', on: { click: save(false) } }, 'Save as draft'))));
+    return out;
+  });
+}
+
+async function timesheetPanel(d) {
+  const t = await api('GET', `/v1/timesheets/${d.id}`);
+  return table('Hours', [{ label: 'Person', cell: (l) => `${l.number} ${l.name}` }, { label: 'Trade', cell: (l) => l.trade || '' }, { label: 'Cost code', cell: (l) => l.cost_code || '' },
+    { label: 'Normal', num: true, cell: (l) => String(Number(l.hours_normal)) }, { label: 'Overtime', num: true, cell: (l) => String(Number(l.hours_ot)) }], t.lines || [], '');
+}
+
+// ---- equipment
+async function renderEquipment(tab) {
+  const v = await api('GET', '/v1/equipment');
+  const entity = (v.entities || [])[0] || {};
+  const TABS = [['register', 'Register'], ['usage', 'Usage'], ['orders', 'Work orders'], ['charge', 'Hire charge']];
+  const eq = v.equipment || [];
+  const head = h('div', { class: 'kpis' }, fkpi(eq.filter((e) => e.status === 'ACTIVE').length, 'Active equipment'), fkpi(eq.filter((e) => e.service_due).length, 'Service due', eq.some((e) => e.service_due)),
+    fkpi(eq.filter((e) => e.fuel_anomaly).length, 'Fuel anomalies', eq.some((e) => e.fuel_anomaly)), fkpi((v.usage || []).filter((u) => u.status === 'SUBMITTED').length, 'Usage to approve'));
+  await tabbedPage('equipment', 'Equipment and fleet', 'Plant owned, leased and hired: daily usage recorded on site and approved by a project manager, a hire charge per project, services and repairs, and fuel use against the norm.', TABS, tab, async (k) => {
+    const out = h('div');
+    const eqOpts = eq.filter((e) => e.status === 'ACTIVE').map((e) => ({ value: e.id, label: `${e.code} — ${e.name}` }));
+    if (k === 'register') {
+      if (S.can.has('equipment.manage')) {
+        const b = h('button', { type: 'button' }, 'Register equipment');
+        b.addEventListener('click', () => {
+          const code = input('code', { type: 'text', maxlength: '30' }); const name = input('name', { type: 'text', maxlength: '200' }); const cls = input('class', { type: 'text', maxlength: '60', placeholder: 'Excavator, truck…' });
+          const own = select('ownership', [['OWNED', 'Owned'], ['LEASED', 'Leased'], ['HIRED', 'Hired in']].map(([value, label]) => ({ value, label })));
+          const rate = input('hire_rate', { inputmode: 'decimal' }); const unit = select('rate_unit', [{ value: 'HOUR', label: 'per working hour' }, { value: 'DAY', label: 'per working day' }]);
+          const fuel = input('fuel_norm_lph', { inputmode: 'decimal', placeholder: 'litres per hour' }); const svc = input('service_interval_hours', { inputmode: 'decimal', placeholder: 'hours between services' }); const loc = input('location', { type: 'text', maxlength: '120' });
+          const save = h('button', { type: 'button', class: 'primary' }, 'Save');
+          const sheet = openSheet('Register equipment', h('div', {}, h('h2', {}, 'Register equipment'), h('p', { class: 'hint' }, 'The hire rate is what projects are charged for each working hour or day; idle and breakdown time is not charged.')),
+            h('div', { class: 'grid' }, field('Code', code), field('Name', name), field('Class', cls), field('Ownership', own), field('Hire rate', rate), field('Rate unit', unit), field('Fuel norm (l/h)', fuel), field('Service every (hours)', svc), field('Location', loc)), h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => {
+            try { await api('POST', '/v1/equipment', { legal_entity_id: entity.id, code: code.value.trim().toUpperCase(), name: name.value.trim(), class: cls.value.trim(), ownership: own.value, hire_rate: rate.value.trim() || '0', rate_unit: unit.value,
+              fuel_norm_lph: fuel.value.trim() || '0', service_interval_hours: svc.value.trim() || '0', location: loc.value.trim() }); closeSheet(); flash('Equipment registered.'); renderEquipment('register'); } catch (e) { sheetError(sheet, e); }
+          });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      out.append(table('Equipment', [{ label: 'Code', cell: (e) => e.code }, { label: 'Name', cell: (e) => e.name }, { label: 'Class', cell: (e) => e.class }, { label: 'Ownership', cell: (e) => words(e.ownership.toLowerCase()) },
+        { label: 'Rate', num: true, cell: (e) => `${money(e.hire_rate)} / ${e.rate_unit.toLowerCase()}` }, { label: 'Hours worked', num: true, cell: (e) => String(Number(e.hours_total)) },
+        { label: 'Since service', num: true, cell: (e) => (e.service_interval_hours ? `${Number(e.hours_since_service)} of ${Number(e.service_interval_hours)}` : '') }, { label: 'Fuel l/h (30 d)', num: true, cell: (e) => (Number(e.fuel_lph_30d) ? Number(e.fuel_lph_30d).toFixed(1) : '') },
+        { label: 'Flags', cell: (e) => h('span', {}, e.service_due ? chip('SERVICE DUE') : '', e.fuel_anomaly ? chip('FUEL ANOMALY') : '') }, { label: 'Status', cell: (e) => chip(e.status) }], eq, 'No equipment yet.'));
+    } else if (k === 'usage') {
+      if (S.can.has('equipment.record') && eqOpts.length) {
+        const e = select('equipment_id', eqOpts); const pr = select('project_id', (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` })));
+        const date = input('work_date', { type: 'date', value: new Date(Date.now() - 86400000).toISOString().slice(0, 10), max: today() });
+        const hw = input('hours_work', { inputmode: 'decimal', value: '8' }); const hi = input('hours_idle', { inputmode: 'decimal', value: '0' }); const hb = input('hours_breakdown', { inputmode: 'decimal', value: '0' });
+        const lit = input('litres_fuel', { inputmode: 'decimal', value: '0' }); const op = input('operator_name', { type: 'text', maxlength: '120' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Save and submit');
+        b.addEventListener('click', async () => {
+          try { clearError(); const r = await api('POST', '/v1/equipment-usage', { equipment_id: e.value, project_id: pr.value, work_date: date.value, hours_work: hw.value || '0', hours_idle: hi.value || '0', hours_breakdown: hb.value || '0', litres_fuel: lit.value || '0', operator_name: op.value.trim() });
+            await api('POST', `/v1/equipment-usage/${r.id}/submit`, {}); flash('Usage submitted for approval.'); renderEquipment('usage'); } catch (x) { showError(x); }
+        });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a day of use'), h('div', { class: 'grid' }, field('Equipment', e), field('Project', pr), field('Day', date), field('Hours working', hw), field('Hours idle', hi),
+          field('Hours broken down', hb), field('Litres of fuel', lit), field('Operator', op)), h('div', { class: 'actions' }, b)));
+      }
+      const act = async (u, path, msg, why) => { try { const body = {}; if (why) { const t = reasonPrompt('reject'); if (!t) return; body.reason = t; } await api('POST', `/v1/equipment-usage/${u.id}/${path}`, body); flash(msg); renderEquipment('usage'); } catch (x) { showError(x); } };
+      out.append(table('Usage', [{ label: 'Record', cell: (u) => u.number }, { label: 'Equipment', cell: (u) => u.equipment }, { label: 'Project', cell: (u) => u.project }, { label: 'Day', cell: (u) => u.work_date },
+        { label: 'Working', num: true, cell: (u) => String(Number(u.hours_work)) }, { label: 'Idle', num: true, cell: (u) => String(Number(u.hours_idle)) }, { label: 'Fuel (l)', num: true, cell: (u) => String(Number(u.litres_fuel)) },
+        { label: 'Charge', num: true, cell: (u) => (Number(u.charge) ? money(u.charge) : '') }, { label: 'Status', cell: (u) => h('span', {}, chip(u.status), u.charged ? chip('CHARGED') : '') },
+        { label: '', cell: (u) => (u.status === 'SUBMITTED' && S.can.has('equipment.approve') ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: () => act(u, 'approve', 'Usage approved; the charge is computed.') } }, 'Approve'),
+          h('button', { type: 'button', class: 'ghost', on: { click: () => act(u, 'reject', 'Usage rejected.', true) } }, 'Reject…')) : '') }], v.usage || [], 'No usage recorded.'));
+    } else if (k === 'orders') {
+      if (S.can.has('equipment.manage') && eqOpts.length) {
+        const e = select('equipment_id', eqOpts); const kind = select('kind', [{ value: 'SERVICE', label: 'Service' }, { value: 'REPAIR', label: 'Repair' }]); const d = input('description', { type: 'text', maxlength: '500' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Open work order');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/equipment-work-orders', { equipment_id: e.value, kind: kind.value, description: d.value.trim() }); flash('Work order opened.'); renderEquipment('orders'); } catch (x) { showError(x); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Open a work order'), h('div', { class: 'grid' }, field('Equipment', e), field('Kind', kind), field('What needs doing', d)), h('div', { class: 'actions' }, b)));
+      }
+      const done = async (w) => { try { const c = (prompt(`Cost of ${w.number}`, '0') || '').trim(); if (!c) return; await api('POST', `/v1/equipment-work-orders/${w.id}/complete`, { cost: c }); flash('Work order completed.'); renderEquipment('orders'); } catch (x) { showError(x); } };
+      out.append(table('Work orders', [{ label: 'Order', cell: (w) => w.number }, { label: 'Equipment', cell: (w) => w.equipment }, { label: 'Kind', cell: (w) => words(w.kind.toLowerCase()) }, { label: 'What', cell: (w) => w.description },
+        { label: 'Opened', cell: (w) => w.opened_on }, { label: 'Done', cell: (w) => w.done_on || '' }, { label: 'Cost', num: true, cell: (w) => (w.cost == null ? '' : money(w.cost)) }, { label: 'Status', cell: (w) => chip(w.status) },
+        { label: '', cell: (w) => (w.status === 'OPEN' && S.can.has('equipment.manage') ? h('button', { type: 'button', class: 'ghost', on: { click: () => done(w) } }, 'Complete…') : '') }], v.work_orders || [], 'No work order.'));
+    } else {
+      if (S.can.has('equipment.charge')) {
+        const acc = (kinds) => (S.ref.accounts || []).filter((a) => kinds.includes(a.kind)).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+        const d = new Date(); const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+        const start = input('period_start', { type: 'date', value: iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)) }); const end = input('period_end', { type: 'date', value: iso(new Date(d.getFullYear(), d.getMonth(), 0)) });
+        const cost = select('cost_account_id', acc(['EXPENSE'])); const rec = select('recovery_account_id', acc(['EXPENSE', 'REVENUE']));
+        const b = h('button', { type: 'button', class: 'primary' }, 'Charge approved usage');
+        b.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/equipment-hire-runs', { legal_entity_id: entity.id, period_start: start.value, period_end: end.value, cost_account_id: cost.value, recovery_account_id: rec.value });
+          flash(`Charged: ${r.journal_ids.length} draft journal(s) wait for finance.`); renderEquipment('charge'); } catch (x) { showError(x); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Monthly hire charge'), h('p', { class: 'hint' }, 'Each project is charged the hire rate for its approved working hours: Dr the project’s equipment cost, Cr equipment recovery. One draft journal per project; finance approves and posts. Usage is charged once.'),
+          h('div', { class: 'grid' }, field('Period from', start), field('Period to', end), field('Project cost account', cost), field('Recovery account', rec)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Hire charge runs', [{ label: 'Run', cell: (r) => r.number }, { label: 'Period', cell: (r) => `${r.period_start} – ${r.period_end}` }, { label: 'Usage records', num: true, cell: (r) => String(r.usage_records) },
+        { label: 'Total', num: true, cell: (r) => money(r.total) }], v.hire_runs || [], 'No hire charge yet.'));
+    }
+    return out;
+  }, head);
+}
+
+// ---- health, safety and environment
+async function renderHSE(tab) {
+  const v = await api('GET', '/v1/hse');
+  const k = v.kpi || {};
+  const mgr = S.can.has('hse.manage');
+  const projOpts = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const TABS = [['incidents', 'Incidents'], ['permits', 'Permits to work'], ['people', 'Inductions and talks'], ['inspections', 'Inspections']];
+  const head = h('div', { class: 'kpis' }, fkpi(k.ltifr == null ? '—' : Number(k.ltifr).toLocaleString(), 'LTIFR (12 months)'), fkpi(k.lost_time_injuries_12m || 0, 'Lost-time injuries', (k.lost_time_injuries_12m || 0) > 0),
+    fkpi((v.incidents || []).filter((i) => i.status !== 'CLOSED').length, 'Open incidents', (v.incidents || []).some((i) => i.status !== 'CLOSED')), fkpi((v.actions || []).filter((a) => a.overdue).length, 'Overdue actions', (v.actions || []).some((a) => a.overdue)),
+    fkpi((v.permits || []).filter((p) => p.in_force).length, 'Permits in force'));
+  await tabbedPage('hse', 'Health, safety and environment', 'Incidents with investigation and verified corrective actions, permits to work that need three different people, site inductions, toolbox talks and inspections. LTIFR = lost-time injuries × 1,000,000 ÷ hours worked (approved timesheets).', TABS, tab, async (t) => {
+    const out = h('div');
+    if (t === 'incidents') {
+      if (S.can.has('hse.report') && projOpts.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Report an incident');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projOpts); const kind = select('kind', ['NEAR_MISS', 'FIRST_AID', 'MEDICAL', 'LOST_TIME', 'FATALITY', 'ENVIRONMENTAL', 'PROPERTY'].map((x) => ({ value: x, label: words(x.toLowerCase()) })));
+          const sev = select('severity', ['MINOR', 'MAJOR', 'CRITICAL'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const at = input('occurred_at', { type: 'datetime-local', value: nowLocal(-1), max: nowLocal(0) });
+          const loc = input('location', { type: 'text', maxlength: '200' }); const desc = input('description', { type: 'text', maxlength: '1000' }); const ppl = input('people_involved', { inputmode: 'numeric', value: '0' }); const lost = input('lost_days', { inputmode: 'numeric', value: '0' });
+          const save = h('button', { type: 'button', class: 'primary' }, 'Report');
+          const sheet = openSheet('Report an incident', h('div', {}, h('h2', {}, 'Report an incident'), h('p', { class: 'hint' }, 'A major or critical incident notifies the HSE officers and project managers at once.')),
+            h('div', { class: 'grid' }, field('Project', pr), field('Kind', kind), field('Severity', sev), field('When', at), field('Where', loc), field('What happened', desc), field('People involved', ppl), field('Days lost', lost)), h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => {
+            try { await api('POST', '/v1/incidents', { project_id: pr.value, kind: kind.value, severity: sev.value, occurred_at: new Date(at.value).toISOString(), location: loc.value.trim(), description: desc.value.trim(), people_involved: Number(ppl.value || 0), lost_days: Number(lost.value || 0) });
+              closeSheet(); flash('Incident reported.'); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); }
+          });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      const open = (i) => {
+        const body = h('div', {}, h('h2', {}, `${i.number} — ${words(i.kind.toLowerCase())}`), h('p', { class: 'hint' }, `${i.project} · ${i.severity.toLowerCase()} · `, chip(i.status)), h('p', {}, i.description));
+        const sheet = openSheet(`Incident ${i.number}`, body);
+        const go = async (path, payload, msg) => { try { await api('POST', `/v1/incidents/${i.id}/${path}`, payload); flash(msg); closeSheet(); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); } };
+        if (i.investigation) body.append(h('p', { class: 'callout' }, `Root cause: ${i.investigation.root_cause}. Findings: ${i.investigation.findings}`));
+        const acts = (v.actions || []).filter((a) => a.incident === i.number);
+        if (acts.length) body.append(table('Corrective actions', [{ label: 'Action', cell: (a) => a.description }, { label: 'Owner', cell: (a) => a.owner_name }, { label: 'Due', cell: (a) => a.due_on }, { label: 'Status', cell: (a) => chip(a.status) },
+          { label: '', cell: (a) => (mgr && ['OPEN', 'DONE'].includes(a.status) ? h('button', { type: 'button', class: 'ghost', on: { click: async () => { try { await api('POST', `/v1/capas/${a.id}/${a.status === 'OPEN' ? 'done' : 'verify'}`, {}); flash(a.status === 'OPEN' ? 'Action marked done.' : 'Action verified.'); closeSheet(); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); } } } }, a.status === 'OPEN' ? 'Mark done' : 'Verify') : '') }], acts, ''));
+        if (mgr && i.status === 'REPORTED') {
+          const rc = input('root_cause', { type: 'text', maxlength: '1000' }); const fi = input('findings', { type: 'text', maxlength: '1000' });
+          body.append(h('div', { class: 'grid' }, field('Root cause', rc), field('Findings', fi)), h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: () => go('investigate', { root_cause: rc.value.trim(), findings: fi.value.trim() }, 'Investigation recorded.') } }, 'Record investigation')));
+        }
+        if (mgr && i.status === 'INVESTIGATING') {
+          const ds = input('description', { type: 'text', maxlength: '500' }); const ow = input('owner_name', { type: 'text', maxlength: '120' }); const du = input('due_on', { type: 'date', value: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10) });
+          const note = input('note', { type: 'text', maxlength: '500' });
+          body.append(h('div', { class: 'grid' }, field('New corrective action', ds), field('Owner', ow), field('Due', du)), h('div', { class: 'actions' }, h('button', { type: 'button', on: { click: () => go('actions', { description: ds.value.trim(), owner_name: ow.value.trim(), due_on: du.value }, 'Action raised.') } }, 'Raise action')),
+            h('div', { class: 'grid' }, field('Closing note', note)), h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: () => go('close', { note: note.value.trim() }, 'Incident closed.') } }, 'Close incident')),
+            h('p', { class: 'hint' }, 'The reporter cannot close their own incident; every action must be done and verified by a different person first.'));
+        }
+      };
+      out.append(table('Incidents', [{ label: 'Incident', cell: (i) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); open(i); } } }, i.number) }, { label: 'Project', cell: (i) => i.project }, { label: 'Kind', cell: (i) => words(i.kind.toLowerCase()) },
+        { label: 'Severity', cell: (i) => chip(i.severity) }, { label: 'When', cell: (i) => String(i.occurred_at).slice(0, 16).replace('T', ' ') }, { label: 'Days lost', num: true, cell: (i) => String(i.lost_days) },
+        { label: 'Open actions', num: true, cell: (i) => `${i.open_actions} of ${i.actions}` }, { label: 'Status', cell: (i) => chip(i.status) }], v.incidents || [], 'No incident recorded.'));
+    } else if (t === 'permits') {
+      if (S.can.has('hse.report') && projOpts.length) {
+        const pr = select('project_id', projOpts); const kind = select('kind', ['HOT_WORK', 'CONFINED_SPACE', 'WORK_AT_HEIGHT', 'EXCAVATION', 'ELECTRICAL', 'LIFTING'].map((x) => ({ value: x, label: words(x.toLowerCase()) })));
+        const loc = input('location', { type: 'text', maxlength: '200' }); const desc = input('description', { type: 'text', maxlength: '1000' }); const from = input('valid_from', { type: 'datetime-local', value: nowLocal(0) }); const to = input('valid_to', { type: 'datetime-local', value: nowLocal(8) });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Request permit');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/permits', { project_id: pr.value, kind: kind.value, location: loc.value.trim(), description: desc.value.trim(), valid_from: new Date(from.value).toISOString(), valid_to: new Date(to.value).toISOString() }); flash('Permit requested.'); renderHSE('permits'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Request a permit to work'), h('div', { class: 'grid' }, field('Project', pr), field('Kind', kind), field('Where', loc), field('Work to be done', desc), field('Valid from', from), field('Valid to', to)),
+          h('p', { class: 'hint' }, 'A permit lasts at most 31 days. The requester, the issuer (HSE officer) and the person who accepts it are three different people.'), h('div', { class: 'actions' }, b)));
+      }
+      const step = async (w, path, msg, body) => { try { await api('POST', `/v1/permits/${w.id}/${path}`, body || {}); flash(msg); renderHSE('permits'); } catch (e) { showError(e); } };
+      out.append(table('Permits', [{ label: 'Permit', cell: (w) => w.number }, { label: 'Project', cell: (w) => w.project }, { label: 'Kind', cell: (w) => words(w.kind.toLowerCase()) }, { label: 'Where', cell: (w) => w.location }, { label: 'Work', cell: (w) => w.description },
+        { label: 'Valid', cell: (w) => `${String(w.valid_from).slice(0, 16).replace('T', ' ')} → ${String(w.valid_to).slice(0, 16).replace('T', ' ')}` }, { label: 'Status', cell: (w) => h('span', {}, chip(w.status), w.in_force ? chip('IN FORCE') : '') },
+        { label: '', cell: (w) => h('span', {}, w.status === 'REQUESTED' && mgr ? h('button', { type: 'button', class: 'ghost', on: { click: () => { const c = prompt('Conditions for the work (optional)') || ''; step(w, 'issue', 'Permit issued.', { note: c }); } } }, 'Issue…') : '',
+          w.status === 'ISSUED' && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'accept', 'Permit accepted.') } }, 'Accept') : '',
+          w.status === 'ACCEPTED' && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'close', 'Permit closed.') } }, 'Close') : '',
+          ['REQUESTED', 'ISSUED'].includes(w.status) && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'cancel', 'Permit cancelled.') } }, 'Cancel') : '') }], v.permits || [], 'No permit yet.'));
+    } else if (t === 'people') {
+      if (mgr) {
+        const gate = h('input', { type: 'checkbox', id: 'gate', checked: k.induction_gate ? 'checked' : null });
+        gate.checked = !!k.induction_gate;
+        gate.addEventListener('change', async () => { try { clearError(); await api('POST', '/v1/hse/induction-gate', { on: gate.checked }); flash(gate.checked ? 'Induction gate on: nobody without a valid induction is submitted on a timesheet.' : 'Induction gate off.'); renderHSE('people'); } catch (e) { showError(e); } });
+        const pr = select('project_id', projOpts); const emp = select('employee_id', []); const roster = async () => { emp.textContent = ''; for (const e of ((await api('GET', `/v1/roster?project=${pr.value}`)).employees || [])) emp.append(h('option', { value: e.id }, `${e.number} ${e.name}`)); };
+        pr.addEventListener('change', () => roster().catch(showError)); await roster();
+        const on = input('inducted_on', { type: 'date', value: today(), max: today() }); const to = input('valid_to', { type: 'date', value: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10) }); const tp = input('topics', { type: 'text', maxlength: '300', placeholder: 'Site rules, PPE, emergency…' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record induction');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/inductions', { employee_id: emp.value, project_id: pr.value, inducted_on: on.value, valid_to: to.value, topics: tp.value.trim() }); flash('Induction recorded.'); renderHSE('people'); } catch (e) { showError(e); } });
+        const tpr = select('project_id', projOpts); const th = input('held_on', { type: 'date', value: today(), max: today() }); const tt = input('topic', { type: 'text', maxlength: '300' }); const ta = input('attendees', { inputmode: 'numeric', value: '10' });
+        const tb = h('button', { type: 'button' }, 'Record toolbox talk');
+        tb.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/toolbox-talks', { project_id: tpr.value, held_on: th.value, topic: tt.value.trim(), attendees: Number(ta.value || 0) }); flash('Toolbox talk recorded.'); renderHSE('people'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('label', { class: 'check', for: 'gate' }, gate, ' Induction gate: a timesheet cannot be submitted for anyone without a valid induction on the project')),
+          h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record an induction'), h('div', { class: 'grid' }, field('Project', pr), field('Person', emp), field('Inducted on', on), field('Valid to', to), field('Topics', tp)), h('div', { class: 'actions' }, b)),
+          h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a toolbox talk'), h('div', { class: 'grid' }, field('Project', tpr), field('Held on', th), field('Topic', tt), field('Attendees', ta)), h('div', { class: 'actions' }, tb)));
+      }
+      out.append(table('Inductions', [{ label: 'Person', cell: (i) => `${i.number} ${i.name}` }, { label: 'Project', cell: (i) => i.project }, { label: 'Inducted', cell: (i) => i.inducted_on }, { label: 'Valid to', cell: (i) => i.valid_to },
+        { label: 'Valid', cell: (i) => chip(i.valid ? 'VALID' : 'EXPIRED') }], v.inductions || [], 'No induction recorded.'),
+      table('Toolbox talks', [{ label: 'Project', cell: (i) => i.project }, { label: 'Held on', cell: (i) => i.held_on }, { label: 'Topic', cell: (i) => i.topic }, { label: 'Attendees', num: true, cell: (i) => String(i.attendees) }], v.talks || [], 'No toolbox talk recorded.'));
+    } else {
+      if (mgr) {
+        const pr = select('project_id', projOpts); const on = input('inspected_on', { type: 'date', value: today(), max: today() }); const ar = input('area', { type: 'text', maxlength: '200' }); const sc = input('score', { inputmode: 'numeric', value: '80' }); const fi = input('findings', { type: 'text', maxlength: '1000' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record inspection');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/safety-inspections', { project_id: pr.value, inspected_on: on.value, area: ar.value.trim(), score: Number(sc.value || 0), findings: fi.value.trim() }); flash('Inspection recorded.'); renderHSE('inspections'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a safety inspection'), h('div', { class: 'grid' }, field('Project', pr), field('Date', on), field('Area', ar), field('Score (0–100)', sc), field('Findings', fi)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Inspections', [{ label: 'Project', cell: (i) => i.project }, { label: 'Date', cell: (i) => i.inspected_on }, { label: 'Area', cell: (i) => i.area }, { label: 'Score', num: true, cell: (i) => String(i.score) }, { label: 'Findings', cell: (i) => i.findings || '' }], v.inspections || [], 'No inspection recorded.'));
+    }
+    return out;
+  }, head);
+}
+
+// ---------- quality and site records (0065) ----------
+async function renderQuality(tab) {
+  const v = await api('GET', '/v1/quality');
+  const mgr = S.can.has('quality.manage');
+  const projects = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const openN = (v.ncrs || []).filter((n) => n.status !== 'CLOSED').length;
+  const head = h('div', { class: 'kpis' }, fkpi((v.plans || []).filter((p) => p.status === 'APPROVED').length, 'Approved plans'), fkpi((v.inspections || []).filter((i) => i.status === 'REQUESTED').length, 'Inspections waiting'),
+    fkpi(openN, 'Open non-conformances', openN > 0), fkpi((v.tests || []).filter((t) => !t.passed).length, 'Failed tests', (v.tests || []).some((t) => !t.passed)));
+  const TABS = [['plans', 'Inspection plans'], ['inspections', 'Inspections'], ['ncrs', 'Non-conformances'], ['tests', 'Material tests']];
+  await tabbedPage('quality', 'Quality', 'Inspection and test plans with hold points, inspections, non-conformance reports and material tests. Work on an activity cannot be reported above a hold point until its inspection has passed.', TABS, tab, async (k) => {
+    const out = h('div');
+    const done = (path, msg, body, why) => async () => { try { clearError(); const b = body ? { ...body } : {}; if (why) { const t = reasonPrompt(why); if (!t) return; b.reason = t; } await api('POST', path, b); flash(msg); renderQuality(k); } catch (e) { showError(e); } };
+    if (k === 'plans') {
+      if (mgr && projects.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Prepare a plan');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projects); const title = input('title', { type: 'text', maxlength: '300' }); const act = input('activity_code', { type: 'text', maxlength: '32', placeholder: 'Schedule activity code (for hold points)' });
+          const grid = lineGrid('Items', [{ key: 'description', label: 'What is inspected', make: txt('description', { maxlength: '400' }) },
+            { key: 'kind', label: 'Kind', make: () => select('kind', [{ value: 'HOLD', label: 'Hold point' }, { value: 'WITNESS', label: 'Witness' }, { value: 'REVIEW', label: 'Review' }]) },
+            { key: 'hold_at_percent', label: 'Hold above % progress', make: num('hold_at_percent', { value: '0' }) }], [{}], true);
+          const save = h('button', { type: 'button', class: 'primary' }, 'Save and submit');
+          const sheet = openSheet('Prepare an inspection and test plan', h('div', {}, h('h2', {}, 'Inspection and test plan'), h('p', { class: 'hint' }, 'A hold point stops progress on the activity above the percentage until an inspection of it has passed. A project manager approves the plan.')),
+            h('div', { class: 'grid' }, field('Project', pr), field('Title', title), field('Activity code', act)), grid, h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => {
+            try { const r = await api('POST', '/v1/itps', { project_id: pr.value, title: title.value.trim(), activity_code: act.value.trim(), items: grid.rows().filter((i) => i.description).map((i) => ({ description: i.description, kind: i.kind, hold_at_percent: i.hold_at_percent || '0' })) });
+              await api('POST', `/v1/itps/${r.id}/submit`, {}); closeSheet(); flash('Plan submitted for approval.'); renderQuality('plans'); } catch (e) { sheetError(sheet, e); }
+          });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      out.append(table('Plans', [{ label: 'Plan', cell: (p) => `${p.number}` }, { label: 'Project', cell: (p) => p.project }, { label: 'Title', cell: (p) => p.title }, { label: 'Activity', cell: (p) => p.activity_code || '' },
+        { label: 'Items', cell: (p) => (p.items || []).map((i) => `${i.seq}. ${i.description} (${i.kind.toLowerCase()}${i.kind === 'HOLD' ? (i.passed ? ', released' : ', held') : ''})`).join(' · ') }, { label: 'Status', cell: (p) => chip(p.status) },
+        { label: '', cell: (p) => h('span', {}, p.status === 'SUBMITTED' && S.can.has('quality.approve') ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: done(`/v1/itps/${p.id}/approve`, 'Plan approved.') } }, 'Approve'),
+          h('button', { type: 'button', class: 'ghost', on: { click: done(`/v1/itps/${p.id}/reject`, 'Plan rejected.', null, 'reject') } }, 'Reject…')) : '') }], v.plans || [], 'No plan yet.'));
+    } else if (k === 'inspections') {
+      const approved = (v.plans || []).filter((p) => p.status === 'APPROVED');
+      if ((S.can.has('quality.request') || mgr) && approved.length) {
+        const plan = select('itp_id', approved.map((p) => ({ value: p.id, label: `${p.number} — ${p.title} (${p.project})` }))); const item = select('item_seq', []); const day = input('requested_for', { type: 'date', value: today() }); const loc = input('location', { type: 'text', maxlength: '200' });
+        const paint = () => { item.textContent = ''; const p = approved.find((x) => x.id === plan.value) || { items: [] }; for (const i of p.items || []) item.append(h('option', { value: String(i.seq) }, `${i.seq}. ${i.description} (${i.kind.toLowerCase()})`)); };
+        plan.addEventListener('change', paint); paint();
+        const b = h('button', { type: 'button', class: 'primary' }, 'Request inspection');
+        b.addEventListener('click', async () => { try { clearError(); const p = approved.find((x) => x.id === plan.value); await api('POST', '/v1/inspection-requests', { project_id: p.project_id, itp_id: plan.value, item_seq: Number(item.value), requested_for: day.value, location: loc.value.trim() }); flash('Inspection requested.'); renderQuality('inspections'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Request an inspection'), h('div', { class: 'grid' }, field('Plan', plan), field('Item', item), field('For', day), field('Where', loc)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Inspections', [{ label: 'Request', cell: (i) => i.number }, { label: 'Project', cell: (i) => i.project }, { label: 'Item', cell: (i) => `${i.plan} · ${i.item_seq}. ${i.item} (${i.kind.toLowerCase()})` }, { label: 'For', cell: (i) => i.requested_for },
+        { label: 'Where', cell: (i) => i.location || '' }, { label: 'Status', cell: (i) => chip(i.status) }, { label: 'Result', cell: (i) => i.result_note || '' },
+        { label: '', cell: (i) => (i.status === 'REQUESTED' && mgr ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: done(`/v1/inspection-requests/${i.id}/pass`, 'Inspection passed.') } }, 'Pass'),
+          h('button', { type: 'button', class: 'ghost', on: { click: async () => { const t = reasonPrompt('fail this inspection'); if (!t) return; try { await api('POST', `/v1/inspection-requests/${i.id}/fail`, { note: t }); flash('Inspection failed.'); renderQuality('inspections'); } catch (e) { showError(e); } } } }, 'Fail…')) : '') }], v.inspections || [], 'No inspection yet.'));
+    } else if (k === 'ncrs') {
+      if ((S.can.has('quality.request') || mgr) && projects.length) {
+        const pr = select('project_id', projects); const sev = select('severity', ['MINOR', 'MAJOR', 'CRITICAL'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const loc = input('location', { type: 'text', maxlength: '200' }); const ds = input('description', { type: 'text', maxlength: '1000' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Raise non-conformance');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/ncrs', { project_id: pr.value, severity: sev.value, location: loc.value.trim(), description: ds.value.trim() }); flash('Non-conformance raised.'); renderQuality('ncrs'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Raise a non-conformance'), h('div', { class: 'grid' }, field('Project', pr), field('Severity', sev), field('Where', loc), field('What is wrong', ds)), h('div', { class: 'actions' }, b)));
+      }
+      const action = (n) => {
+        const rc = input('root_cause', { type: 'text', maxlength: '1000' }); const ca = input('corrective_action', { type: 'text', maxlength: '1000' }); const co = input('cost_impact', { inputmode: 'decimal', value: '0' });
+        const save = h('button', { type: 'button', class: 'primary' }, 'Record action');
+        const sheet = openSheet('Corrective action', h('div', {}, h('h2', {}, `${n.number}`), h('p', {}, n.description)), h('div', { class: 'grid' }, field('Root cause', rc), field('Corrective action', ca), field('Cost impact', co)), h('div', { class: 'actions' }, save));
+        save.addEventListener('click', async () => { try { await api('POST', `/v1/ncrs/${n.id}/action`, { root_cause: rc.value.trim(), corrective_action: ca.value.trim(), cost_impact: co.value.trim() || '0' }); closeSheet(); flash('Action recorded.'); renderQuality('ncrs'); } catch (e) { sheetError(sheet, e); } });
+      };
+      out.append(table('Non-conformances', [{ label: 'Report', cell: (n) => n.number }, { label: 'Project', cell: (n) => n.project }, { label: 'Severity', cell: (n) => chip(n.severity) }, { label: 'What', cell: (n) => `${n.description}${n.from_test ? ' (from a failed test)' : ''}` },
+        { label: 'Action', cell: (n) => n.corrective_action || '' }, { label: 'Cost', num: true, cell: (n) => (Number(n.cost_impact) ? money(n.cost_impact) : '') }, { label: 'Status', cell: (n) => chip(n.status) },
+        { label: '', cell: (n) => h('span', {}, n.status === 'OPEN' && mgr ? h('button', { type: 'button', class: 'ghost', on: { click: () => action(n) } }, 'Record action…') : '',
+          n.status === 'ACTIONED' && S.can.has('quality.approve') ? h('button', { type: 'button', class: 'ghost', on: { click: async () => { const t = reasonPrompt('close — how was it verified'); if (!t) return; try { await api('POST', `/v1/ncrs/${n.id}/close`, { note: t }); flash('Non-conformance closed.'); renderQuality('ncrs'); } catch (e) { showError(e); } } } }, 'Close…') : '') }], v.ncrs || [], 'No non-conformance.'));
+    } else {
+      if (mgr && projects.length) {
+        const pr = select('project_id', projects); const bt = input('batch_ref', { type: 'text', maxlength: '100' }); const tt = input('test_type', { type: 'text', maxlength: '100', placeholder: 'Cube strength 28 days' }); const val = input('value', { inputmode: 'decimal' }); const un = input('unit', { type: 'text', maxlength: '20', value: 'N/mm2' });
+        const mn = input('spec_min', { inputmode: 'decimal' }); const mx = input('spec_max', { inputmode: 'decimal' }); const on = input('tested_on', { type: 'date', value: today(), max: today() });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record test');
+        b.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/material-tests', { project_id: pr.value, batch_ref: bt.value.trim(), test_type: tt.value.trim(), value: val.value.trim(), unit: un.value.trim(), spec_min: mn.value.trim() || null, spec_max: mx.value.trim() || null, tested_on: on.value });
+          flash(r.passed ? 'Test recorded: pass.' : 'Test recorded: FAILED — a non-conformance was raised.'); renderQuality('tests'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a material test'), h('div', { class: 'grid' }, field('Project', pr), field('Batch', bt), field('Test', tt), field('Result', val), field('Unit', un), field('Specified minimum', mn), field('Specified maximum', mx), field('Tested on', on)),
+          h('p', { class: 'hint' }, 'The database decides pass or fail against the specification; a failure raises a non-conformance automatically.'), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Tests', [{ label: 'Project', cell: (t) => t.project }, { label: 'Batch', cell: (t) => t.batch_ref }, { label: 'Test', cell: (t) => t.test_type }, { label: 'Result', num: true, cell: (t) => `${Number(t.value)} ${t.unit}` },
+        { label: 'Specification', cell: (t) => [t.spec_min != null ? `min ${Number(t.spec_min)}` : '', t.spec_max != null ? `max ${Number(t.spec_max)}` : ''].filter(Boolean).join(' · ') }, { label: 'Tested', cell: (t) => t.tested_on }, { label: 'Outcome', cell: (t) => chip(t.passed ? 'PASSED' : 'FAILED') }], v.tests || [], 'No test recorded.'));
+    }
+    return out;
+  }, head);
+}
+
+async function renderSiteRecords(tab) {
+  const v = await api('GET', '/v1/site-records');
+  const projects = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const head = h('div', { class: 'kpis' }, fkpi((v.punch || []).filter((p) => p.status !== 'CLOSED').length, 'Open punch items'), fkpi((v.punch || []).filter((p) => p.overdue).length, 'Overdue', (v.punch || []).some((p) => p.overdue)),
+    fkpi((v.instructions || []).filter((i) => i.status === 'ISSUED').length, 'Instructions to acknowledge'), fkpi((v.meetings || []).flatMap((m) => m.actions || []).filter((a) => a.overdue).length, 'Overdue meeting actions'));
+  const TABS = [['punch', 'Punch list'], ['instructions', 'Site instructions'], ['meetings', 'Meetings']];
+  await tabbedPage('siterecords', 'Site records', 'Punch lists, instructions to the site and meeting minutes with their actions. Whoever fixes a punch item cannot close it; whoever issues an instruction cannot acknowledge it; issued minutes never change.', TABS, tab, async (k) => {
+    const out = h('div');
+    const act = (path, msg, tabName) => async () => { try { clearError(); await api('POST', path, {}); flash(msg); renderSiteRecords(tabName); } catch (e) { showError(e); } };
+    if (k === 'punch') {
+      if (S.can.has('site.record') && projects.length) {
+        const pr = select('project_id', projects); const loc = input('location', { type: 'text', maxlength: '200' }); const ds = input('description', { type: 'text', maxlength: '1000' }); const as = input('assignee', { type: 'text', maxlength: '120' });
+        const pri = select('priority', ['LOW', 'MEDIUM', 'HIGH'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const due = input('due_on', { type: 'date', value: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Raise item');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/punch-items', { project_id: pr.value, location: loc.value.trim(), description: ds.value.trim(), assignee: as.value.trim(), priority: pri.value, due_on: due.value }); flash('Punch item raised.'); renderSiteRecords('punch'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Raise a punch item'), h('div', { class: 'grid' }, field('Project', pr), field('Where', loc), field('What', ds), field('Assigned to', as), field('Priority', pri), field('Due', due)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Punch list', [{ label: 'Item', cell: (p) => p.number }, { label: 'Project', cell: (p) => p.project }, { label: 'Where', cell: (p) => p.location }, { label: 'What', cell: (p) => p.description }, { label: 'Assigned', cell: (p) => p.assignee || '' },
+        { label: 'Priority', cell: (p) => chip(p.priority) }, { label: 'Due', cell: (p) => (p.due_on ? p.due_on : '') + (p.overdue ? ' — overdue' : '') }, { label: 'Status', cell: (p) => chip(p.status) },
+        { label: '', cell: (p) => h('span', {}, p.status === 'OPEN' ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/punch-items/${p.id}/fix`, 'Marked as fixed.', 'punch') } }, 'Mark fixed') : '',
+          p.status === 'FIXED' ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/punch-items/${p.id}/close`, 'Item closed.', 'punch') } }, 'Close'), h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/punch-items/${p.id}/reopen`, 'Item reopened.', 'punch') } }, 'Reopen')) : '') }], v.punch || [], 'No punch item.'));
+    } else if (k === 'instructions') {
+      if (S.can.has('site.instruct') && projects.length) {
+        const pr = select('project_id', projects); const ti = input('title', { type: 'text', maxlength: '300' }); const bo = input('body', { type: 'text', maxlength: '4000' });
+        const ce = select('change_event_id', [{ value: '', label: 'No change event' }, ...(v.change_events || []).map((c) => ({ value: c.id, label: `${c.number} — ${c.title}` }))]);
+        const b = h('button', { type: 'button', class: 'primary' }, 'Issue instruction');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/site-instructions', { project_id: pr.value, title: ti.value.trim(), body: bo.value.trim(), change_event_id: ce.value }); flash('Instruction issued.'); renderSiteRecords('instructions'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Issue a site instruction'), h('div', { class: 'grid' }, field('Project', pr), field('Title', ti), field('Instruction', bo), field('Linked change event', ce)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Site instructions', [{ label: 'Instruction', cell: (i) => i.number }, { label: 'Project', cell: (i) => i.project }, { label: 'Title', cell: (i) => i.title }, { label: 'Instruction', cell: (i) => i.body }, { label: 'Change event', cell: (i) => i.change_event || '' },
+        { label: 'Issued by', cell: (i) => i.issued_by }, { label: 'Status', cell: (i) => chip(i.status) }, { label: '', cell: (i) => h('span', {}, i.status === 'ISSUED' && S.can.has('site.record') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/site-instructions/${i.id}/acknowledge`, 'Instruction acknowledged.', 'instructions') } }, 'Acknowledge') : '',
+          i.status === 'ACKNOWLEDGED' && S.can.has('site.instruct') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/site-instructions/${i.id}/close`, 'Instruction closed.', 'instructions') } }, 'Close') : '') }], v.instructions || [], 'No instruction.'));
+    } else {
+      if (S.can.has('site.record') && projects.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record a meeting');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projects); const kind = select('kind', ['PROGRESS', 'DESIGN', 'SAFETY', 'CLIENT', 'COORDINATION'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const ti = input('title', { type: 'text', maxlength: '300' });
+          const on = input('held_on', { type: 'date', value: today(), max: today() }); const at = input('attendees', { type: 'text', maxlength: '500' }); const mi = input('minutes', { type: 'text', maxlength: '4000' });
+          const grid = lineGrid('Actions', [{ key: 'description', label: 'Action', make: txt('description', { maxlength: '400' }) }, { key: 'owner_name', label: 'Owner', make: txt('owner_name', { maxlength: '120' }) }, { key: 'due_on', label: 'Due', make: () => input('due_on', { type: 'date', value: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) }) }], [{}], true);
+          const save = h('button', { type: 'button', class: 'primary' }, 'Save and issue');
+          const sheet = openSheet('Record a meeting', h('div', {}, h('h2', {}, 'Meeting minutes'), h('p', { class: 'hint' }, 'Issued minutes never change; correct them with a new meeting record.')), h('div', { class: 'grid' }, field('Project', pr), field('Kind', kind), field('Title', ti), field('Held on', on), field('Attendees', at), field('Minutes', mi)), grid, h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => { try { const r = await api('POST', '/v1/meetings', { project_id: pr.value, kind: kind.value, title: ti.value.trim(), held_on: on.value, attendees: at.value.trim(), minutes: mi.value.trim(), actions: grid.rows().filter((a) => a.description && a.owner_name) });
+            await api('POST', `/v1/meetings/${r.id}/issue`, {}); closeSheet(); flash('Minutes issued.'); renderSiteRecords('meetings'); } catch (e) { sheetError(sheet, e); } });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      for (const m of v.meetings || []) {
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${m.number} — ${m.title}`), h('p', { class: 'hint' }, `${m.project} · ${words(m.kind.toLowerCase())} · ${m.held_on} · `, chip(m.status)), h('p', {}, m.minutes),
+          (m.actions || []).length ? table('Actions', [{ label: 'Action', cell: (a) => a.description }, { label: 'Owner', cell: (a) => a.owner_name }, { label: 'Due', cell: (a) => a.due_on + (a.overdue ? ' — overdue' : '') }, { label: 'Status', cell: (a) => chip(a.status) },
+            { label: '', cell: (a) => (a.status === 'OPEN' && S.can.has('site.record') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/meeting-actions/${a.id}/done`, 'Action done.', 'meetings') } }, 'Mark done') : '') }], m.actions, '') : null));
+      }
+      if (!(v.meetings || []).length) out.append(h('p', { class: 'callout' }, 'No meeting recorded.'));
+    }
+    return out;
+  }, head);
+}
+
+// ---------- period end (0058) ----------
+function journalLinesGrid(legend) {
+  const accts = (S.ref.accounts || []).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+  return lineGrid(legend, [
+    { key: 'account_id', label: 'Account', make: () => select('account_id', accts) },
+    { key: 'side', label: 'Side', make: () => select('side', [{ value: 'DEBIT', label: 'Debit' }, { value: 'CREDIT', label: 'Credit' }]) },
+    { key: 'amount', label: 'Amount', make: num('amount') }, { key: 'memo', label: 'Memo', make: txt('memo', { maxlength: '200' }) }], [{ side: 'DEBIT' }, { side: 'CREDIT' }], true);
+}
+
+async function renderPeriodEnd(tab) {
+  closeSheet();
+  const ent = (S.ref.legal_entities || [])[0] || {};
+  const v = await api('GET', '/v1/period-end');
+  const TABS = [['calendar', 'Fiscal calendar'], ['recurring', 'Recurring journals'], ['accruals', 'Accruals'], ['overhead', 'Overhead allocation']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'calendar';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Period end' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/periodend/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'recurring' ? peRecurring(v, ent) : k === 'accruals' ? peAccruals(v, ent) : k === 'overhead' ? peOverhead(v, ent) : await peCalendar(ent)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Period end', 'The fiscal calendar, journals that repeat every month, accruals that reverse themselves, and overhead spread over projects. Every journal made here is a draft that finance approves and a different person posts.', tabs, content);
+  await show(cur);
+}
+
+async function peCalendar(ent) {
+  const ps = (await api('GET', `/v1/fiscal-periods?entity=${ent.id}`)).periods;
+  const out = h('div');
+  if (S.can.has('period.close')) {
+    const cal = select('calendar', [{ value: 'ETHIOPIAN', label: 'Ethiopian (Hamle to Sene)' }, { value: 'GREGORIAN', label: 'Gregorian (January to December)' }]);
+    const year = input('year', { inputmode: 'numeric', value: '2020' });
+    const hint = h('p', { class: 'hint' });
+    const paint = () => { hint.textContent = cal.value === 'ETHIOPIAN' ? `EFY ${year.value} runs from 1 Hamle ${Number(year.value) - 1} to 30 Sene ${year.value}; Pagume is part of Nehase.` : `FY ${year.value}: twelve calendar months.`; };
+    cal.addEventListener('change', paint); year.addEventListener('input', paint); paint();
+    const b = h('button', { type: 'button', class: 'primary' }, 'Generate the year');
+    b.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/fiscal-years', { legal_entity_id: ent.id, calendar: cal.value, year: Number(year.value) }); say(`${r.periods.length} periods created.`); renderPeriodEnd('calendar'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Generate a fiscal year'), h('div', { class: 'grid' }, field('Calendar', cal), field('Year', year)), hint, h('div', { class: 'actions' }, b)));
+  }
+  out.append(table(`${ps.length} periods`, [{ label: 'Period', cell: (x) => x.name }, { label: 'From', cell: (x) => x.starts_on }, { label: 'To', cell: (x) => x.ends_on }, { label: 'Status', cell: (x) => chip(x.status) }], ps, 'No period.'));
+  return out;
+}
+
+function peRecurring(v, ent) {
+  const out = h('div');
+  if (S.can.has('journal.create')) {
+    const name = input('name', { type: 'text', maxlength: '200', placeholder: 'e.g. Yard rent' });
+    const first = input('first_run_on', { type: 'date', value: today() }); const ends = input('ends_on', { type: 'date' });
+    const grid = journalLinesGrid('Lines (debits equal credits)');
+    const b = h('button', { type: 'button', class: 'primary' }, 'Save recurring journal');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/recurring-journals', { legal_entity_id: ent.id, name: name.value.trim(), first_run_on: first.value, ends_on: ends.value, lines: grid.rows().filter((r) => r.amount) }); say('Recurring journal saved.'); renderPeriodEnd('recurring'); } catch (e) { showError(e); }
+    });
+    const run = h('button', { type: 'button' }, 'Create the journals due today');
+    run.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/recurring-journals/run', { as_of: today() }); say(`${r.journals.length} journal(s) created as drafts.`); renderPeriodEnd('recurring'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'toolbar' }, run), h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'New recurring journal'),
+      h('p', { class: 'hint' }, 'The first date sets the day of the month (1 to 28). Each date creates one draft journal, once.'),
+      h('div', { class: 'grid' }, field('Name', name), field('First date', first), field('Ends on (optional)', ends)), grid, h('div', { class: 'actions' }, b)));
+  }
+  out.append(table('Recurring journals', [{ label: 'Number', cell: (x) => x.number }, { label: 'Name', cell: (x) => x.name }, { label: 'Amount', num: true, cell: (x) => money(x.amount) },
+    { label: 'Next date', cell: (x) => x.next_run_on }, { label: 'Ends', cell: (x) => x.ends_on || '' }, { label: 'Journals made', num: true, cell: (x) => String(x.runs) }, { label: 'Status', cell: (x) => chip(x.status) }], v.recurring, 'No recurring journal.'));
+  return out;
+}
+
+function peAccruals(v, ent) {
+  const out = h('div');
+  if (S.can.has('journal.create')) {
+    const desc = input('description', { type: 'text', maxlength: '200', placeholder: 'What was received or incurred and not yet invoiced' });
+    const d = input('date', { type: 'date', value: today() }); const rev = input('reverse_on', { type: 'date', value: plusDays(1) });
+    const grid = journalLinesGrid('Lines (debits equal credits)');
+    const b = h('button', { type: 'button', class: 'primary' }, 'Create accrual');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/accruals', { legal_entity_id: ent.id, description: desc.value.trim(), date: d.value, reverse_on: rev.value, lines: grid.rows().filter((r) => r.amount) }); say('Accrual created as a draft journal.'); renderPeriodEnd('accruals'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'New accrual'), h('p', { class: 'hint' }, 'Once the accrual is posted, its reversal is created on the reversal date (normally the first day of the next period).'),
+      h('div', { class: 'grid' }, field('Description', desc), field('Date', d), field('Reverse on', rev)), grid, h('div', { class: 'actions' }, b)));
+  }
+  if (S.can.has('journal.reverse')) {
+    const run = h('button', { type: 'button' }, 'Create the reversals due today');
+    run.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/accruals/reverse-due', { as_of: today() }); say(`${r.journals.length} reversal(s) created as drafts.`); renderPeriodEnd('accruals'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'toolbar' }, run));
+  }
+  out.append(table('Accruals', [{ label: 'Description', cell: (x) => x.description }, { label: 'Date', cell: (x) => x.date }, { label: 'Amount', num: true, cell: (x) => money(x.amount) },
+    { label: 'Journal', cell: (x) => chip(x.journal_status) }, { label: 'Reverses on', cell: (x) => x.reverse_on }, { label: 'Reversal', cell: (x) => (x.reversal_status ? chip(x.reversal_status) : h('span', { class: 'hint' }, 'not yet')) }], v.accruals, 'No accrual.'));
+  return out;
+}
+
+function peOverhead(v, ent) {
+  const out = h('div');
+  const exp = (S.ref.accounts || []).filter((a) => a.kind === 'EXPENSE').map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+  const pool = select('pool_account_id', exp); const target = select('target_account_id', exp);
+  const from = input('from', { type: 'date', value: today().slice(0, 8) + '01' }); const to = input('to', { type: 'date', value: today() });
+  const body = h('div', { 'aria-live': 'polite' });
+  const preview = h('button', { type: 'button' }, 'Preview');
+  preview.addEventListener('click', async () => {
+    try {
+      clearError(); body.textContent = '';
+      const r = await api('GET', `/v1/overhead/preview?entity=${ent.id}&from=${from.value}&to=${to.value}&pool=${pool.value}&target=${target.value}`);
+      const total = r.shares.reduce((t, x) => t + Number(x.share), 0);
+      body.append(table(`Shares of ${money(String(total.toFixed(2)))}`, [{ label: 'Project', cell: (x) => x.project }, { label: 'Posted direct cost', num: true, cell: (x) => money(x.direct_cost) }, { label: 'Share', num: true, cell: (x) => h('strong', {}, money(x.share)) }], r.shares, 'Nothing to allocate in this range.'));
+      if (r.shares.length && S.can.has('journal.create')) {
+        const go = h('button', { type: 'button', class: 'primary' }, 'Allocate (one draft journal per project)');
+        go.addEventListener('click', async () => { try { await api('POST', '/v1/overhead-allocations', { legal_entity_id: ent.id, from: from.value, to: to.value, pool_account_id: pool.value, target_account_id: target.value }); say('Overhead allocated; the journals wait for finance.'); renderPeriodEnd('overhead'); } catch (e) { showError(e); } });
+        body.append(h('div', { class: 'actions' }, go));
+      }
+    } catch (e) { showError(e); }
+  });
+  out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Allocate overhead'), h('p', { class: 'hint' }, 'The pool’s posted balance in the range is spread over projects in proportion to their posted direct cost (other expense accounts). Each project receives a draft journal: Dr the overhead-applied account / Cr the pool.'),
+    h('div', { class: 'grid' }, field('Overhead pool', pool), field('Overhead applied (project cost)', target), field('From', from), field('To', to)), h('div', { class: 'actions' }, preview), body),
+  table('Allocations', [{ label: 'Number', cell: (x) => x.number }, { label: 'From', cell: (x) => x.period_from }, { label: 'To', cell: (x) => x.period_to }, { label: 'Pool', cell: (x) => x.pool },
+    { label: 'Amount', num: true, cell: (x) => money(x.amount) }, { label: 'Projects', num: true, cell: (x) => String(x.projects) }], v.overhead, 'No allocation yet.'));
+  return out;
+}
+
+// ---------- cash forecast (0059) ----------
+async function renderCash() {
+  closeSheet();
+  const ent = (S.ref.legal_entities || [])[0] || {};
+  const fc = await api('GET', `/v1/cash-forecast?entity=${ent.id}`);
+  const n = (x) => Number(x || 0);
+  const kpi = (v, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k));
+  const short = (x) => money(String(Math.round(n(x)))).replace(/\.00$/, '');
+  const last = fc.weeks[fc.weeks.length - 1] || {};
+  const kpis = h('div', { class: 'kpis' }, kpi(short(fc.opening_cash), `Cash now (${fc.currency})`), kpi(short(last.closing), 'In 13 weeks'),
+    kpi(short(fc.lowest_closing), `Lowest (week ${fc.lowest_week + 1})`, n(fc.lowest_closing) < 0), kpi(short(fc.net_after_horizon), 'After 13 weeks (net)'));
+  // Chart: inflows up, outflows down (confirmed solid, forecast light), closing balance line.
+  const W = 760; const H = 260; const L = 60; const R = 12; const T = 14; const B = 30;
+  const mid = (H - B + T) / 2;
+  const maxBar = Math.max(1, ...fc.weeks.flatMap((w) => [n(w.in_confirmed) + n(w.in_forecast), n(w.out_confirmed) + n(w.out_forecast)]));
+  const bals = fc.weeks.map((w) => n(w.closing));
+  const bmin = Math.min(0, n(fc.opening_cash), ...bals); const bmax = Math.max(n(fc.opening_cash), ...bals, 1);
+  const bw = (W - L - R) / fc.weeks.length;
+  const ybar = (v) => (v / maxBar) * (mid - T - 4);
+  const ybal = (v) => H - B - ((v - bmin) / (bmax - bmin || 1)) * (H - B - T);
+  const g = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'cchart', role: 'img', 'aria-label': `Cash forecast: ${short(fc.opening_cash)} now, ${short(last.closing)} in 13 weeks, lowest ${short(fc.lowest_closing)} in week ${fc.lowest_week + 1}.` });
+  g.append(svg('line', { x1: L, x2: W - R, y1: mid, y2: mid, class: 'axis' }));
+  fc.weeks.forEach((w, i) => {
+    const x = L + i * bw + bw * 0.18; const wd = bw * 0.64;
+    let y = mid;
+    for (const [v, cls] of [[n(w.in_confirmed), 'inc'], [n(w.in_forecast), 'inf']]) { const hgt = ybar(v); if (hgt > 0) g.append(svg('rect', { x, y: y - hgt, width: wd, height: hgt, class: cls }, svg('title', {}, `Week ${i + 1} in: ${money(String(v))}`))); y -= hgt; }
+    y = mid;
+    for (const [v, cls] of [[n(w.out_confirmed), 'outc'], [n(w.out_forecast), 'outf']]) { const hgt = ybar(v); if (hgt > 0) g.append(svg('rect', { x, y, width: wd, height: hgt, class: cls }, svg('title', {}, `Week ${i + 1} out: ${money(String(v))}`))); y += hgt; }
+    if (i % 2 === 0) g.append(svg('text', { x: L + i * bw + bw / 2, y: H - 10, class: 'ax', 'text-anchor': 'middle' }, w.start.slice(5)));
+  });
+  const pts = fc.weeks.map((w, i) => `${(L + i * bw + bw / 2).toFixed(1)},${ybal(n(w.closing)).toFixed(1)}`).join(' ');
+  g.append(svg('polyline', { points: pts, class: 'bal' }, svg('title', {}, 'Closing cash balance')));
+  if (bmin < 0) g.append(svg('line', { x1: L, x2: W - R, y1: ybal(0), y2: ybal(0), class: 'zero' }));
+  for (const v of [...new Set([bmax, 0, bmin])]) g.append(svg('text', { x: L - 6, y: ybal(v) + 4, class: 'ax', 'text-anchor': 'end' }, `${(v / 1e6).toFixed(1)}M`));
+  const key = (cls, label) => h('span', { class: `ckey ${cls}` }, label);
+  const weeks = table('Week by week', [{ label: 'Week', cell: (w) => `${fc.weeks.indexOf(w) + 1} · ${w.start}` },
+    { label: 'In: confirmed', num: true, cell: (w) => money(w.in_confirmed) }, { label: 'In: forecast', num: true, cell: (w) => money(w.in_forecast) },
+    { label: 'Out: confirmed', num: true, cell: (w) => money(w.out_confirmed) }, { label: 'Out: forecast', num: true, cell: (w) => money(w.out_forecast) },
+    { label: 'Net', num: true, cell: (w) => h('span', { class: n(w.net) < 0 ? 'delta up' : '' }, money(w.net)) }, { label: 'Closing', num: true, cell: (w) => h('strong', { class: n(w.closing) < 0 ? 'delta up' : '' }, money(w.closing)) }], fc.weeks);
+  const items = table('What makes up the forecast', [{ label: 'Date', cell: (it) => it.date }, { label: 'Week', num: true, cell: (it) => (it.week < 0 ? 'later' : String(it.week + 1)) },
+    { label: 'Source', cell: (it) => it.source }, { label: 'Item', cell: (it) => (it.href ? h('a', { href: it.href }, it.label) : it.label) },
+    { label: 'Confidence', cell: (it) => chip(it.confidence) }, { label: 'In', num: true, cell: (it) => (it.direction === 'IN' ? money(it.amount) : '') }, { label: 'Out', num: true, cell: (it) => (it.direction === 'OUT' ? money(it.amount) : '') }],
+    [...fc.items].sort((a, b) => a.date.localeCompare(b.date)), 'Nothing expected.');
+  const plan = [];
+  if (S.can.has('payment.prepare')) {
+    const d = input('due_on', { type: 'date', value: plusDays(14) });
+    const dir = select('direction', [{ value: 'OUT', label: 'Out' }, { value: 'IN', label: 'In' }]);
+    const cat = select('category', ['LOAN', 'TAX', 'PAYROLL', 'CAPEX', 'OTHER'].map((v) => ({ value: v, label: words(v.toLowerCase()) })));
+    const amt = input('amount', { inputmode: 'decimal' }); const desc = input('description', { type: 'text', maxlength: '300' });
+    const conf = select('confidence', [{ value: 'FORECAST', label: 'Forecast' }, { value: 'CONFIRMED', label: 'Confirmed (contract, assessment, loan agreement)' }]);
+    const b = h('button', { type: 'button', class: 'primary' }, 'Add planned item');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/cash-plan', { legal_entity_id: ent.id, due_on: d.value, direction: dir.value, category: cat.value, amount: amt.value.trim(), description: desc.value.trim(), confidence: conf.value }); say('Planned item added.'); renderCash(); } catch (e) { showError(e); } });
+    plan.push(h('div', { class: 'grid' }, field('Date', d), field('Direction', dir), field('Category', cat), field('Amount', amt), field('Description', desc), field('Confidence', conf)), h('div', { class: 'actions' }, b));
+  }
+  const cancel = async (x) => { try { const reason = (prompt('Why cancel this planned item?') || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); await api('POST', `/v1/cash-plan/${x.id}/cancel`, { reason }); say('Planned item cancelled.'); renderCash(); } catch (e) { showError(e); } };
+  page('Cash forecast', 'The next 13 weeks of cash for the company: what is confirmed by a document, what is expected, and what treasury plans. Overdue items appear in the first week.',
+    kpis, h('div', { class: 'panel' }, h('div', { class: 'chartwrap' }, g), h('div', { class: 'flowlegend' }, key('inc', 'In, confirmed'), key('inf', 'In, forecast'), key('outc', 'Out, confirmed'), key('outf', 'Out, forecast'), key('bal', 'Closing balance (left scale)')), h('p', { class: 'hint' }, 'Bars: money in (up) and out (down) each week. Line: the cash balance at the end of each week, on the left scale; the dashed line is zero.')),
+    weeks, items,
+    h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Planned items'), h('p', { class: 'hint' }, 'Loans, tax payments, payroll and other flows the system does not yet record. Never edited; cancelled with a reason.'), ...plan,
+      table('Planned items', [{ label: 'Date', cell: (x) => x.due_on }, { label: 'Direction', cell: (x) => words(String(x.direction).toLowerCase()) }, { label: 'Category', cell: (x) => words(String(x.category).toLowerCase()) },
+        { label: 'Description', cell: (x) => x.description }, { label: 'Amount', num: true, cell: (x) => money(x.amount) }, { label: 'Status', cell: (x) => chip(x.status) },
+        { label: '', cell: (x) => (x.status === 'ACTIVE' && S.can.has('payment.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => cancel(x) } }, 'Cancel…') : '') }], fc.plan, 'No planned item.')));
+}
+
 async function renderMe() {
   const pr = await api('GET', '/v1/me/profile');
   const name = pr.display_name || pr.user_id;
@@ -4317,6 +5974,16 @@ function paintThemeButton() {
 
 // ---------- boot ----------
 $('signout').addEventListener('click', () => signOut());
+$('mebtn').addEventListener('click', (e) => { e.stopPropagation(); setAcct($('acctmenu').hidden); });
+$('acctmenu').addEventListener('click', (e) => { if (e.target.closest('[role=menuitem]')) setAcct(false); });
+$('acctmenu').addEventListener('keydown', (e) => {
+  const items = [...$('acctmenu').querySelectorAll('[role=menuitem]:not([hidden])')];
+  const i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape') { setAcct(false); $('mebtn').focus(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+});
+document.addEventListener('click', (e) => { if (!$('acctmenu').hidden && !e.target.closest('#who')) setAcct(false); });
 window.addEventListener('hashchange', route);
 route();
 

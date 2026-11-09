@@ -414,7 +414,8 @@ try {
   await snap(mobile, 'mobile-purchase-order');
 
   // ---- 13. Sign-out revokes the session server-side ------------------------------------
-  await ctl.getByRole('button', { name: 'Sign out' }).click();
+  await ctl.getByRole('button', { name: 'Account menu' }).click();
+  await ctl.getByRole('menuitem', { name: 'Sign out' }).click();
   await ctl.getByRole('heading', { level: 1, name: 'Sign in' }).waitFor();
   const r = await fetch(process.env.SERK_URL + '/v1/identity/me', { headers: { Authorization: 'Bearer ' + T.controller } });
   if (r.status !== 401) fail(`token still valid after sign-out: ${r.status}`);

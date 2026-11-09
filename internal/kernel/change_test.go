@@ -126,3 +126,41 @@ func TestChange_EventToBudgetDraft(t *testing.T) {
 		t.Fatalf("rejected event: %+v", e3)
 	}
 }
+
+// An approved change event is recovered through contract variations (0054).
+func TestChange_LinkedVariations(t *testing.T) {
+	w := newARWorld(t)
+	f, c := w.f, w.cast
+	ctr := w.activeContract(t)
+	ev, err := f.svc.CreateChangeEvent(f.ctx, c.pm, ChangeEventInput{ProjectID: f.project, Title: "River protection", Source: "CLIENT",
+		Description: "Gabions after the flood survey", RevenueImpct: dec("1850000"), ScheduleDays: 10})
+	must(t, "event", err)
+	vo := func(title string) string {
+		id, err := f.svc.CreateVariation(f.ctx, c.commercial, ctr, VariationInput{Title: title, Reason: "Client instruction after the flood survey",
+			ClientInstructionRef: "ERA-VO-" + title[:3], ClientInstructionSHA256: voSHA,
+			Lines: []VariationLine{{LineNo: 4, Kind: "NEW", Description: "Gabion walls " + title, Unit: "m3", QtyDelta: dec("500"), Rate: dec("3700")}}})
+		must(t, "variation "+title, err)
+		return id
+	}
+	v1 := vo("Gab A")
+	if err := f.svc.LinkVariation(f.ctx, c.pm, ev, v1); err == nil {
+		t.Fatal("a draft change event was linked")
+	}
+	must(t, "submit", f.svc.SubmitChangeEvent(f.ctx, c.pm, ev))
+	must(t, "approve", f.svc.DecideChangeEvent(f.ctx, w.mfa(c.commercial), ev, true, ""))
+	if err := f.svc.LinkVariation(f.ctx, w.ar.arClerk, ev, v1); !errors.Is(err, auth.ErrForbidden) {
+		t.Fatalf("an AR clerk linked a variation: %v", err)
+	}
+	must(t, "link", f.svc.LinkVariation(f.ctx, c.pm, ev, v1))
+	if err := f.svc.LinkVariation(f.ctx, c.pm, ev, v1); err == nil {
+		t.Fatal("the same variation was linked twice")
+	}
+	must(t, "submit vo", f.svc.SubmitVariation(f.ctx, c.commercial, v1))
+	must(t, "approve vo", f.svc.DecideVariation(f.ctx, w.mfa(c.cfo), v1, true, ""))
+	e, err := f.svc.GetChangeEvent(f.ctx, c.pm, ev)
+	must(t, "get", err)
+	if len(e.Variations) != 1 || e.Variations[0]["status"] != "APPROVED" || !e.RecoveredValue.Equal(dec("1850000")) {
+		t.Fatalf("linked variations: %+v recovered %s", e.Variations, e.RecoveredValue)
+	}
+	rawFails(t, f, "remove a link", `DELETE FROM change_event_variations WHERE event_id = '`+ev+`'`)
+}

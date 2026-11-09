@@ -74,6 +74,11 @@ var StagingPersonas = []Persona{
 	{"u-process-owner", "Process owner (automation rules)", []string{"process_owner"}, false},
 	{"u-workflow-admin", "Workflow admin (activates rules)", []string{"workflow_admin"}, false},
 	{"u-security-admin", "Security admin (company settings)", []string{"security_admin"}, false},
+	{"u-payroll", "Payroll officer", []string{"payroll_officer"}, false},
+	{"u-hr-manager", "HR manager (approves payroll)", []string{"hr_manager"}, false},
+	{"u-plant", "Plant manager", []string{"plant_manager"}, false},
+	{"u-hse", "HSE officer", []string{"hse_officer"}, false},
+	{"u-quality", "Quality engineer", []string{"quality_engineer"}, false},
 }
 
 func (s *Server) registerStaging() {

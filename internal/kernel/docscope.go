@@ -180,6 +180,8 @@ func maskedAccountOf(ctx context.Context, tx pgx.Tx, docType, id string) (string
 		q = `SELECT COALESCE(account_last4, right(account_number, 4), '') FROM company_bank_accounts WHERE id = $1::uuid`
 	case "payment_instruction":
 		q = `SELECT COALESCE(b.account_last4, right(b.account_number, 4), '') FROM payment_instructions p JOIN supplier_bank_accounts b ON b.id = p.supplier_bank_id WHERE p.id = $1::uuid`
+	case "subcontract_payment":
+		q = `SELECT COALESCE(b.account_last4, right(b.account_number, 4), '') FROM subcontract_payments p JOIN supplier_bank_accounts b ON b.id = p.supplier_bank_id WHERE p.id = $1::uuid`
 	default:
 		return "", nil
 	}
@@ -210,6 +212,17 @@ func projectDoc(docType string, raw json.RawMessage, masked string) (json.RawMes
 		h, _ := m["h"].(map[string]any)
 		payee, _ := m["payee"].(map[string]any)
 		out := map[string]any{"h": pick(h, paymentFields), "alloc": m["alloc"]}
+		if payee != nil {
+			pe := pick(payee, bankAccountFields["supplier_bank_account"])
+			pe["account_number_masked"] = masked
+			out["payee"] = pe
+		}
+		v = out
+	case docType == "subcontract_payment" && m != nil:
+		// 0056: the header and allocations as stored; the payee as the masked
+		// projection of an approved bank account.
+		payee, _ := m["payee"].(map[string]any)
+		out := map[string]any{"h": scrub(m["h"]), "alloc": m["alloc"]}
 		if payee != nil {
 			pe := pick(payee, bankAccountFields["supplier_bank_account"])
 			pe["account_number_masked"] = masked

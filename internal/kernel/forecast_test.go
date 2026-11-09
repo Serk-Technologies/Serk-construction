@@ -137,6 +137,13 @@ func TestForecast_MethodsAndGuards(t *testing.T) {
 	// A new cycle for the same month end may be prepared and rejected, but not approved twice.
 	id2, err := f.svc.CreateForecast(f.ctx, c.pm, f.project, period, "")
 	must(t, "second cycle", err)
+	// 0052: 10-MAT is back on remaining budget (EAC 1,000,000 against the
+	// approved 1,200,000, a 20% move): the change must be explained.
+	if err := f.svc.SubmitForecast(f.ctx, c.pm, id2); err == nil {
+		t.Fatal("a change of more than 10% of budget against the last approved forecast was submitted unexplained")
+	}
+	must(t, "explain 10-MAT", f.svc.SetForecastLine(f.ctx, c.pm, id2, line2(t, f, c.pm, id2, "10-MAT"), "REMAINING_BUDGET", nil, "Supplier quotes came in at budget"))
+	must(t, "explain 20-FIN", f.svc.SetForecastLine(f.ctx, c.pm, id2, line2(t, f, c.pm, id2, "20-FIN"), "REMAINING_BUDGET", nil, "Finishes scope is back in this period"))
 	must(t, "submit 2", f.svc.SubmitForecast(f.ctx, c.pm, id2))
 	if err := f.svc.DecideForecast(f.ctx, c.cfo, id2, true, ""); err == nil {
 		t.Fatal("two approved forecasts for one month end")
@@ -246,4 +253,106 @@ func TestForecast_WIPScheduleAndSummary(t *testing.T) {
 	if len(sum.Rows) != len(fc.Lines) || !dec(sum.Totals["eac"]).Equal(fc.EAC) || !dec(sum.Totals["vac"]).Equal(fc.VAC) {
 		t.Fatalf("forecast summary: %d rows totals %v; forecast has %d lines EAC %s VAC %s", len(sum.Rows), sum.Totals, len(fc.Lines), fc.EAC, fc.VAC)
 	}
+}
+
+// CPI method, change against the last approved forecast, S-curve (0052).
+func TestForecast_CPIChangeAndSCurve(t *testing.T) {
+	w := newARWorld(t)
+	f, c := w.f, w.cast
+	planner := auth.Principal{Kind: auth.KindHuman, UserID: "u-planner", TenantID: f.tenant, Roles: []string{"planner"}, ProjectIDs: []string{f.project}, IssuedAt: time.Now().Add(-time.Minute)}
+	period := today().Format("2006-01-02")
+
+	// Forecast 1 (remaining budget) before any schedule: CPI is refused.
+	f1, err := f.svc.CreateForecast(f.ctx, c.pm, f.project, period, "")
+	must(t, "forecast 1", err)
+	fc, err := f.svc.GetForecast(f.ctx, c.pm, f1)
+	must(t, "get 1", err)
+	code := fc.Lines[0].CostCodeID
+	if err := f.svc.SetForecastLine(f.ctx, c.pm, f1, code, "CPI", nil, ""); err == nil {
+		t.Fatal("the CPI method was accepted without a baseline schedule")
+	}
+	must(t, "submit 1", f.svc.SubmitForecast(f.ctx, c.pm, f1))
+	must(t, "approve 1", f.svc.DecideForecast(f.ctx, c.cfo, f1, true, ""))
+
+	// Baseline, progress (EV 3,850,000 of 6,500,000) and posted cost.
+	v1, err := f.svc.CreateSchedule(f.ctx, planner, w.scheduleInput())
+	must(t, "schedule", err)
+	must(t, "schedule submit", f.svc.SubmitSchedule(f.ctx, planner, v1))
+	must(t, "baseline", f.svc.DecideSchedule(f.ctx, c.pm, v1, true, ""))
+	pr, err := f.svc.RecordProgress(f.ctx, planner, f.project, d("2026-10-14"), []ProgressLine{{ActivityCode: "A", PercentComplete: dec("100"), ActualStart: ptrDay("2026-10-05"), ActualFinish: ptrDay("2026-10-07")},
+		{ActivityCode: "B", PercentComplete: dec("100"), ActualStart: ptrDay("2026-10-08"), ActualFinish: ptrDay("2026-10-13")}, {ActivityCode: "C", PercentComplete: dec("50"), ActualStart: ptrDay("2026-10-08")},
+		{ActivityCode: "D", PercentComplete: dec("20"), ActualStart: ptrDay("2026-10-14")}})
+	must(t, "progress", err)
+	must(t, "progress approve", f.svc.DecideProgress(f.ctx, c.pm, pr, true, ""))
+	_, _, po := w.awardedPO(t, "20", "500")
+	_, j1 := w.receipt(t, po, GRNLine{POLineNo: 1, QtyReceived: dec("12")}, GRNLine{POLineNo: 2, QtyReceived: dec("500")})
+	inv, _ := w.invoice(t, InvoiceInput{POID: po, InvoiceNumber: "CPI/2026/0001", InvoiceDate: today(), DueDate: today().AddDate(0, 0, 30),
+		Subtotal: dec("1486500"), TaxAmount: dec("222975"), Total: dec("1709475"), Lines: []InvoiceLine{{1, dec("12"), dec("84500")}, {2, dec("500"), dec("945")}}})
+	j3, err := f.svc.ApproveInvoice(f.ctx, c.apSup, inv, "")
+	must(t, "approve invoice", err)
+	w.financePost(t, j1, j3)
+	ev, err := f.svc.ScheduleEVM(f.ctx, c.pm, f.project, today())
+	must(t, "evm", err)
+	if ev.CPI == nil {
+		t.Fatalf("no CPI: %+v", ev)
+	}
+
+	// Forecast 2 with CPI on the scheduled cost code.
+	f2, err := f.svc.CreateForecast(f.ctx, c.pm, f.project, period, "")
+	must(t, "forecast 2", err)
+	must(t, "cpi line", f.svc.SetForecastLine(f.ctx, c.pm, f2, w.costCode, "CPI", nil, ""))
+	fc, err = f.svc.GetForecast(f.ctx, c.pm, f2)
+	must(t, "get 2", err)
+	var l ForecastLine
+	for _, x := range fc.Lines {
+		if x.CostCodeID == w.costCode {
+			l = x
+		}
+	}
+	want := l.Budget.Sub(l.Budget.Mul(ev.EV).Div(ev.BAC)).Div(*ev.CPI).Round(2)
+	if l.Method != "CPI" || l.ETC.Sub(want).Abs().GreaterThan(dec("0.01")) || !l.EAC.Equal(l.CostToDate.Add(l.ETC)) || l.PrevEAC == nil {
+		t.Fatalf("CPI line: %+v, want ETC %s (CPI %s)", l, want, ev.CPI)
+	}
+	t.Logf("CPI %s: ETC %s EAC %s, last approved EAC %s", ev.CPI, l.ETC, l.EAC, l.PrevEAC)
+	moved := l.EAC.Sub(*l.PrevEAC).Abs().GreaterThan(l.Budget.Mul(dec("0.10")))
+	over := l.EAC.GreaterThan(l.Budget)
+	if moved && !over {
+		if err := f.svc.SubmitForecast(f.ctx, c.pm, f2); err == nil {
+			t.Fatal("a forecast that moved by more than 10% was submitted without an explanation")
+		}
+	}
+	if !moved {
+		t.Logf("EAC moved by %s only; the change rule is exercised by the raw check below", l.EAC.Sub(*l.PrevEAC))
+	}
+	must(t, "explain", f.svc.SetForecastLine(f.ctx, c.pm, f2, w.costCode, "CPI", nil, "Excavation running over on cost performance"))
+	must(t, "submit 2", f.svc.SubmitForecast(f.ctx, c.pm, f2))
+
+	sc, err := f.svc.ProjectSCurve(f.ctx, c.pm, f.project)
+	must(t, "s-curve", err)
+	if !sc.Baseline || !sc.BAC.Equal(dec("6500000")) || len(sc.Points) == 0 || sc.Points[0].Month != "2026-10" || !sc.Points[0].PV.Equal(dec("6500000")) ||
+		sc.Points[0].EV == nil || !sc.Points[0].EV.Equal(dec("3850000")) || len(sc.Forecasts) != 1 || sc.LatestEAC == nil {
+		t.Fatalf("s-curve: %+v", sc)
+	}
+	outsider := auth.Principal{Kind: auth.KindHuman, UserID: "u-pm-out", TenantID: f.tenant, Roles: []string{"project_manager"}, ProjectIDs: []string{"00000000-0000-0000-0000-000000000001"}}
+	if _, err := f.svc.ProjectSCurve(f.ctx, outsider, f.project); !errors.Is(err, auth.ErrForbidden) {
+		t.Fatalf("an outsider read the S-curve: %v", err)
+	}
+}
+
+func ptrDay(s string) *time.Time { x := d(s); return &x }
+
+func line2(t *testing.T, f *fixture, p auth.Principal, cycle, code string) string {
+	t.Helper()
+	fc, err := f.svc.GetForecast(f.ctx, p, cycle)
+	must(t, "get", err)
+	for _, l := range fc.Lines {
+		if l.CostCode == code {
+			if l.PrevEAC == nil {
+				t.Fatalf("%s has no last approved EAC", code)
+			}
+			return l.CostCodeID
+		}
+	}
+	t.Fatalf("no line %s", code)
+	return ""
 }

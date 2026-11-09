@@ -82,6 +82,12 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT project_id::text FROM customer_credit_notes WHERE id = $1::uuid`
 	case "site_diary":
 		q = `SELECT project_id::text FROM site_diaries WHERE id = $1::uuid`
+	case "timesheet":
+		q = `SELECT project_id::text FROM timesheets WHERE id = $1::uuid`
+	case "equipment_usage":
+		q = `SELECT project_id::text FROM equipment_usage WHERE id = $1::uuid`
+	case "itp":
+		q = `SELECT project_id::text FROM itps WHERE id = $1::uuid`
 	case "project_stage_gate":
 		q = `SELECT project_id::text FROM project_stage_gates WHERE id = $1::uuid`
 	case "forecast_cycle":
@@ -92,6 +98,11 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT c.project_id::text FROM contract_notices x JOIN contracts c ON c.id = x.contract_id WHERE x.id = $1::uuid`
 	case "contract_claim":
 		q = `SELECT c.project_id::text FROM contract_claims x JOIN contracts c ON c.id = x.contract_id WHERE x.id = $1::uuid`
+	case "subcontract":
+		q = `SELECT project_id::text FROM subcontracts WHERE id = $1::uuid`
+	case "subcontract_application", "subcontract_backcharge", "subcontract_payment":
+		q = map[string]string{"subcontract_application": "subcontract_applications", "subcontract_backcharge": "subcontract_backcharges", "subcontract_payment": "subcontract_payments"}[docType]
+		q = `SELECT s.project_id::text FROM ` + q + ` x JOIN subcontracts s ON s.id = x.subcontract_id WHERE x.id = $1::uuid`
 	case "guarantee", "escalation_formula", "price_adjustment", "ld_terms":
 		q = map[string]string{"guarantee": "guarantees", "escalation_formula": "escalation_formulas", "price_adjustment": "price_adjustments", "ld_terms": "contract_ld_terms"}[docType]
 		q = `SELECT c.project_id::text FROM ` + q + ` x JOIN contracts c ON c.id = x.contract_id WHERE x.id = $1::uuid`
@@ -154,6 +165,14 @@ func (s *Service) readPerm(p auth.Principal, docType string) auth.Permission {
 		gate = []auth.Permission{auth.PermAuthorityManage, auth.PermAuthorityApprove}
 	case "delegation":
 		gate = []auth.Permission{auth.PermDelegationCreate, auth.PermDelegationApprove}
+	case "payroll_rule_set", "pay_run":
+		// 0061: payroll is read by the people who prepare, approve or pay it.
+		gate = []auth.Permission{auth.PermPayrollPrepare, auth.PermPayrollApprove, auth.PermPaymentRelease}
+	case "consolidation_group", "consolidation_run":
+		// 0062: consolidation is read by those who prepare or approve it.
+		gate = []auth.Permission{auth.PermConsolidationManage, auth.PermConsolidationApprove}
+	case "tax_return":
+		gate = []auth.Permission{auth.PermTaxPrepare, auth.PermTaxApprove}
 	default:
 		return auth.PermP2PRead
 	}

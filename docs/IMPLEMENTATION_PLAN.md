@@ -551,6 +551,11 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   person with `forecast.approve` and a fresh MFA; the decision is attested and an approved forecast
   never changes. One open cycle per project; one approved cycle per project and month end.
   Test: `TestForecast_MethodsAndGuards`.
+  Completed (2026-11-08, migration `0052_forecast_cpi.sql`): method CPI (ETC = budget not yet earned ÷ the
+  project's CPI from `schedule_evm`, refused without a baseline with progress and posted cost); each line freezes the
+  same code's EAC in the last approved forecast and a line that moved by more than 10% of its budget must be
+  explained before submission (database guard); `GET /v1/projects/{id}/s-curve` and an S-curve chart (planned,
+  earned, actual by month, scheduled budget and latest forecast) on every forecast. Test: `TestForecast_CPIChangeAndSCurve`.
   Follow-up from the browser check (migration `0047_forecast_cancel.sql`): the author can cancel a DRAFT
   forecast with a reason, so an abandoned draft no longer blocks the project; a project with no money on any
   cost code is refused in plain words; a second open forecast is refused in plain words naming the open one.
@@ -572,10 +577,19 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   approved customer invoices up to the forecast date; over/(under) billed = billed - earned; a project whose EAC
   exceeds its contract value shows its total expected loss. Both export to PDF/Word/Excel like every report.
   Test: `TestForecast_WIPScheduleAndSummary` recomputes every figure from first principles.
-- **Still to do in this package:** the month-end WIP adjustment journal (a generated draft approved by
-  finance and posted by a different person) and per-contract (not per-project) percent complete.
+- **Completed (2026-11-08):** the month-end WIP adjustment journal is the revenue run of WP-2.3 (migration
+  `0053_revenue_recognition.sql`): a generated REV_RUN draft journal, approved by finance and posted by a different
+  person. Percent complete is per contract for the output method; the input method uses the project's forecast.
 
 #### WP-2.3 IFRS 15 revenue recognition over time
+- **Delivered (2026-11-08):** `0053_revenue_recognition.sql`, `internal/kernel/revenue.go`, console **Accounting →
+  Revenue & WIP**. Revenue policy per legal entity (INPUT_COST or OUTPUT_MEASURED; contract asset and liability
+  accounts; controller proposes, CFO approves, attested). Revenue run per project and month end: the database computes
+  per active contract earned (value × progress), billed (approved invoices less approved credit notes), cumulative
+  adjustment and the movement since the last posted run; the run generates a REV_RUN subledger journal bound like
+  P2P/AR/STK journals (lines only by the generating transaction, re-checked at approval and posting, never reversed;
+  finance may cancel a draft run with its journal). Test: `TestRevenue_RunAndWIPJournal`. Pending: method chosen per
+  contract, and decision D-05 (revenue policy sign-off by the finance adviser).
 - **SRS:** FIN-15, CON-07 (contract assets and liabilities).
 - **Migration:** `0044_revenue_recognition.sql`: `revenue_policy` (per
   contract: input or output method, measure), `revenue_run(period, status)`,
@@ -605,7 +619,11 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   different person with `change.approve` (commercial manager) and a fresh MFA, attested. Approval drafts a
   budget REVISION for the cost lines, authored by the change's author so that a different person approves it
   under budget control (draft only; the budget does not move). Test: `TestChange_EventToBudgetDraft`.
-- **Still to do in this package:** links to contract variations and subcontract variations (the latter needs WP-2.5).
+- **Completed (2026-11-08):** `0054_change_variation_links.sql`: an APPROVED change event is linked (under
+  `change.manage`) to the contract variations that recover it from the client, on the same project, never a rejected
+  or cancelled one; a variation carries one event; links are never removed. The change event page shows the revenue
+  impact, what approved linked variations recovered and what is not yet recovered. Test: `TestChange_LinkedVariations`.
+  Links to subcontract variations are part of WP-2.5.
 
 
 #### WP-2.5 Subcontract management
@@ -633,6 +651,21 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   columns (previous, this period, to date); a certificate PDF export.
 - **Tests:** arithmetic fixtures signed by a QS; retention cap; advance fully
   recovered by the last certificate; a certificate race.
+- **Part 1 delivered (2026-11-08):** `0055_subcontracts.sql`, `internal/kernel/subcontract.go`,
+  `internal/httpapi/subcontract_handlers.go`, console menu **Subcontracts**. Subcontract policy (five accounts, maker/
+  checker); subcontract with schedule of values on cost codes and expense accounts, approved by another person with
+  budget control, committing its value in `p2p_cost_position`; applications (cumulative claim) certified by another
+  person with fresh MFA; the database computes this period's gross, retention (capped), advance recovery (never above
+  what is outstanding), approved back-charges (deducted once), withholding and net payable, refusing a negative period
+  or net; a SUB_CERT subledger journal bound like the others. Test: `TestSubcontract_CertificatesAndJournal`.
+- **Part 2 delivered (2026-11-08):** `0056_subcontract_payments.sql`, `internal/kernel/subpayment.go`: subcontractor
+  documents (an expired required document blocks approval and release); subcontract payments prepared by treasury,
+  approved by finance (fresh MFA) and released by a different treasury officer (fresh MFA), allocated to certified
+  certificates never above what is open, paid to an approved bank account of the subcontractor; pay-when-certified
+  refused until the client certified the period; a SUB_PAY journal (Dr subcontractor payable / Cr bank clearing).
+  Test: `TestSubcontract_PaymentComplianceAndPayWhenCertified`.
+- **Still pending:** matching subcontract payments to bank statements (settlement), subcontract variations and their
+  link to change events, the subcontractor portal, and the certificate PDF.
 - **Estimate:** 8 ew.
 
 #### WP-2.6 Claims, EOT, notices and LDs
@@ -682,7 +715,7 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 
 #### WP-2.8 Workforce and payroll
 - **SRS:** HCM-01, HCM-04, HCM-05, HCM-06.
-- **Migrations:** `0053_hcm.sql`, `0054_payroll.sql` (provisional).
+- **Migrations:** `0061_payroll.sql` (built).
 - **Data model:**
   - `employee(id, number, name, kind SALARIED|DAILY, grade, trade, base_rate, rate_unit, bank_or_wallet (encrypted, masked), tin, pension_no, start, end)`;
   - `payroll_rule_set(id, effective_from, status, approved_by)` and
@@ -701,13 +734,21 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 
 #### WP-2.9 Fixed assets (IAS 16)
 - **SRS:** FIN-06, EQP-01.
-- **Migration:** `0055_fixed_assets.sql` (provisional): `asset(id, class, entity_id,
+- **Migration:** `0057_fixed_assets.sql` (provisional): `asset(id, class, entity_id,
   acquired_at, cost, residual, life_months, method SL|DB|UNITS, component_of
   NULL, location, status)`, `asset_event(kind ACQUIRE|DEPRECIATE|REVALUE|IMPAIR|TRANSFER|DISPOSE)`,
   `depreciation_run(period, status)`.
 - **Rules:** capitalisation from GRN or AP lines to an asset account; a
   monthly depreciation run (one per period, unique source event); disposal
   gain or loss journal.
+- **Delivered (2026-11-08):** `0057_fixed_assets.sql`, `internal/kernel/fixedassets.go`, `internal/httpapi/asset_handlers.go`,
+  console **Accounting → Fixed assets**. Asset classes with typed accounts; assets registered by an accountant
+  (`asset.manage`) and activated by the CFO (`asset.approve`, fresh MFA), generating FA_CAP (Dr cost / Cr the
+  capitalised-from account, e.g. assets under construction); a monthly depreciation run per entity (straight line or
+  double declining, never below residual, months in order, one unposted run at a time) generating FA_DEP; disposals
+  approved by the CFO with database-computed net book value and gain or loss, generating FA_DISP. FA journals are bound
+  subledger journals. Test: `TestFixedAssets_CapitaliseDepreciateDispose`. Not built: revaluation, impairment,
+  transfers between entities or projects, units-of-production method, capitalisation picked from a GRN line.
 - **Estimate:** 5 ew.
 
 #### WP-2.10 Multi-entity consolidation and intercompany
@@ -736,6 +777,12 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   and forecast billing), loan service; separate CONFIRMED from FORECAST; a
   13-week view and a project-horizon view.
 - **Estimate:** 3 ew.
+- **Delivered (2026-11-08):** `0059_cash_plan.sql`, `internal/kernel/cashforecast.go`, console **Treasury & banking →
+  Cash forecast**. Weekly from Monday, 13 weeks, from posted bank cash: confirmed (approved receivables and payables by
+  due date; released payments not settled) and forecast (certified IPCs not invoiced at period end + 30 days; certified
+  subcontract certificates not paid; open purchase-order balances by date needed) flows, plus planned items entered by
+  treasury (never edited, cancelled with a reason). Overdue items in week 1; anything beyond 13 weeks summed. Test:
+  `TestCashForecast_ThirteenWeeks`. Pending: the project-horizon (monthly) view.
 
 #### WP-2.13 Fiscal calendar and accruals
 - **SRS:** FIN-10, FIN-11, FIN-12, FIN-13.
@@ -744,6 +791,14 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
   next period; overhead allocation rules (driver: direct cost or labour
   hours); corporate overhead budgets.
 - **Estimate:** 4 ew.
+- **Delivered (2026-11-08):** `0058_period_end.sql`, `internal/kernel/periodend.go`, console **Accounting → Period end**.
+  Fiscal years generated as monthly OPEN periods on the Ethiopian (Hamle to Sene, Pagume within Nehase, leap rule
+  tested) or Gregorian calendar, refused in plain words when they overlap; recurring journals (one draft journal per
+  template and date, never twice, catch-up to 24 months, end date); accruals reversed once on their date after posting;
+  overhead allocation by posted direct cost computed by the database (remainder to the largest share), one draft
+  journal per project, one allocation per pool and range. Tests: `TestEthiopianFiscalYear`,
+  `TestPeriodEnd_FiscalYearRecurringAccrualOverhead`. Pending: corporate overhead budgets and a labour-hours driver
+  (needs timesheets, WP-3.3).
 
 ---
 
@@ -933,17 +988,26 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 | 0049 | WP-1.10 | people_access_fix (built: pinned search_path, first seen) |
 | 0050 | WP-2.7 | bonds_escalation (built: guarantees, price indices, formulas, price adjustments) |
 | 0051 | WP-2.6 | contract_time (built: liquidated damages terms, extension of time, obligations) |
-| 0052* | WP-2.3 | revenue_recognition (numbers from here on are provisional; each package takes the next free number when built) |
-| 0053-0054 | WP-2.8 | hcm, payroll |
-| 0055 | WP-2.9 | fixed_assets |
-| 0056 | WP-2.10 | consolidation |
-| 0057 | WP-3.2 | schedule_ext |
-| 0058 | WP-3.3 | timesheets |
-| 0059 | WP-3.4 | equipment |
-| 0060 | WP-3.5 | documents |
-| 0061 | WP-3.6 | quality |
-| 0062 | WP-3.7 | hse |
-| 0063+ | R4 and corrections | assigned when started |
+| 0052 | WP-2.1 | forecast_cpi (built: CPI method, last approved EAC, change rule) |
+| 0053 | WP-2.2/2.3 | revenue_recognition (built: revenue policy, revenue runs, REV_RUN journals) |
+| 0054 | WP-2.4 | change_variation_links (built) |
+| 0055 | WP-2.5 | subcontracts (built: part 1) |
+| 0056 | WP-2.5 | subcontract_payments (built: part 2) |
+| 0057 | WP-2.9 | fixed_assets (built) |
+| 0058 | WP-2.13 | period_end (built) |
+| 0059 | WP-2.12 | cash_plan (built: planned cash items) |
+| 0060 | WP-1.10 | role_adjustments (built: product roles narrowed per company) |
+| 0061 | WP-2.8 | payroll (built: employees, rule sets, pay runs, PAY_RUN and PAY_PAY journals) |
+| 0062 | WP-2.10 | consolidation (built: groups, intercompany accounts, runs) |
+| 0063 | WP-2.11 | tax (built: tax accounts, VAT/WHT returns, e-invoice submissions) |
+| 0064* | next | numbers from here on are provisional; each package takes the next free number when built |
+| 0065 | WP-3.2 | schedule_ext |
+| 0066 | WP-3.3 | timesheets |
+| 0067 | WP-3.4 | equipment |
+| 0068 | WP-3.5 | documents |
+| 0069 | WP-3.6 | quality |
+| 0070 | WP-3.7 | hse |
+| 0071+ | R4 and corrections | assigned when started |
 
 If WPs land in a different order, renumber **before** merge, never after.
 
@@ -972,20 +1036,20 @@ Legend: ⬜ not started · 🟨 in progress · 🟦 in review · ✅ done · ⛔
 | WP-1.7 | Multi-entity, project master | R1 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-1.7-verification-2026-11-07.md |
 | WP-1.8 | Onboarding wizard, imports | R1 | 5 | 1.7 | ✅ | uncommitted | docs/release/evidence/wp-1.8-verification-2026-11-07.md |
 | WP-1.9 | R1 hardening and GA | R1 | 4 | all R1 | 🟨 | uncommitted | docs/release/evidence/wp-1.9-verification-2026-11-07.md (docs and contract done; UAT, pentest, GO sign-off pending) |
-| WP-1.10 | People, roles and profiles | R1 | 3 | 1.2 | ✅ | uncommitted | docs/release/evidence/wp-1.10-verification-2026-11-08.md |
-| WP-2.1 | Cost forecasting | R2 | 5 | 1.3 | 🟨 | 2026-11-07 | monthly cycle, 3 methods, approval built; S-curves, CPI method and forecast-vs-last-forecast variance pending |
-| WP-2.2 | WIP schedule | R2 | 3 | 2.1 | 🟨 | 2026-11-08 | WIP schedule and forecast summary reports built; adjustment journal pending |
-| WP-2.3 | IFRS 15 revenue | R2 | 4 | 2.2, D-05 | ⬜ | | |
-| WP-2.4 | Change events | R2 | 4 | 1.3 | 🟨 | 2026-11-08 | event, approval and budget draft built; variation links pending (2.5) |
-| WP-2.5 | Subcontracts | R2 | 8 | 1.3, 2.4 | ⬜ | | |
+| WP-1.10 | People, roles and profiles | R1 | 3 | 1.2 | ✅ | uncommitted | docs/release/evidence/wp-1.10-verification-2026-11-08.md, docs/release/evidence/wp-1.10-addendum-account-menu-graph-roles-2026-11-08.md |
+| WP-2.1 | Cost forecasting | R2 | 5 | 1.3 | ✅ | uncommitted | docs/release/evidence/wp-2.1-2.2-2.3-verification-2026-11-08.md |
+| WP-2.2 | WIP schedule | R2 | 3 | 2.1 | ✅ | uncommitted | docs/release/evidence/wp-2.1-2.2-2.3-verification-2026-11-08.md |
+| WP-2.3 | IFRS 15 revenue | R2 | 4 | 2.2, D-05 | ✅ | uncommitted | docs/release/evidence/wp-2.1-2.2-2.3-verification-2026-11-08.md (input and output methods per entity; per-contract method and D-05 sign-off pending) |
+| WP-2.4 | Change events | R2 | 4 | 1.3 | ✅ | uncommitted | docs/release/evidence/wp-2.4-completion-verification-2026-11-08.md (subcontract variation links move to WP-2.5) |
+| WP-2.5 | Subcontracts | R2 | 8 | 1.3, 2.4 | 🟨 | uncommitted | docs/release/evidence/wp-2.5-part1-verification-2026-11-08.md, docs/release/evidence/wp-2.5-part2-verification-2026-11-08.md (built: subcontracts, certificates, payments, documents, pay-when-certified; pending: bank-statement settlement of subcontract payments, subcontract variations and their change-event links, subcontractor portal, certificate PDF) |
 | WP-2.6 | Claims, EOT, notices, LDs | R2 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-2.6-completion-verification-2026-11-08.md |
 | WP-2.7 | Bonds and price adjustment | R2 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-2.7-verification-2026-11-08.md |
-| WP-2.8 | Workforce and payroll | R2 | 8 | D-04 | ⬜ | | |
-| WP-2.9 | Fixed assets | R2 | 5 | - | ⬜ | | |
-| WP-2.10 | Consolidation, intercompany | R2 | 6 | 1.7 | ⬜ | | |
-| WP-2.11 | Tax: WHT, VAT return, e-invoice | R2 | 4 | D-06 | ⬜ | | |
-| WP-2.12 | Cash forecasting | R2 | 3 | 2.8 | ⬜ | | |
-| WP-2.13 | Fiscal calendar, accruals, allocations | R2 | 4 | - | ⬜ | | |
+| WP-2.8 | Workforce and payroll | R2 | 8 | D-04 | ✅ | uncommitted | docs/release/evidence/wp-2.8-verification-2026-11-09.md (rule values are tenant data until the D-04 adviser-signed fixture set; ISO 20022 file and timesheet hours (WP-3.3) pending) |
+| WP-2.9 | Fixed assets | R2 | 5 | - | ✅ | uncommitted | docs/release/evidence/wp-2.9-verification-2026-11-08.md (cost model; revaluation, impairment, transfers and units-of-production pending) |
+| WP-2.10 | Consolidation, intercompany | R2 | 6 | 1.7 | ✅ | uncommitted | docs/release/evidence/wp-2.10-verification-2026-11-09.md (report-only consolidation with translation, NCI, equity method and eliminations; historical-rate equity, consolidation journals and automatic intercompany matching by reference pending) |
+| WP-2.11 | Tax: WHT, VAT return, e-invoice | R2 | 4 | D-06 | ✅ | uncommitted | docs/release/evidence/wp-2.11-verification-2026-11-09.md (returns computed from posted journals, approval and filing; e-invoice through a fake adapter until D-06; automatic withholding on supplier payments and receipts, certificates and return forms pending) |
+| WP-2.12 | Cash forecasting | R2 | 3 | 2.8 | ✅ | uncommitted | docs/release/evidence/wp-2.12-verification-2026-11-08.md (13-week view; the project-horizon view is pending) |
+| WP-2.13 | Fiscal calendar, accruals | R2 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-2.13-verification-2026-11-08.md (corporate overhead budgets and a labour-hours driver pending) |
 | WP-3.1 | Mobile field app | R3 | 14 | D-01, 0.5 | ⬜ | | |
 | WP-3.2 | Planning ext., P6/MSP | R3 | 8 | - | ⬜ | | |
 | WP-3.3 | Timesheets, attendance | R3 | 4 | 2.8 | ⬜ | | |

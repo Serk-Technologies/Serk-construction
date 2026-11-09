@@ -31,9 +31,20 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
     </button>
     <div class="who" id="who" hidden>
-      <a id="mebtn" class="mebtn" href="#/me" title="Your profile"><span class="avatar" id="who-av" aria-hidden="true"></span><span id="who-name"></span></a>
-      <span id="who-mfa" class="chip" hidden>MFA</span>
-      <button type="button" id="signout" class="ghost">Sign out</button>
+      <button type="button" id="mebtn" class="mebtn" aria-haspopup="menu" aria-expanded="false" aria-controls="acctmenu" aria-label="Account menu">
+        <span class="avatar" id="who-av" aria-hidden="true"></span><span id="who-name"></span>
+        <svg class="caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div id="acctmenu" class="acctmenu" role="menu" aria-label="Account" hidden>
+        <div class="accthead">
+          <span class="avatar lg" id="acct-av" aria-hidden="true"></span>
+          <div class="acctwho"><div class="nm" id="acct-name"></div><div class="sub" id="acct-id"></div><div class="sub" id="acct-roles"></div></div>
+        </div>
+        <p class="acctmfa" id="who-mfa" hidden></p>
+        <a role="menuitem" href="#/me" id="acct-profile">My profile</a>
+        <a role="menuitem" href="#/people" id="acct-people" hidden>People &amp; access</a>
+        <button type="button" role="menuitem" id="signout">Sign out</button>
+      </div>
     </div>
   </div>
 </header>

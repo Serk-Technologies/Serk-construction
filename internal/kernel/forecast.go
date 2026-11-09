@@ -38,6 +38,8 @@ type ForecastLine struct {
 	ETC        decimal.Decimal  `json:"etc"`
 	EAC        decimal.Decimal  `json:"eac"`
 	VAC        decimal.Decimal  `json:"vac"`
+	// PrevEAC is the same code's EAC in the last approved forecast (0052).
+	PrevEAC *decimal.Decimal `json:"prev_eac,omitempty"`
 }
 
 // ForecastCycle is a forecast with its lines and totals.
@@ -56,6 +58,8 @@ type ForecastCycle struct {
 	ETC        decimal.Decimal `json:"total_etc"`
 	EAC        decimal.Decimal `json:"total_eac"`
 	VAC        decimal.Decimal `json:"total_vac"`
+	// PrevEAC totals the lines that were in the last approved forecast.
+	PrevEAC *decimal.Decimal `json:"total_prev_eac,omitempty"`
 }
 
 // CreateForecast opens a DRAFT cycle for the project at periodEnd, with one
@@ -105,14 +109,14 @@ func (s *Service) CreateForecast(ctx context.Context, p auth.Principal, projectI
 func (s *Service) SetForecastLine(ctx context.Context, p auth.Principal, cycleID, costCodeID, method string, manualETC *decimal.Decimal, note string) error {
 	method = strings.ToUpper(strings.TrimSpace(method))
 	switch method {
-	case "REMAINING_BUDGET", "OPEN_COMMITMENTS":
+	case "REMAINING_BUDGET", "OPEN_COMMITMENTS", "CPI":
 		manualETC = nil
 	case "MANUAL":
 		if manualETC == nil || manualETC.IsNegative() {
 			return fmt.Errorf("%w: a MANUAL line needs a non-negative estimate to complete", ErrInvalidInput)
 		}
 	default:
-		return fmt.Errorf("%w: method must be REMAINING_BUDGET, OPEN_COMMITMENTS or MANUAL", ErrInvalidInput)
+		return fmt.Errorf("%w: method must be REMAINING_BUDGET, OPEN_COMMITMENTS, CPI or MANUAL", ErrInvalidInput)
 	}
 	return s.p2pTx(ctx, p, auth.PermForecastPrepare, func(ctx context.Context, tx pgx.Tx) error {
 		d, err := s.loadDoc(ctx, tx, p, auth.PermForecastPrepare, "forecast_cycle", cycleID)
@@ -187,7 +191,7 @@ func (s *Service) GetForecast(ctx context.Context, p auth.Principal, id string) 
 		c.PeriodEnd = pe.Format("2006-01-02")
 		c.Note, c.ApprovedBy, c.Reason = deref(note), deref(by), deref(reason)
 		rows, err := tx.Query(ctx, `SELECT l.cost_code_id::text, cc.code, l.method, l.manual_etc, COALESCE(l.note, ''),
-			l.budget, l.committed, l.reserved, l.received, l.cost_to_date, l.etc, l.eac, l.vac
+			l.budget, l.committed, l.reserved, l.received, l.cost_to_date, l.etc, l.eac, l.vac, l.prev_eac
 			FROM forecast_lines l JOIN cost_codes cc ON cc.id = l.cost_code_id WHERE l.cycle_id = $1::uuid ORDER BY cc.code`, id)
 		if err != nil {
 			return err
@@ -195,11 +199,18 @@ func (s *Service) GetForecast(ctx context.Context, p auth.Principal, id string) 
 		defer rows.Close()
 		for rows.Next() {
 			var l ForecastLine
-			if err := rows.Scan(&l.CostCodeID, &l.CostCode, &l.Method, &l.ManualETC, &l.Note, &l.Budget, &l.Committed, &l.Reserved, &l.Received, &l.CostToDate, &l.ETC, &l.EAC, &l.VAC); err != nil {
+			if err := rows.Scan(&l.CostCodeID, &l.CostCode, &l.Method, &l.ManualETC, &l.Note, &l.Budget, &l.Committed, &l.Reserved, &l.Received, &l.CostToDate, &l.ETC, &l.EAC, &l.VAC, &l.PrevEAC); err != nil {
 				return err
 			}
 			c.Budget, c.CostToDate, c.ETC = c.Budget.Add(l.Budget), c.CostToDate.Add(l.CostToDate), c.ETC.Add(l.ETC)
 			c.EAC, c.VAC = c.EAC.Add(l.EAC), c.VAC.Add(l.VAC)
+			if l.PrevEAC != nil {
+				t := l.PrevEAC.Add(decimal.Zero)
+				if c.PrevEAC != nil {
+					t = t.Add(*c.PrevEAC)
+				}
+				c.PrevEAC = &t
+			}
 			c.Lines = append(c.Lines, l)
 		}
 		return rows.Err()
@@ -212,4 +223,107 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+// SCurvePoint is one month end of a project's S-curve.
+type SCurvePoint struct {
+	Month string           `json:"month"` // YYYY-MM
+	PV    decimal.Decimal  `json:"pv"`
+	EV    *decimal.Decimal `json:"ev,omitempty"` // only up to today
+	AC    *decimal.Decimal `json:"ac,omitempty"`
+}
+
+// SCurve is the planned, earned and actual cost of a project by month, with
+// the estimate at completion of each approved forecast.
+type SCurve struct {
+	ProjectID  string           `json:"project_id"`
+	Baseline   bool             `json:"baseline"`
+	BAC        decimal.Decimal  `json:"bac"`
+	Start      string           `json:"start,omitempty"`
+	Finish     string           `json:"finish,omitempty"`
+	Points     []SCurvePoint    `json:"points"`
+	Forecasts  []map[string]any `json:"forecasts"`
+	LatestEAC  *decimal.Decimal `json:"latest_eac,omitempty"`
+	LatestCPI  *decimal.Decimal `json:"cpi,omitempty"`
+	LatestSPI  *decimal.Decimal `json:"spi,omitempty"`
+	StatusDate string           `json:"status_date"`
+}
+
+// ProjectSCurve returns the project's S-curve: planned value over the
+// baseline schedule by month end, earned value and actual cost up to today,
+// and the EAC of each approved forecast (at most 120 months).
+func (s *Service) ProjectSCurve(ctx context.Context, p auth.Principal, projectID string) (SCurve, error) {
+	out := SCurve{ProjectID: projectID, Points: []SCurvePoint{}, Forecasts: []map[string]any{}}
+	if err := s.authz.RequireProject(p, auth.PermP2PRead, p.TenantID, projectID); err != nil {
+		return out, err
+	}
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	out.StatusDate = today.Format("2006-01-02")
+	err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SET LOCAL statement_timeout = '10s'`); err != nil {
+			return err
+		}
+		rows, err := tx.Query(ctx, `SELECT period_end::text, COALESCE((SELECT sum(eac) FROM forecast_lines l WHERE l.cycle_id = f.id), 0)
+			FROM forecast_cycles f WHERE f.project_id = $1::uuid AND f.status = 'APPROVED' ORDER BY period_end, approved_at`, projectID)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var pe string
+			var eac decimal.Decimal
+			if err := rows.Scan(&pe, &eac); err != nil {
+				rows.Close()
+				return err
+			}
+			e := eac
+			out.LatestEAC = &e
+			out.Forecasts = append(out.Forecasts, map[string]any{"period_end": pe, "eac": eac})
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		var start time.Time
+		var finish *time.Time
+		err = tx.QueryRow(ctx, `SELECT start_date, finish_date FROM schedule_versions WHERE project_id = $1::uuid AND status = 'BASELINE'`, projectID).Scan(&start, &finish)
+		if err == pgx.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		out.Baseline = true
+		out.Start = start.Format("2006-01-02")
+		end := start
+		if finish != nil {
+			end = *finish
+			out.Finish = finish.Format("2006-01-02")
+		}
+		if today.After(end) {
+			end = today
+		}
+		m := time.Date(start.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
+		for i := 0; i < 120 && !m.After(end); i++ {
+			monthEnd := m.AddDate(0, 1, -1)
+			at := monthEnd
+			if monthEnd.After(today) && !m.After(today) {
+				at = today // the current month is measured today
+			}
+			var r postgres.EVMReport
+			if r, err = postgres.ScheduleEVM(ctx, tx, projectID, at); err != nil {
+				return err
+			}
+			pt := SCurvePoint{Month: m.Format("2006-01"), PV: r.PV}
+			if !at.After(today) {
+				ev, ac := r.EV, r.AC
+				pt.EV, pt.AC = &ev, &ac
+				out.LatestCPI, out.LatestSPI = r.CPI, r.SPI
+			}
+			out.BAC = r.BAC
+			out.Points = append(out.Points, pt)
+			m = m.AddDate(0, 1, 0)
+		}
+		return nil
+	})
+	return out, err
 }

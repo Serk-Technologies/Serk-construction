@@ -104,6 +104,12 @@ type RoleInfo struct {
 	CreatedBy   string            `json:"created_by,omitempty"`
 	UpdatedBy   *string           `json:"updated_by,omitempty"`
 	UpdatedAt   *time.Time        `json:"updated_at,omitempty"`
+	// Product roles only (0060): the permissions this company withheld from the
+	// role, and the role's full product definition.
+	Withheld   []auth.Permission `json:"withheld,omitempty"`
+	Definition []auth.Permission `json:"definition,omitempty"`
+	AdjustedBy string            `json:"adjusted_by,omitempty"`
+	AdjustNote string            `json:"adjustment_reason,omitempty"`
 }
 
 // AccessEvent is one entry of the access history.
@@ -170,13 +176,35 @@ func (s *Service) ApplyDirectory(ctx context.Context, p auth.Principal) (auth.Pr
 	}
 	out := p
 	err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		// 0060: the permissions the company withheld from the person's product roles.
+		withheldFor := func() error {
+			rows, err := tx.Query(ctx, `SELECT role_code, withheld FROM role_adjustments WHERE role_code = ANY($1) AND cardinality(withheld) > 0`, out.Roles)
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var code string
+				var w []string
+				if err := rows.Scan(&code, &w); err != nil {
+					return err
+				}
+				if out.Withheld == nil {
+					out.Withheld = map[string][]auth.Permission{}
+				}
+				for _, x := range w {
+					out.Withheld[code] = append(out.Withheld[code], auth.Permission(x))
+				}
+			}
+			return rows.Err()
+		}
 		var managed bool
 		var status string
 		var projects []string
 		err := tx.QueryRow(ctx, `SELECT managed, status, project_ids::text[] FROM directory_users WHERE user_id = $1`, p.UserID).
 			Scan(&managed, &status, &projects)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil
+			return withheldFor()
 		}
 		if err != nil {
 			return err
@@ -185,7 +213,7 @@ func (s *Service) ApplyDirectory(ctx context.Context, p auth.Principal) (auth.Pr
 			return ErrAccountDisabled
 		}
 		if !managed {
-			return nil
+			return withheldFor()
 		}
 		rows, err := tx.Query(ctx, `SELECT g.role, COALESCE(r.permissions, '{}') FROM role_grants g
 			LEFT JOIN custom_roles r ON r.tenant_id = g.tenant_id AND 'custom:' || r.code = g.role AND r.status = 'ACTIVE'
@@ -218,7 +246,7 @@ func (s *Service) ApplyDirectory(ctx context.Context, p auth.Principal) (auth.Pr
 			return err
 		}
 		out.ProjectIDs = projects
-		return nil
+		return withheldFor()
 	})
 	if err != nil {
 		return p, err
@@ -231,8 +259,11 @@ func (s *Service) ApplyDirectory(ctx context.Context, p auth.Principal) (auth.Pr
 // roleBook resolves role codes to permissions: seed roles from the product
 // catalogue, "custom:<code>" from the company's own roles.
 type roleBook struct {
-	seed   map[string][]auth.Permission
-	custom map[string]*RoleInfo // by "custom:<code>"
+	seed     map[string][]auth.Permission // effective (after the company's adjustments)
+	full     map[string][]auth.Permission // the product definition
+	withheld map[string][]auth.Permission
+	adjust   map[string][3]string // version, by, reason
+	custom   map[string]*RoleInfo // by "custom:<code>"
 }
 
 func (b roleBook) perms(role string) ([]auth.Permission, bool) {
@@ -259,7 +290,42 @@ func (b roleBook) heldBy(roles []string) map[auth.Permission]bool {
 }
 
 func (s *Service) loadRoleBook(ctx context.Context, tx pgx.Tx) (roleBook, error) {
-	b := roleBook{seed: s.authz.Catalogue(), custom: map[string]*RoleInfo{}}
+	b := roleBook{seed: s.authz.Catalogue(), full: s.authz.Catalogue(), withheld: map[string][]auth.Permission{}, adjust: map[string][3]string{}, custom: map[string]*RoleInfo{}}
+	// 0060: the company's adjustments narrow the product roles.
+	ar, err := tx.Query(ctx, `SELECT role_code, withheld, version, updated_by, reason FROM role_adjustments`)
+	if err != nil {
+		return b, err
+	}
+	for ar.Next() {
+		var code, by, reason string
+		var w []string
+		var v int
+		if err := ar.Scan(&code, &w, &v, &by, &reason); err != nil {
+			ar.Close()
+			return b, err
+		}
+		full, ok := b.full[code]
+		if !ok {
+			continue
+		}
+		out := map[auth.Permission]bool{}
+		for _, x := range w {
+			out[auth.Permission(x)] = true
+			b.withheld[code] = append(b.withheld[code], auth.Permission(x))
+		}
+		eff := []auth.Permission{}
+		for _, x := range full {
+			if !out[x] {
+				eff = append(eff, x)
+			}
+		}
+		b.seed[code] = eff
+		b.adjust[code] = [3]string{fmt.Sprint(v), by, reason}
+	}
+	ar.Close()
+	if err := ar.Err(); err != nil {
+		return b, err
+	}
 	rows, err := tx.Query(ctx, `SELECT id::text, code, name, description, permissions, status, created_by, updated_by, updated_at, version
 		FROM custom_roles ORDER BY name`)
 	if err != nil {
@@ -458,9 +524,14 @@ func (s *Service) People(ctx context.Context, p auth.Principal) (PeopleView, err
 		}
 		v.Roles = []RoleInfo{}
 		for code, perms := range b.seed {
-			v.Roles = append(v.Roles, RoleInfo{Code: code, Name: roleName(code), Kind: "seed", Status: "ACTIVE",
-				Description: "Product role. Fixed: the company cannot change it, only give it to people.",
-				Permissions: perms, Stage: auth.HighestStage(perms), Holders: holders[code]})
+			ri := RoleInfo{Code: code, Name: roleName(code), Kind: "seed", Status: "ACTIVE",
+				Description: "Product role. The company may withhold any of its permissions at any time (to give more, use a company role).",
+				Permissions: perms, Stage: auth.HighestStage(perms), Holders: holders[code], Withheld: b.withheld[code], Definition: b.full[code]}
+			if a, ok := b.adjust[code]; ok {
+				fmt.Sscan(a[0], &ri.Version)
+				ri.AdjustedBy, ri.AdjustNote = a[1], a[2]
+			}
+			v.Roles = append(v.Roles, ri)
 		}
 		for _, r := range b.custom {
 			r.Holders = holders[r.Code]
@@ -1347,4 +1418,58 @@ func (s *Service) UpdateMyProfile(ctx context.Context, p auth.Principal, in Prof
 		return Profile{}, err
 	}
 	return s.MyProfile(ctx, p)
+}
+
+// AdjustRole sets the permissions withheld from a product role in this
+// company (0060): role.manage, a person, fresh MFA, a reason. The withheld
+// permissions must belong to the role; user.manage and role.manage are never
+// withheld. An empty list restores the role to its product definition.
+func (s *Service) AdjustRole(ctx context.Context, p auth.Principal, code string, withheld []string, reason string) (RoleInfo, error) {
+	var out RoleInfo
+	if err := requireReason(reason); err != nil {
+		return out, err
+	}
+	full, ok := s.authz.Catalogue()[code]
+	if !ok {
+		return out, fmt.Errorf("%w: %s is not a product role", ErrInvalidInput, code)
+	}
+	in := map[auth.Permission]bool{}
+	for _, x := range full {
+		in[x] = true
+	}
+	clean := []string{}
+	seen := map[string]bool{}
+	for _, w := range withheld {
+		w = strings.TrimSpace(w)
+		if seen[w] {
+			continue
+		}
+		seen[w] = true
+		if !in[auth.Permission(w)] {
+			return out, fmt.Errorf("%w: %s is not part of %s", ErrInvalidInput, w, roleName(code))
+		}
+		if w == string(auth.PermUserManage) || w == string(auth.PermRoleManage) {
+			return out, fmt.Errorf("%w: user and role administration are never withheld, so access can always be repaired", ErrInvalidInput)
+		}
+		clean = append(clean, w)
+	}
+	sort.Strings(clean)
+	err := s.peopleTx(ctx, p, auth.PermRoleManage, func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO role_adjustments (role_code, withheld, reason, updated_by) VALUES ($1, $2, $3, $4)
+			ON CONFLICT (tenant_id, role_code) DO UPDATE SET withheld = EXCLUDED.withheld, reason = EXCLUDED.reason, updated_by = EXCLUDED.updated_by`,
+			code, clean, strings.TrimSpace(reason), p.UserID); err != nil {
+			return err
+		}
+		if err := s.record(ctx, tx, p, "people.role_adjusted", "role", code, "people.role_adjusted", map[string]any{"role": code, "withheld": clean, "reason": reason}); err != nil {
+			return err
+		}
+		b, err := s.loadRoleBook(ctx, tx)
+		if err != nil {
+			return err
+		}
+		out = RoleInfo{Code: code, Name: roleName(code), Kind: "seed", Status: "ACTIVE", Permissions: b.seed[code], Withheld: b.withheld[code], Definition: b.full[code],
+			Stage: auth.HighestStage(b.seed[code])}
+		return nil
+	})
+	return out, err
 }

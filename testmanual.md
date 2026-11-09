@@ -416,6 +416,15 @@ invent figures in expected results; compute them from your recorded start values
 |---|---|---|
 | 1. Sign in as `u-security-admin`. Open **Governance → People & access**. Try the filters, the **Table** view, then the **Duty map** tab and highlight *Procurement officer*.<br>2. **People** tab: open the **Planner** card. Type the reason "Directory rollout for planning" and click **Manage access here**.<br>3. In **Choose a role to give…** pick *Project manager*, read the preview, click **Give role**.<br>4. Give *Auditor* instead; then **Remove** it (same reason box).<br>5. Open your own card (**Security admin**).<br>6. **New company role**: tick *Prepare purchase orders* and *Approve purchase orders*; then untick *Approve*, code `site_buyer`, name "Site buyer", a reason; **Create role**.<br>7. Open the Planner again, reason "Left the company", **Disable and sign out**. In another browser sign in as `u-planner`. Then **Enable** the planner again. | - Step 1: 28 people; each card shows avatar, role, stage colour, where its roles come from ("From sign-in" or "Managed here") and when last seen; the map places each person at Prepare, Approve, Release or Govern and dims everyone but the two procurement officers.<br>- Step 2: the planner now shows "Managed here" with the same role as before (nothing changes at the switch).<br>- Step 3: the preview says *Will be refused* (Schedules); the server refuses with the control named.<br>- Step 4: *Auditor* appears with who gave it, when and why; after removal it stays in **Role history** as removed.<br>- Step 5: "This is you": no buttons to change your own access.<br>- Step 6: the two ticked labels turn red with *Not allowed*; creating with both is refused; with one it is created and listed under **Company roles**.<br>- Step 7: the planner\'s sign-in is refused (*account is disabled in this company*); after **Enable** they can sign in again. **Access history** lists every change with reason. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 
+**ACC-03 · Account menu, dependency graph, adjusting a product role** — Role: u-security-admin, u-proc-manager
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. Click your name in the top band. | - A menu shows your name, id, roles and whether you signed in with a second factor; *My profile*, *People & access*, *Sign out*. Escape closes it. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. **People & access → Dependency graph**; click a person. | - Arrows show who hands work to whom for each control; the side panel lists *Hands work to* and *Receives work from*. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. **Roles** → *Procurement manager* → untick *Approve purchase orders*, give a reason, *Save adjustment*. | - The card shows "1 withheld"; `u-proc-manager` can no longer approve a purchase order on their next action; *Access history* records the change. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. Tick it again and save; try to untick user or role administration on *Security admin*. | - The permission is back; administration permissions cannot be unticked. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
 **ACC-02 · My profile** — Role: u-pm, u-security-admin
 
 | Steps | Expected result | Result |
@@ -601,6 +610,79 @@ configuration used as test data; they are not a statement of any jurisdiction's 
 | 3. `u-commercial` approves them from *Damages terms to approve*. | - Tiles: days late today, damages to date = days late × 15,000 (never above the cap). | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 | 4. Record a claim's client answer as AGREED with 8 days (see the claims cases). | - *Extensions agreed* shows +8 d; the revised completion moves 8 days and the damages fall accordingly. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 | 5. **Contract obligations**: add one due in 5 days and one due 3 days ago; close the first as Done with a letter reference; try to waive the second without a reason. | - *Due within 7 days* and *Overdue* tiles count them; the waiver without a reason is refused; a closed obligation shows its note and cannot be reopened. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**JB-09 · Revenue over time and the WIP journal** — Role: u-controller, u-cfo, u-project-accountant, u-finance-manager
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-controller`: **Accounting → Revenue & WIP** → propose a policy (cost to cost; 1160 Contract assets; 2260 Contract liabilities).<br>2. `u-cfo` approves it. | - The proposer has no Approve button; the CFO's approval needs a recent second-factor sign-in.<br>- Approving a new version retires the previous one. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. `u-project-accountant`: choose P-001 and today. | - The table shows each active contract: progress, earned, billed, earned − billed, already posted, this run.<br>- Tiles: contract asset, contract liability, revenue adjustment. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. **Prepare run and draft journal**; try a second run. | - Run REV-… with a DRAFT journal (Dr revenue / Cr contract liability when billed ahead of the work).<br>- A second run is refused while the first journal is not posted. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 5. `u-finance-manager` approves the journal and `u-controller` posts it (Accounting → Journals); run again. | - After posting, *Already posted* equals the earlier adjustment; a run with nothing new is refused ("nothing to adjust"). | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**PC-01 · Forecast CPI method and S-curve** — Role: u-pm, u-cfo
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-pm`: open an approved forecast of P-001. | - Below the grid: the S-curve (planned, earned, actual by month; scheduled budget and latest forecast dashed), with CPI and SPI. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. Prepare a new forecast; set a line to *Cost performance (CPI)*. | - Refused in plain words while there is no posted cost (no CPI); accepted once cost is posted. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. Change a line so its EAC moves by more than 10% of its budget against the last approved forecast; submit. | - Refused until the line's note explains the change (10+ characters); *Last approved EAC* and *Change* columns show the move. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**JB-10 · Subcontract, application and certificate** — Role: u-controller, u-cfo, u-qs, u-commercial, u-finance-manager
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-controller`: **Subcontracts → Subcontract accounts**: propose 2050, 2060, 1170, 2310, 5300; `u-cfo` approves it from *Subcontract policies to approve*. | - The proposer cannot approve; the CFO's approval needs a recent second-factor sign-in. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. `u-qs`: **Subcontracts → New**: P-001, a subcontractor, one line 400 m × 1,500 on a cost code and 5000; retention 0.05, cap 50,000; advance 100,000 at 0.25; withholding 0.02. Submit. `u-commercial` approves. | - Value 600,000; the cost report's commitment on the cost code rises by 600,000.<br>- Approval is refused if the cost code has less available. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. `u-qs`: on the subcontract, *New application*: 150; submit.<br>4. `u-commercial`: certify 120. | - This period 180,000; retention 9,000; advance 45,000; withholding 3,600; net payable **122,400**.<br>- A draft journal Dr 5000 / Cr 2050, 2060, 1170, 2310 waits for finance. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 5. `u-qs` raises a back-charge of 10,000 with evidence; `u-commercial` approves; next application and certificate. | - The back-charge is deducted once by the next certificate; a negative period or net payable is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**FA-01 · Fixed asset life cycle** — Role: u-accountant, u-cfo, u-finance-manager, u-controller
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-accountant`: **Accounting → Fixed assets → Classes**: add PLANT (1500, 1590, 6100, 4900, 60 months). | - The class appears; an expense account as accumulated depreciation is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. Register an asset: 1,200,000, residual 120,000, in service in October, from 1550; `u-cfo` activates it (*Assets to activate*). | - A capitalisation journal Dr 1500 / Cr 1550 waits for finance; the accountant cannot activate their own asset. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. **Depreciation**: October → preview 18,000 → prepare; try November before the October journal is posted. | - Run with a draft journal Dr 6100 / Cr 1590 18,000; November refused until October's journal is posted. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. Finance approves and posts the journal; open the asset → *Dispose* for 1,000,000; `u-cfo` approves. | - Net book value and loss computed by the database (cost − accumulated − proceeds); a disposal journal waits for finance; the asset is no longer depreciated. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**PY-01 · Payroll** — Role: u-controller, u-cfo, u-payroll, u-hr-manager, u-treasury, u-finance-manager
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-controller`: **Workforce → Payroll → Accounts**: propose 6300, 6310, 2500, 2510, 2520; `u-cfo` approves on the same tab. | - The CFO sees only the Accounts tab (no pay data); the policy becomes APPROVED. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. `u-payroll`: **Tax and pension rules**: prepare the prefilled bands from 1 July, 7% / 11%, with a source; submit. `u-hr-manager` approves. | - Descending bands are refused; the payroll officer has no Approve button; the HR manager approves. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. `u-payroll`: **Employees**: add E-001 salaried 20,000 with a bank account, E-002 daily 400. | - The list shows the account as `****` and the last four digits only. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. **Pay runs**: open last month; E-001 1 month, 10 h overtime, allowance 1,000; E-002 22 days; charge both to a project; Save, Calculate, Submit. | - E-001 gross 22,442.31, tax 6,354.81, net 14,687.50; E-002 gross 8,800, tax 1,685, net 6,499. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 5. `u-hr-manager` approves the run; then try to prepare a rule set dated inside that month. | - A draft PAY_RUN journal per project waits for finance; the retro-dated rule set is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 6. `u-treasury`: open the run, *Release payment*, then *Download bank file*. | - The run is PAID; a PAY_PAY journal (Dr 2500 / Cr payments in transit) waits for finance; the CSV lists each person's account and net pay. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**CN-01 · Consolidation** — Role: u-controller, u-cfo
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-controller`: **Accounting → Consolidation → Intercompany accounts**: designate a due-from, due-to, income and expense account between two entities. | - A liability cannot be a receivable; the accountant has no access to the page. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. **Groups**: propose a group with the parent at 100% FULL and a subsidiary at 80%; `u-cfo` approves. | - A group whose parent is not at 100% cannot be approved; the proposer cannot approve their own group. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. **Runs**: prepare the quarter with closing and average rates for each foreign currency. | - The consolidated trial balance shows each entity, adjustments, eliminations and the group column; intercompany that does not match is shown as a difference. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. `u-cfo` approves the run (fresh MFA). | - The run is APPROVED and cannot be cancelled; no entity journal is created. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**TX-01 · Tax returns and e-invoices** — Role: u-accountant, u-cfo
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-accountant`: **Accounting → Tax returns & e-invoices → Tax accounts**: designate 2300 as output VAT, 1300 as input VAT, 2330 as withholding payable; try 1300 as output VAT. | - The wrong type is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. **Returns**: prepare a VAT return for last month. | - Output VAT positive, input VAT negative, net payable as the ledger holds; a second return for the same period is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. `u-cfo` approves; the accountant then records the filing with a reference. | - The preparer cannot approve; filing needs the reference; a filed return never changes. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. **E-invoices**: send an approved customer invoice. | - Accepted with a reference (stand-in adapter); sending again is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
+**PE-01 · Period end** — Role: u-controller, u-accountant, u-finance-manager
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-controller`: **Accounting → Period end → Fiscal calendar**: Ethiopian, 2020; then 2021. | - 2020 is refused (it overlaps FY2027 quarters); 2021 creates twelve periods from 8 July 2028 (Hamle) to 7 July 2029 (Sene). | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. `u-accountant`: **Recurring journals**: a 30,000 rent from the 5th of this month; *Create the journals due today* twice. | - One draft journal; the second press makes none; the next date moves a month on. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. **Accruals**: an accrual dated month end reversing the next day; have it approved and posted; `u-controller` *Create the reversals due today*. | - Nothing is reversed while the accrual is a draft; once posted, one reversal dated the reversal day. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. **Overhead allocation**: pool 6200, applied 6210, this month; Preview; Allocate. | - Shares in proportion to each project's posted direct cost; one draft journal per project; the same range cannot be allocated twice. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 
 ---
 
