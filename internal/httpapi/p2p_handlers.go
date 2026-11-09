@@ -89,6 +89,8 @@ func (s *Server) registerP2P() {
 	s.registerTax()           // tax returns and e-invoicing (0063)
 	s.registerField()         // timesheets, equipment and HSE (0064)
 	s.registerQuality()       // quality and site records (0065)
+	s.registerDocs()          // documents, RFIs, submittals (0066)
+	s.registerCredit()        // rules of credit and installed quantities (0067)
 	s.registerImports()       // staged imports and the setup checklist (0043)
 	// Financial control dashboard (WP-1.4): GET /v1/dashboard?preset=executive|project|finance|procurement&entity_id=
 	m.Handle("GET /v1/dashboard", s.authed(func(w http.ResponseWriter, r *http.Request) {

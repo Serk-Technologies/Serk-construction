@@ -675,6 +675,17 @@ configuration used as test data; they are not a statement of any jurisdiction's 
 | 3. `u-cfo` approves; the accountant then records the filing with a reference. | - The preparer cannot approve; filing needs the reference; a filed return never changes. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 | 4. **E-invoices**: send an approved customer invoice. | - Accepted with a reference (stand-in adapter); sending again is refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
 
+**SW-01 · Site, safety and documents** — Role: u-site-engineer, u-pm, u-hse, u-plant, u-quality, u-doc-controller, u-planner
+
+| Steps | Expected result | Result |
+|---|---|---|
+| 1. `u-site-engineer`: **Timesheets → Record a day**; `u-pm` approves from *Timesheets to approve*. | - Approved hours appear in HSE's LTIFR; the engineer cannot approve. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 2. `u-plant`: register equipment; the engineer records usage; `u-pm` approves; `u-accountant`: **Hire charge**. | - Charge = working hours × rate; one draft journal per project; the same usage cannot be charged twice. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 3. Engineer reports a major lost-time incident; `u-hse` investigates, raises an action; another officer verifies; a third closes. | - HSE officers and project managers are notified at once; the reporter cannot close. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 4. `u-quality`: plan with a hold point on a schedule activity; `u-pm` approves; try to record progress above it. | - Progress is refused until the inspection passes. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 5. `u-doc-controller` uploads a drawing; `u-pm` publishes; the engineer downloads; raise, answer and close an RFI. | - The uploader cannot publish; the download is audited; the answerer cannot close. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+| 6. `u-planner`: rule of credit (20/30/40/10); `u-pm` approves; the engineer completes two steps; planner creates the progress record. | - Progress shows 50%; weights not adding to 100 are refused. | [ ] Pass<br>[ ] Fail<br>[ ] Blocked<br>Tester / date:<br>Notes / defect no.: |
+
 **PE-01 · Period end** — Role: u-controller, u-accountant, u-finance-manager
 
 | Steps | Expected result | Result |

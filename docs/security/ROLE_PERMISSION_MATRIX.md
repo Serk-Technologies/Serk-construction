@@ -48,6 +48,10 @@ the conflict catalogue below is tested against every role.
 
 `account.manage`, `consolidation.manage`, `contract.policy.manage`, `delegation.create`, `fx.read`, `intelligence.read`, `journal.post`, `journal.read`, `journal.reverse`, `org.manage`, `p2p.policy.manage`, `p2p.read`, `period.close`, `scope.tenant_wide`, `workflow.read`
 
+### document_controller
+
+`doc.manage`, `doc.raise`, `p2p.read`, `scope.tenant_wide`, `workflow.read`
+
 ### estimator
 
 `boq.manage`, `p2p.read`
@@ -74,7 +78,7 @@ the conflict catalogue below is tested against every role.
 
 ### planner
 
-`intelligence.read`, `p2p.read`, `schedule.manage`
+`credit.manage`, `intelligence.read`, `p2p.read`, `schedule.manage`
 
 ### plant_manager
 
@@ -98,7 +102,7 @@ the conflict catalogue below is tested against every role.
 
 ### project_manager
 
-`budget.revise`, `budget.transfer`, `change.manage`, `claim.manage`, `delegation.create`, `equipment.approve`, `forecast.prepare`, `fx.read`, `hse.report`, `intelligence.read`, `journal.read`, `p2p.read`, `pr.approve`, `project.gate.submit`, `project.update`, `quality.approve`, `quality.request`, `schedule.approve`, `site.diary.approve`, `site.instruct`, `site.record`, `stock.issue.approve`, `stock.reserve`, `timesheet.approve`, `wbs.manage`, `workflow.read`
+`budget.revise`, `budget.transfer`, `change.manage`, `claim.manage`, `credit.approve`, `delegation.create`, `doc.approve`, `doc.raise`, `doc.respond`, `equipment.approve`, `forecast.prepare`, `fx.read`, `hse.report`, `intelligence.read`, `journal.read`, `p2p.read`, `pr.approve`, `project.gate.submit`, `project.update`, `quality.approve`, `quality.request`, `schedule.approve`, `site.diary.approve`, `site.instruct`, `site.record`, `stock.issue.approve`, `stock.reserve`, `timesheet.approve`, `wbs.manage`, `workflow.read`
 
 ### quality_engineer
 
@@ -114,7 +118,7 @@ the conflict catalogue below is tested against every role.
 
 ### site_engineer
 
-`equipment.record`, `grn.confirm`, `hse.report`, `measure.verify`, `p2p.read`, `pr.create`, `quality.request`, `rfq.evaluate`, `site.device.register`, `site.diary.manage`, `site.record`, `stock.issue.approve`, `stock.reserve`, `timesheet.record`
+`credit.record`, `doc.raise`, `equipment.record`, `grn.confirm`, `hse.report`, `measure.verify`, `p2p.read`, `pr.create`, `quality.request`, `rfq.evaluate`, `site.device.register`, `site.diary.manage`, `site.record`, `stock.issue.approve`, `stock.reserve`, `timesheet.record`
 
 ### storekeeper
 
@@ -175,10 +179,17 @@ the conflict catalogue below is tested against every role.
 | `contract.manage` | commercial_manager |
 | `contract.policy.approve` | cfo |
 | `contract.policy.manage` | controller |
+| `credit.approve` | project_manager |
+| `credit.manage` | planner |
+| `credit.record` | site_engineer |
 | `customer.approve` | finance_manager |
 | `customer.manage` | ar_clerk |
 | `delegation.approve` | security_admin |
 | `delegation.create` | cfo, commercial_manager, controller, finance_manager, procurement_manager, project_manager |
+| `doc.approve` | project_manager |
+| `doc.manage` | document_controller |
+| `doc.raise` | document_controller, project_manager, site_engineer |
+| `doc.respond` | project_manager |
 | `equipment.approve` | project_manager |
 | `equipment.charge` | accountant |
 | `equipment.manage` | plant_manager |
@@ -210,7 +221,7 @@ the conflict catalogue below is tested against every role.
 | `org.manage` | controller |
 | `p2p.policy.approve` | cfo |
 | `p2p.policy.manage` | controller |
-| `p2p.read` | accountant, ap_clerk, ap_supervisor, ar_clerk, ar_supervisor, auditor, bank_statement_officer, cfo, commercial_manager, controller, estimator, finance_manager, hse_officer, inventory_controller, planner, plant_manager, procurement_manager, procurement_officer, project_manager, quality_engineer, quantity_surveyor, site_engineer, storekeeper, treasury_officer |
+| `p2p.read` | accountant, ap_clerk, ap_supervisor, ar_clerk, ar_supervisor, auditor, bank_statement_officer, cfo, commercial_manager, controller, document_controller, estimator, finance_manager, hse_officer, inventory_controller, planner, plant_manager, procurement_manager, procurement_officer, project_manager, quality_engineer, quantity_surveyor, site_engineer, storekeeper, treasury_officer |
 | `payment.approve` | cfo, finance_manager |
 | `payment.prepare` | treasury_officer |
 | `payment.release` | treasury_officer |
@@ -236,7 +247,7 @@ the conflict catalogue below is tested against every role.
 | `role.manage` | security_admin |
 | `schedule.approve` | project_manager |
 | `schedule.manage` | planner |
-| `scope.tenant_wide` | accountant, ar_clerk, ar_supervisor, auditor, bank_statement_officer, cfo, controller, finance_manager, hr_manager, hse_officer, inventory_controller, payroll_officer, plant_manager, process_owner, quality_engineer, security_admin, treasury_officer, workflow_admin |
+| `scope.tenant_wide` | accountant, ar_clerk, ar_supervisor, auditor, bank_statement_officer, cfo, controller, document_controller, finance_manager, hr_manager, hse_officer, inventory_controller, payroll_officer, plant_manager, process_owner, quality_engineer, security_admin, treasury_officer, workflow_admin |
 | `site.device.manage` | security_admin |
 | `site.device.register` | site_engineer |
 | `site.diary.approve` | project_manager |
@@ -272,7 +283,7 @@ the conflict catalogue below is tested against every role.
 | `workflow.admin` | workflow_admin |
 | `workflow.define` | process_owner |
 | `workflow.publish` | cfo |
-| `workflow.read` | accountant, auditor, cfo, controller, finance_manager, hr_manager, hse_officer, payroll_officer, plant_manager, process_owner, project_accountant, project_manager, quality_engineer, treasury_officer, workflow_admin |
+| `workflow.read` | accountant, auditor, cfo, controller, document_controller, finance_manager, hr_manager, hse_officer, payroll_officer, plant_manager, process_owner, project_accountant, project_manager, quality_engineer, treasury_officer, workflow_admin |
 
 ## Duties that must be kept apart (no role, and no person, may hold both)
 
@@ -342,6 +353,8 @@ the conflict catalogue below is tested against every role.
 | Timesheets | `timesheet.record` + `timesheet.approve` |
 | Equipment usage | `equipment.record` + `equipment.approve` |
 | Quality plans | `quality.manage` + `quality.approve` |
+| Rules of credit | `credit.manage` + `credit.approve` |
+| Document publication | `doc.manage` + `doc.approve` |
 
 ## Never delegable
 

@@ -271,6 +271,20 @@ export const PAGES = {
       'Every asset journal is checked against its document when approved and posted, and is never edited or reversed.'],
     related: [['#/journals', 'Journals'], ['#/list/fixed_asset', 'Fixed assets (list)'], ['#/list/asset_disposal', 'Disposals']],
   },
+  credit: {
+    what: 'Rules of credit that turn finished steps into percent complete, and the quantities installed.',
+    steps: ['Rules: the planner splits an activity into weighted steps (weights add up to 100); a project manager approves.', 'The site completes the steps in order as they are finished.',
+      'The planner presses “Create progress record from the steps”: a draft progress record is made for approval under Schedules.', 'Installed quantities: record what was installed; totals accumulate.'],
+    rules: ['Weights must add up to exactly 100; the preparer cannot approve; steps are completed once, in order.', 'Progress above an unpassed quality hold point is still refused.'],
+    related: [['#/list/schedule_progress', 'Schedule progress'], ['#/quality', 'Quality']],
+  },
+  docs: {
+    what: 'Controlled documents with revisions, transmittals, requests for information (RFIs) and submittals.',
+    steps: ['Documents: the document controller uploads a file (PDF, image, Office, ZIP, text up to 10 MB); a project manager publishes it; a later revision replaces it and the old one is kept as superseded.', 'Transmittals: record which published documents were sent to whom and why.',
+      'RFIs: the site raises a question; the project manager or designer answers (flagging cost or time impact and linking a change event); the raiser closes it.', 'Submittals: submit a material or method for review; a reviewer records code A, B, C or D.'],
+    rules: ['The uploader cannot publish their own revision; drafts are invisible to the site.', 'A stored file can never be changed; its SHA-256 is checked by the database and every download is recorded.', 'Nobody answers their own RFI or reviews their own submittal.'],
+    related: [['#/list/change_event', 'Change events'], ['#/quality', 'Quality']],
+  },
   quality: {
     what: 'Inspection and test plans with hold points, inspections, non-conformance reports and material tests.',
     steps: ['Plans: the quality engineer prepares a plan per activity with its hold, witness and review items; a project manager approves.', 'Inspections: the site requests an inspection of an item; the quality engineer passes or fails it.',

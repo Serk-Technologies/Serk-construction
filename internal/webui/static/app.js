@@ -336,22 +336,23 @@ const NAV = [
     ['#/list/customer_invoice', 'Customer invoices', 'p2p.read'], ['#/list/customer_credit_note', 'Credit notes', 'p2p.read'],
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
-  ['Site workforce & safety', [['#/timesheets', 'Timesheets', 'timesheet.record|timesheet.approve'], ['#/equipment', 'Equipment and fleet', 'equipment.manage|equipment.record|equipment.approve|equipment.charge'], ['#/hse', 'Health and safety', 'hse.report|hse.manage'], ['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct']]],
+  ['Site workforce & safety', [['#/timesheets', 'Timesheets', 'timesheet.record|timesheet.approve'], ['#/equipment', 'Equipment and fleet', 'equipment.manage|equipment.record|equipment.approve|equipment.charge'], ['#/hse', 'Health and safety', 'hse.report|hse.manage'], ['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct'], ['#/docs', 'Documents and RFIs', 'doc.manage|doc.approve|doc.raise|doc.respond'], ['#/credit', 'Progress credit', 'credit.manage|credit.approve|credit.record']]],
   ['Subcontracts', [['#/list/subcontract', 'Subcontracts', 'p2p.read'], ['#/list/subcontract_application', 'Applications and certificates', 'p2p.read'], ['#/list/subcontract_backcharge', 'Back-charges', 'p2p.read'], ['#/list/subcontract_payment', 'Subcontract payments', 'p2p.read|payment.prepare|payment.approve|payment.release'], ['#/subpolicy', 'Subcontract accounts', 'contract.policy.manage|contract.policy.approve']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
-  ['Treasury & banking', [['#/cash', 'Cash forecast', 'payment.prepare|intelligence.read'], ['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
+  ['Treasury & banking', [['#/cash', 'Cash forecast', '+wide:payment.prepare|intelligence.read'], ['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
     ['#/list/supplier_bank_account', 'Supplier banks', 'p2p.read']]],
-  ['Accounting', [['#/journals', 'Journals', 'journal.read'], ['#/assets', 'Fixed assets', 'asset.manage|asset.approve|journal.read'], ['#/periodend', 'Period end', 'journal.create|journal.read|period.close'], ['#/tax', 'Tax returns & e-invoices', 'tax.prepare|tax.approve'], ['#/consolidation', 'Consolidation', 'consolidation.manage|consolidation.approve'], ['#/revenue', 'Revenue & WIP', 'revenue.run|contract.policy.manage|contract.policy.approve|journal.approve'], ['#/recon', 'Reconciliation', 'journal.read'], ['#/tb', 'Trial balance', 'journal.read']]],
+  ['Accounting', [['#/journals', 'Journals', '+wide:journal.read'], ['#/assets', 'Fixed assets', '+wide:asset.manage|asset.approve|journal.read'], ['#/periodend', 'Period end', '+wide:journal.create|journal.read|period.close'], ['#/tax', 'Tax returns & e-invoices', 'tax.prepare|tax.approve'], ['#/consolidation', 'Consolidation', 'consolidation.manage|consolidation.approve'], ['#/revenue', 'Revenue & WIP', '+wide:revenue.run|contract.policy.manage|contract.policy.approve|journal.approve'], ['#/recon', 'Reconciliation', '+wide:journal.read'], ['#/tb', 'Trial balance', '+wide:journal.read']]],
   ['Workforce', [['#/payroll', 'Payroll', 'payroll.prepare|payroll.approve|payment.release|contract.policy.manage|contract.policy.approve']]],
-  ['Governance', [['#/people', 'People & access', 'user.manage|role.manage|audit.read'], ['#/org', 'Organisation & calendar', 'p2p.read|org.manage'], ['#/authority', 'Authority & duties', 'p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
+  ['Governance', [['#/people', 'People & access', 'user.manage|role.manage|audit.read'], ['#/org', 'Organisation & calendar', 'p2p.read|org.manage'], ['#/authority', 'Authority & duties', '+wide:p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
     ['#/list/delegation', 'Delegations', 'delegation.create|delegation.approve'], ['#/list/sod_exception', 'Duty-conflict exceptions', 'authority.manage|authority.approve'],
     ['#/imports', 'Data imports', 'supplier.manage|customer.manage|stock.item.manage'], ['#/list/p2p_policy', 'P2P policies', 'scope.tenant_wide'], ['#/list/contract_policy', 'Contract policies', 'scope.tenant_wide'],
     ['#/controls', 'Control review', 'scope.tenant_wide'], ['#/automation', 'Automation rules', 'automation.manage|automation.activate|workflow.read'],
     ['#/settings', 'Company settings', null]]],
 ];
 const NAV_KEY = 'serk.nav.folded';
-const allowed = (perm) => !perm || perm.split('|').some((p) => S.can.has(p));
+// A leading "+wide:" also requires tenant-wide scope (entity-level pages).
+const allowed = (perm) => { if (!perm) return true; const wide = perm.startsWith('+wide:'); if (wide && !S.can.has('scope.tenant_wide')) return false; return (wide ? perm.slice(6) : perm).split('|').some((p) => S.can.has(p)); };
 
 const QUEUES = [
   ['budget.approve', 'budget_version', 'SUBMITTED', 'Budget revisions to approve'],
@@ -622,6 +623,8 @@ async function route() {
       case 'hse': return await renderHSE(a);
       case 'quality': return await renderQuality(a);
       case 'siterecords': return await renderSiteRecords(a);
+      case 'docs': return await renderDocs(a);
+      case 'credit': return await renderCredit(a);
       default: return await renderHome();
     }
   } catch (e) {
@@ -5691,6 +5694,153 @@ async function renderSiteRecords(tab) {
             { label: '', cell: (a) => (a.status === 'OPEN' && S.can.has('site.record') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/meeting-actions/${a.id}/done`, 'Action done.', 'meetings') } }, 'Mark done') : '') }], m.actions, '') : null));
       }
       if (!(v.meetings || []).length) out.append(h('p', { class: 'callout' }, 'No meeting recorded.'));
+    }
+    return out;
+  }, head);
+}
+
+// ---------- document control, RFIs, submittals (0066) ----------
+const readB64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = () => rej(new Error('Could not read the file.')); r.readAsDataURL(file); });
+const MIMES = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', zip: 'application/zip', txt: 'text/plain', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+const mimeOf = (f) => MIMES[(f.name.split('.').pop() || '').toLowerCase()] || 'application/octet-stream';
+async function downloadRevision(docID, rev, name) {
+  const r = await fetch(`/v1/documents/${docID}/revisions/${rev}/file`, { headers: { Authorization: 'Bearer ' + S.token } });
+  if (!r.ok) { const d = await r.json().catch(() => ({})); const e = d.error || {}; throw new ApiError(r.status, e.code || 'error', e.message || r.statusText, r.headers.get('WWW-Authenticate')); }
+  const url = URL.createObjectURL(await r.blob());
+  const a = h('a', { href: url, download: name, hidden: true }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+let DOC_Q = '';
+async function renderDocs(tab) {
+  const v = await api('GET', '/v1/documents' + (DOC_Q ? `?q=${encodeURIComponent(DOC_Q)}` : ''));
+  const mgr = S.can.has('doc.manage'); const pub = S.can.has('doc.approve');
+  const projects = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const docs = v.documents || [];
+  const head = h('div', { class: 'kpis' }, fkpi(docs.length, 'Documents'), fkpi(docs.filter((d) => (d.revisions || []).some((r) => r.status === 'WIP')).length, 'Awaiting publication'),
+    fkpi((v.rfis || []).filter((r) => r.status === 'OPEN').length, 'Open RFIs', (v.rfis || []).some((r) => r.overdue)), fkpi((v.submittals || []).filter((s) => s.status === 'SUBMITTED').length, 'Submittals to review'));
+  const TABS = [['documents', 'Documents'], ['transmittals', 'Transmittals'], ['rfis', 'RFIs'], ['submittals', 'Submittals']];
+  await tabbedPage('docs', 'Documents and RFIs', 'Controlled documents with revisions that are published by a second person, transmittals of what was sent to whom, requests for information and submittals with review codes. Files are stored with their SHA-256 and every download is recorded.', TABS, tab, async (k) => {
+    const out = h('div');
+    const act = (path, msg, body) => async () => { try { clearError(); await api('POST', path, body || {}); flash(msg); renderDocs(k); } catch (e) { showError(e); } };
+    if (k === 'documents') {
+      const q = input('q', { type: 'search', value: DOC_Q, placeholder: 'Search number, title, discipline…' });
+      q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { DOC_Q = q.value.trim(); renderDocs('documents'); } });
+      out.append(h('div', { class: 'toolbar' }, field('Search', q)));
+      if (mgr && projects.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Add a document');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projects); const no = input('number', { type: 'text', maxlength: '60', placeholder: 'A-102' }); const ti = input('title', { type: 'text', maxlength: '300' }); const di = input('discipline', { type: 'text', maxlength: '60', placeholder: 'Architecture' });
+          const ty = select('doc_type', ['DRAWING', 'SPECIFICATION', 'REPORT', 'METHOD_STATEMENT', 'CERTIFICATE', 'CORRESPONDENCE', 'MODEL', 'OTHER'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const fi = input('file', { type: 'file' }); const nt = input('note', { type: 'text', maxlength: '300' });
+          const save = h('button', { type: 'button', class: 'primary' }, 'Upload');
+          const sheet = openSheet('Add a document', h('div', {}, h('h2', {}, 'Add a document'), h('p', { class: 'hint' }, 'Files up to 10 MB: PDF, images, Office files, ZIP or text. The first revision waits for a project manager to publish it.')),
+            h('div', { class: 'grid' }, field('Project', pr), field('Number', no), field('Title', ti), field('Discipline', di), field('Type', ty), field('File', fi), field('Note', nt)), h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => { try { const f = fi.files[0]; if (!f) throw new ApiError(422, 'validation', 'Choose a file.');
+            await api('POST', '/v1/documents', { project_id: pr.value, number: no.value.trim(), title: ti.value.trim(), discipline: di.value.trim(), doc_type: ty.value, file_name: f.name, mime: mimeOf(f), content_base64: await readB64(f), note: nt.value.trim() }); closeSheet(); flash('Document uploaded; it waits for publication.'); renderDocs('documents'); } catch (e) { sheetError(sheet, e); } });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      const revise = (d) => {
+        const fi = input('file', { type: 'file' }); const nt = input('note', { type: 'text', maxlength: '300', placeholder: 'What changed' }); const save = h('button', { type: 'button', class: 'primary' }, 'Upload revision');
+        const sheet = openSheet('New revision', h('div', {}, h('h2', {}, `${d.number} — new revision`)), h('div', { class: 'grid' }, field('File', fi), field('What changed', nt)), h('div', { class: 'actions' }, save));
+        save.addEventListener('click', async () => { try { const f = fi.files[0]; if (!f) throw new ApiError(422, 'validation', 'Choose a file.'); await api('POST', `/v1/documents/${d.id}/revisions`, { file_name: f.name, mime: mimeOf(f), content_base64: await readB64(f), note: nt.value.trim() }); closeSheet(); flash('Revision uploaded; it waits for publication.'); renderDocs('documents'); } catch (e) { sheetError(sheet, e); } });
+      };
+      out.append(table('Documents', [{ label: 'Number', cell: (d) => d.number }, { label: 'Project', cell: (d) => d.project }, { label: 'Title', cell: (d) => d.title }, { label: 'Discipline', cell: (d) => d.discipline }, { label: 'Type', cell: (d) => words(d.doc_type.toLowerCase()) },
+        { label: 'Revisions', cell: (d) => h('span', {}, (d.revisions || []).map((r) => h('button', { type: 'button', class: 'ghost', title: `${r.file_name} · ${r.sha256.slice(0, 12)}…`, on: { click: async () => { try { await downloadRevision(d.id, r.rev, r.file_name); say('Download recorded in the audit trail.'); } catch (e) { showError(e); } } } }, `Rev ${r.rev} ${r.status.toLowerCase()}`))) },
+        { label: '', cell: (d) => h('span', {}, mgr ? h('button', { type: 'button', class: 'ghost', on: { click: () => revise(d) } }, 'New revision…') : '', pub && (d.revisions || []).some((r) => r.status === 'WIP') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/documents/${d.id}/publish`, 'Revision published; the previous one is superseded.') } }, 'Publish') : '') }], docs, 'No document yet.'));
+    } else if (k === 'transmittals') {
+      if (mgr && docs.length) {
+        const pr = select('project_id', projects); const su = input('subject', { type: 'text', maxlength: '300' }); const to = input('to_party', { type: 'text', maxlength: '200' });
+        const pu = select('purpose', ['FOR_INFORMATION', 'FOR_REVIEW', 'FOR_APPROVAL', 'FOR_CONSTRUCTION', 'AS_BUILT'].map((x) => ({ value: x, label: words(x.toLowerCase()) })));
+        const checks = docs.filter((d) => (d.revisions || []).some((r) => r.status === 'PUBLISHED')).map((d) => { const c = h('input', { type: 'checkbox', value: d.id, id: 'tr-' + d.id }); return [d, c]; });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Send transmittal');
+        b.addEventListener('click', async () => { try { clearError(); const ids = checks.filter(([, c]) => c.checked).map(([d]) => d.id); const d0 = docs.find((d) => d.id === ids[0]); await api('POST', '/v1/transmittals', { project_id: d0 ? d0.project_id : pr.value, subject: su.value.trim(), to_party: to.value.trim(), purpose: pu.value, document_ids: ids }); flash('Transmittal recorded.'); renderDocs('transmittals'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Send a transmittal'), h('p', { class: 'hint' }, 'Only published revisions can be sent; the current published revision of each ticked document is recorded.'),
+          h('div', { class: 'grid' }, field('Subject', su), field('To', to), field('Purpose', pu)), h('fieldset', {}, h('legend', {}, 'Documents'), ...checks.map(([d, c]) => h('label', { class: 'check', for: 'tr-' + d.id }, c, ` ${d.number} — ${d.title}`))), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Transmittals', [{ label: 'Transmittal', cell: (t) => t.number }, { label: 'Project', cell: (t) => t.project }, { label: 'Subject', cell: (t) => t.subject }, { label: 'To', cell: (t) => t.to_party }, { label: 'Purpose', cell: (t) => words(t.purpose.toLowerCase()) },
+        { label: 'Documents', cell: (t) => t.items || '' }, { label: 'Sent', cell: (t) => String(t.sent_at).slice(0, 10) }, { label: 'By', cell: (t) => t.sent_by }], v.transmittals || [], 'Nothing sent yet.'));
+    } else if (k === 'rfis') {
+      if (S.can.has('doc.raise') && projects.length) {
+        const pr = select('project_id', projects); const su = input('subject', { type: 'text', maxlength: '300' }); const qu = input('question', { type: 'text', maxlength: '2000' }); const bc = input('ball_in_court', { type: 'text', maxlength: '120', value: 'Architect' }); const du = input('due_on', { type: 'date', value: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Raise RFI');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/rfis', { project_id: pr.value, subject: su.value.trim(), question: qu.value.trim(), ball_in_court: bc.value.trim(), due_on: du.value }); flash('RFI raised.'); renderDocs('rfis'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Raise a request for information'), h('div', { class: 'grid' }, field('Project', pr), field('Subject', su), field('Question', qu), field('With', bc), field('Answer needed by', du)), h('div', { class: 'actions' }, b)));
+      }
+      const answer = (r) => {
+        const re = input('response', { type: 'text', maxlength: '2000' }); const co = h('input', { type: 'checkbox', id: 'rfi-c' }); const sc = h('input', { type: 'checkbox', id: 'rfi-s' });
+        const ce = select('change_event_id', [{ value: '', label: 'No change event' }, ...(v.change_events || []).map((c) => ({ value: c.id, label: `${c.number} — ${c.title}` }))]);
+        const save = h('button', { type: 'button', class: 'primary' }, 'Send answer');
+        const sheet = openSheet('Answer an RFI', h('div', {}, h('h2', {}, `${r.number} — ${r.subject}`), h('p', {}, r.question)), h('div', { class: 'grid' }, field('Answer', re), field('Linked change event', ce)),
+          h('p', {}, h('label', { class: 'check', for: 'rfi-c' }, co, ' Has a cost impact'), ' ', h('label', { class: 'check', for: 'rfi-s' }, sc, ' Has a schedule impact')), h('div', { class: 'actions' }, save));
+        save.addEventListener('click', async () => { try { await api('POST', `/v1/rfis/${r.id}/answer`, { response: re.value.trim(), cost_impact: co.checked, schedule_impact: sc.checked, change_event_id: ce.value }); closeSheet(); flash('RFI answered.'); renderDocs('rfis'); } catch (e) { sheetError(sheet, e); } });
+      };
+      out.append(table('RFIs', [{ label: 'RFI', cell: (r) => r.number }, { label: 'Project', cell: (r) => r.project }, { label: 'Subject', cell: (r) => r.subject }, { label: 'Question', cell: (r) => r.question }, { label: 'With', cell: (r) => r.ball_in_court },
+        { label: 'Due', cell: (r) => r.due_on + (r.overdue ? ' — overdue' : '') }, { label: 'Answer', cell: (r) => r.response || '' }, { label: 'Impact', cell: (r) => [r.cost_impact ? 'cost' : '', r.schedule_impact ? 'time' : '', r.change_event || ''].filter(Boolean).join(', ') },
+        { label: 'Status', cell: (r) => chip(r.status) }, { label: '', cell: (r) => h('span', {}, r.status === 'OPEN' && S.can.has('doc.respond') ? h('button', { type: 'button', class: 'ghost', on: { click: () => answer(r) } }, 'Answer…') : '',
+          r.status === 'ANSWERED' && S.can.has('doc.raise') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/rfis/${r.id}/close`, 'RFI closed.') } }, 'Close') : '') }], v.rfis || [], 'No RFI yet.'));
+    } else {
+      if (S.can.has('doc.raise') && projects.length) {
+        const pr = select('project_id', projects); const sec = input('spec_section', { type: 'text', maxlength: '60', placeholder: '03 30 00' }); const ti = input('title', { type: 'text', maxlength: '300' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Submit');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/submittals', { project_id: pr.value, spec_section: sec.value.trim(), title: ti.value.trim() }); flash('Submittal sent for review.'); renderDocs('submittals'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Submit for review'), h('div', { class: 'grid' }, field('Project', pr), field('Specification section', sec), field('What', ti)), h('div', { class: 'actions' }, b)));
+      }
+      const review = (s) => {
+        const co = select('code', [['A', 'A — approved'], ['B', 'B — approved as noted'], ['C', 'C — revise and resubmit'], ['D', 'D — rejected']].map(([value, label]) => ({ value, label }))); const no = input('note', { type: 'text', maxlength: '1000' });
+        const save = h('button', { type: 'button', class: 'primary' }, 'Record review');
+        const sheet = openSheet('Review a submittal', h('div', {}, h('h2', {}, `${s.number} — ${s.title}`), h('p', { class: 'hint' }, 'Codes C and D need a note.')), h('div', { class: 'grid' }, field('Review code', co), field('Note', no)), h('div', { class: 'actions' }, save));
+        save.addEventListener('click', async () => { try { await api('POST', `/v1/submittals/${s.id}/review`, { code: co.value, note: no.value.trim() }); closeSheet(); flash('Review recorded.'); renderDocs('submittals'); } catch (e) { sheetError(sheet, e); } });
+      };
+      out.append(table('Submittals', [{ label: 'Submittal', cell: (s) => s.number }, { label: 'Project', cell: (s) => s.project }, { label: 'Section', cell: (s) => s.spec_section }, { label: 'What', cell: (s) => s.title }, { label: 'Status', cell: (s) => chip(s.status) },
+        { label: 'Code', cell: (s) => s.review_code || '' }, { label: 'Note', cell: (s) => s.review_note || '' }, { label: '', cell: (s) => (s.status === 'SUBMITTED' && S.can.has('doc.respond') ? h('button', { type: 'button', class: 'ghost', on: { click: () => review(s) } }, 'Review…') : '') }], v.submittals || [], 'No submittal yet.'));
+    }
+    return out;
+  }, head);
+}
+
+// ---------- rules of credit and installed quantities (0067) ----------
+async function renderCredit(tab) {
+  const v = await api('GET', '/v1/credit');
+  const projects = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const rules = v.rules || [];
+  const head = h('div', { class: 'kpis' }, fkpi(rules.filter((r) => r.status === 'APPROVED').length, 'Rules in force'), fkpi(rules.filter((r) => r.status === 'DRAFT').length, 'Rules to approve'),
+    fkpi((v.installed || []).length, 'Installed records'));
+  const TABS = [['rules', 'Rules of credit'], ['installed', 'Installed quantities']];
+  await tabbedPage('credit', 'Progress credit', 'Each activity is split into weighted steps. The site ticks off steps as they are finished; the database computes the percent complete, and the planner turns the percentages into a progress record. Quantities actually installed are kept alongside.', TABS, tab, async (k) => {
+    const out = h('div');
+    if (k === 'rules') {
+      if (S.can.has('credit.manage') && projects.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Prepare a rule');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projects); const act = input('activity_code', { type: 'text', maxlength: '32', placeholder: 'Schedule activity code' }); const nm = input('name', { type: 'text', maxlength: '200' });
+          const grid = lineGrid('Steps (weights add up to 100)', [{ key: 'name', label: 'Step', make: txt('name', { maxlength: '200' }) }, { key: 'weight', label: 'Weight', make: num('weight') }],
+            [{ name: 'Formwork', weight: '20' }, { name: 'Reinforcement', weight: '30' }, { name: 'Concrete pour', weight: '40' }, { name: 'Curing', weight: '10' }], true);
+          const save = h('button', { type: 'button', class: 'primary' }, 'Save');
+          const sheet = openSheet('Prepare a rule of credit', h('div', {}, h('h2', {}, 'Rule of credit'), h('p', { class: 'hint' }, 'A project manager approves the rule. Steps are completed in order.')), h('div', { class: 'grid' }, field('Project', pr), field('Activity code', act), field('Name', nm)), grid, h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => { try { await api('POST', '/v1/credit-rules', { project_id: pr.value, activity_code: act.value.trim(), name: nm.value.trim(), steps: grid.rows().filter((s) => s.name).map((s) => ({ name: s.name, weight: s.weight || '0' })) }); closeSheet(); flash('Rule prepared; a project manager approves it.'); renderCredit('rules'); } catch (e) { sheetError(sheet, e); } });
+        });
+        const pbtn = h('button', { type: 'button' }, 'Create progress record from the steps');
+        pbtn.addEventListener('click', async () => { try { clearError(); const pr = projects[0]; const r = await api('POST', '/v1/progress-from-rules', { project_id: (rules.find((x) => x.status === 'APPROVED') || { project_id: pr.value }).project_id, status_date: today() }); flash('Draft progress record created; approve it under Schedules.'); renderCredit('rules'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'toolbar' }, b, pbtn));
+      }
+      const approve = async (r) => { try { clearError(); await api('POST', `/v1/credit-rules/${r.id}/approve`, {}); flash('Rule approved.'); renderCredit('rules'); } catch (e) { showError(e); } };
+      const tick = async (r, st) => { try { clearError(); await api('POST', `/v1/credit-rules/${r.id}/steps/${st.seq}/complete`, { completed_on: today() }); flash(`Step “${st.name}” recorded as complete.`); renderCredit('rules'); } catch (e) { showError(e); } };
+      for (const r of rules) {
+        const nextStep = (r.steps || []).find((s) => !s.completed_on);
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${r.project} · ${r.activity_code} — ${r.name}`), h('p', { class: 'hint' }, chip(r.status), ` ${Number(r.percent)}% complete`),
+          table('Steps', [{ label: '#', cell: (s) => String(s.seq) }, { label: 'Step', cell: (s) => s.name }, { label: 'Weight', num: true, cell: (s) => `${Number(s.weight)}%` }, { label: 'Done', cell: (s) => s.completed_on || '' }], r.steps || [], ''),
+          h('div', { class: 'actions' }, r.status === 'DRAFT' && S.can.has('credit.approve') ? h('button', { type: 'button', class: 'primary', on: { click: () => approve(r) } }, 'Approve rule') : '',
+            r.status === 'APPROVED' && nextStep && S.can.has('credit.record') ? h('button', { type: 'button', class: 'primary', on: { click: () => tick(r, nextStep) } }, `Complete “${nextStep.name}”`) : '')));
+      }
+      if (!rules.length) out.append(h('p', { class: 'callout' }, 'No rule of credit yet.'));
+    } else {
+      if (S.can.has('credit.record') && projects.length) {
+        const pr = select('project_id', projects); const act = input('activity_code', { type: 'text', maxlength: '32' }); const ds = input('description', { type: 'text', maxlength: '300' }); const q = input('quantity', { inputmode: 'decimal' }); const un = input('unit', { type: 'text', maxlength: '20', value: 'm3' }); const on = input('installed_on', { type: 'date', value: today(), max: today() });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/installed-quantities', { project_id: pr.value, activity_code: act.value.trim(), description: ds.value.trim(), quantity: q.value.trim(), unit: un.value.trim(), installed_on: on.value }); flash('Installed quantity recorded.'); renderCredit('installed'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record installed quantity'), h('div', { class: 'grid' }, field('Project', pr), field('Activity code', act), field('What', ds), field('Quantity', q), field('Unit', un), field('Installed on', on)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Installed quantities', [{ label: 'Project', cell: (i) => i.project }, { label: 'Activity', cell: (i) => i.activity_code }, { label: 'What', cell: (i) => i.description }, { label: 'Quantity', num: true, cell: (i) => `${Number(i.quantity)} ${i.unit}` },
+        { label: 'Cumulative', num: true, cell: (i) => `${Number(i.cumulative)} ${i.unit}` }, { label: 'On', cell: (i) => i.installed_on }, { label: 'By', cell: (i) => i.recorded_by }], v.installed || [], 'Nothing recorded.'));
     }
     return out;
   }, head);

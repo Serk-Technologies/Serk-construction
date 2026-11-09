@@ -200,7 +200,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		traceID = obs.NewTraceID()
 	}
 	h.Set("traceparent", obs.Traceparent(traceID, obs.NewSpanID()))
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	limit := int64(maxBodyBytes)
+	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/documents") {
+		limit = 14 << 20 // document uploads: 10 MB files as base64
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	holder := &principalHolder{}
 	ctx, cancel := context.WithTimeout(kernel.WithRequestID(context.WithValue(r.Context(), holderKey, holder), rid), requestTimeout)
 	defer cancel()

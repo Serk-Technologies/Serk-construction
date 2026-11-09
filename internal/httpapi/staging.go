@@ -79,6 +79,7 @@ var StagingPersonas = []Persona{
 	{"u-plant", "Plant manager", []string{"plant_manager"}, false},
 	{"u-hse", "HSE officer", []string{"hse_officer"}, false},
 	{"u-quality", "Quality engineer", []string{"quality_engineer"}, false},
+	{"u-doc-controller", "Document controller", []string{"document_controller"}, false},
 }
 
 func (s *Server) registerStaging() {

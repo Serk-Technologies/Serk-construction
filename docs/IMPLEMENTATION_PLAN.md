@@ -1000,13 +1000,12 @@ production (WP-2.8 runs on imported hours until then) and HSE indicators.
 | 0061 | WP-2.8 | payroll (built: employees, rule sets, pay runs, PAY_RUN and PAY_PAY journals) |
 | 0062 | WP-2.10 | consolidation (built: groups, intercompany accounts, runs) |
 | 0063 | WP-2.11 | tax (built: tax accounts, VAT/WHT returns, e-invoice submissions) |
-| 0064* | next | numbers from here on are provisional; each package takes the next free number when built |
-| 0065 | WP-3.2 | schedule_ext |
-| 0066 | WP-3.3 | timesheets |
-| 0067 | WP-3.4 | equipment |
-| 0068 | WP-3.5 | documents |
-| 0069 | WP-3.6 | quality |
-| 0070 | WP-3.7 | hse |
+| 0064 | WP-3.3/3.4/3.7 | workforce_field (built: timesheets, equipment, HSE) |
+| 0065 | WP-3.6/3.8 | quality_site (built: ITPs, inspections, NCRs, tests, punch, instructions, meetings) |
+| 0066* | next | numbers from here on are provisional; each package takes the next free number when built |
+| 0068 | WP-3.2 | schedule_ext |
+| 0066 | WP-3.5 | documents (built) |
+| 0067 | WP-3.9 | credit_rules (built) |
 | 0071+ | R4 and corrections | assigned when started |
 
 If WPs land in a different order, renumber **before** merge, never after.
@@ -1052,13 +1051,13 @@ Legend: ⬜ not started · 🟨 in progress · 🟦 in review · ✅ done · ⛔
 | WP-2.13 | Fiscal calendar, accruals | R2 | 4 | - | ✅ | uncommitted | docs/release/evidence/wp-2.13-verification-2026-11-08.md (corporate overhead budgets and a labour-hours driver pending) |
 | WP-3.1 | Mobile field app | R3 | 14 | D-01, 0.5 | ⬜ | | |
 | WP-3.2 | Planning ext., P6/MSP | R3 | 8 | - | ⬜ | | |
-| WP-3.3 | Timesheets, attendance | R3 | 4 | 2.8 | ⬜ | | |
-| WP-3.4 | Equipment and fleet | R3 | 6 | 2.9, 3.3 | ⬜ | | |
-| WP-3.5 | Document control, RFIs, BIM | R3 | 10 | - | ⬜ | | |
-| WP-3.6 | Quality | R3 | 5 | 3.5 | ⬜ | | |
-| WP-3.7 | HSE | R3 | 5 | 3.3 | ⬜ | | |
-| WP-3.8 | Punch lists, instructions, meetings | R3 | 3 | 3.1 | ⬜ | | |
-| WP-3.9 | Rules of credit, installed qty | R3 | 3 | 3.1 | ⬜ | | |
+| WP-3.3 | Timesheets, attendance | R3 | 4 | 2.8 | ✅ | uncommitted | docs/release/evidence/wp-3.3-3.4-3.7-verification-2026-11-09.md (daily timesheets, approval, induction gate, import into pay runs; leave and biometric attendance pending) |
+| WP-3.4 | Equipment and fleet | R3 | 6 | 2.9, 3.3 | ✅ | uncommitted | docs/release/evidence/wp-3.3-3.4-3.7-verification-2026-11-09.md (register, usage, hire charge journals, work orders, fuel anomaly; telematics and transfers pending) |
+| WP-3.5 | Document control, RFIs, BIM | R3 | 10 | - | 🟨 | uncommitted | docs/release/evidence/wp-3.5-3.9-verification-2026-11-09.md (built: documents, revisions with second-person publication, hashed storage, audited downloads, transmittals, RFIs, submittals; pending: object storage, virus scan, OCR full-text, drawing and IFC viewers, BCF) |
+| WP-3.6 | Quality | R3 | 5 | 3.5 | ✅ | uncommitted | docs/release/evidence/wp-3.6-3.8-verification-2026-11-09.md (ITPs, hold points enforced on progress, inspections, NCRs, material tests; document links wait for WP-3.5) |
+| WP-3.7 | HSE | R3 | 5 | 3.3 | ✅ | uncommitted | docs/release/evidence/wp-3.3-3.4-3.7-verification-2026-11-09.md (incidents, corrective actions, permits to work, inductions, toolbox talks, inspections, LTIFR) |
+| WP-3.8 | Punch lists, instructions, meetings | R3 | 3 | 3.1 | ✅ | uncommitted | docs/release/evidence/wp-3.6-3.8-verification-2026-11-09.md (web console; the mobile capture depends on WP-3.1) |
+| WP-3.9 | Rules of credit, installed qty | R3 | 3 | 3.1 | ✅ | uncommitted | docs/release/evidence/wp-3.5-3.9-verification-2026-11-09.md (rules of credit feed schedule progress; mobile capture waits for WP-3.1) |
 | WP-4.1 | External portals | R4 | 8 | 0.5 | ⬜ | | |
 | WP-4.2 | Document AI | R4 | 6 | 3.5 | ⬜ | | |
 | WP-4.3 | Predictive risk | R4 | 5 | 2.1 | ⬜ | | |

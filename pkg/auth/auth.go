@@ -124,11 +124,20 @@ const (
 	PermHSEReport        Permission = "hse.report"        // report incidents, request and accept permits
 	PermHSEManage        Permission = "hse.manage"        // investigate, corrective actions, issue permits, inductions, inspections
 	// Quality and site records (0065).
-	PermQualityRequest     Permission = "quality.request"    // request inspections and raise non-conformances
-	PermQualityManage      Permission = "quality.manage"     // inspection and test plans, results, actions, tests
-	PermQualityApprove     Permission = "quality.approve"    // approve plans, close non-conformances
-	PermSiteRecord         Permission = "site.record"        // punch items, acknowledge instructions, meeting minutes
-	PermSiteInstruct       Permission = "site.instruct"      // issue and close site instructions
+	PermQualityRequest Permission = "quality.request" // request inspections and raise non-conformances
+	PermQualityManage  Permission = "quality.manage"  // inspection and test plans, results, actions, tests
+	PermQualityApprove Permission = "quality.approve" // approve plans, close non-conformances
+	PermSiteRecord     Permission = "site.record"     // punch items, acknowledge instructions, meeting minutes
+	PermSiteInstruct   Permission = "site.instruct"   // issue and close site instructions
+	// Document control (0066).
+	PermDocManage  Permission = "doc.manage"  // create documents, upload revisions, send transmittals
+	PermDocApprove Permission = "doc.approve" // publish revisions (not the uploader)
+	PermDocRaise   Permission = "doc.raise"   // raise RFIs, submit submittals, close answered RFIs
+	PermDocRespond Permission = "doc.respond" // answer RFIs, review submittals
+	// Rules of credit (0067).
+	PermCreditManage       Permission = "credit.manage"      // prepare rules of credit, turn them into progress
+	PermCreditApprove      Permission = "credit.approve"     // approve rules of credit
+	PermCreditRecord       Permission = "credit.record"      // record completed steps and installed quantities
 	PermAuthorityManage    Permission = "authority.manage"   // maker: propose matrices and SoD exceptions
 	PermAuthorityApprove   Permission = "authority.approve"  // checker (fresh MFA)
 	PermDelegationCreate   Permission = "delegation.create"  // lend part of your own approval authority
@@ -233,22 +242,23 @@ var DefaultRoles = map[string]Role{
 		PermPeriodReopen, PermAuditRead, PermScopeTenantWide, PermWorkflowRead, PermWorkflowPublish, PermApprovalHighValue,
 		PermPaymentApprove, PermP2PPolicyApprove, PermBudgetOverride, PermBudgetApprove, PermAuthorityApprove, PermDelegationCreate, PermBankAcctApprove, PermBankDetailsReveal, PermContractApprove, PermContractPolicyApprove, PermP2PRead}},
 	"auditor":            {Name: "auditor", Permissions: []Permission{PermIntelligenceRead, PermJournalRead, PermAuditRead, PermFXRead, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
-	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermQualityApprove, PermSiteRecord, PermSiteInstruct, PermQualityRequest, PermTimesheetApprove, PermEquipmentApprove, PermHSEReport, PermProjectUpdate, PermProjectGateSubmit, PermForecastPrepare, PermChangeManage, PermClaimManage, PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead}},
+	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermCreditApprove, PermDocApprove, PermDocRespond, PermDocRaise, PermQualityApprove, PermSiteRecord, PermSiteInstruct, PermQualityRequest, PermTimesheetApprove, PermEquipmentApprove, PermHSEReport, PermProjectUpdate, PermProjectGateSubmit, PermForecastPrepare, PermChangeManage, PermClaimManage, PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead}},
 	"project_accountant": {Name: "project_accountant", Permissions: []Permission{PermJournalCreate, PermRevenueRun, PermJournalRead, PermFXRead, PermWorkflowRead}},
 	"process_owner":      {Name: "process_owner", Permissions: []Permission{PermAuthorityManage, PermWorkflowDefine, PermWorkflowRead, PermAutomationManage, PermIntelligenceRead, PermScopeTenantWide}},
 	"workflow_admin":     {Name: "workflow_admin", Permissions: []Permission{PermWorkflowAdmin, PermWorkflowRead, PermAutomationActivate, PermIntelligenceRead, PermScopeTenantWide}},
 	// Payroll: an officer prepares, an HR manager approves, treasury releases (0061).
-	"payroll_officer":  {Name: "payroll_officer", Permissions: []Permission{PermPayrollPrepare, PermScopeTenantWide, PermWorkflowRead}},
-	"plant_manager":    {Name: "plant_manager", Permissions: []Permission{PermEquipmentManage, PermEquipmentRecord, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
-	"quality_engineer": {Name: "quality_engineer", Permissions: []Permission{PermQualityManage, PermQualityRequest, PermSiteRecord, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
-	"hse_officer":      {Name: "hse_officer", Permissions: []Permission{PermHSEManage, PermHSEReport, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
-	"hr_manager":       {Name: "hr_manager", Permissions: []Permission{PermPayrollApprove, PermScopeTenantWide, PermWorkflowRead}},
+	"payroll_officer":     {Name: "payroll_officer", Permissions: []Permission{PermPayrollPrepare, PermScopeTenantWide, PermWorkflowRead}},
+	"plant_manager":       {Name: "plant_manager", Permissions: []Permission{PermEquipmentManage, PermEquipmentRecord, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
+	"document_controller": {Name: "document_controller", Permissions: []Permission{PermDocManage, PermDocRaise, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
+	"quality_engineer":    {Name: "quality_engineer", Permissions: []Permission{PermQualityManage, PermQualityRequest, PermSiteRecord, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
+	"hse_officer":         {Name: "hse_officer", Permissions: []Permission{PermHSEManage, PermHSEReport, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
+	"hr_manager":          {Name: "hr_manager", Permissions: []Permission{PermPayrollApprove, PermScopeTenantWide, PermWorkflowRead}},
 	// Identity administration holds no financial permission at all.
 	"security_admin": {Name: "security_admin", Permissions: []Permission{PermUserManage, PermRoleManage, PermDelegationApprove, PermIdentityRevoke, PermAuditRead, PermSiteDeviceManage, PermTenantSettingsManage, PermScopeTenantWide}},
 	// Journey A operational roles.
 	"estimator":           {Name: "estimator", Permissions: []Permission{PermBOQManage, PermP2PRead}},
 	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermProjectCreate, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBondApprove, PermEscalationApprove, PermSubcontractApprove, PermSubcontractCertify, PermDelegationCreate, PermIntelligenceRead, PermBOQApprove, PermBudgetApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead}},
-	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermQualityRequest, PermSiteRecord, PermTimesheetRecord, PermEquipmentRecord, PermHSEReport, PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead}},
+	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermCreditRecord, PermDocRaise, PermQualityRequest, PermSiteRecord, PermTimesheetRecord, PermEquipmentRecord, PermHSEReport, PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead}},
 	"storekeeper":         {Name: "storekeeper", Permissions: []Permission{PermStockReserve, PermGRNCreate, PermStockReceive, PermStockIssue, PermStockCount, PermStockTransfer, PermP2PRead}},
 	"procurement_officer": {Name: "procurement_officer", Permissions: []Permission{PermSupplierManage, PermRFQManage, PermPOManage, PermStockItemManage, PermP2PRead}},
 	"procurement_manager": {Name: "procurement_manager", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermSupplierApprove, PermRFQAward, PermPOApprove, PermWarehouseManage, PermP2PRead}},
@@ -263,7 +273,7 @@ var DefaultRoles = map[string]Role{
 	// controller, and its preparer may do neither.
 	"inventory_controller": {Name: "inventory_controller", Permissions: []Permission{PermStockAdjustApprove, PermStockTransferApprove, PermScopeTenantWide, PermP2PRead}},
 	// Plans and reports progress; a project manager approves (GATED-02).
-	"planner":       {Name: "planner", Permissions: []Permission{PermIntelligenceRead, PermScheduleManage, PermP2PRead}},
+	"planner":       {Name: "planner", Permissions: []Permission{PermCreditManage, PermIntelligenceRead, PermScheduleManage, PermP2PRead}},
 	"ar_supervisor": {Name: "ar_supervisor", Permissions: []Permission{PermARInvoiceApprove, PermARReceiptConfirm, PermScopeTenantWide, PermP2PRead}},
 }
 
@@ -694,6 +704,8 @@ var DefaultSoDConflicts = []SoDConflict{
 	{"Timesheets", []Permission{PermTimesheetRecord, PermTimesheetApprove}},
 	{"Equipment usage", []Permission{PermEquipmentRecord, PermEquipmentApprove}},
 	{"Quality plans", []Permission{PermQualityManage, PermQualityApprove}},
+	{"Rules of credit", []Permission{PermCreditManage, PermCreditApprove}},
+	{"Document publication", []Permission{PermDocManage, PermDocApprove}},
 }
 
 // SoDPair is one violated conflict for one person.
