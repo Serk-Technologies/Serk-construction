@@ -95,6 +95,17 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 	case "guarantee", "escalation_formula", "price_adjustment", "ld_terms":
 		q = map[string]string{"guarantee": "guarantees", "escalation_formula": "escalation_formulas", "price_adjustment": "price_adjustments", "ld_terms": "contract_ld_terms"}[docType]
 		q = `SELECT c.project_id::text FROM ` + q + ` x JOIN contracts c ON c.id = x.contract_id WHERE x.id = $1::uuid`
+	case "equipment", "equipment_operator_auth":
+		// The register is company-wide: anyone who reads documents sees the fleet.
+		q = `SELECT '' FROM ` + map[string]string{"equipment": "equipment", "equipment_operator_auth": "equipment_operator_auths"}[docType] + ` WHERE id = $1::uuid`
+	case "equipment_reservation", "equipment_log":
+		q = `SELECT project_id::text FROM ` + map[string]string{"equipment_reservation": "equipment_reservations", "equipment_log": "equipment_logs"}[docType] + ` WHERE id = $1::uuid`
+	case "equipment_meter_reset":
+		q = `SELECT COALESCE(e.current_project_id::text, '') FROM equipment_meter_resets x JOIN equipment e ON e.id = x.equipment_id WHERE x.id = $1::uuid`
+	case "document_revision":
+		q = `SELECT d.project_id::text FROM document_revisions x JOIN documents d ON d.id = x.document_id WHERE x.id = $1::uuid`
+	case "rfi":
+		q = `SELECT project_id::text FROM rfis WHERE id = $1::uuid`
 	case "schedule_version", "schedule_progress":
 		q = map[string]string{"schedule_version": "schedule_versions", "schedule_progress": "schedule_progress"}[docType]
 		q = `SELECT project_id::text FROM ` + q + ` WHERE id = $1::uuid`

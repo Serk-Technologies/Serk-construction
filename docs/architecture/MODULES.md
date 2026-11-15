@@ -34,6 +34,8 @@ even if the kernel is bypassed (`review*_regression_test.go` prove it).
 | Stock valuation (Journey C) | `stock.go`, `stock_transfer.go` | 0021, 0024, 0025, 0031 | `/v1/stock-*` | Stores |
 | Planning and EVM | `schedule.go`, `pkg/schedule`, `pkg/evm` | 0027 | `/v1/schedules`, `/v1/progress`, `/v1/projects/{id}/evm` | Planning |
 | Site operations, offline sync | `site.go` | 0037 | `/v1/site/*`, `/v1/sync` | Site |
+| Controlled documents, revisions, RFIs; storage and scanning | `documents.go`, `docstore.go`, `pkg/blob`, `pkg/docscan` | 0052, 0053 | `/v1/documents`, `/v1/document-revisions/*`, `/v1/dl/*`, `/v1/document-policy`, `/v1/rfis` | Documents |
+| Fleet: register, lifecycle, reservations, logs, meters | `fleet.go`, `pkg/fleet` | 0054 | `/v1/equipment*`, `/v1/fleet/summary` | Fleet |
 | Sessions, abuse limits | `sessions.go`, `httpapi/abuse*.go` | 0009, 0029 | `/v1/identity/*` | — |
 | Reports and exports | `reports.go`, `internal/export` | — | `/v1/reports/*`, `/v1/export` | Reports, export buttons |
 | **Platform** (0038): company settings, notifications, automation rules, intelligence | `platform.go`, `intelligence.go`, `pkg/automation` | 0038 | `/v1/tenant/settings`, `/v1/notifications`, `/v1/automation/*`, `/v1/intelligence/*`, `/v1/assistant/ask` | Company settings, bell, Automation rules, Risks, Ask, Control review |

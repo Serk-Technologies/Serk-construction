@@ -1,0 +1,139 @@
+{
+  "updated": "2026-11-15 (second session)",
+  "repository": "Serk-Technologies/Serk-construction",
+  "branch": "claude/new-session-xkd5g3",
+  "milestone": {
+    "current": "M6 (fleet part 1 done; fuel next)",
+    "completed": [
+      "M0"
+    ],
+    "found_built_at_baseline": [
+      "M1",
+      "M2 (BOQ, budget, WBS; no estimating)",
+      "M3",
+      "M4 (no work packages)",
+      "M5 (server side only)"
+    ],
+    "slices": [
+      "M7: controlled documents, revisions, RFIs (0052)",
+      "Priority A: document security, object storage, scanning (0053)",
+      "Priority A.2: CI repair and extension",
+      "Priority B.1-B.4 in part: fleet register, lifecycle, reservations, logs, meters (0054)"
+    ]
+  },
+  "next_work_item": {
+    "id": "FLT-02",
+    "title": "Fleet part 2: fuel through the existing stock ledger, dispensing tied to equipment logs, reconciliation and explainable variance",
+    "first": "Check the GitHub Actions result of the latest push",
+    "then": [
+      "FLT-03 maintenance",
+      "FLT-04 costing and charge-out",
+      "PLB-05 work packages",
+      "ASR-01/03 quality and HSE",
+      "EST-06 estimating"
+    ]
+  },
+  "requirement_ids_touched": [
+    "CNX-01.4",
+    "CNX-01.5",
+    "CNX-01.7",
+    "CNX-01.8",
+    "CNX-01.9",
+    "CNX-01.10",
+    "CNX-01.11",
+    "FLT-01.1",
+    "FLT-01.2",
+    "FLT-01.3",
+    "FLT-01.4",
+    "FLT-01.5",
+    "FLT-01.6",
+    "FLT-01.7",
+    "FLT-01.8",
+    "XCT-DR.1"
+  ],
+  "migrations_added": [
+    "0052_document_control.sql",
+    "0053_document_security.sql",
+    "0054_fleet.sql"
+  ],
+  "adrs_added": [
+    "0018",
+    "0019",
+    "0020"
+  ],
+  "commands": [
+    {
+      "command": "go test -race -count=1 -p 1 -json ./...",
+      "outcome": "433 pass, 0 fail, 0 skip",
+      "when": "baseline reproduced at 12c3cec"
+    },
+    {
+      "command": "same, with a real clamd and MinIO",
+      "outcome": "445 pass, 0 fail, 0 skip",
+      "when": "1ae8f5b",
+      "evidence": "docs/engineering/evidence/2026-11-15-document-security.tests.txt"
+    },
+    {
+      "command": "same",
+      "outcome": "454 pass, 0 fail, 0 skip",
+      "when": "fleet part 1",
+      "evidence": "docs/engineering/evidence/2026-11-15-fleet-part1.tests.txt"
+    },
+    {
+      "command": "deploy/drills/pitr_drill.sh",
+      "outcome": "PASS; 54 migrations; restore verified 1.15 s; RPO 5 s",
+      "evidence": "docs/engineering/evidence/2026-11-15-pitr-drill-0054.txt"
+    },
+    {
+      "command": "tools/capacity/fleet_measure.sh (100000 machines, 1000000 logs)",
+      "outcome": "register page 0.09 ms; project summary 37 ms; company summary 695 ms",
+      "evidence": "docs/engineering/evidence/2026-11-15-fleet-query-measurement.txt"
+    }
+  ],
+  "environment": {
+    "cpu": 4,
+    "ram_gib": 15,
+    "go": "1.26.0",
+    "postgres": "16.15",
+    "browser": "Chromium via Playwright"
+  },
+  "not_run": [
+    "A GitHub Actions run that passes end to end",
+    "Image vulnerability scan (no Docker daemon locally)",
+    "govulncheck locally (vulnerability database unreachable)",
+    "ClamAV with the public signature feed",
+    "Offsite encrypted backup drill",
+    "Concurrent load test",
+    "Any deployment"
+  ],
+  "known_blockers": [
+    "ClamAV signature feed and Go vulnerability database unreachable from the build environment",
+    "No Docker daemon in the build environment",
+    "No field mobile client",
+    "No authorised identity provider, bank, messaging provider or model endpoint",
+    "Professional review of roles, accounting, tax and payroll",
+    "Penetration test and human release gates"
+  ],
+  "assumptions": [
+    "Files in PostgreSQL with a 10 MiB cap until object storage is available (ADR 0018)",
+    "Role grants: document.manage to site_engineer, quantity_surveyor, planner; document.approve to project_manager",
+    "An RFI may be answered by any document.manage holder on the project other than its author",
+    "Scanning is required by default; a tenant relaxes it only by an attested decision",
+    "Objects are encrypted by the service; download links are API-signed rather than store pre-signed",
+    "Fleet role grants as in docs/engineering/ROLE_PERMISSION_PROPOSAL.md"
+  ],
+  "authorisation": {
+    "deploy": false,
+    "merge_to_main": false,
+    "real_data": false,
+    "push": "authorised by the owner to claude/new-session-xkd5g3 only"
+  },
+  "release_status": "NO-GO",
+  "resume_command": "Read CLAUDE.md and docs/engineering/execution-state.json, check the latest GitHub Actions run for this branch, reproduce the baseline (454 tests) per docs/engineering/RUNBOOK.md, then implement 'Fleet part 2, fuel' from docs/engineering/HANDOVER.md as one vertical slice.",
+  "session_start_commit": "12c3cec",
+  "ci": {
+    "run_14": "failed (image, supply-chain: both pre-existing); test and lint passed",
+    "run_15": "failed (test: MinIO image not pullable; secrets: 7 fixture strings; supply-chain: literal CI credentials); govulncheck passes on Go 1.26.11",
+    "latest": "unknown at the time of writing: check the Actions tab"
+  }
+}

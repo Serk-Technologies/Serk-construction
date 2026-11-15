@@ -77,6 +77,20 @@ func main() {
 		return
 	}
 
+	if len(os.Args) > 1 && os.Args[1] == "release-migrated-documents" {
+		// Step 2 of the document storage migration (0053, ADR 0019): drop from
+		// PostgreSQL the bytes of files whose verified copy in the object store
+		// is recorded. Take a backup first; this is the only step that removes
+		// bytes, and only the schema owner can run it.
+		n, err := postgres.ReleaseMigratedDocumentContents(ctx, conn, 0)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "release-migrated-documents:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("%d file(s) released from PostgreSQL (run again until 0)\n", n)
+		return
+	}
+
 	if len(os.Args) > 1 && os.Args[1] == "validate-constraints" {
 		// GATEA-13: report NOT VALID constraints and their violating rows
 		// (recorded in migration_exceptions for human resolution); with

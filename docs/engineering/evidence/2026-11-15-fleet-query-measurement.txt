@@ -1,0 +1,12 @@
+### fleet measurement 2026-11-15T11:28:39Z: 100000 machines, 1000000 approved logs, tenant role serk_t_17d34691a8a24c71a7c9c103d9a9423a
+### PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.; 4 CPU; 16 GiB RAM; shared_buffers 128MB
+rows: equipment 100000, logs 1000000; sizes: equipment 61 MB, logs 652 MB
+register, first page of 50                                      0.093 ms (median of 5)
+register, page of 50 near the end (keyset)                      0.093 ms (median of 5)
+register, same depth by OFFSET (not used)                      17.460 ms (median of 5)
+register, status filter, first page                             0.117 ms (median of 5)
+counts by state                                                10.541 ms (median of 5)
+summary, 30 days, one project                                  36.855 ms (median of 5)
+summary, 30 days, whole company                               695.308 ms (median of 5)
+summary, 366 days, one project                                 48.299 ms (median of 5)
+one machine's logs for a day (uniqueness lookup)                0.074 ms (median of 5)

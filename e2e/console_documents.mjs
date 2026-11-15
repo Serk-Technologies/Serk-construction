@@ -1,0 +1,139 @@
+// Browser end-to-end test of controlled documents and RFIs (migration 0052)
+// in the SERK console, started by
+// internal/httpapi/console_browser_documents_test.go (which verifies the
+// outcome through the API afterwards). A site engineer registers a drawing
+// and uploads revision A, a project manager publishes it from the worklist,
+// revision B supersedes it, the file downloads with the bytes that were
+// uploaded, and an RFI about the drawing is raised, answered by a planner and
+// closed by its author. Accessibility is audited on every new page; phone
+// width and dark theme too.
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import { as, nav, act, selectByText, snap, audit, idFromHash, log, fail, failures, browser, pages } from './console_lib.mjs';
+
+const pdf = (body) => Buffer.from('%PDF-1.7\n' + body);
+const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
+
+async function upload(p, rev, body, note) {
+  await p.getByLabel('Revision', { exact: true }).fill(rev);
+  await p.getByLabel('File').setInputFiles({ name: `A-101 ${rev}.pdf`, mimeType: 'application/pdf', buffer: pdf(body) });
+  await p.getByLabel('Change note').fill(note);
+}
+
+try {
+  // ---- 1. Engineer registers a drawing with revision A and submits it -----------------
+  const eng = await as('eng');
+  await nav(eng, '#/documents', 'Document register');
+  await audit(eng, 'document register (empty)');
+  await eng.getByRole('link', { name: 'Register a document' }).click();
+  await eng.getByRole('heading', { level: 1, name: 'Register a document' }).waitFor();
+  await selectByText(eng.getByLabel('Project'), 'P-API');
+  await eng.getByLabel('Reference').fill('A-101');
+  await selectByText(eng.getByLabel('Type'), 'Drawing');
+  await eng.getByLabel('Title').fill('General arrangement plan, level 1');
+  await eng.getByLabel('Discipline').fill('Architecture');
+  await upload(eng, 'A', 'revision A', 'Issued for construction');
+  await audit(eng, 'document form');
+  await eng.getByRole('button', { name: 'Register and upload' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Document revision DOC-.*\/A$/ }).waitFor();
+  const revA = await idFromHash(eng);
+  let view = await eng.locator('main').textContent();
+  if (!view.includes('Work in progress') || !view.includes(sha(pdf('revision A')))) fail('the draft revision does not show its state and SHA-256');
+  await audit(eng, 'revision draft');
+  await act(eng, 'Submit for approval', 'Submit for approval: done');
+  if (await eng.getByRole('button', { name: 'Approve', exact: true }).count()) fail('the uploader is offered "Approve"');
+  await snap(eng, 'revision-submitted');
+  log('revision A uploaded and submitted');
+
+  // ---- 2. Project manager publishes it from the worklist ------------------------------
+  const pm = await as('pm');
+  await nav(pm, '#/home', 'My work');
+  await pm.getByRole('link', { name: /Document revisions to publish/ }).waitFor();
+  await nav(pm, `#/doc/document_revision/${revA}`, /^Document revision DOC-/);
+  await act(pm, 'Approve', 'Approve: done');
+  await pm.locator('main').filter({ hasText: 'Published (current)' }).waitFor();
+  await audit(pm, 'revision published');
+  log('revision A published by the project manager');
+
+  // ---- 3. Revision B supersedes A --------------------------------------------------------
+  await nav(eng, '#/documents', 'Document register');
+  await eng.getByRole('link', { name: 'A-101', exact: true }).click();
+  await eng.getByRole('heading', { level: 1, name: /^A-101/ }).waitFor();
+  const docID = await idFromHash(eng);
+  await audit(eng, 'document with one revision');
+  await eng.getByRole('link', { name: 'Upload a new revision' }).click();
+  await eng.getByRole('heading', { level: 1, name: 'Upload a new revision' }).waitFor();
+  await upload(eng, 'B', 'revision B', 'Grid line C added');
+  await eng.getByRole('button', { name: 'Upload revision' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Document revision DOC-.*\/B$/ }).waitFor();
+  const revB = await idFromHash(eng);
+  await act(eng, 'Submit for approval', 'Submit for approval: done');
+  await nav(pm, `#/doc/document_revision/${revB}`, /^Document revision DOC-/);
+  await act(pm, 'Approve', 'Approve: done');
+  await nav(eng, `#/documents/${docID}`, /^A-101/);
+  const rows = await eng.getByRole('table', { name: /Revisions/ }).locator('tbody tr').allTextContents();
+  if (rows.length !== 2 || !rows[0].includes('Published (current)') || !rows[1].includes('Superseded (not current)')) fail(`revisions after publishing B: ${rows.join(' || ')}`);
+  if (await eng.getByRole('link', { name: 'Upload a new revision' }).count() !== 1) fail('a new revision cannot be started after B was published');
+  await audit(eng, 'document with a superseded revision');
+  await snap(eng, 'document-revisions');
+  await nav(eng, `#/doc/document_revision/${revA}`, /^Document revision DOC-/);
+  if (!(await eng.locator('main').textContent()).includes('must not be built from')) fail('the superseded revision is not marked as such');
+  log('revision B published; A superseded');
+
+  // ---- 4. The register offers the current revision; the download is the uploaded file ---
+  await nav(eng, '#/documents', 'Document register');
+  const reg = await eng.getByRole('table', { name: 'Documents' }).locator('tbody tr').allTextContents();
+  if (reg.length !== 1 || !/A-101.*Drawing.*P-API.*B/.test(reg[0])) fail(`register row: ${reg.join(' || ')}`);
+  const [dl] = await Promise.all([eng.waitForEvent('download'), eng.getByRole('button', { name: 'Download A-101' }).click()]);
+  const got = fs.readFileSync(await dl.path());
+  if (dl.suggestedFilename() !== 'A-101 B.pdf' || sha(got) !== sha(pdf('revision B'))) fail(`download: ${dl.suggestedFilename()} ${sha(got)}`);
+  await audit(eng, 'document register');
+  await snap(eng, 'document-register');
+  log('current revision downloaded and matches the upload');
+
+  // ---- 5. RFI: raised by the engineer, answered by the planner, closed by the engineer ---
+  await nav(eng, '#/new/rfi', 'Raise a request for information');
+  await selectByText(eng.getByLabel('Project'), 'P-API');
+  await eng.getByLabel('About').locator('option', { hasText: 'A-101 rev B' }).waitFor({ state: 'attached' });
+  await selectByText(eng.getByLabel('About'), 'A-101 rev B');
+  await eng.getByLabel('Subject').fill('Slab thickness at grid C-4');
+  await eng.getByLabel('Question').fill('Section 2 shows 200 mm, the schedule shows 250 mm. Which governs?');
+  await eng.getByLabel('Expected to answer').fill('u-doc-planner');
+  await audit(eng, 'rfi form');
+  await eng.getByRole('button', { name: 'Raise the RFI' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Request for information RFI-/ }).waitFor();
+  const rfi = await idFromHash(eng);
+  if (await eng.getByRole('button', { name: 'Record the answer' }).count()) fail('the author is offered to answer their own RFI');
+  await audit(eng, 'rfi open');
+  const planner = await as('planner');
+  await nav(planner, `#/doc/rfi/${rfi}`, /^Request for information RFI-/);
+  await planner.getByLabel('Answer').fill('The schedule governs: 250 mm. Section 2 will be corrected in revision C.');
+  await planner.getByRole('button', { name: 'Record the answer' }).click();
+  await planner.locator('main').filter({ hasText: 'ANSWERED' }).waitFor();
+  if (await planner.getByRole('button', { name: 'Close the RFI' }).count()) fail('someone other than the author is offered to close the RFI');
+  await audit(planner, 'rfi answered');
+  await nav(eng, `#/doc/rfi/${rfi}`, /^Request for information RFI-/);
+  await eng.getByRole('button', { name: 'Close the RFI' }).click();
+  await eng.locator('main').filter({ hasText: 'CLOSED' }).waitFor();
+  await snap(eng, 'rfi-closed');
+  log('RFI raised, answered and closed');
+
+  // ---- 6. Phone width, dark theme ------------------------------------------------------------
+  const phone = await as('pmPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
+  await nav(phone, `#/documents/${docID}`, /^A-101/);
+  await audit(phone, 'document at 390px (dark)');
+  await snap(phone, 'mobile-document-dark');
+} catch (e) {
+  fail(`journey aborted: ${e.message.split('\n')[0]}`);
+  for (const [role, p] of Object.entries(pages)) {
+    try { await snap(p, `failure-${role}`); } catch { /* page may be gone */ }
+  }
+} finally {
+  await browser.close();
+}
+
+if (failures.length) {
+  console.log(`\n${failures.length} failure(s):\n- ` + failures.join('\n- '));
+  process.exit(1);
+}
+console.log('\nCONSOLE DOCUMENTS: PASS');

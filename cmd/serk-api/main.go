@@ -10,9 +10,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/serk-group/serk-construction/pkg/blob"
+	"github.com/serk-group/serk-construction/pkg/docscan"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -102,6 +106,35 @@ func main() {
 	} else {
 		log.Warn("no SERK_BANK_DATA_KEY: bank account numbers cannot be recorded or revealed (refused in production)")
 	}
+	docs := kernel.DocumentStore{Key: cfg.DocumentKey, MaxBytes: int64(cfg.DocumentMaxMB) << 20}
+	switch kind, _ := cfg.DocumentStorage(); kind {
+	case "s3":
+		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, Store: &blob.S3{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
+			AccessKey: cfg.S3AccessKey, SecretKey: string(cfg.S3SecretKey), Client: &http.Client{Timeout: 30 * time.Minute}}}
+		log.Info("document files go to object storage, encrypted by this service", "bucket", cfg.S3Bucket)
+	case "fs":
+		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, Store: blob.FS{Root: cfg.BlobDir}}
+		log.Warn("document files go to a local directory (development only)", "dir", cfg.BlobDir)
+	default:
+		log.Info("document files are kept in PostgreSQL (10 MiB each): set SERK_S3_ENDPOINT for object storage")
+	}
+	if cfg.ClamdAddr != "" {
+		c := docscan.Clamd{Network: "tcp", Address: cfg.ClamdAddr}
+		if path, ok := strings.CutPrefix(cfg.ClamdAddr, "unix:"); ok {
+			c = docscan.Clamd{Network: "unix", Address: path}
+		}
+		docs.Scanner = c
+		vctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		if v, err := c.Version(vctx); err != nil {
+			log.Error("the malware scanner is not answering: uploads will be quarantined until it does", "err", err)
+		} else {
+			log.Info("malware scanner connected", "engine", v)
+		}
+		cancel()
+	} else {
+		log.Warn("no malware scanner (SERK_CLAMD_ADDR): uploaded documents stay quarantined for every company that requires scanning, which is the default")
+	}
+	svc.UseDocumentStore(docs)
 	metrics := obs.NewRegistry()
 	if cfg.MonitorDSN != "" {
 		mon, err := pgxpool.New(ctx, cfg.MonitorDSN)

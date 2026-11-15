@@ -1,0 +1,54 @@
+### SERK PITR drill 2026-11-15T10:34:47Z
+### postgres (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1); archive_timeout=10s; host Linux 6.18.44-fc-v470
+[10:34:47] initdb primary (data checksums on)
+[10:34:48] base backup (before any schema exists)
+    backup successfully verified
+[10:34:48] base backup took 0.33 s, size 53M
+[10:34:48] workload phase 1 (migrations 0001-0008 + kernel flows: posting, approvals, FX, workflow, outbox)
+    load: PASS
+[10:34:50] restore point 'serk_drill_target' at LSN 0/3AFE870; fingerprint:
+    tenants|14|bb5961e17881095ff552b4f21ed3c254
+    legal_entities|14|4b00b12c074d00cc52c05355fd77bbfd
+    accounts|70|2f72a9146094e704a947cc3f11155545
+    fiscal_periods|14|09fe0d287dec90b4601e1c116a107ba5
+    journals|7|08ee8194c3783da0d26d83500ba39393
+    journal_lines|19|82a08724055f779f182b11fbbaf7c81c
+    fx_sources|3|9d753948e84c4100a1526c733692947d
+    fx_policies|4|3c9845b65e7d998c0b6cf7a6a4360c65
+    fx_snapshots|9|37efa661ea7ca0afb1e8b0829ab3fcea
+    approval_attestations|29|f35f8480a62c409f5e33609751312cca
+    audit_log|52|5226895755037691dd4b8fd7da0ac187
+    audit_heads|7|d4e10079f0d8151d26a9831070b4c55a
+    outbox|58|569b19b68ef4030ac9a4639954a85e73
+    workflow_definitions|1|37aeff949f6b3068919028f3716d8c90
+    workflow_instances|2|e3d2feac3d8c117f786d13a75b226b5b
+    workflow_decisions|2|29d10dadae86602ac4903e224fb9f8ca
+[10:34:50] ledger_integrity_scan() at target: UNBALANCED_POSTED:c01b0312-9ecb-40e8-a621-d11987f3d894
+[10:34:50] workload phase 2 (after the target) + simulated operator error: superuser TRUNCATE of the ledger
+    load: PASS
+[10:34:50] after the error: posted journals on primary = 0 (were 3 at target)
+[10:34:50] archive: 4 WAL files, failed_count=0
+[10:34:50] scenario B: 1 Hz committed heartbeat for 25 s, then the primary is killed and pg_wal lost
+[10:35:16] primary killed; last committed heartbeat on it: 25 at 2026-11-15 10:35:14.952796+00
+[10:35:16] scenario A: restore a fresh instance to 'serk_drill_target'
+
+== Scenario A result
+fingerprint (16 tables) restored vs target : IDENTICAL
+posted journals at target / restored        : 3 / 3
+ledger_integrity_scan() at target          : UNBALANCED_POSTED:c01b0312-9ecb-40e8-a621-d11987f3d894
+ledger_integrity_scan() restored            : UNBALANCED_POSTED:c01b0312-9ecb-40e8-a621-d11987f3d894
+tenants / audit chains failing verification : 14 / 0
+schema_migrations on restored instance      : 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52
+data-checksum failures                      : 0
+RTO: restore start -> promoted              : 0.49 s
+RTO: restore start -> verified              : 0.64 s
+[10:35:16] scenario B: restore a fresh instance to the end of the archive
+
+== Scenario B result (archive-only recovery, archive_timeout=10s)
+last committed heartbeat on lost primary    : 25 at 2026-11-15 10:35:14.952796+00
+last heartbeat on restored instance         : 20 at 2026-11-15 10:35:09.887618+00
+measured RPO                                : 5 committed transactions = ~5 s of 1 Hz writes
+RTO: restore start -> promoted              : 0.49 s
+
+DRILL VERDICT: PASS (scenario A exact; scenario B RPO measured above)
+drill exit 0

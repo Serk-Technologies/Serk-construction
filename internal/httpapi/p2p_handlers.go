@@ -79,6 +79,8 @@ func (s *Server) registerP2P() {
 	s.registerOrg()        // project master, stage gates, regions, business units, calendar (0042)
 	s.registerPeople()     // people directory, company roles, profiles (0048)
 	s.registerBonds()      // guarantees, price indices, escalation (0050)
+	s.registerDocuments()  // controlled documents, revisions, RFIs (0052)
+	s.registerFleet()      // equipment register, lifecycle, reservations, logs (0054)
 	s.registerImports()    // staged imports and the setup checklist (0043)
 	// Financial control dashboard (WP-1.4): GET /v1/dashboard?preset=executive|project|finance|procurement&entity_id=
 	m.Handle("GET /v1/dashboard", s.authed(func(w http.ResponseWriter, r *http.Request) {

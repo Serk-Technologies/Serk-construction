@@ -117,8 +117,15 @@ func Setup(t *testing.T) *Env {
 	var hasHealth bool
 	_ = admin.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'serk_health_test')`).Scan(&hasHealth)
 	if hasHealth {
+		// A password for this run only: a cluster that authenticates TCP
+		// logins by password (the CI service container) refuses a role
+		// without one, and trust authentication ignores it.
+		hpw := strings.ReplaceAll(uuid.NewString(), "-", "")
+		if _, err := admin.Exec(ctx, `ALTER ROLE serk_health_test PASSWORD '`+hpw+`'`); err != nil {
+			t.Fatalf("health login password: %v", err)
+		}
 		hu, _ := url.Parse(adminDSN)
-		hu.User = url.User("serk_health_test")
+		hu.User = url.UserPassword("serk_health_test", hpw)
 		e.HealthDSN = hu.String()
 	}
 	e.Router, err = postgres.NewRouter(ctx, postgres.RouterConfig{

@@ -165,6 +165,19 @@ const DOCS = {
     actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
   ld_terms: { title: 'Damages terms', one: 'Damages terms', base: '/v1/ld-terms', create: 'claim.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
+  document_revision: { title: 'Document revisions', one: 'Document revision', base: '/v1/document-revisions', create: 'document.manage', form: 'document',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
+    actions: { DRAFT: [['submit', 'document.manage']], SUBMITTED: [['approve', 'document.approve', 'opt'], ['reject', 'document.approve', 'req']] } },
+  rfi: { title: 'Requests for information', one: 'Request for information', base: '/v1/rfis', create: 'document.manage', form: 'rfi', statuses: ['OPEN', 'ANSWERED', 'CLOSED'], actions: {} },
+  equipment_reservation: { title: 'Equipment reservations', one: 'Equipment reservation', base: '/v1/equipment-reservations', create: 'fleet.reserve', form: 'equipment_reservation',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'fleet.reserve']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']], APPROVED: [['cancel', 'fleet.reserve|fleet.approve', 'req']] } },
+  equipment_log: { title: 'Equipment logs', one: 'Equipment log', base: '/v1/equipment-logs', create: 'fleet.operate', form: 'equipment_log', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.operate']], SUBMITTED: [['approve', 'fleet.log.approve', 'opt'], ['reject', 'fleet.log.approve', 'req']] } },
+  equipment_operator_auth: { title: 'Operator authorisations', one: 'Operator authorisation', base: '/v1/equipment-operators', create: 'fleet.manage', form: 'equipment_operator', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
+  equipment_meter_reset: { title: 'Meter resets', one: 'Meter reset', base: '/v1/equipment-meter-resets', create: 'fleet.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
   guarantee: { title: 'Guarantees', one: 'Guarantee', base: '/v1/guarantees', create: 'bond.manage', form: null, statuses: ['ACTIVE', 'RELEASED', 'CALLED'], actions: {} },
   price_index_value: { title: 'Index values', one: 'Index value', base: '/v1/price-index-values', create: 'escalation.manage', form: null,
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
@@ -312,6 +325,9 @@ const NAV = [
     ['#/list/customer_invoice', 'Customer invoices', 'p2p.read'], ['#/list/customer_credit_note', 'Credit notes', 'p2p.read'],
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
+  ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
+    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read']]],
+  ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
   ['Treasury & banking', [['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
@@ -336,6 +352,11 @@ const QUEUES = [
   ['change.approve', 'change_event', 'SUBMITTED', 'Change events to decide'],
   ['claim.approve', 'contract_claim', 'SUBMITTED', 'Claims to approve for sending'],
   ['claim.approve', 'ld_terms', 'SUBMITTED', 'Damages terms to approve'],
+  ['document.approve', 'document_revision', 'SUBMITTED', 'Document revisions to publish'],
+  ['fleet.approve', 'equipment_reservation', 'SUBMITTED', 'Equipment reservations to approve'],
+  ['fleet.log.approve', 'equipment_log', 'SUBMITTED', 'Equipment logs to approve'],
+  ['fleet.release', 'equipment_operator_auth', 'SUBMITTED', 'Operator authorisations to approve'],
+  ['fleet.release', 'equipment_meter_reset', 'SUBMITTED', 'Meter resets to approve'],
   ['escalation.approve', 'price_index_value', 'SUBMITTED', 'Index values to approve'],
   ['escalation.approve', 'escalation_formula', 'SUBMITTED', 'Price adjustment formulas to approve'],
   ['escalation.approve', 'price_adjustment', 'SUBMITTED', 'Price adjustments to approve'],
@@ -569,6 +590,8 @@ async function route() {
       case 'me': return await renderMe();
       case 'bonds': return await renderBonds(a);
       case 'obligations': return await renderObligations();
+      case 'documents': return await renderDocuments(a);
+      case 'fleet': return await renderFleet(a);
       default: return await renderHome();
     }
   } catch (e) {
@@ -813,6 +836,8 @@ async function renderDoc(type, id) {
       ce.budget_version_id ? h('p', {}, 'A budget revision for the cost lines was drafted. The budget moves only when it is submitted and approved: ', h('a', { href: `#/doc/budget_version/${ce.budget_version_id}` }, 'open the drafted revision'), '.')
         : h('p', { class: 'hint' }, 'This change event has no cost lines, so no budget revision was drafted.')));
   }
+  if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
+  if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); }
   if (type === 'contract_notice' && d.status === 'OPEN' && S.can.has('claim.manage')) {
     const on = input('sent_on', { type: 'date', required: true, value: new Date().toISOString().slice(0, 10) });
     const btn = h('button', { type: 'button', class: 'primary' }, 'Record as sent');
@@ -1323,6 +1348,147 @@ const FORMS = {
         created('change_event', res, 'Change event');
       });
     await load();
+  },
+
+  async equipment() {
+    const ent = select('legal_entity_id', entityOpts(), { required: true });
+    const name = input('name', { type: 'text', required: true, minlength: '2', maxlength: '120', placeholder: 'e.g. Excavator 07' });
+    const cls = select('class', FLEET_CLASSES.map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
+    const own = select('ownership', ['OWNED', 'RENTED', 'LEASED', 'SUBCONTRACTED'].map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
+    const maker = input('manufacturer', { type: 'text', required: true, maxlength: '80' });
+    const model = input('model', { type: 'text', required: true, maxlength: '80' });
+    const serial = input('serial_number', { type: 'text', required: true, maxlength: '80' });
+    const engine = input('engine_number', { type: 'text', maxlength: '80' });
+    const reg = input('registration', { type: 'text', maxlength: '40' });
+    const cap = input('capacity', { type: 'text', maxlength: '120', placeholder: 'e.g. 0.8 m3 bucket' });
+    const meterKind = select('meter_kind', [['HOURS', 'Engine hours'], ['KM', 'Kilometres'], ['NONE', 'No meter']].map(([value, label]) => ({ value, label })));
+    const meter = input('opening_meter', { type: 'number', step: '0.01', min: '0', value: '0' });
+    const fuel = select('fuel_type', ['DIESEL', 'PETROL', 'ELECTRIC', 'NONE'].map((value) => ({ value, label: words(value.toLowerCase()) })));
+    const home = input('home_location', { type: 'text', maxlength: '120', placeholder: 'Yard or depot' });
+    formPage('Register equipment', 'Enter a machine, plant item or tool in the register. Its identity (class, ownership, maker, serial, engine and registration numbers) never changes afterwards, and the same serial number or registration cannot be registered twice. A different person commissions it before it can be reserved or used.',
+      [h('div', { class: 'grid' }, field('Legal entity', ent), field('Name', name), field('Class', cls), field('Ownership', own), field('Manufacturer', maker), field('Model', model),
+        field('Serial number', serial), field('Engine number', engine), field('Registration', reg), field('Capacity', cap), field('Meter', meterKind), field('Opening meter reading', meter), field('Fuel', fuel), field('Home location', home))],
+      'Register equipment', async () => {
+        const res = await api('POST', '/v1/equipment', { legal_entity_id: ent.value, name: name.value.trim(), class: cls.value, ownership: own.value, manufacturer: maker.value.trim(), model: model.value.trim(),
+          serial_number: serial.value.trim(), engine_number: engine.value.trim(), registration: reg.value.trim(), capacity: cap.value.trim(), meter_kind: meterKind.value,
+          opening_meter: meterKind.value === 'NONE' ? '0' : meter.value || '0', fuel_type: fuel.value, home_location: home.value.trim() });
+        say('Equipment registered.');
+        location.hash = `#/fleet/${res.id}`;
+      });
+  },
+
+  async equipment_reservation(eqId) {
+    const eq = select('equipment_id', await fleetOpts(), { required: true });
+    if (eqId) eq.value = eqId;
+    const proj = select('project_id', projectOpts(), { required: true });
+    const purpose = input('purpose', { type: 'text', required: true, minlength: '3', maxlength: '300', placeholder: 'What the machine is needed for' });
+    const from = input('starts_on', { type: 'date', required: true, value: today(), min: today() });
+    const to = input('ends_on', { type: 'date', required: true, value: plusDays(14), min: today() });
+    const clash = h('div', { 'aria-live': 'polite' });
+    const check = async () => {
+      clash.textContent = '';
+      if (!eq.value || !from.value || !to.value || to.value < from.value) return;
+      const r = (await api('GET', `/v1/equipment/${eq.value}/calendar?from=${from.value}&to=${to.value}`)).reservations;
+      clash.append(r.length ? h('p', { class: 'hint' }, `Already asked for in that period: ${r.map((x) => `${x.number} ${x.starts_on} to ${x.ends_on} (${x.status.toLowerCase()})`).join('; ')}. Two approved reservations of one machine cannot overlap.`)
+        : h('p', { class: 'hint' }, 'No other reservation overlaps that period.'));
+    };
+    for (const el of [eq, from, to]) el.addEventListener('change', check);
+    formPage('Reserve equipment', 'Ask for a machine for a project and a period. A different person approves it with a fresh multi-factor sign-in. The machine is sent to the project only against an approved reservation.',
+      [h('div', { class: 'grid' }, field('Equipment', eq), field('Project', proj), field('Purpose', purpose), field('From', from), field('To', to)), clash], 'Request reservation', async () => {
+        const res = await api('POST', '/v1/equipment-reservations', { equipment_id: eq.value, project_id: proj.value, purpose: purpose.value.trim(), starts_on: from.value, ends_on: to.value });
+        created('equipment_reservation', res, 'Reservation');
+      });
+    await check();
+  },
+
+  async equipment_log(eqId) {
+    const all = (await api('GET', '/v1/equipment?limit=200')).items.filter((e) => e.current_project_id);
+    const eq = select('equipment_id', all.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    if (eqId) eq.value = eqId;
+    const date = input('log_date', { type: 'date', required: true, value: today(), max: today() });
+    const shift = select('shift', [['1', 'Shift 1'], ['2', 'Shift 2'], ['3', 'Shift 3']].map(([value, label]) => ({ value, label })));
+    const operator = input('operator', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the authorised operator' });
+    const open = input('meter_open', { type: 'number', step: '0.01', min: '0', required: true });
+    const close = input('meter_close', { type: 'number', step: '0.01', min: '0', required: true });
+    const prod = input('productive_hours', { type: 'number', step: '0.25', min: '0', max: '24', required: true, value: '0' });
+    const idle = input('idle_hours', { type: 'number', step: '0.25', min: '0', max: '24', value: '0' });
+    const down = input('down_hours', { type: 'number', step: '0.25', min: '0', max: '24', value: '0' });
+    const fuel = input('fuel_litres', { type: 'number', step: '0.1', min: '0', value: '0' });
+    const loc = input('location', { type: 'text', maxlength: '200', placeholder: 'e.g. Km 12+300' });
+    const findings = input('findings', { type: 'text', maxlength: '2000', placeholder: 'Defects or observations from the daily check' });
+    const sync = () => { const e = all.find((x) => x.id === eq.value); if (e && !open.value) open.value = e.last_meter; };
+    eq.addEventListener('change', () => { open.value = ''; sync(); });
+    sync();
+    formPage('Record an equipment log', 'One log per machine, day and shift. The opening reading continues from the machine\'s last approved reading and the meter never runs backwards. Productive and idle hours cannot exceed what the hour meter moved. A different person approves the log, which advances the meter.',
+      [h('div', { class: 'grid' }, field('Equipment', eq, 'Machines at a project.'), field('Date', date), field('Shift', shift), field('Operator', operator), field('Opening meter', open), field('Closing meter', close),
+        field('Productive hours', prod), field('Idle hours', idle), field('Down hours', down), field('Fuel (litres)', fuel), field('Location', loc), field('Findings', findings))], 'Save log', async () => {
+        const e = all.find((x) => x.id === eq.value);
+        const res = await api('POST', '/v1/equipment-logs', { equipment_id: eq.value, project_id: e.current_project_id, log_date: date.value, shift: Number(shift.value), operator: operator.value.trim(),
+          meter_open: open.value || '0', meter_close: close.value || '0', productive_hours: prod.value || '0', idle_hours: idle.value || '0', down_hours: down.value || '0', fuel_litres: fuel.value || '0',
+          location: loc.value.trim(), findings: findings.value.trim() });
+        created('equipment_log', res, 'Log');
+      });
+  },
+
+  async equipment_operator() {
+    const who = input('operator', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the operator' });
+    const cls = select('equipment_class', FLEET_CLASSES.map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
+    const cert = input('certificate_ref', { type: 'text', required: true, minlength: '2', maxlength: '120', placeholder: 'Licence or certificate reference' });
+    const from = input('valid_from', { type: 'date', required: true, value: today() });
+    const to = input('valid_until', { type: 'date', required: true, value: plusDays(365) });
+    formPage('Authorise an operator', 'Record that a person is competent to operate a class of equipment, and until when. Nobody prepares or approves their own authorisation. A daily log can name only an operator authorised for the machine\'s class on that day.',
+      [h('div', { class: 'grid' }, field('Operator', who), field('Equipment class', cls), field('Certificate', cert), field('Valid from', from), field('Valid until', to))], 'Prepare authorisation', async () => {
+        const res = await api('POST', '/v1/equipment-operators', { operator: who.value.trim(), equipment_class: cls.value, certificate_ref: cert.value.trim(), valid_from: from.value, valid_until: to.value });
+        created('equipment_operator_auth', res, 'Authorisation');
+      });
+  },
+
+  // Register a document with its first revision, or (with a document id) upload its next revision.
+  async document(docId) {
+    const existing = docId ? await api('GET', `/v1/documents/${docId}`) : null;
+    const proj = select('project_id', projectOpts(), { required: true });
+    const ref = input('reference', { type: 'text', required: true, maxlength: '60', pattern: '[A-Za-z0-9][A-Za-z0-9._/-]*', placeholder: 'e.g. A-101' });
+    const kind = select('doc_type', DOC_TYPES.map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
+    const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '200' });
+    const disc = input('discipline', { type: 'text', maxlength: '60', placeholder: 'e.g. Structure' });
+    const rev = input('revision', { type: 'text', required: true, maxlength: '12', pattern: '[A-Za-z0-9][A-Za-z0-9.-]*', placeholder: 'e.g. A or P01' });
+    const file = input('file', { type: 'file', required: true, accept: Object.keys(DOC_MEDIA).map((x) => '.' + x).join(',') });
+    const note = input('change_note', { type: 'text', required: true, minlength: '3', maxlength: '500', placeholder: 'What this revision is or what changed' });
+    const head = existing ? [h('p', {}, `${existing.number} · ${existing.reference} — ${existing.title}`,
+      existing.current ? ` · current revision ${existing.current.revision}` : ' · no revision published yet')]
+      : [h('div', { class: 'grid' }, field('Project', proj), field('Reference', ref, 'The project\'s own number for this document. It never changes.'), field('Type', kind), field('Title', title), field('Discipline', disc))];
+    formPage(existing ? 'Upload a new revision' : 'Register a document',
+      'The file is stored with its SHA-256, computed by the database. A revision is a draft until you submit it; a different person publishes it with a fresh multi-factor sign-in, and publishing replaces the current revision. PDF, PNG, JPEG, text, CSV, Word, Excel, DWG, DXF and IFC files up to 10 MiB.',
+      [...head, h('div', { class: 'grid' }, field('Revision', rev), field('File', file), field('Change note', note))], existing ? 'Upload revision' : 'Register and upload', async () => {
+        const f = file.files[0];
+        const media = DOC_MEDIA[(f.name.split('.').pop() || '').toLowerCase()];
+        if (!media) throw new Error('That kind of file is not accepted.');
+        if (f.size > 10 * 1024 * 1024) throw new Error('The file is larger than 10 MiB.');
+        const content = await fileBase64(f);
+        const id = existing ? existing.id : (await api('POST', '/v1/documents', { project_id: proj.value, reference: ref.value.trim(), doc_type: kind.value, title: title.value.trim(), discipline: disc.value.trim() })).id;
+        const res = await api('POST', `/v1/documents/${id}/revisions`, { revision: rev.value.trim(), file_name: f.name.replace(/[^A-Za-z0-9 ._()-]/g, '_').slice(0, 150), media_type: media, change_note: note.value.trim(), content });
+        created('document_revision', res, 'Revision');
+      });
+  },
+
+  async rfi() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const about = select('revision_id', [{ value: '', label: 'No particular document' }]);
+    const subject = input('subject', { type: 'text', required: true, minlength: '3', maxlength: '200' });
+    const question = h('textarea', { name: 'question', required: true, minlength: '10', maxlength: '4000', rows: '5' });
+    const to = input('assigned_to', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the person expected to answer' });
+    const due = input('due_on', { type: 'date', required: true, value: plusDays(7), min: today() });
+    const loadDocs = async () => {
+      const list = proj.value ? (await api('GET', `/v1/documents?project=${proj.value}`)).documents : [];
+      about.replaceChildren(h('option', { value: '' }, 'No particular document'), ...list.filter((x) => x.current).map((x) => h('option', { value: x.current.id }, `${x.reference} rev ${x.current.revision} — ${x.title}`)));
+    };
+    proj.addEventListener('change', loadDocs);
+    formPage('Raise a request for information', 'Ask a question about the works, optionally about the current revision of a document. Someone other than you answers it, once; then you close it. An answer that changes cost or time is followed by a change event.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('About', about), field('Subject', subject), field('Expected to answer', to), field('Answer due', due)), field('Question', question)], 'Raise the RFI', async () => {
+        const res = await api('POST', '/v1/rfis', { project_id: proj.value, subject: subject.value.trim(), question: question.value.trim(), revision_id: about.value, assigned_to: to.value.trim(), due_on: due.value });
+        created('rfi', res, 'RFI');
+      });
+    await loadDocs();
   },
 
   async notice() {
@@ -4147,6 +4313,235 @@ function addObligationSheet(contracts, after) {
       closeSheet(); say('Obligation added.'); after();
     } catch (e) { sheetError(sheet, e); }
   });
+}
+
+// ---------- SERK FLEET (0054) ----------
+const FLEET_CLASSES = ['EXCAVATOR', 'GRADER', 'LOADER', 'BULLDOZER', 'CRANE', 'GENERATOR', 'TRUCK', 'MIXER', 'BATCHING_PLANT', 'COMPACTOR', 'TOOL', 'OTHER'];
+const FLEET_STATE = { REGISTERED: 'Registered', AVAILABLE: 'Available', RESERVED: 'Reserved', MOBILIZING: 'Mobilising', ASSIGNED: 'Assigned', OPERATING: 'Operating', IDLE: 'Idle',
+  UNDER_INSPECTION: 'Under inspection', UNDER_MAINTENANCE: 'Under maintenance', BREAKDOWN: 'Breakdown', SAFETY_HOLD: 'Safety hold', DEMOBILIZING: 'Demobilising', RETIRED: 'Retired', DISPOSED: 'Disposed' };
+const FLEET_MOVE = { AVAILABLE: 'Put into service', MOBILIZING: 'Mobilise to a project', ASSIGNED: 'Confirm at the project', OPERATING: 'Start operating', IDLE: 'Mark idle', DEMOBILIZING: 'Demobilise',
+  UNDER_INSPECTION: 'Send for inspection', UNDER_MAINTENANCE: 'Send for maintenance', BREAKDOWN: 'Report a breakdown', SAFETY_HOLD: 'Place on safety hold', RETIRED: 'Retire', DISPOSED: 'Record disposal', RESERVED: 'Return to the yard' };
+const OUT_OF_SERVICE = ['UNDER_INSPECTION', 'UNDER_MAINTENANCE', 'BREAKDOWN', 'SAFETY_HOLD'];
+const pct = (v) => (v == null ? 'No logged hours' : (Number(v) * 100).toFixed(1) + '%');
+async function fleetOpts() {
+  const r = await api('GET', '/v1/equipment?limit=200');
+  return r.items.filter((e) => !['REGISTERED', 'SAFETY_HOLD', 'RETIRED', 'DISPOSED'].includes(e.status)).map((e) => ({ value: e.id, label: `${e.number} ${e.name} (${FLEET_STATE[e.status].toLowerCase()})` }));
+}
+const projectCode = (pid) => { const p = (S.ref.projects || []).find((x) => x.id === pid); return p ? p.code : ''; };
+async function renderFleet(id) {
+  closeSheet();
+  if (id) return renderEquipment(id);
+  const from = plusDays(-30);
+  const [sum, first] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50')]);
+  const n = (...st) => st.reduce((a, k) => a + (sum.by_status[k] || 0), 0);
+  const kpi = (v, k, warn) => h('div', { class: `kpi${warn && v ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(v)), h('div', { class: 'k' }, k));
+  const rows = [...first.items];
+  let next = first.next || '';
+  const holder = h('div');
+  const more = h('button', { type: 'button', class: 'ghost' }, 'Load more');
+  const draw = () => {
+    holder.textContent = '';
+    holder.append(table('Equipment register', [
+      { label: 'Number', cell: (e) => h('a', { href: `#/fleet/${e.id}` }, e.number) },
+      { label: 'Name', cell: (e) => e.name },
+      { label: 'Class', cell: (e) => words(e.class.toLowerCase()) },
+      { label: 'Make and model', cell: (e) => `${e.manufacturer} ${e.model}` },
+      { label: 'State', cell: (e) => FLEET_STATE[e.status] || e.status },
+      { label: 'Project', cell: (e) => projectCode(e.current_project_id) },
+      { label: 'Meter', num: true, cell: (e) => (e.meter_kind === 'NONE' ? '' : `${money(e.last_meter)} ${e.meter_kind === 'KM' ? 'km' : 'h'}`) },
+    ], rows, 'No equipment is registered.'));
+    more.hidden = !next;
+  };
+  more.addEventListener('click', async () => {
+    more.disabled = true;
+    try { const p = await api('GET', `/v1/equipment?limit=50&cursor=${encodeURIComponent(next)}`); rows.push(...p.items); next = p.next || ''; draw(); } catch (e) { showError(e); } finally { more.disabled = false; }
+  });
+  draw();
+  const act = (perm, href, label) => (S.can.has(perm) ? h('a', { class: 'btn', href }, label) : null);
+  page('Fleet command centre', 'Every machine, plant item and tool: where it is, what state it is in, and what the approved daily logs of the last 30 days say it did. Figures are computed from the register and approved logs in your scope; nothing here is a sample.',
+    h('div', { class: 'toolbar' }, act('fleet.manage', '#/new/equipment', 'Register equipment'), act('fleet.reserve', '#/new/equipment_reservation', 'Reserve equipment'), act('fleet.operate', '#/new/equipment_log', 'Record a log')),
+    h('div', { class: 'kpis' }, kpi(sum.total, 'In the register'), kpi(n('AVAILABLE', 'RESERVED'), 'In the yard, in service'), kpi(n('MOBILIZING', 'ASSIGNED', 'OPERATING', 'IDLE', 'DEMOBILIZING'), 'At projects'),
+      kpi(n('UNDER_INSPECTION', 'UNDER_MAINTENANCE', 'BREAKDOWN'), 'Out of service', true), kpi(n('SAFETY_HOLD'), 'On safety hold', true), kpi(n('REGISTERED'), 'Awaiting commissioning')),
+    table(`Usage from approved logs, ${from} to ${today()}`, [
+      { label: 'Equipment', cell: (u) => h('a', { href: `#/fleet/${u.equipment_id}` }, `${u.number} ${u.name}`) },
+      { label: 'Logs', num: true, cell: (u) => String(u.logs) },
+      { label: 'Productive h', num: true, cell: (u) => money(u.productive_hours) },
+      { label: 'Idle h', num: true, cell: (u) => money(u.idle_hours) },
+      { label: 'Down h', num: true, cell: (u) => money(u.down_hours) },
+      { label: 'Utilization', num: true, cell: (u) => pct(u.utilization) },
+      { label: 'Availability', num: true, cell: (u) => pct(u.availability) },
+      { label: 'Fuel l/h', num: true, cell: (u) => (u.fuel_litres_per_hour == null ? '' : money(u.fuel_litres_per_hour)) },
+      { label: 'Unlogged meter', num: true, cell: (u) => (Number(u.unlogged_meter_units) ? money(u.unlogged_meter_units) : '') },
+    ], sum.usage, 'No approved logs in this period.'),
+    h('p', { class: 'hint' }, sum.basis), holder, h('div', { class: 'actions' }, more));
+}
+async function renderEquipment(id) {
+  const e = await api('GET', `/v1/equipment/${id}`);
+  const moves = e.moves || [];
+  let panel = null;
+  if (moves.length) {
+    const to = select('to', moves.map((m) => ({ value: OUT_OF_SERVICE.includes(e.status) && ['AVAILABLE', 'RESERVED', 'ASSIGNED'].includes(m) ? 'IN_SERVICE' : m,
+      label: OUT_OF_SERVICE.includes(e.status) && ['AVAILABLE', 'RESERVED', 'ASSIGNED'].includes(m) ? 'Certify fit and return to service' : (FLEET_MOVE[m] || m) }))
+      .filter((o, i, a) => a.findIndex((x) => x.value === o.value) === i));
+    const reason = input('reason', { type: 'text', required: true, minlength: '3', maxlength: '300' });
+    const proj = select('project_id', [{ value: '', label: 'Choose the project' }, ...projectOpts()]);
+    const projField = field('Project', proj, 'The project must hold an approved reservation for this machine.');
+    const toggle = () => { projField.hidden = to.value !== 'MOBILIZING'; };
+    to.addEventListener('change', toggle);
+    toggle();
+    const btn = h('button', { type: 'button', class: 'primary' }, 'Record the move');
+    btn.addEventListener('click', async () => {
+      clearError();
+      btn.disabled = true;
+      try { const r = await api('POST', `/v1/equipment/${id}/move`, { to: to.value, reason: reason.value.trim(), project_id: to.value === 'MOBILIZING' ? proj.value : '' }); say(`Now ${(FLEET_STATE[r.status] || r.status).toLowerCase()}.`); route(); }
+      catch (err) { showError(err); } finally { btn.disabled = false; }
+    });
+    panel = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Move this equipment'),
+      h('p', { class: 'hint' }, 'Every move is recorded with your name and reason and cannot be edited. Returning equipment to service after a hold, a breakdown, maintenance or inspection is reserved to a certifier with a fresh multi-factor sign-in.'),
+      h('div', { class: 'grid' }, field('Move', to), field('Reason', reason), projField), h('div', { class: 'actions' }, btn));
+  }
+  const fact = (k, v) => (v ? h('div', { class: 'kpi' }, h('div', { class: 'v small' }, v), h('div', { class: 'k' }, k)) : null);
+  page(`${e.number} — ${e.name}`, `${words(e.class.toLowerCase())}, ${e.ownership.toLowerCase()} · ${e.manufacturer} ${e.model} · serial ${e.serial_number}${e.registration ? ' · registration ' + e.registration : ''}.`,
+    h('div', { class: 'toolbar' }, S.can.has('fleet.reserve') ? h('a', { class: 'btn', href: `#/new/equipment_reservation/${e.id}` }, 'Reserve this equipment') : null,
+      S.can.has('fleet.operate') && e.current_project_id ? h('a', { class: 'btn', href: `#/new/equipment_log/${e.id}` }, 'Record a log') : null, h('a', { href: '#/fleet' }, 'Back to the fleet')),
+    h('div', { class: 'kpis' }, fact('State', FLEET_STATE[e.status] || e.status), fact('Project', projectCode(e.current_project_id) || 'In the yard'),
+      fact(e.meter_kind === 'KM' ? 'Odometer (km)' : 'Engine hours', e.meter_kind === 'NONE' ? 'No meter' : money(e.last_meter)), fact('Meter number', e.meter_kind === 'NONE' ? '' : String(e.meter_serial)), fact('Capacity', e.capacity)),
+    OUT_OF_SERVICE.includes(e.status) ? h('p', { class: 'hint' }, `Out of service: ${e.status_reason || ''} (${e.status_changed_by}). It cannot be put to work until a certifier returns it to service.`) : null,
+    panel,
+    table('Reservations that have not ended', [
+      { label: 'Number', cell: (r) => h('a', { href: `#/doc/equipment_reservation/${r.id}` }, r.number) },
+      { label: 'Project', cell: (r) => projectCode(r.project_id) }, { label: 'From', cell: (r) => r.starts_on }, { label: 'To', cell: (r) => r.ends_on },
+      { label: 'State', cell: (r) => words(r.status.toLowerCase()) }, { label: 'Purpose', cell: (r) => r.purpose },
+    ], e.reservations || [], 'No reservation is outstanding.'),
+    table('Lifecycle history, newest first', [
+      { label: 'When', cell: (v) => new Date(v.at).toLocaleString() }, { label: 'From', cell: (v) => FLEET_STATE[v.from] || '' }, { label: 'To', cell: (v) => FLEET_STATE[v.to] || v.to },
+      { label: 'Project', cell: (v) => projectCode(v.project_id) }, { label: 'Reason', cell: (v) => v.reason || '' }, { label: 'By', cell: (v) => v.actor },
+      { label: 'Meter', num: true, cell: (v) => money(v.meter) },
+    ], e.history || [], 'No history.'));
+}
+
+// ---------- controlled documents (0052) ----------
+const DOC_TYPES = ['DRAWING', 'SPECIFICATION', 'METHOD_STATEMENT', 'REPORT', 'CORRESPONDENCE', 'CONTRACT', 'CERTIFICATE', 'OTHER'];
+const DOC_MEDIA = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', txt: 'text/plain', csv: 'text/csv',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  dwg: 'image/vnd.dwg', dxf: 'image/vnd.dxf', ifc: 'application/x-step' };
+const REVISION_STATE = { DRAFT: 'Work in progress', SUBMITTED: 'Shared for review', APPROVED: 'Published (current)', REJECTED: 'Rejected', SUPERSEDED: 'Superseded (not current)' };
+const fileSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MiB' : n >= 1024 ? Math.round(n / 1024) + ' KiB' : n + ' B');
+function fileBase64(f) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).slice(String(r.result).indexOf(',') + 1));
+    r.onerror = () => reject(new Error('The file could not be read.'));
+    r.readAsDataURL(f);
+  });
+}
+async function downloadRevision(id, btn) {
+  clearError();
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`/v1/document-revisions/${id}/content`, { headers: { Authorization: 'Bearer ' + S.token } });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      const e = d.error || {};
+      throw new ApiError(r.status, e.code || 'error', e.message || r.statusText, r.headers.get('WWW-Authenticate'));
+    }
+    const blob = await r.blob();
+    const name = (/filename="([^"]+)"/.exec(r.headers.get('Content-Disposition') || '') || [])[1] || 'document';
+    const state = r.headers.get('X-Serk-Revision-Status');
+    const url = URL.createObjectURL(blob);
+    const a = h('a', { href: url, download: name, hidden: true });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    say(`${name} downloaded${state && state !== 'APPROVED' ? ' — ' + (REVISION_STATE[state] || state).toLowerCase() + ', not the current revision' : ''}.`);
+  } catch (e) { showError(e); } finally { if (btn) btn.disabled = false; }
+}
+const SCAN_STATE = { NOT_SCANNED: 'Not scanned', PENDING: 'Scan pending', CLEAN: 'Scanned clean', INFECTED: 'Quarantined: malware found', ERROR: 'Scan failed' };
+function revisionPanel(d, head, doc) {
+  const scan = head.scan_status || 'NOT_SCANNED';
+  const dl = h('button', { type: 'button', class: 'primary' }, 'Download the file');
+  dl.addEventListener('click', () => downloadRevision(d.id, dl));
+  const warn = d.status === 'APPROVED' ? null : h('p', { class: 'hint' }, d.status === 'SUPERSEDED' ? 'This revision has been superseded. It is kept as history and must not be built from.'
+    : d.status === 'REJECTED' ? 'This revision was rejected and was never published.' : 'This revision is not published yet. The published revision, if any, remains the current one.');
+  const post = (path, body, done) => async (ev) => {
+    clearError();
+    ev.currentTarget.disabled = true;
+    try { await api('POST', `/v1/document-revisions/${d.id}/${path}`, body ? body() : undefined); say(done); route(); } catch (e) { showError(e); ev.currentTarget.disabled = false; }
+  };
+  const acts = [];
+  if (scan !== 'INFECTED') acts.push(dl);
+  if (scan !== 'CLEAN' && scan !== 'INFECTED' && S.can.has('document.manage')) acts.push(h('button', { type: 'button', on: { click: post('rescan', null, 'Scan requested.') } }, 'Scan now'));
+  let discard = null;
+  if (scan === 'INFECTED' && d.status === 'DRAFT' && d.created_by === S.me.user_id) {
+    const why = input('reason', { type: 'text', maxlength: '300', value: 'Infected upload' });
+    discard = h('div', { class: 'actions' }, field('Reason', why), h('button', { type: 'button', on: { click: post('discard', () => ({ reason: why.value.trim() }), 'Revision discarded.') } }, 'Discard this revision'));
+  }
+  const scanNote = scan === 'INFECTED' ? `The scanner found ${head.scan_detail || 'malware'}. This file cannot be submitted, published or downloaded.`
+    : scan === 'CLEAN' ? null : 'While your company requires scanning, a file that has not been scanned clean cannot be submitted, published or downloaded.';
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${doc.reference || ''} — ${doc.title || ''}`.trim()),
+    h('p', {}, `${REVISION_STATE[d.status] || d.status} · revision ${head.revision} · ${head.file_name} · ${fileSize(Number(head.size_bytes))}`),
+    h('p', {}, `${SCAN_STATE[scan] || scan}${head.scan_engine ? ' — ' + head.scan_engine : ''}`), scanNote ? h('p', { class: 'hint' }, scanNote) : null,
+    h('p', { class: 'hint' }, `SHA-256 ${head.sha256}`), warn,
+    h('div', { class: 'actions' }, acts, doc.id ? h('a', { href: `#/documents/${doc.id}` }, 'All revisions of this document') : null), discard);
+}
+function rfiPanel(d, head) {
+  const manage = S.can.has('document.manage');
+  const mine = d.created_by === S.me.user_id;
+  if (d.status === 'OPEN' && manage && !mine) {
+    const answer = h('textarea', { name: 'answer', required: true, minlength: '3', maxlength: '4000', rows: '4' });
+    const btn = h('button', { type: 'button', class: 'primary' }, 'Record the answer');
+    btn.addEventListener('click', async () => {
+      clearError();
+      try { await api('POST', `/v1/rfis/${d.id}/answer`, { answer: answer.value.trim() }); say('Answer recorded.'); route(); } catch (e) { showError(e); }
+    });
+    return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Answer'), h('p', { class: 'hint' }, 'An answer is recorded once and cannot be edited afterwards.'), field('Answer', answer), h('div', { class: 'actions' }, btn));
+  }
+  if (d.status !== 'CLOSED' && manage && mine) {
+    const note = input('note', { type: 'text', maxlength: '500', placeholder: d.status === 'OPEN' ? 'Why the question is withdrawn (required)' : 'Optional closing note' });
+    const btn = h('button', { type: 'button', class: 'primary' }, d.status === 'OPEN' ? 'Withdraw the RFI' : 'Close the RFI');
+    btn.addEventListener('click', async () => {
+      clearError();
+      try { await api('POST', `/v1/rfis/${d.id}/close`, { note: note.value.trim() }); say('RFI closed.'); route(); } catch (e) { showError(e); }
+    });
+    return h('div', { class: 'panel' }, h('h2', { class: 'section' }, d.status === 'OPEN' ? 'Waiting for an answer' : 'Close'),
+      h('p', { class: 'hint' }, d.status === 'OPEN' ? 'Someone other than you records the answer. You can withdraw the question with a reason.' : 'The question has been answered. Close it when the answer is sufficient.'),
+      h('div', { class: 'actions' }, field('Note', note), btn));
+  }
+  return null;
+}
+async function renderDocuments(id) {
+  closeSheet();
+  if (id) {
+    const d = await api('GET', `/v1/documents/${id}`);
+    const up = S.can.has('document.manage') && !d.revisions_in_review ? h('a', { class: 'btn', href: `#/new/document/${d.id}` }, 'Upload a new revision') : null;
+    return page(`${d.reference} — ${d.title}`, `${d.number} · ${words(d.doc_type.toLowerCase())}${d.discipline ? ' · ' + d.discipline : ''} · registered by ${d.created_by}. ${d.current ? 'Revision ' + d.current.revision + ' is the current revision.' : 'No revision is published yet.'}`,
+      h('div', { class: 'toolbar' }, up, h('a', { href: '#/documents' }, 'Back to the register')),
+      table('Revisions, newest first', [
+        { label: 'Revision', cell: (v) => h('a', { href: `#/doc/document_revision/${v.id}` }, v.revision) },
+        { label: 'State', cell: (v) => REVISION_STATE[v.status] || v.status },
+        { label: 'Scan', cell: (v) => SCAN_STATE[v.scan_status] || v.scan_status },
+        { label: 'File', cell: (v) => `${v.file_name} (${fileSize(v.size_bytes)})` },
+        { label: 'Change note', cell: (v) => v.change_note },
+        { label: 'Uploaded by', cell: (v) => v.created_by },
+        { label: 'Published by', cell: (v) => v.approved_by && v.status !== 'REJECTED' ? v.approved_by : '' },
+        { label: '', cell: (v) => (v.scan_status === 'INFECTED' ? '' : h('button', { type: 'button', class: 'ghost', 'aria-label': `Download revision ${v.revision}`, on: { click: (ev) => downloadRevision(v.id, ev.currentTarget) } }, 'Download')) },
+      ], d.revisions, 'No revision has been uploaded.'));
+  }
+  const list = (await api('GET', '/v1/documents')).documents;
+  const add = S.can.has('document.manage') ? h('a', { class: 'btn', href: '#/new/document' }, 'Register a document') : null;
+  const proj = (pid) => { const p = (S.ref.projects || []).find((x) => x.id === pid); return p ? p.code : ''; };
+  page('Document register', 'The controlled documents of your projects. Each shows its current revision: the one published by a second person. Earlier revisions are kept as history and marked superseded.',
+    h('div', { class: 'toolbar' }, add),
+    table('Documents', [
+      { label: 'Reference', cell: (d) => h('a', { href: `#/documents/${d.id}` }, d.reference) },
+      { label: 'Title', cell: (d) => d.title },
+      { label: 'Type', cell: (d) => words(d.doc_type.toLowerCase()) },
+      { label: 'Project', cell: (d) => proj(d.project_id) },
+      { label: 'Current revision', cell: (d) => (d.current ? h('a', { href: `#/doc/document_revision/${d.current.id}` }, d.current.revision) : 'None published') },
+      { label: 'In review', cell: (d) => (d.revisions_in_review ? 'Yes' : '') },
+      { label: '', cell: (d) => (d.current ? h('button', { type: 'button', class: 'ghost', 'aria-label': `Download ${d.reference}`, on: { click: (ev) => downloadRevision(d.current.id, ev.currentTarget) } }, 'Download') : '') },
+    ], list, 'No documents are registered for your projects.'));
 }
 
 async function renderObligations() {

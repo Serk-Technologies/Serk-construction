@@ -30,6 +30,7 @@ type Service struct {
 	// bankKeys encrypts bank account numbers at rest (R-BANK-AT-REST). Nil
 	// fails closed: bank details can be neither recorded nor revealed.
 	bankKeys *datakey.Ring
+	docs     DocumentStore // document storage and scanning (ADR 0019)
 	// phraser optionally rewrites assistant answers (intelligence.go). Nil
 	// means deterministic text only.
 	phraser Phraser

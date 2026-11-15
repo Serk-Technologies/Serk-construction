@@ -62,7 +62,19 @@ the conflict catalogue below is tested against every role.
 
 ### planner
 
-`intelligence.read`, `p2p.read`, `schedule.manage`
+`document.manage`, `intelligence.read`, `p2p.read`, `schedule.manage`
+
+### plant_inspector
+
+`fleet.release`, `p2p.read`, `scope.tenant_wide`
+
+### plant_manager
+
+`fleet.approve`, `intelligence.read`, `p2p.read`, `scope.tenant_wide`
+
+### plant_officer
+
+`fleet.manage`, `fleet.operate`, `p2p.read`, `scope.tenant_wide`
 
 ### process_owner
 
@@ -82,11 +94,11 @@ the conflict catalogue below is tested against every role.
 
 ### project_manager
 
-`budget.revise`, `budget.transfer`, `change.manage`, `claim.manage`, `delegation.create`, `forecast.prepare`, `fx.read`, `intelligence.read`, `journal.read`, `p2p.read`, `pr.approve`, `project.gate.submit`, `project.update`, `schedule.approve`, `site.diary.approve`, `stock.issue.approve`, `stock.reserve`, `wbs.manage`, `workflow.read`
+`budget.revise`, `budget.transfer`, `change.manage`, `claim.manage`, `delegation.create`, `document.approve`, `fleet.log.approve`, `fleet.reserve`, `forecast.prepare`, `fx.read`, `intelligence.read`, `journal.read`, `p2p.read`, `pr.approve`, `project.gate.submit`, `project.update`, `schedule.approve`, `site.diary.approve`, `stock.issue.approve`, `stock.reserve`, `wbs.manage`, `workflow.read`
 
 ### quantity_surveyor
 
-`change.manage`, `claim.manage`, `escalation.manage`, `intelligence.read`, `ipc.prepare`, `measure.create`, `p2p.read`
+`change.manage`, `claim.manage`, `document.manage`, `escalation.manage`, `intelligence.read`, `ipc.prepare`, `measure.create`, `p2p.read`
 
 ### security_admin
 
@@ -94,7 +106,7 @@ the conflict catalogue below is tested against every role.
 
 ### site_engineer
 
-`grn.confirm`, `measure.verify`, `p2p.read`, `pr.create`, `rfq.evaluate`, `site.device.register`, `site.diary.manage`, `stock.issue.approve`, `stock.reserve`
+`document.manage`, `fleet.operate`, `fleet.reserve`, `grn.confirm`, `measure.verify`, `p2p.read`, `pr.create`, `rfq.evaluate`, `site.device.register`, `site.diary.manage`, `stock.issue.approve`, `stock.reserve`
 
 ### storekeeper
 
@@ -155,8 +167,16 @@ the conflict catalogue below is tested against every role.
 | `customer.manage` | ar_clerk |
 | `delegation.approve` | security_admin |
 | `delegation.create` | cfo, commercial_manager, controller, finance_manager, procurement_manager, project_manager |
+| `document.approve` | project_manager |
+| `document.manage` | planner, quantity_surveyor, site_engineer |
 | `escalation.approve` | commercial_manager |
 | `escalation.manage` | quantity_surveyor |
+| `fleet.approve` | plant_manager |
+| `fleet.log.approve` | project_manager |
+| `fleet.manage` | plant_officer |
+| `fleet.operate` | plant_officer, site_engineer |
+| `fleet.release` | plant_inspector |
+| `fleet.reserve` | project_manager, site_engineer |
 | `forecast.approve` | cfo, commercial_manager |
 | `forecast.prepare` | project_manager |
 | `fx.approve` | cfo, finance_manager |
@@ -167,7 +187,7 @@ the conflict catalogue below is tested against every role.
 | `grn.confirm` | site_engineer |
 | `grn.create` | storekeeper |
 | `identity.revoke_sessions` | security_admin |
-| `intelligence.read` | accountant, auditor, cfo, commercial_manager, controller, finance_manager, planner, process_owner, procurement_manager, project_manager, quantity_surveyor, treasury_officer, workflow_admin |
+| `intelligence.read` | accountant, auditor, cfo, commercial_manager, controller, finance_manager, planner, plant_manager, process_owner, procurement_manager, project_manager, quantity_surveyor, treasury_officer, workflow_admin |
 | `ipc.certify` | commercial_manager |
 | `ipc.prepare` | quantity_surveyor |
 | `journal.approve` | finance_manager |
@@ -180,7 +200,7 @@ the conflict catalogue below is tested against every role.
 | `org.manage` | controller |
 | `p2p.policy.approve` | cfo |
 | `p2p.policy.manage` | controller |
-| `p2p.read` | accountant, ap_clerk, ap_supervisor, ar_clerk, ar_supervisor, auditor, bank_statement_officer, cfo, commercial_manager, controller, estimator, finance_manager, inventory_controller, planner, procurement_manager, procurement_officer, project_manager, quantity_surveyor, site_engineer, storekeeper, treasury_officer |
+| `p2p.read` | accountant, ap_clerk, ap_supervisor, ar_clerk, ar_supervisor, auditor, bank_statement_officer, cfo, commercial_manager, controller, estimator, finance_manager, inventory_controller, planner, plant_inspector, plant_manager, plant_officer, procurement_manager, procurement_officer, project_manager, quantity_surveyor, site_engineer, storekeeper, treasury_officer |
 | `payment.approve` | cfo, finance_manager |
 | `payment.prepare` | treasury_officer |
 | `payment.release` | treasury_officer |
@@ -200,7 +220,7 @@ the conflict catalogue below is tested against every role.
 | `role.manage` | security_admin |
 | `schedule.approve` | project_manager |
 | `schedule.manage` | planner |
-| `scope.tenant_wide` | accountant, ar_clerk, ar_supervisor, auditor, bank_statement_officer, cfo, controller, finance_manager, inventory_controller, process_owner, security_admin, treasury_officer, workflow_admin |
+| `scope.tenant_wide` | accountant, ar_clerk, ar_supervisor, auditor, bank_statement_officer, cfo, controller, finance_manager, inventory_controller, plant_inspector, plant_manager, plant_officer, process_owner, security_admin, treasury_officer, workflow_admin |
 | `site.device.manage` | security_admin |
 | `site.device.register` | site_engineer |
 | `site.diary.approve` | project_manager |
@@ -284,6 +304,12 @@ the conflict catalogue below is tested against every role.
 | Cost forecasts | `forecast.prepare` + `forecast.approve` |
 | Change events | `change.manage` + `change.approve` |
 | Claims | `claim.manage` + `claim.approve` |
+| Controlled documents | `document.manage` + `document.approve` |
+| Equipment register and commissioning | `fleet.manage` + `fleet.approve` |
+| Equipment register and certification | `fleet.manage` + `fleet.release` |
+| Equipment reservations | `fleet.reserve` + `fleet.approve` |
+| Equipment operation and certification | `fleet.operate` + `fleet.release` |
+| Equipment logs | `fleet.operate` + `fleet.log.approve` |
 | Guarantees | `bond.manage` + `bond.approve` |
 | Price adjustment | `escalation.manage` + `escalation.approve` |
 
