@@ -1,19 +1,19 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-links-f5e0b8c.tests.txt",
- "register_commit": "f5e0b8c",
+ "results_file": "docs/engineering/evidence/2026-11-15-cashflow-f9106d5.tests.txt",
+ "register_commit": "f9106d5",
  "requirement_counts": {
-  "VERIFIED": 112,
+  "VERIFIED": 113,
   "NOT_STARTED": 65,
-  "IMPLEMENTING": 25,
+  "IMPLEMENTING": 24,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 43,
+  "NOT_STARTED": 42,
   "BLOCKED": 12,
-  "VERIFIED": 27
+  "VERIFIED": 28
  },
  "requirements": [
   {
@@ -1753,8 +1753,12 @@
    "domain": "CAP-01",
    "product": "CAPITAL",
    "text": "Balance sheet, income statement and cash-flow statement",
-   "status": "IMPLEMENTING",
-   "evidence_tests": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestAPIFinancialStatements",
+    "TestCashFlow_DirectMethodReference",
+    "TestConsoleBrowserFinance"
+   ],
    "criteria": [
     {
      "id": "CAP-01.5.a",
@@ -1768,9 +1772,12 @@
     {
      "id": "CAP-01.5.b",
      "text": "Cash-flow statement (needs operating/investing/financing classification of accounts)",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
-     "note": ""
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestCashFlow_DirectMethodReference",
+      "TestConsoleBrowserFinance"
+     ],
+     "note": "0091: account classes proposed and approved by different people (attested); direct method; opening + movement = closing, against a hand-computed reference."
     },
     {
      "id": "CAP-01.5.c",

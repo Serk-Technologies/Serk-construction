@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "f5e0b8c",
+ "register_commit": "f9106d5",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -1058,7 +1058,6 @@
     "CAP-09.3"
    ],
    "open_requirement_ids": [
-    "CAP-01.5",
     "CAP-05.3",
     "CAP-06.2",
     "CAP-07.1",
@@ -1069,11 +1068,6 @@
     "WP-012"
    ],
    "acceptance_criteria": [
-    {
-     "id": "CAP-01.5",
-     "text": "Balance sheet, income statement and cash-flow statement",
-     "status": "IMPLEMENTING"
-    },
     {
      "id": "CAP-05.3",
      "text": "Bank transfers through a bank API",
@@ -1097,11 +1091,6 @@
     {
      "id": "CAP-09.3",
      "text": "Audit chain anchored to separately protected storage",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "CAP-01.5.b",
-     "text": "Cash-flow statement (needs operating/investing/financing classification of accounts)",
      "status": "NOT_STARTED"
     },
     {
@@ -1140,6 +1129,7 @@
     "TestAPIRecurringJournalApproval",
     "TestAmbiguityIsAnError",
     "TestAuditChainLinearUnderConcurrency",
+    "TestCashFlow_DirectMethodReference",
     "TestClosedPeriodBlocksPosting",
     "TestConcurrentIdenticalCreatesAreIdempotent",
     "TestConsoleBrowserFinance",
