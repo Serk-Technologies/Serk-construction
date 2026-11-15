@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-fleet-corrections.tests.txt",
- "commit": "12ca58e",
+ "results_file": "docs/engineering/evidence/2026-11-15-forms-api-5a8c052.tests.txt",
+ "commit": "5a8c052",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,20 +11,21 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 101,
-  "NOT_STARTED": 88,
-  "IMPLEMENTING": 10,
+  "VERIFIED": 105,
+  "NOT_STARTED": 78,
+  "IMPLEMENTING": 17,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 2
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
-  "NOT_STARTED": 42,
+  "IMPLEMENTING": 6,
+  "NOT_STARTED": 33,
   "BLOCKED": 12,
-  "VERIFIED": 2
+  "VERIFIED": 6
  },
  "domain_counts": {
-  "IMPLEMENTING": 40,
-  "NOT_STARTED": 38,
+  "IMPLEMENTING": 45,
+  "NOT_STARTED": 33,
   "BLOCKED": 2
  },
  "domains": [
@@ -187,16 +188,16 @@
       {
        "id": "CMD-05.2.a",
        "text": "Certified, billed and collected amounts are separate lines of the projection",
-       "status": "NOT_STARTED",
+       "status": "IMPLEMENTING",
        "evidence_tests": [],
-       "note": ""
+       "note": "new-version 13-week forecast (TestCashForecast_ThirteenWeeks); no collected line"
       },
       {
        "id": "CMD-05.2.b",
        "text": "Supplier payment schedule from approved invoices and open purchase orders by due date",
-       "status": "NOT_STARTED",
+       "status": "IMPLEMENTING",
        "evidence_tests": [],
-       "note": ""
+       "note": "new-version forecast; due-date week placement not asserted"
       },
       {
        "id": "CMD-05.2.c",
@@ -215,9 +216,9 @@
       {
        "id": "CMD-05.2.e",
        "text": "Collection schedule from issued customer invoices by due date",
-       "status": "NOT_STARTED",
+       "status": "IMPLEMENTING",
        "evidence_tests": [],
-       "note": ""
+       "note": "new-version forecast; due-date week placement not asserted"
       },
       {
        "id": "CMD-05.2.f",
@@ -685,7 +686,7 @@
        "text": "Installed quantities come from work packages, not typed onto the report",
        "status": "NOT_STARTED",
        "evidence_tests": [],
-       "note": ""
+       "note": "new-version rules of credit take installed quantities as typed entries by activity code, which this criterion excludes"
       },
       {
        "id": "PLB-08.2.b",
@@ -914,16 +915,16 @@
    "domain": "Subcontract",
    "milestone": "M6",
    "owner": "Construction lead",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "SUP-04.1",
      "text": "Subcontracts: scope/BOQ, security, measured work, retention, deductions",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "",
+     "note": "Integrated from new-version (ADR 0025): certificates with retention, advance recovery, back-charges, withholding and journals (TestSubcontract_CertificatesAndJournal). Independent review: no BOQ link, no security (bond); cancellation unattested (DEF-017).",
      "criteria": []
     }
    ]
@@ -1559,16 +1560,16 @@
    "domain": "Fixed assets",
    "milestone": "M6",
    "owner": "Finance controller",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "FLT-04.1",
      "text": "Capitalisation, depreciation and disposal posted through the ledger",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "",
+     "note": "Integrated from new-version (ADR 0025), TestFixedAssets_CapitaliseDepreciateDispose. Independent review: capitalisation journal lines not asserted; no link to the fleet register; disposal relies on trigger depth (DEF-017).",
      "criteria": []
     }
    ]
@@ -1633,16 +1634,16 @@
       {
        "id": "PPL-03.1.a",
        "text": "Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated",
-       "status": "NOT_STARTED",
+       "status": "IMPLEMENTING",
        "evidence_tests": [],
-       "note": ""
+       "note": "new-version payroll (TestPayroll_RunApprovePay); activation of an unapproved set is not tested"
       },
       {
        "id": "PPL-03.1.b",
        "text": "Preview, independent approval, locked run, journal and payment record with synthetic test rules",
-       "status": "NOT_STARTED",
+       "status": "IMPLEMENTING",
        "evidence_tests": [],
-       "note": ""
+       "note": "new-version payroll; the locked run is not tested; employee bank details unapproved (DEF-010)"
       },
       {
        "id": "PPL-03.1.c",
@@ -1849,9 +1850,9 @@
       {
        "id": "CON-04.3.b",
        "text": "Revenue recognition follows a contract-specific, approved policy and is not triggered by invoicing alone",
-       "status": "NOT_STARTED",
+       "status": "IMPLEMENTING",
        "evidence_tests": [],
-       "note": ""
+       "note": "new-version revenue runs (TestRevenue_RunAndWIPJournal): policy per legal entity, not per contract"
       },
       {
        "id": "CON-04.3.c",
@@ -2134,16 +2135,16 @@
    "domain": "Consolidation",
    "milestone": "M10",
    "owner": "Finance controller",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "CAP-07.1",
      "text": "Intercompany matching, translation and elimination for consolidated statements",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "",
+     "note": "Integrated from new-version (ADR 0025), TestConsolidation_TranslateEliminateApprove: consolidated trial balance with translation, CTA, NCI and eliminations. Independent review: matching is per account pair, not per transaction; no statements; no database maker-checker (DEF-009).",
      "criteria": []
     }
    ]
@@ -2234,16 +2235,16 @@
    "domain": "Quality",
    "milestone": "M6",
    "owner": "Construction lead",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "ASR-01.1",
      "text": "ITP with hold/witness points, NCR and corrective action through independent closure",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "",
+     "note": "Integrated from new-version (ADR 0025), TestQuality_HoldPointNCRAndSiteRecords. Independent review: inspection results and NCR closure are unattested (DEF-008), witness points not asserted.",
      "criteria": []
     }
    ]
@@ -2700,16 +2701,16 @@
    "domain": "Meetings",
    "milestone": "M7",
    "owner": "Product owner",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "CNX-08.1",
      "text": "Meeting minutes with actions and decisions",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "",
+     "note": "Integrated from new-version (ADR 0025): meetings with actions; no decisions recorded.",
      "criteria": []
     }
    ]
@@ -3466,27 +3467,42 @@
       {
        "id": "XCT-API.2.a",
        "text": "Every error response is application/problem+json with type, title, status and detail",
-       "status": "NOT_STARTED",
-       "evidence_tests": [],
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestProblemDetailsRFC9457"
+       ],
        "note": ""
       },
       {
        "id": "XCT-API.2.b",
        "text": "Document lists page by an opaque cursor with stable ordering",
-       "status": "NOT_STARTED",
-       "evidence_tests": [],
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestListCursorPagination"
+       ],
        "note": ""
       },
       {
        "id": "XCT-API.2.c",
        "text": "A cursor cannot cross tenants or change the filters it was issued for",
-       "status": "NOT_STARTED",
-       "evidence_tests": [],
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestListCursorPagination"
+       ],
        "note": ""
       },
       {
        "id": "XCT-API.2.d",
        "text": "Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestListCursorPagination"
+       ],
+       "note": ""
+      },
+      {
+       "id": "XCT-API.2.e",
+       "text": "Lists outside the document framework (journals, stock, people, reports) page by cursor",
        "status": "NOT_STARTED",
        "evidence_tests": [],
        "note": ""
@@ -3507,30 +3523,33 @@
     {
      "id": "XCT-FORM.1",
      "text": "A dependent form applies only the newest answer for each list it loads; an older answer or error never replaces a newer one",
-     "status": "IMPLEMENTING",
+     "status": "VERIFIED",
      "evidence_tests": [
-      "TestConsoleBrowserDocuments",
-      "TestConsoleBrowserJourneyA",
-      "TestConsoleBrowserPlanning"
+      "TestConsoleBrowserForms",
+      "TestConsoleBrowserDocuments"
      ],
      "evidence_file": "",
-     "note": "latestOnly/refill in all eleven reloading forms; three forms have their own race reproduction.",
+     "note": "Barrier-driven (no timers) for six cost-code forms, older success and older failure after a newer answer; the RFI form by its own reproduction. Shown to fail on the previous console.",
      "criteria": []
     },
     {
      "id": "XCT-FORM.2",
      "text": "Form state (lines, amounts, descriptions) lives in a state object with stable line identities, independent of the DOM",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestConsoleBrowserForms"
+     ],
      "evidence_file": "",
-     "note": "",
+     "note": "lineGrid keeps rows in state; a project change refills choices in place and typed lines survive.",
      "criteria": []
     },
     {
      "id": "XCT-FORM.3",
      "text": "Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestConsoleBrowserForms"
+     ],
      "evidence_file": "",
      "note": "",
      "criteria": []
@@ -3538,28 +3557,34 @@
     {
      "id": "XCT-FORM.4",
      "text": "Submission is blocked while dependent data is loading and cannot be sent twice",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "IMPLEMENTING",
+     "evidence_tests": [
+      "TestConsoleBrowserForms"
+     ],
      "evidence_file": "",
-     "note": "",
+     "note": "Blocking while loading is verified; the guard against a second send exists but has no test of its own.",
      "criteria": []
     },
     {
      "id": "XCT-FORM.5",
      "text": "Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "IMPLEMENTING",
+     "evidence_tests": [
+      "TestConsoleBrowserForms"
+     ],
      "evidence_file": "",
-     "note": "",
+     "note": "Asking first is verified; cancellation on navigation is implemented (AbortController) but not tested.",
      "criteria": []
     },
     {
      "id": "XCT-FORM.6",
      "text": "Every reloading form has a barrier-driven regression that fails without the fix",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "IMPLEMENTING",
+     "evidence_tests": [
+      "TestConsoleBrowserForms"
+     ],
      "evidence_file": "",
-     "note": "",
+     "note": "Seven of eleven: requisition, budget revision, change event, BOQ, schedule, budget transfer (barrier) and RFI (held answer). Not yet: contingency drawdown, stock issue, fuel dispense, work-order part.",
      "criteria": []
     }
    ]
@@ -3576,7 +3601,7 @@
     {
      "id": "XCT-UI.1",
      "text": "AURA light and dark token sets meet their contrast targets and the console stylesheet matches them",
-     "status": "IMPLEMENTED_UNVERIFIED",
+     "status": "VERIFIED",
      "evidence_tests": [
       "TestAURATokensMatchStylesheet"
      ],

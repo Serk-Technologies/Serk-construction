@@ -26,7 +26,7 @@ graph LR
   WP013["WP-013 Contract: revenue-recognition states and remaind<br/>IN_PROGRESS"]
   WP014["WP-014 Capital: statements, bank adapter, tax engine, c<br/>IN_PROGRESS"]
   WP012 --> WP014
-  WP015["WP-015 Assure: quality, laboratory, HSE, sustainability<br/>NOT_STARTED"]
+  WP015["WP-015 Assure: quality, laboratory, HSE, sustainability<br/>IN_PROGRESS"]
   WP009 --> WP015
   WP016["WP-016 Connect: CDE remainder, submittals, corresponden<br/>IN_PROGRESS"]
   WP017["WP-017 Estate: units, sales, facilities, commissioning,<br/>NOT_STARTED"]

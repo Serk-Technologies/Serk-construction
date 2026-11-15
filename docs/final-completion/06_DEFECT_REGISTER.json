@@ -27,19 +27,20 @@
    "id": "DEF-003",
    "severity": "Medium",
    "area": "Console forms",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Form state lives in the DOM; a re-render can lose typed lines (directive 7.1)",
    "evidence": "app.js forms rebuild line grids from fetched data; latestOnly only orders answers",
    "impact": "Entered financial lines depend on whether a DOM node survives",
    "next_action": "WP-001 form-state module",
-   "found": "directive 7.1"
+   "found": "directive 7.1",
+   "closure": "Form-state module (lineGrid rows in state, setChoices in place, unresolved choices, pending gating, stale-error suppression, leave-form prompt); TestConsoleBrowserForms fails on the previous console and passes now"
   },
   {
    "id": "DEF-004",
-   "severity": "Medium",
+   "severity": "Low",
    "area": "Console forms",
    "status": "OPEN",
-   "title": "Eight of the eleven reloading forms have no race regression of their own",
+   "title": "Four of the eleven reloading forms have no race regression of their own (contingency drawdown, stock issue, fuel dispense, work-order part)",
    "evidence": "e2e/*.mjs: reproductions exist for RFI, requisition and schedule only",
    "impact": "A regression in those eight forms would not be caught",
    "next_action": "WP-001 barrier-driven regressions",
@@ -77,6 +78,149 @@
    "impact": "Unreviewable binary in history; must not be carried into the integration",
    "next_action": "Exclude from the integration; build the seeder from cmd/serk-seed",
    "found": "2026-11-15 final-completion discovery"
+  },
+  {
+   "id": "DEF-008",
+   "severity": "High",
+   "area": "Quality",
+   "status": "OPEN",
+   "title": "Inspection pass/fail and NCR closure are not attested: result_by is free text written by the tenant login; a PASSED row releases a HOLD point (0070_quality_site.sql:102-125, 169-195)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Hold points can be released under a forged identity",
+   "next_action": "Attest results and closures with approval_use and database maker != checker; regression through raw SQL",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-009",
+   "severity": "High",
+   "area": "Tax / consolidation / quality",
+   "status": "OPEN",
+   "title": "No database maker != checker on tax_returns (0069:38), consolidation_groups/runs (0068:21,151) and itps (0070:16); separation is enforced only in Go",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "A tenant login can self-approve",
+   "next_action": "Guard: approver distinct from created_by in the database; raw-SQL regression",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-010",
+   "severity": "High",
+   "area": "Payroll",
+   "status": "OPEN",
+   "title": "Employees' bank details and base rates are set without approval (0067_payroll.sql:94-135) while pay runs release payment to them",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Payment diversion by editing master data",
+   "next_action": "Employee bank details through the same approval as supplier bank accounts",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-011",
+   "severity": "Medium",
+   "area": "Progress credit",
+   "status": "OPEN",
+   "title": "Rule-of-credit approval has no approval_use; approved_by is client-supplied text (0071:44-63)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Forged approver identity",
+   "next_action": "Attest the approval",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-012",
+   "severity": "Medium",
+   "area": "Period end",
+   "status": "OPEN",
+   "title": "Overhead can be allocated twice over overlapping date ranges (0064_period_end.sql:194, 164)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Double allocation of overhead",
+   "next_action": "Refuse overlapping ranges in the database",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-013",
+   "severity": "Medium",
+   "area": "Period end",
+   "status": "OPEN",
+   "title": "Overhead, recurring and accrual journals are not bound to computed amounts; recurring templates unapproved; line binding uses a one-minute window (0064:95, 221)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Unverified journal amounts",
+   "next_action": "Bind journal lines to the computed share; approve templates",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-014",
+   "severity": "Medium",
+   "area": "Access",
+   "status": "OPEN",
+   "title": "Role adjustments have no attestation or MFA in the database (0066_role_adjustments.sql:52)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Withheld permissions can be restored by the tenant login",
+   "next_action": "Attest adjustments with MFA",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-015",
+   "severity": "Medium",
+   "area": "Tax / consolidation",
+   "status": "OPEN",
+   "title": "Tax-account and intercompany-account designations are unapproved (0069, 0068)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Return and elimination content can be changed silently",
+   "next_action": "Designations through approval",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-016",
+   "severity": "Medium",
+   "area": "Tax",
+   "status": "OPEN",
+   "title": "A fake e-invoice adapter is the production default and the route stores ACCEPTED submissions (kernel/tax.go:56, tax_handlers.go:67)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "A stand-in presented as a working integration (no fake features)",
+   "next_action": "Refuse submission unless an adapter is configured; the fake only in tests",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-017",
+   "severity": "Low",
+   "area": "Several",
+   "status": "OPEN",
+   "title": "Cancellations without attestation (consolidation run 0068:350, subcontract payment 0062:170, tax return 0069:139); asset disposal relies on pg_trigger_depth (0063:210)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Weak evidence of who cancelled",
+   "next_action": "Attest cancellations",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-018",
+   "severity": "Low",
+   "area": "Tests",
+   "status": "OPEN",
+   "title": "rawFails passes on any error including a missing column privilege, so several immutability tests never reach the guard they name (org_test.go:26)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Tests that cannot fail for the stated reason",
+   "next_action": "Assert the guard's message or SQLSTATE",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-019",
+   "severity": "Low",
+   "area": "Forecast",
+   "status": "OPEN",
+   "title": "The >10% forecast-change rule sits inside `if moved && !over` and may never run; the cited raw check does not exist (forecast.go)",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Rule possibly inert",
+   "next_action": "Test the rule directly; fix the condition",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-020",
+   "severity": "Info",
+   "area": "Payroll test data",
+   "status": "OPEN",
+   "title": "Test bands and 7%/11% pension match an Ethiopian proclamation; labelled test data; tests use a real authority's name in filing references",
+   "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
+   "impact": "Could be mistaken for approved statutory rules",
+   "next_action": "Keep labelled; use neutral names in tests",
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
   }
  ]
 }

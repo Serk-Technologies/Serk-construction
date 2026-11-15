@@ -1,18 +1,19 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-fleet-corrections.tests.txt",
- "register_commit": "12ca58e",
+ "results_file": "docs/engineering/evidence/2026-11-15-forms-api-5a8c052.tests.txt",
+ "register_commit": "5a8c052",
  "requirement_counts": {
-  "VERIFIED": 101,
-  "NOT_STARTED": 88,
-  "IMPLEMENTING": 10,
+  "VERIFIED": 105,
+  "NOT_STARTED": 78,
+  "IMPLEMENTING": 17,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 2
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
-  "NOT_STARTED": 42,
+  "IMPLEMENTING": 6,
+  "NOT_STARTED": 33,
   "BLOCKED": 12,
-  "VERIFIED": 2
+  "VERIFIED": 6
  },
  "requirements": [
   {
@@ -139,16 +140,16 @@
     {
      "id": "CMD-05.2.a",
      "text": "Certified, billed and collected amounts are separate lines of the projection",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
-     "note": ""
+     "note": "new-version 13-week forecast (TestCashForecast_ThirteenWeeks); no collected line"
     },
     {
      "id": "CMD-05.2.b",
      "text": "Supplier payment schedule from approved invoices and open purchase orders by due date",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
-     "note": ""
+     "note": "new-version forecast; due-date week placement not asserted"
     },
     {
      "id": "CMD-05.2.c",
@@ -167,9 +168,9 @@
     {
      "id": "CMD-05.2.e",
      "text": "Collection schedule from issued customer invoices by due date",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
-     "note": ""
+     "note": "new-version forecast; due-date week placement not asserted"
     },
     {
      "id": "CMD-05.2.f",
@@ -524,7 +525,7 @@
      "text": "Installed quantities come from work packages, not typed onto the report",
      "status": "NOT_STARTED",
      "evidence_tests": [],
-     "note": ""
+     "note": "new-version rules of credit take installed quantities as typed entries by activity code, which this criterion excludes"
     },
     {
      "id": "PLB-08.2.b",
@@ -699,7 +700,7 @@
    "domain": "SUP-04",
    "product": "SUPPLY / STOCK",
    "text": "Subcontracts: scope/BOQ, security, measured work, retention, deductions",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
    "criteria": [],
    "work_package": "WP-011",
@@ -1329,7 +1330,7 @@
    "domain": "FLT-04",
    "product": "FLEET",
    "text": "Capitalisation, depreciation and disposal posted through the ledger",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
    "criteria": [],
    "work_package": "WP-005",
@@ -1368,16 +1369,16 @@
     {
      "id": "PPL-03.1.a",
      "text": "Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
-     "note": ""
+     "note": "new-version payroll (TestPayroll_RunApprovePay); activation of an unapproved set is not tested"
     },
     {
      "id": "PPL-03.1.b",
      "text": "Preview, independent approval, locked run, journal and payment record with synthetic test rules",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
-     "note": ""
+     "note": "new-version payroll; the locked run is not tested; employee bank details unapproved (DEF-010)"
     },
     {
      "id": "PPL-03.1.c",
@@ -1538,9 +1539,9 @@
     {
      "id": "CON-04.3.b",
      "text": "Revenue recognition follows a contract-specific, approved policy and is not triggered by invoicing alone",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
-     "note": ""
+     "note": "new-version revenue runs (TestRevenue_RunAndWIPJournal): policy per legal entity, not per contract"
     },
     {
      "id": "CON-04.3.c",
@@ -1784,7 +1785,7 @@
    "domain": "CAP-07",
    "product": "CAPITAL",
    "text": "Intercompany matching, translation and elimination for consolidated statements",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
    "criteria": [],
    "work_package": "WP-014",
@@ -1861,7 +1862,7 @@
    "domain": "ASR-01",
    "product": "ASSURE",
    "text": "ITP with hold/witness points, NCR and corrective action through independent closure",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
    "criteria": [],
    "work_package": "WP-015",
@@ -2266,7 +2267,7 @@
    "domain": "CNX-08",
    "product": "CONNECT",
    "text": "Meeting minutes with actions and decisions",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
    "criteria": [],
    "work_package": "WP-016",
@@ -2908,27 +2909,42 @@
     {
      "id": "XCT-API.2.a",
      "text": "Every error response is application/problem+json with type, title, status and detail",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestProblemDetailsRFC9457"
+     ],
      "note": ""
     },
     {
      "id": "XCT-API.2.b",
      "text": "Document lists page by an opaque cursor with stable ordering",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestListCursorPagination"
+     ],
      "note": ""
     },
     {
      "id": "XCT-API.2.c",
      "text": "A cursor cannot cross tenants or change the filters it was issued for",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestListCursorPagination"
+     ],
      "note": ""
     },
     {
      "id": "XCT-API.2.d",
      "text": "Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestListCursorPagination"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-API.2.e",
+     "text": "Lists outside the document framework (journals, stock, people, reports) page by cursor",
      "status": "NOT_STARTED",
      "evidence_tests": [],
      "note": ""
@@ -2942,11 +2958,10 @@
    "domain": "XCT-FORM",
    "product": "PLATFORM",
    "text": "A dependent form applies only the newest answer for each list it loads; an older answer or error never replaces a newer one",
-   "status": "IMPLEMENTING",
+   "status": "VERIFIED",
    "evidence_tests": [
-    "TestConsoleBrowserDocuments",
-    "TestConsoleBrowserJourneyA",
-    "TestConsoleBrowserPlanning"
+    "TestConsoleBrowserForms",
+    "TestConsoleBrowserDocuments"
    ],
    "criteria": [],
    "work_package": "WP-001",
@@ -2957,8 +2972,10 @@
    "domain": "XCT-FORM",
    "product": "PLATFORM",
    "text": "Form state (lines, amounts, descriptions) lives in a state object with stable line identities, independent of the DOM",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
    "criteria": [],
    "work_package": "WP-001",
    "human_acceptance": "PENDING"
@@ -2968,8 +2985,10 @@
    "domain": "XCT-FORM",
    "product": "PLATFORM",
    "text": "Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
    "criteria": [],
    "work_package": "WP-001",
    "human_acceptance": "PENDING"
@@ -2979,8 +2998,10 @@
    "domain": "XCT-FORM",
    "product": "PLATFORM",
    "text": "Submission is blocked while dependent data is loading and cannot be sent twice",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "IMPLEMENTING",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
    "criteria": [],
    "work_package": "WP-001",
    "human_acceptance": "PENDING"
@@ -2990,8 +3011,10 @@
    "domain": "XCT-FORM",
    "product": "PLATFORM",
    "text": "Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "IMPLEMENTING",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
    "criteria": [],
    "work_package": "WP-001",
    "human_acceptance": "PENDING"
@@ -3001,8 +3024,10 @@
    "domain": "XCT-FORM",
    "product": "PLATFORM",
    "text": "Every reloading form has a barrier-driven regression that fails without the fix",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "IMPLEMENTING",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
    "criteria": [],
    "work_package": "WP-001",
    "human_acceptance": "PENDING"
@@ -3012,7 +3037,7 @@
    "domain": "XCT-UI",
    "product": "PLATFORM",
    "text": "AURA light and dark token sets meet their contrast targets and the console stylesheet matches them",
-   "status": "IMPLEMENTED_UNVERIFIED",
+   "status": "VERIFIED",
    "evidence_tests": [
     "TestAURATokensMatchStylesheet"
    ],

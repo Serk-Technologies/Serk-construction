@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "12ca58e",
+ "register_commit": "5a8c052",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -32,9 +32,6 @@
     "XCT-FORM.6"
    ],
    "open_requirement_ids": [
-    "XCT-FORM.1",
-    "XCT-FORM.2",
-    "XCT-FORM.3",
     "XCT-FORM.4",
     "XCT-FORM.5",
     "XCT-FORM.6"
@@ -42,40 +39,24 @@
    "dependencies": [],
    "acceptance_criteria": [
     {
-     "id": "XCT-FORM.1",
-     "text": "A dependent form applies only the newest answer for each list it loads; an older answer or error never replaces a newer one",
-     "status": "IMPLEMENTING"
-    },
-    {
-     "id": "XCT-FORM.2",
-     "text": "Form state (lines, amounts, descriptions) lives in a state object with stable line identities, independent of the DOM",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "XCT-FORM.3",
-     "text": "Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently",
-     "status": "NOT_STARTED"
-    },
-    {
      "id": "XCT-FORM.4",
      "text": "Submission is blocked while dependent data is loading and cannot be sent twice",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "XCT-FORM.5",
      "text": "Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "XCT-FORM.6",
      "text": "Every reloading form has a barrier-driven regression that fails without the fix",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     }
    ],
    "tests": [
     "TestConsoleBrowserDocuments",
-    "TestConsoleBrowserJourneyA",
-    "TestConsoleBrowserPlanning"
+    "TestConsoleBrowserForms"
    ],
    "external_dependencies": [],
    "technical_status": "IN_PROGRESS",
@@ -103,28 +84,15 @@
      "status": "IMPLEMENTING"
     },
     {
-     "id": "XCT-API.2.a",
-     "text": "Every error response is application/problem+json with type, title, status and detail",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "XCT-API.2.b",
-     "text": "Document lists page by an opaque cursor with stable ordering",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "XCT-API.2.c",
-     "text": "A cursor cannot cross tenants or change the filters it was issued for",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "XCT-API.2.d",
-     "text": "Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page",
+     "id": "XCT-API.2.e",
+     "text": "Lists outside the document framework (journals, stock, people, reports) page by cursor",
      "status": "NOT_STARTED"
     }
    ],
    "tests": [
-    "TestOpenAPIMatchesRoutes"
+    "TestListCursorPagination",
+    "TestOpenAPIMatchesRoutes",
+    "TestProblemDetailsRFC9457"
    ],
    "external_dependencies": [],
    "technical_status": "IN_PROGRESS",
@@ -324,7 +292,7 @@
     {
      "id": "FLT-04.1",
      "text": "Capitalisation, depreciation and disposal posted through the ledger",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "FLT-01.11.a",
@@ -370,7 +338,6 @@
     "XCT-UI.8"
    ],
    "open_requirement_ids": [
-    "XCT-UI.1",
     "XCT-UI.2",
     "XCT-UI.3",
     "XCT-UI.4",
@@ -383,11 +350,6 @@
     "WP-001"
    ],
    "acceptance_criteria": [
-    {
-     "id": "XCT-UI.1",
-     "text": "AURA light and dark token sets meet their contrast targets and the console stylesheet matches them",
-     "status": "IMPLEMENTED_UNVERIFIED"
-    },
     {
      "id": "XCT-UI.2",
      "text": "AURA warm and high-contrast themes, selectable per user",
@@ -496,12 +458,12 @@
     {
      "id": "CMD-05.2.a",
      "text": "Certified, billed and collected amounts are separate lines of the projection",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CMD-05.2.b",
      "text": "Supplier payment schedule from approved invoices and open purchase orders by due date",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CMD-05.2.c",
@@ -516,7 +478,7 @@
     {
      "id": "CMD-05.2.e",
      "text": "Collection schedule from issued customer invoices by due date",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CMD-05.2.f",
@@ -857,7 +819,7 @@
     {
      "id": "SUP-04.1",
      "text": "Subcontracts: scope/BOQ, security, measured work, retention, deductions",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "SUP-05.4",
@@ -966,12 +928,12 @@
     {
      "id": "PPL-03.1.a",
      "text": "Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "PPL-03.1.b",
      "text": "Preview, independent approval, locked run, journal and payment record with synthetic test rules",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "PPL-03.1.c",
@@ -1024,7 +986,7 @@
     {
      "id": "CON-04.3.b",
      "text": "Revenue recognition follows a contract-specific, approved policy and is not triggered by invoicing alone",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CON-04.3.c",
@@ -1112,7 +1074,7 @@
     {
      "id": "CAP-07.1",
      "text": "Intercompany matching, translation and elimination for consolidated statements",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CAP-08.1",
@@ -1223,7 +1185,7 @@
     {
      "id": "ASR-01.1",
      "text": "ITP with hold/witness points, NCR and corrective action through independent closure",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "ASR-02.1",
@@ -1243,7 +1205,7 @@
    ],
    "tests": [],
    "external_dependencies": [],
-   "technical_status": "NOT_STARTED",
+   "technical_status": "IN_PROGRESS",
    "human_acceptance": "PENDING",
    "next_action": "ITP with hold/witness points and NCR closed by an independent person."
   },
@@ -1353,7 +1315,7 @@
     {
      "id": "CNX-08.1",
      "text": "Meeting minutes with actions and decisions",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CNX-10.1",

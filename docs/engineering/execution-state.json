@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-15 (final-completion directive: discovery, control centre)",
+ "updated": "2026-11-15 (final completion: integration, form state, API contract)",
  "repository": "Serk-Technologies/Serk-construction",
  "branch": "claude/new-session-xkd5g3",
  "milestone": {
@@ -52,7 +52,9 @@
   "0054_fleet.sql",
   "0055_fleet_fuel.sql",
   "0056_fleet_maintenance.sql",
-  "0057_fleet_corrections.sql"
+  "0057_fleet_corrections.sql",
+  "0058-0071 (carried from new-version, renumbered)",
+  "0072_integration_subjects.sql"
  ],
  "adrs_added": [
   "0018",
@@ -61,7 +63,8 @@
   "0021",
   "0022",
   "0023",
-  "0024"
+  "0024",
+  "0025"
  ],
  "commands": [
   {
@@ -184,7 +187,8 @@
    "34": "passed, 01d727e (tokens)",
    "35": "FAILED, e6bcb8d: TestConsoleBrowserDocuments post-check; root cause a stale-response race in the RFI form (pre-existing), fixed in the following commit",
    "36": "passed, 5c74bd2 (race fix for four forms)",
-   "37": "success on dd0e9bc (all six jobs)"
+   "37": "success on dd0e9bc (all six jobs)",
+   "38": "abb80ec (integration): in progress when recorded"
   },
   "release_candidate": {
    "revision": "45f4b5c10792df76043e75ea922f234c801821a1",
@@ -217,8 +221,8 @@
   "pr_3": "merged into main (1096bf2) while CI was failing; not opened or merged by the agent",
   "main_ci": "failing (run 20)"
  },
- "current_phase": "Final-completion directive: WP-000 done (control centre, frozen baseline, validator in CI); integration of the unmerged new-version line next (DEF-001)",
- "current_work_package": "WP-INT: integrate new-version (ADR 0025)",
+ "current_phase": "Final-completion directive: WP-000, integration of new-version (ADR 0025), WP-001 form state and WP-002 problem details/cursors done; hardening of the carried modules (WP-024) next",
+ "current_work_package": "WP-024: harden carried modules (DEF-008, DEF-009 High), then DEF-010",
  "completed_work_packages": [
   "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
   "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
@@ -252,27 +256,38 @@
   "baseline_requirements": 196,
   "current_requirement_count": 210,
   "requirement_counts": {
-   "VERIFIED": 101,
-   "NOT_STARTED": 88,
-   "IMPLEMENTING": 10,
+   "VERIFIED": 105,
+   "NOT_STARTED": 78,
+   "IMPLEMENTING": 17,
    "BLOCKED": 9,
-   "IMPLEMENTED_UNVERIFIED": 2
+   "IMPLEMENTED_UNVERIFIED": 1
   },
   "criteria_counts": {
-   "NOT_STARTED": 42,
+   "IMPLEMENTING": 6,
+   "NOT_STARTED": 33,
    "BLOCKED": 12,
-   "VERIFIED": 2
+   "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-fleet-corrections.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-forms-api-5a8c052.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
-   "DEF-001 unmerged new-version line",
-   "DEF-002 main unprotected"
+   "DEF-001 colliding new-version parts not yet rebuilt",
+   "DEF-002 main unprotected",
+   "DEF-008 unattested inspection results/NCR closure",
+   "DEF-009 no DB maker-checker on tax returns, consolidation, ITPs",
+   "DEF-010 unapproved employee bank details"
   ],
   "external_blockers": "docs/final-completion/08_EXTERNAL_BLOCKERS.json",
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "Integrate new-version: evaluate its suite on a fresh database, merge its history, renumber its non-colliding migrations after 0057, union the shared subject functions, and rebuild its colliding document and equipment parts on this branch's tables (ADR 0025)."
- }
+  "exact_next_action": "WP-024: add 0073_carried_module_hardening.sql (draft in the session scratchpad is not durable; rebuild from DEF-008/009 text): attest inspection results and NCR closure (subject types + approval_use triggers; kernel authorize in DecideInspection and CloseNCR) and database maker-checker on tax_returns, consolidation_groups/runs, itps; raw-SQL regressions that assert the refusal reason. Then DEF-010, then rebuild timesheets and HSE (attested) on this branch's tables.",
+  "completed_work_packages": [
+   "WP-000 control centre",
+   "WP-INT integration of new-version (abb80ec)",
+   "WP-001 form state (partial: four forms without own regression)",
+   "WP-002 problem details and document-list cursors (other lists open)"
+  ]
+ },
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-forms-api-5a8c052.summary.json (492/0/0)"
 }

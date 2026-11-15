@@ -8,6 +8,7 @@
    "browser_journeys": [
     "console_documents.mjs",
     "console_fleet.mjs",
+    "console_forms.mjs",
     "console_journey_a.mjs",
     "console_journey_b.mjs",
     "console_planning.mjs",
@@ -58,6 +59,7 @@
    "route": "#/projects",
    "label": "Projects",
    "browser_journeys": [
+    "console_forms.mjs",
     "console_journey_a.mjs",
     "console_planning.mjs"
    ],
@@ -72,8 +74,10 @@
   {
    "route": "#/budget",
    "label": "Budget overview",
-   "browser_journeys": [],
-   "status": "NOT_COVERED"
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
   },
   {
    "route": "#/list/forecast_cycle",
@@ -115,6 +119,7 @@
    "route": "#/cost",
    "label": "Cost report",
    "browser_journeys": [
+    "console_forms.mjs",
     "console_journey_a.mjs",
     "console_planning.mjs"
    ],
@@ -415,6 +420,54 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/quality",
+   "label": "Quality",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/siterecords",
+   "label": "Punch lists, instructions, meetings",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/credit",
+   "label": "Progress credit",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/subcontract",
+   "label": "Subcontracts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/subcontract_application",
+   "label": "Applications and certificates",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/subcontract_backcharge",
+   "label": "Back-charges",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/subcontract_payment",
+   "label": "Subcontract payments",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/subpolicy",
+   "label": "Subcontract accounts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
    "route": "#/list/supplier_invoice",
    "label": "Supplier invoices",
    "browser_journeys": [],
@@ -431,6 +484,12 @@
   {
    "route": "#/aging/ap",
    "label": "Payables aging",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/cash",
+   "label": "Cash forecast",
    "browser_journeys": [],
    "status": "NOT_COVERED"
   },
@@ -467,6 +526,40 @@
    "status": "COVERED_BY_BROWSER_JOURNEY"
   },
   {
+   "route": "#/assets",
+   "label": "Fixed assets",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/periodend",
+   "label": "Period end",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/tax",
+   "label": "Tax returns & e-invoices",
+   "browser_journeys": [
+    "console_finance.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/consolidation",
+   "label": "Consolidation",
+   "browser_journeys": [
+    "console_finance.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/revenue",
+   "label": "Revenue & WIP",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
    "route": "#/recon",
    "label": "Reconciliation",
    "browser_journeys": [
@@ -481,6 +574,14 @@
    "label": "Trial balance",
    "browser_journeys": [],
    "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/payroll",
+   "label": "Payroll",
+   "browser_journeys": [
+    "console_payroll.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
   },
   {
    "route": "#/people",

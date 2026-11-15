@@ -2,6 +2,14 @@
 
 Changes made under the SERK Construction OS 3.0 directive (`MASTER_PROMPT.md`). Earlier history: `docs/release/CHECKPOINT_*.md` and `git log`.
 
+## 2026-11-15: final-completion directive — control centre, integration, form state, API contract
+
+- **Control centre** (`docs/final-completion/`, `tools/final_completion.py`): the 196 original requirements are frozen; CI fails if one disappears or changes meaning, if evidence names a test that does not exist, or if a release document claims GO while work is open.
+- **Integration of `new-version`** (ADR 0025): two owner commits that had never been merged (about 21,000 lines: revenue, subcontracts, fixed assets, period end, payroll, consolidation, tax, quality, credit rules) are now on the candidate line as migrations 0058–0071 plus a reconciliation migration 0072. Its colliding document and equipment parts are to be rebuilt on this branch's tables.
+- **Independent review of the carried work**: none of its tests fully evidences a register requirement; 13 defects recorded (DEF-008 to DEF-020), three High (unattested inspection results and NCR closure; no database maker-checker on tax returns, consolidation and plans; unapproved employee bank details).
+- **Form state**: lines live in state, a project change keeps typed lines and marks invalid cost codes for a new choice, submission waits for loading choices, stale failures are not shown, leaving a typed form asks first. A barrier-driven browser test fails on the previous console and passes now.
+- **API**: RFC 9457 problem details on every error; cursor pagination on the document lists.
+
 ## 2026-11-15: console forms apply only the newest answer
 
 - A slow earlier response could arrive after a newer one and overwrite it: a reset choice in six forms, and in five forms a rebuilt line grid that discarded typed lines. Found because a GitHub run failed on timing the build environment did not have. All eleven forms converted; three have reproductions that fail without the fix.

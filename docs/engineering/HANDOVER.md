@@ -1,6 +1,8 @@
 # Handover — 2026-11-15 (updated after the fleet review corrections, ADR 0024)
 
-> Current state is in `execution-state.json` and `docs/completion/21_AURA_CYCLE_REPORT.md`. Fuel (0055), maintenance (0056) and the review corrections (0057) are built; this file's detailed sections below describe the earlier audit remediation and are kept for history.
+> **Final-completion programme (latest):** start at `docs/final-completion/00_PROGRAM_CHARTER.md`, `docs/completion/22_FINAL_SCOPE_AND_GAP_REGISTER.md` and ADR 0025 (integration of the unmerged `new-version` line). Open defects: `docs/final-completion/06_DEFECT_REGISTER.json`; next action: `execution-state.json` → `final_completion.exact_next_action`.
+>
+> Earlier state is in `execution-state.json` and `docs/completion/21_AURA_CYCLE_REPORT.md`. Fuel (0055), maintenance (0056) and the review corrections (0057) are built; this file's detailed sections below describe the earlier audit remediation and are kept for history.
 
 For the next engineer or session. Machine-readable state: `execution-state.json`. Earlier history: `CHANGELOG.md`.
 
