@@ -107,10 +107,49 @@ const (
 	PermBondApprove        Permission = "bond.approve"        // release a guarantee to the bank or record its call (fresh MFA)
 	PermEscalationManage   Permission = "escalation.manage"   // indices, index values, formulas, price adjustments (0050)
 	PermEscalationApprove  Permission = "escalation.approve"  // approve index values, formulas and price adjustments (fresh MFA)
-	PermAuthorityManage    Permission = "authority.manage"    // maker: propose matrices and SoD exceptions
-	PermAuthorityApprove   Permission = "authority.approve"   // checker (fresh MFA)
-	PermDelegationCreate   Permission = "delegation.create"   // lend part of your own approval authority
-	PermDelegationApprove  Permission = "delegation.approve"  // checker for delegations (fresh MFA)
+	PermRevenueRun         Permission = "revenue.run"         // prepare the month-end revenue run and its draft journal (0053)
+	PermSubcontractManage  Permission = "subcontract.manage"  // prepare subcontracts and back-charges (0055)
+	PermSubcontractApprove Permission = "subcontract.approve" // approve subcontracts and back-charges (fresh MFA)
+	PermSubcontractApply   Permission = "subcontract.apply"   // enter a subcontractor's application (QS on its behalf)
+	PermSubcontractCertify Permission = "subcontract.certify" // certify an application (fresh MFA; generates the journal)
+	PermAssetManage        Permission = "asset.manage"        // register assets, prepare depreciation runs, propose disposals (0057)
+	PermAssetApprove       Permission = "asset.approve"       // activate assets and approve disposals (fresh MFA)
+	PermPayrollPrepare     Permission = "payroll.prepare"     // employees, rule sets, pay runs (0061)
+	PermPayrollApprove     Permission = "payroll.approve"     // approve rule sets and pay runs (fresh MFA)
+	// Consolidation (0062).
+	PermConsolidationManage  Permission = "consolidation.manage"  // propose groups, designate intercompany accounts, prepare runs
+	PermConsolidationApprove Permission = "consolidation.approve" // approve groups and consolidation runs (fresh MFA)
+	// Tax (0063).
+	PermTaxPrepare Permission = "tax.prepare" // designate tax accounts, prepare and file tax returns, submit e-invoices
+	PermTaxApprove Permission = "tax.approve" // approve tax returns (fresh MFA)
+	// Workforce, equipment and HSE (0064).
+	PermTimesheetRecord  Permission = "timesheet.record"  // record and submit a project's daily timesheet
+	PermTimesheetApprove Permission = "timesheet.approve" // approve a timesheet (not its recorder)
+	PermEquipmentManage  Permission = "equipment.manage"  // equipment register, work orders
+	PermEquipmentRecord  Permission = "equipment.record"  // record and submit equipment usage
+	PermEquipmentApprove Permission = "equipment.approve" // approve equipment usage (not its recorder)
+	PermEquipmentCharge  Permission = "equipment.charge"  // prepare the monthly hire charge run
+	PermHSEReport        Permission = "hse.report"        // report incidents, request and accept permits
+	PermHSEManage        Permission = "hse.manage"        // investigate, corrective actions, issue permits, inductions, inspections
+	// Quality and site records (0065).
+	PermQualityRequest Permission = "quality.request" // request inspections and raise non-conformances
+	PermQualityManage  Permission = "quality.manage"  // inspection and test plans, results, actions, tests
+	PermQualityApprove Permission = "quality.approve" // approve plans, close non-conformances
+	PermSiteRecord     Permission = "site.record"     // punch items, acknowledge instructions, meeting minutes
+	PermSiteInstruct   Permission = "site.instruct"   // issue and close site instructions
+	// Document control (0066).
+	PermDocManage  Permission = "doc.manage"  // create documents, upload revisions, send transmittals
+	PermDocApprove Permission = "doc.approve" // publish revisions (not the uploader)
+	PermDocRaise   Permission = "doc.raise"   // raise RFIs, submit submittals, close answered RFIs
+	PermDocRespond Permission = "doc.respond" // answer RFIs, review submittals
+	// Rules of credit (0067).
+	PermCreditManage       Permission = "credit.manage"      // prepare rules of credit, turn them into progress
+	PermCreditApprove      Permission = "credit.approve"     // approve rules of credit
+	PermCreditRecord       Permission = "credit.record"      // record completed steps and installed quantities
+	PermAuthorityManage    Permission = "authority.manage"   // maker: propose matrices and SoD exceptions
+	PermAuthorityApprove   Permission = "authority.approve"  // checker (fresh MFA)
+	PermDelegationCreate   Permission = "delegation.create"  // lend part of your own approval authority
+	PermDelegationApprove  Permission = "delegation.approve" // checker for delegations (fresh MFA)
 	PermGRNCreate          Permission = "grn.create"
 	PermGRNConfirm         Permission = "grn.confirm"
 	PermAPEnter            Permission = "ap.enter"
@@ -193,7 +232,7 @@ type Role struct {
 // tests: no role holds two of journal create/approve/post; no role holds both
 // fx.manage and fx.approve; no role both defines and publishes workflows.
 var DefaultRoles = map[string]Role{
-	"accountant": {Name: "accountant", Permissions: []Permission{PermIntelligenceRead, PermJournalCreate, PermJournalRead, PermFXRead, PermScopeTenantWide, PermWorkflowRead,
+	"accountant": {Name: "accountant", Permissions: []Permission{PermEquipmentCharge, PermTaxPrepare, PermIntelligenceRead, PermJournalCreate, PermAssetManage, PermJournalRead, PermFXRead, PermScopeTenantWide, PermWorkflowRead,
 		PermBankReconcile, PermP2PRead}},
 	// Treasury prepares and releases payments (two different officers: the
 	// database refuses release by the preparer). It does not import bank
@@ -205,29 +244,34 @@ var DefaultRoles = map[string]Role{
 	"finance_manager": {Name: "finance_manager", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermJournalApprove, PermJournalRead, PermFXRead, PermFXApprove,
 		PermFXPolicyApprove, PermWBSApprove, PermScopeTenantWide, PermWorkflowRead, PermAPApproveException, PermPaymentApprove,
 		PermSupplierBankApprove, PermBankDetailsReveal, PermCustomerApprove, PermStockItemApprove, PermP2PRead}},
-	"controller": {Name: "controller", Permissions: []Permission{PermOrgManage, PermDelegationCreate, PermIntelligenceRead, PermJournalPost, PermJournalReverse, PermJournalRead, PermPeriodClose,
+	"controller": {Name: "controller", Permissions: []Permission{PermConsolidationManage, PermOrgManage, PermDelegationCreate, PermIntelligenceRead, PermJournalPost, PermJournalReverse, PermJournalRead, PermPeriodClose,
 		PermAccountManage, PermFXRead, PermScopeTenantWide, PermWorkflowRead, PermP2PPolicyManage, PermContractPolicyManage, PermP2PRead}},
-	"cfo": {Name: "cfo", Permissions: []Permission{PermProjectGateDecide, PermForecastApprove, PermIntelligenceRead, PermJournalRead, PermFXRead, PermFXApprove, PermFXApproveExcept, PermFXPolicyApprove,
+	"cfo": {Name: "cfo", Permissions: []Permission{PermTaxApprove, PermConsolidationApprove, PermProjectGateDecide, PermAssetApprove, PermForecastApprove, PermIntelligenceRead, PermJournalRead, PermFXRead, PermFXApprove, PermFXApproveExcept, PermFXPolicyApprove,
 		PermPeriodReopen, PermAuditRead, PermScopeTenantWide, PermWorkflowRead, PermWorkflowPublish, PermApprovalHighValue,
 		PermPaymentApprove, PermP2PPolicyApprove, PermBudgetOverride, PermBudgetApprove, PermAuthorityApprove, PermDelegationCreate, PermBankAcctApprove, PermBankDetailsReveal, PermContractApprove, PermContractPolicyApprove, PermP2PRead}},
 	"auditor":            {Name: "auditor", Permissions: []Permission{PermIntelligenceRead, PermJournalRead, PermAuditRead, PermFXRead, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
-	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermFleetReserve, PermFleetLogApprove, PermDocumentApprove, PermProjectUpdate, PermProjectGateSubmit, PermForecastPrepare, PermChangeManage, PermClaimManage, PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead}},
-	"project_accountant": {Name: "project_accountant", Permissions: []Permission{PermJournalCreate, PermJournalRead, PermFXRead, PermWorkflowRead}},
+	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermFleetReserve, PermFleetLogApprove, PermDocumentApprove, PermProjectUpdate, PermProjectGateSubmit, PermForecastPrepare, PermChangeManage, PermClaimManage, PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead, PermCreditApprove, PermQualityApprove, PermSiteRecord, PermSiteInstruct, PermQualityRequest}},
+	"project_accountant": {Name: "project_accountant", Permissions: []Permission{PermJournalCreate, PermJournalRead, PermFXRead, PermWorkflowRead, PermRevenueRun}},
 	"process_owner":      {Name: "process_owner", Permissions: []Permission{PermAuthorityManage, PermWorkflowDefine, PermWorkflowRead, PermAutomationManage, PermIntelligenceRead, PermScopeTenantWide}},
 	"workflow_admin":     {Name: "workflow_admin", Permissions: []Permission{PermWorkflowAdmin, PermWorkflowRead, PermAutomationActivate, PermIntelligenceRead, PermScopeTenantWide}},
+	// Payroll: an officer prepares, an HR manager approves, treasury releases (0061).
+	"payroll_officer":     {Name: "payroll_officer", Permissions: []Permission{PermPayrollPrepare, PermScopeTenantWide, PermWorkflowRead}},
+	"document_controller": {Name: "document_controller", Permissions: []Permission{PermDocManage, PermDocRaise, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
+	"quality_engineer":    {Name: "quality_engineer", Permissions: []Permission{PermQualityManage, PermQualityRequest, PermSiteRecord, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
+	"hr_manager":          {Name: "hr_manager", Permissions: []Permission{PermPayrollApprove, PermScopeTenantWide, PermWorkflowRead}},
 	// Identity administration holds no financial permission at all.
 	"security_admin": {Name: "security_admin", Permissions: []Permission{PermUserManage, PermRoleManage, PermDelegationApprove, PermIdentityRevoke, PermAuditRead, PermSiteDeviceManage, PermTenantSettingsManage, PermScopeTenantWide}},
 	// Journey A operational roles.
 	"estimator":           {Name: "estimator", Permissions: []Permission{PermBOQManage, PermP2PRead}},
-	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermProjectCreate, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBondApprove, PermEscalationApprove, PermDelegationCreate, PermIntelligenceRead, PermBOQApprove, PermBudgetApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead}},
-	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermFleetOperate, PermFleetReserve, PermDocumentManage, PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead}},
+	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermProjectCreate, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBondApprove, PermEscalationApprove, PermDelegationCreate, PermIntelligenceRead, PermBOQApprove, PermBudgetApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead, PermSubcontractApprove, PermSubcontractCertify}},
+	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermFleetOperate, PermFleetReserve, PermDocumentManage, PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead, PermCreditRecord, PermQualityRequest, PermSiteRecord}},
 	"storekeeper":         {Name: "storekeeper", Permissions: []Permission{PermStockReserve, PermGRNCreate, PermStockReceive, PermStockIssue, PermStockCount, PermStockTransfer, PermP2PRead}},
 	"procurement_officer": {Name: "procurement_officer", Permissions: []Permission{PermSupplierManage, PermRFQManage, PermPOManage, PermStockItemManage, PermP2PRead}},
 	"procurement_manager": {Name: "procurement_manager", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermSupplierApprove, PermRFQAward, PermPOApprove, PermWarehouseManage, PermP2PRead}},
 	"ap_clerk":            {Name: "ap_clerk", Permissions: []Permission{PermAPEnter, PermP2PRead}},
 	"ap_supervisor":       {Name: "ap_supervisor", Permissions: []Permission{PermAPApprove, PermP2PRead}},
 	// Journey B operational roles.
-	"quantity_surveyor": {Name: "quantity_surveyor", Permissions: []Permission{PermDocumentManage, PermChangeManage, PermClaimManage, PermEscalationManage, PermIntelligenceRead, PermMeasureCreate, PermIPCPrepare, PermP2PRead}},
+	"quantity_surveyor": {Name: "quantity_surveyor", Permissions: []Permission{PermDocumentManage, PermChangeManage, PermClaimManage, PermEscalationManage, PermIntelligenceRead, PermMeasureCreate, PermIPCPrepare, PermP2PRead, PermSubcontractManage, PermSubcontractApply}},
 	"ar_clerk": {Name: "ar_clerk", Permissions: []Permission{PermCustomerManage, PermARInvoiceCreate, PermARReceiptCreate, PermARCreditCreate, PermARRetentionCreate, PermScopeTenantWide,
 		PermP2PRead}},
 	// Approves stock count adjustments. Separate from the journal chain: the
@@ -241,7 +285,7 @@ var DefaultRoles = map[string]Role{
 	"plant_manager":   {Name: "plant_manager", Permissions: []Permission{PermFleetApprove, PermIntelligenceRead, PermScopeTenantWide, PermP2PRead}},
 	"plant_inspector": {Name: "plant_inspector", Permissions: []Permission{PermFleetRelease, PermScopeTenantWide, PermP2PRead}},
 	// Plans and reports progress; a project manager approves (GATED-02).
-	"planner":       {Name: "planner", Permissions: []Permission{PermDocumentManage, PermIntelligenceRead, PermScheduleManage, PermP2PRead}},
+	"planner":       {Name: "planner", Permissions: []Permission{PermDocumentManage, PermIntelligenceRead, PermScheduleManage, PermP2PRead, PermCreditManage}},
 	"ar_supervisor": {Name: "ar_supervisor", Permissions: []Permission{PermARInvoiceApprove, PermARReceiptConfirm, PermScopeTenantWide, PermP2PRead}},
 }
 
@@ -304,6 +348,10 @@ type Principal struct {
 	// by the kernel from the people directory, never from the token:
 	// permission -> the custom role codes that grant it.
 	Custom map[Permission][]string
+	// Withheld lists, per built-in role, the permissions this company has
+	// withheld from that role (0060), filled by the kernel on every request:
+	// a withheld permission is not granted through that role.
+	Withheld map[string][]Permission
 	// SessionID is the token identifier (JWT "jti"); IssuedAt is the token's
 	// "iat". Both are checked against the shared revocation list on every
 	// request and inside every approval transaction.
@@ -369,8 +417,8 @@ func (a *Authorizer) Permissions(p Principal) []Permission {
 	for _, r := range p.Roles {
 		if role, ok := a.roles[r]; ok {
 			for _, perm := range role.Permissions {
-				if strings.HasPrefix(string(perm), ReservedPermissionPrefix) {
-					continue // never grantable through a role
+				if strings.HasPrefix(string(perm), ReservedPermissionPrefix) || withheld(p, r, perm) {
+					continue // never grantable through a role; or withheld by the company
 				}
 				set[perm] = struct{}{}
 			}
@@ -405,9 +453,19 @@ func (a *Authorizer) Has(p Principal, perm Permission) bool {
 			continue
 		}
 		for _, x := range role.Permissions {
-			if x == perm && !strings.HasPrefix(string(x), ReservedPermissionPrefix) {
+			if x == perm && !strings.HasPrefix(string(x), ReservedPermissionPrefix) && !withheld(p, r, x) {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// withheld reports whether the company withheld perm from role (0060).
+func withheld(p Principal, role string, perm Permission) bool {
+	for _, x := range p.Withheld[role] {
+		if x == perm {
+			return true
 		}
 	}
 	return false
@@ -654,6 +712,18 @@ var DefaultSoDConflicts = []SoDConflict{
 	{"Equipment logs", []Permission{PermFleetOperate, PermFleetLogApprove}},
 	{"Guarantees", []Permission{PermBondManage, PermBondApprove}},
 	{"Price adjustment", []Permission{PermEscalationManage, PermEscalationApprove}},
+	{"Subcontracts", []Permission{PermSubcontractManage, PermSubcontractApprove}},
+	{"Subcontract certificates", []Permission{PermSubcontractApply, PermSubcontractCertify}},
+	{"Fixed assets", []Permission{PermAssetManage, PermAssetApprove}},
+	{"Payroll", []Permission{PermPayrollPrepare, PermPayrollApprove}},
+	{"Payroll and payment release", []Permission{PermPayrollPrepare, PermPaymentRelease}},
+	{"Consolidation", []Permission{PermConsolidationManage, PermConsolidationApprove}},
+	{"Tax returns", []Permission{PermTaxPrepare, PermTaxApprove}},
+	{"Timesheets", []Permission{PermTimesheetRecord, PermTimesheetApprove}},
+	{"Equipment usage", []Permission{PermEquipmentRecord, PermEquipmentApprove}},
+	{"Quality plans", []Permission{PermQualityManage, PermQualityApprove}},
+	{"Rules of credit", []Permission{PermCreditManage, PermCreditApprove}},
+	{"Document publication", []Permission{PermDocManage, PermDocApprove}},
 }
 
 // SoDPair is one violated conflict for one person.

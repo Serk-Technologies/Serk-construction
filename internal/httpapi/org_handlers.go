@@ -80,6 +80,18 @@ func (s *Server) registerOrg() {
 		s.created(w, gid, err)
 	}))
 	// Cost forecasting (0044): a cycle per project and month end, adjusted line by line.
+	m.Handle("GET /v1/projects/{id}/s-curve", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		out, err := k.ProjectSCurve(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	}))
 	m.Handle("POST /v1/projects/{id}/forecasts", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		id, ok := pathID(w, r)
 		if !ok {
@@ -162,6 +174,23 @@ func (s *Server) registerOrg() {
 			return
 		}
 		writeJSON(w, http.StatusOK, e)
+	}))
+	m.Handle("POST /v1/change-events/{id}/variations", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		var b struct {
+			VariationID string `json:"variation_id"`
+		}
+		if !decode(w, r, &b) || !validIDs(w, b.VariationID) {
+			return
+		}
+		if err := k.LinkVariation(r.Context(), principalFrom(r.Context()), id, b.VariationID); err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "ok": true})
 	}))
 	m.Handle("POST /v1/change-events/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
 		return nil, k.SubmitChangeEvent(ctx, p, id)

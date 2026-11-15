@@ -122,6 +122,25 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"equipment_meter_reset":   {"equipment_meter_resets", "created_by", ""},
 	"maintenance_work_order":  {"maintenance_work_orders", "created_by", ""},
 	"fleet_policy":            {"fleet_policies", "created_by", ""},
+	// Revenue policies (0053).
+	"revenue_policy": {"revenue_policies", "created_by", ""},
+	// Subcontracts (0055).
+	"subcontract_policy":      {"subcontract_policies", "created_by", ""},
+	"subcontract":             {"subcontracts", "created_by", ""},
+	"subcontract_application": {"subcontract_applications", "created_by", ""},
+	"subcontract_backcharge":  {"subcontract_backcharges", "created_by", ""},
+	"subcontract_payment":     {"subcontract_payments", "created_by", ""},
+	// Fixed assets (0057).
+	"fixed_asset":    {"fixed_assets", "created_by", ""},
+	"asset_disposal": {"asset_disposals", "created_by", ""},
+	// Payroll (0061).
+	"payroll_policy":      {"payroll_policies", "created_by", ""},
+	"payroll_rule_set":    {"payroll_rule_sets", "created_by", ""},
+	"pay_run":             {"pay_runs", "created_by", ""},
+	"consolidation_group": {"consolidation_groups", "created_by", ""},
+	"consolidation_run":   {"consolidation_runs", "created_by", ""},
+	"tax_return":          {"tax_returns", "created_by", ""},
+	"itp":                 {"itps", "created_by", ""},
 }
 
 // DocTypes reports whether a document type is known (for callers that must
@@ -395,6 +414,21 @@ var listSQL = map[string]string{
 	"equipment_meter_reset":   `SELECT m.id::text, m.number, m.status, m.created_by, m.created_at, COALESCE(e.current_project_id::text, ''), m.new_reading, e.number || ' ' || e.name || ' — ' || lower(m.kind) || ': ' || m.old_reading || ' to ' || m.new_reading FROM equipment_meter_resets m JOIN equipment e ON e.id = m.equipment_id`,
 	"maintenance_work_order":  `SELECT m.id::text, m.number, m.status, m.created_by, m.created_at, COALESCE(e.current_project_id::text, ''), COALESCE(m.labour_hours, 0), e.number || ' ' || e.name || ' — ' || lower(m.kind) || ': ' || left(m.description, 80) FROM maintenance_work_orders m JOIN equipment e ON e.id = m.equipment_id`,
 	"fleet_policy":            `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, '', x.fuel_variance_tolerance, 'Fleet policy effective ' || x.effective_from::text FROM fleet_policies x`,
+	"revenue_policy":          `SELECT r.id::text, 'REV-v' || r.version, r.status, r.created_by, r.created_at, '', 0::numeric, (SELECT name FROM legal_entities WHERE id = r.legal_entity_id) || ': ' || CASE r.method WHEN 'INPUT_COST' THEN 'cost to cost' ELSE 'measured output' END FROM revenue_policies r`,
+	"subcontract_policy":      `SELECT p.id::text, 'SUBPOL-v' || p.version, p.status, p.created_by, p.created_at, '', 0::numeric, (SELECT name FROM legal_entities WHERE id = p.legal_entity_id) FROM subcontract_policies p`,
+	"subcontract":             `SELECT s.id::text, s.number, s.status, s.created_by, s.created_at, s.project_id::text, subcontract_value(s.id), s.title || ' — ' || (SELECT name FROM suppliers WHERE id = s.supplier_id) FROM subcontracts s`,
+	"subcontract_application": `SELECT a.id::text, a.number, a.status, a.created_by, a.created_at, s.project_id::text, COALESCE(a.net_payable, 0), s.number || ' to ' || a.period_to || COALESCE(' — gross ' || a.this_gross, '') FROM subcontract_applications a JOIN subcontracts s ON s.id = a.subcontract_id`,
+	"subcontract_backcharge":  `SELECT b.id::text, b.number, b.status, b.created_by, b.created_at, s.project_id::text, b.amount, s.number || ' — ' || b.reason || CASE WHEN b.deducted_in IS NOT NULL THEN ' (deducted)' ELSE '' END FROM subcontract_backcharges b JOIN subcontracts s ON s.id = b.subcontract_id`,
+	"subcontract_payment":     `SELECT p.id::text, p.number, p.status, p.created_by, p.created_at, s.project_id::text, p.amount, s.number || ' — ' || (SELECT name FROM suppliers WHERE id = s.supplier_id) || ' (value ' || p.value_date || ')' FROM subcontract_payments p JOIN subcontracts s ON s.id = p.subcontract_id`,
+	"fixed_asset":             `SELECT a.id::text, a.number, a.status, a.created_by, a.created_at, COALESCE(a.project_id::text, ''), a.cost, (SELECT code FROM asset_classes WHERE id = a.class_id) || ' — ' || a.description FROM fixed_assets a`,
+	"asset_disposal":          `SELECT d.id::text, d.number, d.status, d.created_by, d.created_at, '', d.proceeds, a.number || ' — ' || a.description || COALESCE(' (gain ' || d.gain || ')', '') FROM asset_disposals d JOIN fixed_assets a ON a.id = d.asset_id`,
+	"payroll_policy":          `SELECT p.id::text, 'PAYPOL-v' || p.version, p.status, p.created_by, p.created_at, '', 0::numeric, (SELECT name FROM legal_entities WHERE id = p.legal_entity_id) FROM payroll_policies p`,
+	"payroll_rule_set":        `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', 0::numeric, 'Effective ' || r.effective_from || ' — ' || r.source_ref FROM payroll_rule_sets r`,
+	"pay_run":                 `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', COALESCE((SELECT sum(net) FROM pay_lines l WHERE l.run_id = r.id), 0), r.period_start || ' to ' || r.period_end || ' (' || (SELECT count(*) FROM pay_inputs i WHERE i.run_id = r.id) || ' employees)' FROM pay_runs r`,
+	"consolidation_group":     `SELECT g.id::text, g.code || '-v' || g.version, g.status, g.created_by, g.created_at, '', 0::numeric, g.name || ' (' || g.presentation_currency || ', ' || (SELECT count(*) FROM consolidation_members m WHERE m.group_id = g.id) || ' members)' FROM consolidation_groups g`,
+	"consolidation_run":       `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', 0::numeric, (SELECT code FROM consolidation_groups WHERE id = r.group_id) || ' ' || r.period_start || ' to ' || r.period_end FROM consolidation_runs r`,
+	"tax_return":              `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', COALESCE((SELECT sum(amount) FROM tax_return_lines l WHERE l.return_id = r.id), 0), r.kind || ' ' || r.period_start || ' to ' || r.period_end FROM tax_returns r`,
+	"itp":                     `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, 0::numeric, t.title || COALESCE(' — activity ' || t.activity_code, '') FROM itps t`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,
 	       s.imported_by, s.imported_at, '', l.amount, l.reference || ' — ' || l.counterparty FROM bank_statement_lines l JOIN bank_statements s ON s.id = l.statement_id WHERE l.amount > 0`,

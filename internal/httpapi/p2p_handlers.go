@@ -74,14 +74,24 @@ func (s *Server) registerP2P() {
 	m.Handle("POST /v1/boqs/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
 		return nil, s.cfg.Kernel.DecideBOQ(ctx, p, id, false, b.Reason)
 	})))
-	s.registerAuthority(m) // authority matrix, delegation, SoD exceptions (0040)
-	s.registerStockPlus()  // unit conversions, reservations, reorder rules (0041)
-	s.registerOrg()        // project master, stage gates, regions, business units, calendar (0042)
-	s.registerPeople()     // people directory, company roles, profiles (0048)
-	s.registerBonds()      // guarantees, price indices, escalation (0050)
-	s.registerDocuments()  // controlled documents, revisions, RFIs (0052)
-	s.registerFleet()      // equipment register, lifecycle, reservations, logs (0054)
-	s.registerImports()    // staged imports and the setup checklist (0043)
+	s.registerAuthority(m)    // authority matrix, delegation, SoD exceptions (0040)
+	s.registerStockPlus()     // unit conversions, reservations, reorder rules (0041)
+	s.registerOrg()           // project master, stage gates, regions, business units, calendar (0042)
+	s.registerPeople()        // people directory, company roles, profiles (0048)
+	s.registerBonds()         // guarantees, price indices, escalation (0050)
+	s.registerDocuments()     // controlled documents, revisions, RFIs (0052)
+	s.registerFleet()         // equipment register, lifecycle, reservations, logs (0054)
+	s.registerRevenue()       // revenue over time, WIP adjustment (0059); new-version 0053
+	s.registerSubcontracts()  // subcontracts, applications, certificates (0061); new-version 0055
+	s.registerAssets()        // fixed assets (0063); new-version 0057
+	s.registerPeriodEnd()     // fiscal years, recurring journals, accruals, overhead (0064); new-version 0058
+	s.registerCash()          // cash forecasting (0065); new-version 0059
+	s.registerPayroll()       // workforce and payroll (0067); new-version 0061
+	s.registerConsolidation() // consolidation and intercompany (0068); new-version 0062
+	s.registerTax()           // tax returns and e-invoicing (0069); new-version 0063
+	s.registerQuality()       // quality and site records (0070); new-version 0065
+	s.registerCredit()        // rules of credit and installed quantities (0071); new-version 0067
+	s.registerImports()       // staged imports and the setup checklist (0043)
 	// Financial control dashboard (WP-1.4): GET /v1/dashboard?preset=executive|project|finance|procurement&entity_id=
 	m.Handle("GET /v1/dashboard", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		preset := r.URL.Query().Get("preset")

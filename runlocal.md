@@ -188,7 +188,10 @@ Two things the suite needs from that throwaway cluster (CI does the same):
 
 ```bash
 docker run -d --name serk-test-pg -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=serk_test \
-  -p 127.0.0.1:55433:5432 ${POSTGRES_IMAGE:-postgres:16}
+  -p 127.0.0.1:55433:5432 ${POSTGRES_IMAGE:-postgres:16} -c max_connections=300
+# (300 connections: the full suite runs the API and kernel packages in parallel, each with a
+# connection pool per test company; at the default 100 a test can fail with
+# "cannot open tenant database session".)
 sleep 5
 docker exec -i serk-test-pg psql -q -U postgres -d serk_test < deploy/00-roles.sql
 export SERK_TEST_ADMIN_DSN='postgres://postgres@127.0.0.1:55433/serk_test?sslmode=disable'

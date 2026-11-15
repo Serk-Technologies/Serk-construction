@@ -58,6 +58,9 @@ type ChangeEvent struct {
 	Margin        decimal.Decimal   `json:"margin_impact"` // revenue impact - cost impact
 	BudgetDraftID string            `json:"budget_version_id,omitempty"`
 	Lines         []ChangeEventLine `json:"lines"`
+	// Variations recovering the change from the client (0054).
+	Variations     []map[string]any `json:"variations"`
+	RecoveredValue decimal.Decimal  `json:"recovered_value"` // approved linked variations
 }
 
 var changeSources = map[string]bool{"RFI": true, "SITE_INSTRUCTION": true, "CLIENT": true, "DESIGN": true, "INTERNAL": true}
@@ -154,7 +157,7 @@ func (s *Service) DecideChangeEvent(ctx context.Context, p auth.Principal, id st
 
 // GetChangeEvent returns a change event with its lines and totals.
 func (s *Service) GetChangeEvent(ctx context.Context, p auth.Principal, id string) (ChangeEvent, error) {
-	e := ChangeEvent{Lines: []ChangeEventLine{}}
+	e := ChangeEvent{Lines: []ChangeEventLine{}, Variations: []map[string]any{}}
 	err := s.p2pTx(ctx, p, auth.PermP2PRead, func(ctx context.Context, tx pgx.Tx) error {
 		if _, err := s.visibleDoc(ctx, tx, p, "change_event", id, false); err != nil {
 			return err
@@ -182,7 +185,49 @@ func (s *Service) GetChangeEvent(ctx context.Context, p auth.Principal, id strin
 			e.Lines = append(e.Lines, l)
 		}
 		e.Margin = e.RevenueImpact.Sub(e.CostImpact)
-		return rows.Err()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		rows.Close()
+		vr, err := tx.Query(ctx, `SELECT v.id::text, v.number, v.title, v.status, v.value_change, c.number, l.linked_by
+			FROM change_event_variations l JOIN contract_variations v ON v.id = l.variation_id JOIN contracts c ON c.id = v.contract_id
+			WHERE l.event_id = $1::uuid ORDER BY v.number`, id)
+		if err != nil {
+			return err
+		}
+		defer vr.Close()
+		for vr.Next() {
+			var vid, num, title, status, cnum, by string
+			var value decimal.Decimal
+			if err := vr.Scan(&vid, &num, &title, &status, &value, &cnum, &by); err != nil {
+				return err
+			}
+			if status == "APPROVED" {
+				e.RecoveredValue = e.RecoveredValue.Add(value)
+			}
+			e.Variations = append(e.Variations, map[string]any{"id": vid, "number": num, "title": title, "status": status, "value_change": value, "contract_number": cnum, "linked_by": by})
+		}
+		return vr.Err()
 	})
 	return e, err
+}
+
+// LinkVariation records that a contract variation recovers an approved
+// change event from the client (0054). change.manage on the event's project.
+func (s *Service) LinkVariation(ctx context.Context, p auth.Principal, eventID, variationID string) error {
+	var project string
+	if err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT project_id::text FROM change_events WHERE id = $1::uuid`, eventID).Scan(&project)
+	}); err != nil {
+		return mapNoRows(err)
+	}
+	if err := s.authz.RequireProject(p, auth.PermChangeManage, p.TenantID, project); err != nil {
+		return err
+	}
+	return s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO change_event_variations (event_id, variation_id, linked_by) VALUES ($1::uuid, $2::uuid, $3)`, eventID, variationID, p.UserID); err != nil {
+			return err
+		}
+		return s.record(ctx, tx, p, "change.link", "change_event", eventID, "change_event.variation_linked", map[string]any{"event_id": eventID, "variation_id": variationID})
+	})
 }

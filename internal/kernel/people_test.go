@@ -259,3 +259,66 @@ func dbRefuses(t *testing.T, f *fixture, what, sql string) {
 		t.Fatalf("the database allowed %s", what)
 	}
 }
+
+// Adjusting a product role (0060): withheld at once, restored by clearing.
+func TestPeople_AdjustProductRole(t *testing.T) {
+	f := newFixture(t)
+	now := time.Now()
+	fresh := func(p auth.Principal) auth.Principal {
+		p.Kind, p.MFA, p.AuthTime, p.IssuedAt = auth.KindHuman, true, now, now.Add(-time.Minute)
+		return p
+	}
+	admin := fresh(auth.Principal{UserID: "u-secadmin", TenantID: f.tenant, Roles: []string{"security_admin"}})
+	pmgr := fresh(auth.Principal{UserID: "u-procmgr", TenantID: f.tenant, Roles: []string{"procurement_manager"}})
+	authz := auth.NewAuthorizer(nil, true)
+
+	if _, err := f.svc.AdjustRole(f.ctx, pmgr, "procurement_manager", []string{"po.approve"}, "narrow my own role"); !errors.Is(err, auth.ErrForbidden) {
+		t.Fatalf("a non-administrator adjusted a role: %v", err)
+	}
+	stale := admin
+	stale.MFA = false
+	if _, err := f.svc.AdjustRole(f.ctx, stale, "procurement_manager", []string{"po.approve"}, "Approvals move to the CFO"); err == nil {
+		t.Fatal("a role was adjusted without fresh MFA")
+	}
+	if _, err := f.svc.AdjustRole(f.ctx, admin, "security_admin", []string{"role.manage"}, "lock the door behind us"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("role administration was withheld: %v", err)
+	}
+	if _, err := f.svc.AdjustRole(f.ctx, admin, "procurement_manager", []string{"journal.post"}, "not part of the role"); !errors.Is(err, ErrInvalidInput) {
+		t.Fatalf("a permission outside the role was withheld: %v", err)
+	}
+	if _, err := f.svc.AdjustRole(f.ctx, admin, "procurement_manager", []string{"po.approve"}, ""); err == nil {
+		t.Fatal("a role was adjusted without a reason")
+	}
+	r, err := f.svc.AdjustRole(f.ctx, admin, "procurement_manager", []string{"po.approve"}, "Purchase order approval moves to the CFO")
+	must(t, "adjust", err)
+	if len(r.Withheld) != 1 || len(r.Permissions) != len(r.Definition)-1 {
+		t.Fatalf("adjusted role: %+v", r)
+	}
+	if !authz.Has(pmgr, auth.PermPOApprove) {
+		t.Fatal("the fixture holder lacks po.approve before the adjustment applies")
+	}
+	applied, err := f.svc.ApplyDirectory(f.ctx, pmgr)
+	must(t, "apply", err)
+	if authz.Has(applied, auth.PermPOApprove) || !authz.Has(applied, auth.PermSupplierApprove) {
+		t.Fatalf("after the adjustment: po.approve %v, supplier.approve %v", authz.Has(applied, auth.PermPOApprove), authz.Has(applied, auth.PermSupplierApprove))
+	}
+	for _, perm := range authz.Permissions(applied) {
+		if perm == auth.PermPOApprove {
+			t.Fatal("a withheld permission is still listed")
+		}
+	}
+	v, err := f.svc.People(f.ctx, admin)
+	must(t, "people", err)
+	for _, ro := range v.Roles {
+		if ro.Code == "procurement_manager" && (len(ro.Withheld) != 1 || ro.AdjustedBy != "u-secadmin") {
+			t.Fatalf("role in the catalogue: %+v", ro)
+		}
+	}
+	_, err = f.svc.AdjustRole(f.ctx, admin, "procurement_manager", nil, "CFO approvals reverted after the audit")
+	must(t, "restore", err)
+	applied, err = f.svc.ApplyDirectory(f.ctx, pmgr)
+	must(t, "apply 2", err)
+	if !authz.Has(applied, auth.PermPOApprove) {
+		t.Fatal("a restored permission is still withheld")
+	}
+}

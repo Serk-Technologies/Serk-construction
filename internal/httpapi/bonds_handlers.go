@@ -222,3 +222,75 @@ func (s *Server) registerBonds() {
 		reply(w, map[string]any{"id": id, "ok": true}, err)
 	}))
 }
+
+// Revenue over time and the WIP adjustment (0053).
+//
+//	GET  /v1/revenue/policies; POST /v1/revenue/policies; POST /v1/revenue/policies/{id}/approve|reject
+//	GET  /v1/projects/{id}/revenue-runs; GET /v1/projects/{id}/revenue-preview?period_end=
+//	POST /v1/projects/{id}/revenue-runs {period_end}; POST /v1/revenue-runs/{id}/cancel {reason}
+func (s *Server) registerRevenue() {
+	m := s.mux
+	k := s.cfg.Kernel
+	reply := func(w http.ResponseWriter, out any, err error) {
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	}
+	m.Handle("GET /v1/revenue/projects", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		out, err := k.RevenueProjects(r.Context(), principalFrom(r.Context()))
+		reply(w, map[string]any{"projects": out}, err)
+	}))
+	m.Handle("GET /v1/revenue/policies", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		out, err := k.RevenuePolicies(r.Context(), principalFrom(r.Context()))
+		reply(w, map[string]any{"policies": out}, err)
+	}))
+	m.Handle("POST /v1/revenue/policies", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.RevenuePolicyInput
+		if !decode(w, r, &b) || !validIDs(w, b.LegalEntityID, b.ContractAssetAcct, b.ContractLiabilityAc) {
+			return
+		}
+		id, err := k.ProposeRevenuePolicy(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/revenue/policies/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideRevenuePolicy(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/revenue/policies/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideRevenuePolicy(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("GET /v1/projects/{id}/revenue-runs", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		out, err := k.RevenueRuns(r.Context(), principalFrom(r.Context()), id)
+		reply(w, map[string]any{"runs": out}, err)
+	}))
+	m.Handle("GET /v1/projects/{id}/revenue-preview", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		out, err := k.PreviewRevenue(r.Context(), principalFrom(r.Context()), id, r.URL.Query().Get("period_end"))
+		reply(w, out, err)
+	}))
+	m.Handle("POST /v1/projects/{id}/revenue-runs", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		var b struct {
+			PeriodEnd string `json:"period_end"`
+		}
+		if !decode(w, r, &b) {
+			return
+		}
+		rid, err := k.PrepareRevenueRun(r.Context(), principalFrom(r.Context()), id, b.PeriodEnd)
+		s.created(w, rid, err)
+	}))
+	m.Handle("POST /v1/revenue-runs/{id}/cancel", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.CancelRevenueRun(ctx, p, id, b.Reason)
+	})))
+}
