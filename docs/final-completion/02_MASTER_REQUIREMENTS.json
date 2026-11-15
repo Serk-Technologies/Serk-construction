@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.tests.txt",
- "register_commit": "dbe049a",
+ "results_file": "docs/engineering/evidence/2026-11-15-einvoice-47d5d5c.tests.txt",
+ "register_commit": "47d5d5c",
  "requirement_counts": {
   "VERIFIED": 105,
   "NOT_STARTED": 78,

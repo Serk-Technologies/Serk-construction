@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.tests.txt",
- "commit": "dbe049a",
+ "results_file": "docs/engineering/evidence/2026-11-15-einvoice-47d5d5c.tests.txt",
+ "commit": "47d5d5c",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",

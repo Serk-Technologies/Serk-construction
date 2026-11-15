@@ -174,12 +174,13 @@
    "id": "DEF-016",
    "severity": "Medium",
    "area": "Tax",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "A fake e-invoice adapter is the production default and the route stores ACCEPTED submissions (kernel/tax.go:56, tax_handlers.go:67)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "A stand-in presented as a working integration (no fake features)",
    "next_action": "Refuse submission unless an adapter is configured; the fake only in tests",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "commit 47d5d5c; TestTax_VATReturnAndEInvoice asserts the refusal with no adapter connected"
   },
   {
    "id": "DEF-017",

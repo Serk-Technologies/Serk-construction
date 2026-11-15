@@ -190,7 +190,10 @@
    "35": "FAILED, e6bcb8d: TestConsoleBrowserDocuments post-check; root cause a stale-response race in the RFI form (pre-existing), fixed in the following commit",
    "36": "passed, 5c74bd2 (race fix for four forms)",
    "37": "success on dd0e9bc (all six jobs)",
-   "38": "abb80ec (integration): in progress when recorded"
+   "38": "success on abb80ec",
+   "39": "success on 14bcec4",
+   "40": "success on ce7e6d5",
+   "41": "9c74f52: running when recorded"
   },
   "release_candidate": {
    "revision": "45f4b5c10792df76043e75ea922f234c801821a1",
@@ -224,7 +227,7 @@
   "main_ci": "failing (run 20)"
  },
  "current_phase": "Final-completion directive: WP-000, integration of new-version (ADR 0025), WP-001 form state and WP-002 problem details/cursors done; hardening of the carried modules (WP-024) next",
- "current_work_package": "WP-024 part 2 (DEF-016, DEF-011..015, DEF-017)",
+ "current_work_package": "WP-024 part 3",
  "completed_work_packages": [
   "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
   "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
@@ -280,14 +283,15 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "WP-024 part 2: DEF-016 (fake e-invoice adapter is the production default: make the default 'no adapter' and refuse submission with a 503 until an authorised adapter is configured; tests set FakeEInvoice explicitly), then the Medium items DEF-011..015 and DEF-017. Then rebuild timesheets and HSE (0064 of new-version) on this branch's tables with attested closures/verifications/permit steps.",
+  "exact_next_action": "WP-024 part 3: Medium defects DEF-011 (attest rule-of-credit approval), DEF-012 (refuse overlapping overhead ranges), DEF-013 (bind overhead/recurring/accrual journals to computed amounts; approve templates), DEF-014 (attest role adjustments with MFA), DEF-015 (approve tax and intercompany account designations), DEF-017 (attest cancellations). Then rebuild new-version 0064 timesheets and HSE on this branch's tables with attested closures, verifications and permit steps (DEF-001).",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
    "WP-001 form state (partial: four forms without own regression)",
    "WP-002 problem details and document-list cursors (other lists open)",
-   "WP-024 part 1: DEF-008, DEF-009 (9bce5f0), DEF-010 (dbe049a)"
+   "WP-024 part 1: DEF-008, DEF-009 (9bce5f0), DEF-010 (dbe049a)",
+   "WP-024 part 2: DEF-016 (47d5d5c)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.summary.json (492/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-einvoice-47d5d5c.summary.json (492/0/0)"
 }

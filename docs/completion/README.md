@@ -27,3 +27,6 @@ The completion directive lists 21 numbered documents. This index says where each
 | 20 | Final engineering report | `20_FINAL_ENGINEERING_REPORT.md` (a status report: the directive is not complete) |
 
 Regenerate 00, 02 and 03 with `python3 tools/completion_map.py` after the register changes.
+- `22_FINAL_SCOPE_AND_GAP_REGISTER.md` — discovery for the final-completion directive (with JSON)
+- `23_FINAL_COMPLETION_CHECKPOINT_1.md` — checkpoint report of the first final-completion session
+- Control centre: `../final-completion/00_PROGRAM_CHARTER.md`
