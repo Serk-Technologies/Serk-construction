@@ -83,23 +83,25 @@
    "id": "DEF-008",
    "severity": "High",
    "area": "Quality",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Inspection pass/fail and NCR closure are not attested: result_by is free text written by the tenant login; a PASSED row releases a HOLD point (0070_quality_site.sql:102-125, 169-195)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Hold points can be released under a forged identity",
    "next_action": "Attest results and closures with approval_use and database maker != checker; regression through raw SQL",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0073 and commit 9bce5f0; regressions in TestQuality_HoldPointNCRAndSiteRecords and TestTax_VATReturnAndEInvoice fail on a fresh database without the fix"
   },
   {
    "id": "DEF-009",
    "severity": "High",
    "area": "Tax / consolidation / quality",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "No database maker != checker on tax_returns (0069:38), consolidation_groups/runs (0068:21,151) and itps (0070:16); separation is enforced only in Go",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "A tenant login can self-approve",
    "next_action": "Guard: approver distinct from created_by in the database; raw-SQL regression",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0073 and commit 9bce5f0; regressions in TestQuality_HoldPointNCRAndSiteRecords and TestTax_VATReturnAndEInvoice fail on a fresh database without the fix"
   },
   {
    "id": "DEF-010",

@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py",
  "directory": "docs/engineering/evidence",
- "register_results_file": "docs/engineering/evidence/2026-11-15-forms-api-5a8c052.tests.txt",
+ "register_results_file": "docs/engineering/evidence/2026-11-15-hardening-9bce5f0.tests.txt",
  "files": [
   "2026-11-15-baseline-711a174-fresh-db.json",
   "2026-11-15-baseline.tests.txt",
@@ -18,6 +18,8 @@
   "2026-11-15-fleet-query-measurement.txt",
   "2026-11-15-forms-api-5a8c052.summary.json",
   "2026-11-15-forms-api-5a8c052.tests.txt",
+  "2026-11-15-hardening-9bce5f0.summary.json",
+  "2026-11-15-hardening-9bce5f0.tests.txt",
   "2026-11-15-integration-new-version.summary.json",
   "2026-11-15-integration-new-version.tests.txt",
   "2026-11-15-key-rotation.tests.txt",
