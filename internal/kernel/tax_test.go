@@ -91,6 +91,10 @@ func TestTax_VATReturnAndEInvoice(t *testing.T) {
 	if err := f.svc.DecideTaxReturn(f.ctx, selfCFO, ret, true, ""); !errors.Is(err, auth.ErrSoD) {
 		t.Fatalf("the preparer approved their own return: %v", err)
 	}
+	// DEF-009: the database refuses it too, with a genuine attestation and the kernel's check skipped.
+	selfCFO.MFA, selfCFO.AuthTime = true, time.Now()
+	attestedWriteRefusedWith(t, f, selfCFO, "taxreturn.decide", "tax_return", ret, "APPROVED", "segregation of duties",
+		`UPDATE tax_returns SET status = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, ret, acc.UserID)
 	stale := cfo
 	stale.AuthTime = time.Now().Add(-time.Hour)
 	if err := f.svc.DecideTaxReturn(f.ctx, stale, ret, true, ""); err == nil {

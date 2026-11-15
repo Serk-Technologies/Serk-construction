@@ -82,11 +82,11 @@ D = {
         r("13-week cash projection separating certified, billed and collected amounts", I,
           note="A 90-day outlook from approved invoices and ledger cash exists (docs/BACKLOG.md 5.4); payroll, tax and supplier schedules are missing.",
           criteria=[
-            c("Certified, billed and collected amounts are separate lines of the projection", N),
-            c("Supplier payment schedule from approved invoices and open purchase orders by due date", N),
+            c("Certified, billed and collected amounts are separate lines of the projection", I, note="new-version 13-week forecast (TestCashForecast_ThirteenWeeks); no collected line"),
+            c("Supplier payment schedule from approved invoices and open purchase orders by due date", I, note="new-version forecast; due-date week placement not asserted"),
             c("Payroll schedule from approved payroll runs (synthetic rules in test)", N),
             c("Tax payment schedule from posted tax liabilities", N),
-            c("Collection schedule from issued customer invoices by due date", N),
+            c("Collection schedule from issued customer invoices by due date", I, note="new-version forecast; due-date week placement not asserted"),
             c("A reference dataset with independently calculated weekly cash positions matches the projection to the cent", N)]),
         r("Daily exception digest by e-mail or Telegram", B, note="No authorised messaging adapter or credentials. In-app notifications exist (TestPlatform_RulesLifecycleAndWorker).",
           criteria=[
@@ -145,7 +145,7 @@ D = {
         r("Installed, measured, certified, billed and collected quantities are reported side by side", I,
           note="Measured/certified/billed/collected exist for contract lines (Journey B); installed quantity by work package does not.",
           criteria=[
-            c("Installed quantities come from work packages, not typed onto the report", N),
+            c("Installed quantities come from work packages, not typed onto the report", N, note="new-version rules of credit take installed quantities as typed entries by activity code, which this criterion excludes"),
             c("Measured, certified and billed quantities trace to measurement lines, certificates and invoices", N),
             c("Collected amounts trace to receipts applied to those invoices; physical progress never counts as collected", N)]),
     ]),
@@ -173,7 +173,7 @@ D = {
         r("Supplier-level exposure triggers dual payment approval", V, "TestSupplierExposureNeedsDualApproval", "TestSupplierExposureWindowAndConcurrency"),
         r("Supplier qualification, conflict disclosure and performance scoring", N),
     ]),
-    "SUP-04": ("M6", "Construction lead", [r("Subcontracts: scope/BOQ, security, measured work, retention, deductions", N)]),
+    "SUP-04": ("M6", "Construction lead", [r("Subcontracts: scope/BOQ, security, measured work, retention, deductions", I, note="Integrated from new-version (ADR 0025): certificates with retention, advance recovery, back-charges, withholding and journals (TestSubcontract_CertificatesAndJournal). Independent review: no BOQ link, no security (bond); cancellation unattested (DEF-017).")]),
     "SUP-05": ("M3", "Finance controller", [
         r("Stock quantity and value move together (FIFO or weighted average) and reconcile to the inventory account", V,
           "TestJourneyC_StockValuationToGL", "TestR7_FIFOManyLayersSmallIssues", "TestR7_WACFractionalToZero", "TestAPIJourneyC_StockValuation"),
@@ -277,7 +277,7 @@ D = {
         r("A preventive plan is revised by a new version that retires the old one in the same transaction and continues from its last service, or retired with a reason; retired plans are kept, are not due and take no work orders; neither is possible while a work order of the plan is open", V,
           "TestMaintenance_PlanRevisionAndRetirement", "TestAPIMaintenance"),
     ]),
-    "FLT-04": ("M6", "Finance controller", [r("Capitalisation, depreciation and disposal posted through the ledger", N)]),
+    "FLT-04": ("M6", "Finance controller", [r("Capitalisation, depreciation and disposal posted through the ledger", I, note="Integrated from new-version (ADR 0025), TestFixedAssets_CapitaliseDepreciateDispose. Independent review: capitalisation journal lines not asserted; no link to the fleet register; disposal relies on trigger depth (DEF-017).")]),
     # ------------------------------------------------------------- PEOPLE
     "PPL-01": ("M6", "Product owner", [r("Employee and contractor records with protected personal data", N)]),
     "PPL-02": ("M6", "Construction lead", [r("Attendance and timesheets with approval, duplicate and overlap detection", N,
@@ -285,8 +285,8 @@ D = {
     "PPL-03": ("M6", "Finance controller", [r("Payroll preview → approval → locked run → posting → payment, on effective-dated reviewed rules", B,
                                               note="No statutory payroll rules may be shipped without professional approval (MASTER_PROMPT 4.8).",
           criteria=[
-            c("Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated", N),
-            c("Preview, independent approval, locked run, journal and payment record with synthetic test rules", N),
+            c("Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated", I, note="new-version payroll (TestPayroll_RunApprovePay); activation of an unapproved set is not tested"),
+            c("Preview, independent approval, locked run, journal and payment record with synthetic test rules", I, note="new-version payroll; the locked run is not tested; employee bank details unapproved (DEF-010)"),
             c("Reversal and reconciliation of a payroll run", N),
             c("Statutory rules supplied and approved by a named professional", B)])]),
     "PPL-04": ("M6", "Construction lead", [r("Crew output and labour cost by work package", N)]),
@@ -316,7 +316,7 @@ D = {
           note="Certificate, invoice and receipt are distinct; IFRS 15 revenue recognition is not implemented and needs accounting policy approval.",
           criteria=[
             c("Certification, invoicing and collection are distinct, separately evidenced states", N),
-            c("Revenue recognition follows a contract-specific, approved policy and is not triggered by invoicing alone", N),
+            c("Revenue recognition follows a contract-specific, approved policy and is not triggered by invoicing alone", I, note="new-version revenue runs (TestRevenue_RunAndWIPJournal): policy per legal entity, not per contract"),
             c("A recognition change is reviewed by someone other than its preparer", N)]),
     ]),
     # ------------------------------------------------------------ CAPITAL
@@ -362,7 +362,7 @@ D = {
             c("Configurable tax engine: effective dates, bases, exemptions, withholding, rounding, source and approval", N),
             c("Real rates and rules from a named tax professional with sources", B)]),
     ]),
-    "CAP-07": ("M10", "Finance controller", [r("Intercompany matching, translation and elimination for consolidated statements", N)]),
+    "CAP-07": ("M10", "Finance controller", [r("Intercompany matching, translation and elimination for consolidated statements", I, note="Integrated from new-version (ADR 0025), TestConsolidation_TranslateEliminateApprove: consolidated trial balance with translation, CTA, NCI and eliminations. Independent review: matching is per account pair, not per transaction; no statements; no database maker-checker (DEF-009).")]),
     "CAP-08": ("M6", "Finance controller", [r("Cash forecast scenarios including payroll, tax and supplier schedules", I,
                                               note="See CMD-05.",
           criteria=[
@@ -375,7 +375,7 @@ D = {
         r("Audit chain anchored to separately protected storage", N),
     ]),
     # ------------------------------------------------------------- ASSURE
-    "ASR-01": ("M6", "Construction lead", [r("ITP with hold/witness points, NCR and corrective action through independent closure", N)]),
+    "ASR-01": ("M6", "Construction lead", [r("ITP with hold/witness points, NCR and corrective action through independent closure", I, note="Integrated from new-version (ADR 0025), TestQuality_HoldPointNCRAndSiteRecords. Independent review: inspection results and NCR closure are unattested (DEF-008), witness points not asserted.")]),
     "ASR-02": ("M6", "Construction lead", [r("Samples with chain of custody, calibrated equipment, results against limits; failed tests preserved", N)]),
     "ASR-03": ("M6", "Construction lead", [r("Permits to work, incidents, toolbox talks; stop-work effective offline; no AI release", N)]),
     "ASR-04": ("M6", "Product owner", [r("Carbon, waste, water and energy records with versioned factors; measured vs estimated", N)]),
@@ -444,7 +444,7 @@ D = {
         r("Alert rules notify the right people; a rule is activated by someone other than its author", V, "TestPlatform_RulesLifecycleAndWorker"),
         r("Assignable tasks with due dates outside document approvals", N),
     ]),
-    "CNX-08": ("M7", "Product owner", [r("Meeting minutes with actions and decisions", N)]),
+    "CNX-08": ("M7", "Product owner", [r("Meeting minutes with actions and decisions", I, note="Integrated from new-version (ADR 0025): meetings with actions; no decisions recorded.")]),
     "CNX-09": ("M4", "Product owner", [
         r("Every catalogued report runs and ties to its source; exports show no more than the screen and are budgeted", V,
           "TestReportCatalogue_EveryReportRunsAndTiesOut", "TestReportCatalogue_ScopeAndInput", "TestAPIReportsAndExports", "TestPlatform_ExportBudget"),
@@ -546,21 +546,26 @@ X = {
         r("The OpenAPI contract matches the routes served", V, "TestOpenAPIMatchesRoutes"),
         r("Problem details per RFC 9457 and cursor pagination on every list", I, note="Errors use a consistent {code,message} body; lists are bounded by LIMIT, not cursors.",
           criteria=[
-            c("Every error response is application/problem+json with type, title, status and detail", N),
-            c("Document lists page by an opaque cursor with stable ordering", N),
-            c("A cursor cannot cross tenants or change the filters it was issued for", N),
-            c("Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page", N)]),
+            c("Every error response is application/problem+json with type, title, status and detail", V, "TestProblemDetailsRFC9457"),
+            c("Document lists page by an opaque cursor with stable ordering", V, "TestListCursorPagination"),
+            c("A cursor cannot cross tenants or change the filters it was issued for", V, "TestListCursorPagination"),
+            c("Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page", V, "TestListCursorPagination"),
+            c("Lists outside the document framework (journals, stock, people, reports) page by cursor", N)]),
     ]),
     # Added by the final-completion directive (sections 7 and 9). Appended; no earlier ID moves.
     "XCT-FORM": ("M6", "Console form reliability", [
-        r("A dependent form applies only the newest answer for each list it loads; an older answer or error never replaces a newer one", I,
-          "TestConsoleBrowserDocuments", "TestConsoleBrowserJourneyA", "TestConsoleBrowserPlanning",
-          note="latestOnly/refill in all eleven reloading forms; three forms have their own race reproduction."),
-        r("Form state (lines, amounts, descriptions) lives in a state object with stable line identities, independent of the DOM", N),
-        r("Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently", N),
-        r("Submission is blocked while dependent data is loading and cannot be sent twice", N),
-        r("Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests", N),
-        r("Every reloading form has a barrier-driven regression that fails without the fix", N),
+        r("A dependent form applies only the newest answer for each list it loads; an older answer or error never replaces a newer one", V,
+          "TestConsoleBrowserForms", "TestConsoleBrowserDocuments",
+          note="Barrier-driven (no timers) for six cost-code forms, older success and older failure after a newer answer; the RFI form by its own reproduction. Shown to fail on the previous console."),
+        r("Form state (lines, amounts, descriptions) lives in a state object with stable line identities, independent of the DOM", V, "TestConsoleBrowserForms",
+          note="lineGrid keeps rows in state; a project change refills choices in place and typed lines survive."),
+        r("Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently", V, "TestConsoleBrowserForms"),
+        r("Submission is blocked while dependent data is loading and cannot be sent twice", I, "TestConsoleBrowserForms",
+          note="Blocking while loading is verified; the guard against a second send exists but has no test of its own."),
+        r("Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests", I, "TestConsoleBrowserForms",
+          note="Asking first is verified; cancellation on navigation is implemented (AbortController) but not tested."),
+        r("Every reloading form has a barrier-driven regression that fails without the fix", I, "TestConsoleBrowserForms",
+          note="Seven of eleven: requisition, budget revision, change event, BOQ, schedule, budget transfer (barrier) and RFI (held answer). Not yet: contingency drawdown, stock issue, fuel dispense, work-order part."),
     ]),
     "XCT-UI": ("M6", "SERK AURA experience", [
         r("AURA light and dark token sets meet their contrast targets and the console stylesheet matches them", V,

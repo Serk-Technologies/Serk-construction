@@ -38,7 +38,20 @@ func (s *Service) requireProjectAny(p auth.Principal, project string, perms ...a
 
 // stepByID applies one update to a project record, after checking the
 // principal's permission on the record's project, and audits it.
+// stepAttested is stepByID for a decision: the signer attests the person and
+// outcome first, and the database's guard (0073) spends that attestation, so the
+// identity it records cannot be written by the tenant login (DEF-008).
+func (s *Service) stepAttested(ctx context.Context, p auth.Principal, table, aggregate, id, outcome, sql, action string, perms []auth.Permission, args ...any) error {
+	return s.stepByIDWith(ctx, p, table, aggregate, id, sql, action, perms, func(ctx context.Context, tx pgx.Tx) error {
+		return s.authorize(ctx, tx, p, action, aggregate, id, outcome)
+	}, args...)
+}
+
 func (s *Service) stepByID(ctx context.Context, p auth.Principal, table, aggregate, id, sql, action string, perms []auth.Permission, args ...any) error {
+	return s.stepByIDWith(ctx, p, table, aggregate, id, sql, action, perms, nil, args...)
+}
+
+func (s *Service) stepByIDWith(ctx context.Context, p auth.Principal, table, aggregate, id, sql, action string, perms []auth.Permission, before func(context.Context, pgx.Tx) error, args ...any) error {
 	var project string
 	if err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
 		return mapNoRows(tx.QueryRow(ctx, `SELECT project_id::text FROM `+table+` WHERE id = $1::uuid`, id).Scan(&project))
@@ -49,6 +62,11 @@ func (s *Service) stepByID(ctx context.Context, p auth.Principal, table, aggrega
 		return err
 	}
 	return s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		if before != nil {
+			if err := before(ctx, tx); err != nil {
+				return err
+			}
+		}
 		if err := postgres.Exec1(ctx, tx, sql, append([]any{id}, args...)...); err != nil {
 			return err
 		}
@@ -151,7 +169,7 @@ func (s *Service) RequestInspection(ctx context.Context, p auth.Principal, in In
 // DecideInspection records the result (a person other than the requester).
 func (s *Service) DecideInspection(ctx context.Context, p auth.Principal, id string, pass bool, note string) error {
 	st := map[bool]string{true: "PASSED", false: "FAILED"}[pass]
-	return s.stepByID(ctx, p, "inspection_requests", "inspection_request", id, `UPDATE inspection_requests SET status = $2, result_by = $3, result_note = NULLIF($4, '') WHERE id = $1::uuid`,
+	return s.stepAttested(ctx, p, "inspection_requests", "inspection_request", id, st, `UPDATE inspection_requests SET status = $2, result_by = $3, result_note = NULLIF($4, '') WHERE id = $1::uuid`,
 		"inspection.decide", []auth.Permission{auth.PermQualityManage}, st, p.UserID, strings.TrimSpace(note))
 }
 
@@ -198,7 +216,7 @@ func (s *Service) ActionNCR(ctx context.Context, p auth.Principal, id, rootCause
 
 // CloseNCR closes (verifies) an actioned non-conformance.
 func (s *Service) CloseNCR(ctx context.Context, p auth.Principal, id, note string) error {
-	return s.stepByID(ctx, p, "ncrs", "ncr", id, `UPDATE ncrs SET status = 'CLOSED', closed_by = $2, close_note = $3 WHERE id = $1::uuid`,
+	return s.stepAttested(ctx, p, "ncrs", "ncr", id, "CLOSED", `UPDATE ncrs SET status = 'CLOSED', closed_by = $2, close_note = $3 WHERE id = $1::uuid`,
 		"ncr.close", []auth.Permission{auth.PermQualityApprove}, p.UserID, strings.TrimSpace(note))
 }
 
