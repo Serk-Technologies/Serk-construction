@@ -13,6 +13,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -52,8 +53,15 @@ func (FakeEInvoice) Submit(_ context.Context, inv EInvoice, hash string) (string
 	return "FAKE-" + strings.ToUpper(hash[:12]), true, "accepted by the fake adapter", nil
 }
 
-// EInvoiceAdapterFor is the adapter in use; replaced when the format is confirmed (D-06).
-var EInvoiceAdapterFor = func() EInvoiceAdapter { return FakeEInvoice{} }
+// EInvoiceAdapterFor is the adapter in use. None is configured: no authorised
+// e-invoicing interface exists yet (decision D-06, blocker CNX-13.1), and a
+// stand-in must never record a submission as accepted outside tests (DEF-016).
+// Tests install FakeEInvoice explicitly.
+var EInvoiceAdapterFor = func() EInvoiceAdapter { return nil }
+
+// ErrIntegrationNotConfigured: the external service an action needs is not
+// connected; nothing was sent or recorded.
+var ErrIntegrationNotConfigured = errors.New("kernel: integration not configured")
 
 func (s *Service) taxTx(ctx context.Context, p auth.Principal, perm auth.Permission, fn func(ctx context.Context, tx pgx.Tx) error) error {
 	if !s.tenantWide(p) {
@@ -198,6 +206,9 @@ func (s *Service) SubmitEInvoice(ctx context.Context, p auth.Principal, invoiceI
 		sum := sha256.Sum256(raw)
 		hash := hex.EncodeToString(sum[:])
 		ad := EInvoiceAdapterFor()
+		if ad == nil {
+			return fmt.Errorf("%w: no e-invoicing service is connected; the invoice was not sent", ErrIntegrationNotConfigured)
+		}
 		ref, ok, resp, err := ad.Submit(ctx, inv, hash)
 		if err != nil {
 			return err

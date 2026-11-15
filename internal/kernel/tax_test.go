@@ -115,7 +115,14 @@ func TestTax_VATReturnAndEInvoice(t *testing.T) {
 	must(t, "wht", err)
 	must(t, "reject", f.svc.DecideTaxReturn(f.ctx, cfo, wht, false, "Wrong period for this return"))
 
-	// E-invoice: the fake adapter accepts an approved invoice once.
+	// E-invoice: with no service connected nothing is sent or recorded (DEF-016)...
+	if _, err := f.svc.SubmitEInvoice(f.ctx, acc, arInv); !errors.Is(err, ErrIntegrationNotConfigured) {
+		t.Fatalf("an e-invoice was recorded with no service connected: %v", err)
+	}
+	// ...and with the test double installed explicitly, it accepts an approved invoice once.
+	prev := EInvoiceAdapterFor
+	EInvoiceAdapterFor = func() EInvoiceAdapter { return FakeEInvoice{} }
+	t.Cleanup(func() { EInvoiceAdapterFor = prev })
 	res, err := f.svc.SubmitEInvoice(f.ctx, acc, arInv)
 	must(t, "e-invoice", err)
 	if res["status"] != "ACCEPTED" || res["reference"] == "" {

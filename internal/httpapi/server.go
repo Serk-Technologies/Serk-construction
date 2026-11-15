@@ -632,6 +632,8 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 		s.cfg.Logger.Error("document storage fault", "err", err.Error())
 		w.Header().Set("Retry-After", "30")
 		writeErr(w, http.StatusServiceUnavailable, "storage_unavailable", "file storage is temporarily unavailable; nothing was lost, try again shortly")
+	case errors.Is(err, kernel.ErrIntegrationNotConfigured):
+		writeErr(w, http.StatusServiceUnavailable, "integration_not_configured", strings.TrimPrefix(err.Error(), "kernel: integration not configured: "))
 	case errors.Is(err, kernel.ErrNotFound), errors.Is(err, auth.ErrTenantMismatch):
 		writeErr(w, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, auth.ErrStepUpRequired):
