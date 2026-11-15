@@ -2,6 +2,13 @@
 
 Changes made under the SERK Construction OS 3.0 directive (`MASTER_PROMPT.md`). Earlier history: `docs/release/CHECKPOINT_*.md` and `git log`.
 
+## 2026-11-15: fleet part 3, maintenance (0056, ADR 0023)
+
+- Work orders: prepared, authorised (fleet.approve, fresh MFA), reported complete, closed or sent back by a certifier who did not report the work.
+- **Behaviour change:** a machine that has been UNDER_MAINTENANCE no longer returns to service on the certifier's word alone. It needs a work order closed after it entered maintenance, and no open work order. The existing lifecycle test was extended to assert the refusal first.
+- Parts are stock issues linked to the work order. Preventive plans by meter and calendar with a due list. Maintenance history and out-of-service hours per machine.
+- Console: work orders as a document type with actions, forms for work orders, parts and plans, due table on the Fleet page.
+
 ## 2026-11-15: fleet part 2, fuel (0055, ADR 0022)
 
 - Fuel is ordinary stock. Filling a machine prepares a stock issue of a designated fuel item together with the record of which machine took it; the existing second-person approval values it, takes it out of the tank and charges the project through the existing issue journal. No second ledger and no new posting.

@@ -43,3 +43,9 @@ internal/kernel TestFuel_DispenseIsAStockIssue
 internal/kernel TestFuel_StandardsAndReconciliation
 internal/httpapi TestAPIFuel
 pkg/fleet TestFuelFlags
+
+# Fleet maintenance (ADR 0023)
+internal/kernel TestMaintenance_WorkOrderAndReturnToService
+internal/kernel TestMaintenance_PlansAndDue
+internal/httpapi TestAPIMaintenance
+pkg/fleet TestDueState

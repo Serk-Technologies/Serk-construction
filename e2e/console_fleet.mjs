@@ -135,6 +135,44 @@ try {
   await audit(pm, 'equipment detail');
   await snap(pm, 'equipment-detail');
 
+  // ---- 5b. Maintenance: a work order through four hands, and a plan on the command centre ----
+  await nav(officer, '#/new/work_order', 'New work order');
+  await officer.getByLabel('Equipment').selectOption(eq);
+  await officer.getByLabel('Kind').selectOption('CORRECTIVE');
+  await officer.getByLabel('What is wrong, or what is to be done').fill('Boom cylinder seal weeping; replace seal kit');
+  await audit(officer, 'work order form');
+  await officer.getByRole('button', { name: 'Save work order' }).click();
+  await officer.getByRole('heading', { level: 1, name: /^Work order MWO-/ }).waitFor();
+  const wo = await idFromHash(officer);
+  await act(officer, 'Submit for approval', 'Submit for approval: done');
+  await nav(manager, '#/home', 'My work');
+  await manager.getByRole('link', { name: /Work orders to authorise/ }).waitFor();
+  await nav(manager, `#/doc/maintenance_work_order/${wo}`, /^Work order MWO-/);
+  await act(manager, 'Approve', 'Approve: done');
+  await nav(officer, `#/doc/maintenance_work_order/${wo}`, /^Work order MWO-/);
+  if (await officer.getByRole('button', { name: 'Accept and close' }).count()) fail('the plant officer is offered the certifier\'s action');
+  await officer.getByLabel('Work done').fill('Seal kit replaced; cylinder cycled 20 times, no leak');
+  await officer.getByLabel('Labour hours').fill('3.5');
+  await audit(officer, 'work order (authorised)');
+  await officer.getByRole('button', { name: 'Report complete' }).click();
+  await officer.locator('#status').filter({ hasText: 'Work reported complete' }).waitFor();
+  if (await officer.getByRole('button', { name: 'Report complete' }).count()) fail('a completed work order still offers Report complete');
+  await nav(inspector, '#/home', 'My work');
+  await inspector.getByRole('link', { name: /Completed work to certify/ }).waitFor();
+  await nav(inspector, `#/doc/maintenance_work_order/${wo}`, /^Work order MWO-/);
+  await act(inspector, 'Accept and close', 'Accept and close: done');
+  await snap(inspector, 'work-order-closed');
+  await nav(officer, '#/new/maintenance_plan', 'New maintenance plan');
+  await officer.getByLabel('Equipment').selectOption(eq);
+  await officer.getByLabel('Title').fill('250 hour service');
+  await officer.getByLabel('Every (metered units)').fill('250');
+  await officer.getByRole('button', { name: 'Save plan' }).click();
+  await officer.getByRole('heading', { level: 1, name: 'Fleet command centre' }).waitFor();
+  const dueRows = await officer.getByRole('table', { name: /Preventive maintenance/ }).locator('tbody tr').allTextContents();
+  if (dueRows.length !== 1 || !/Excavator 07.*250 hour service.*Not yet due.*250\.00/.test(dueRows[0])) fail(`maintenance due row: ${dueRows.join(' || ')}`);
+  await audit(officer, 'fleet command centre with maintenance');
+  log('work order closed by the certifier; plan shown as not yet due');
+
   // ---- 6. Phone width, dark theme ---------------------------------------------------------
   const phone = await as('engPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   await nav(phone, `#/fleet/${eq}`, /Excavator 07$/);

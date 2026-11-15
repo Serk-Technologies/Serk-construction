@@ -120,6 +120,7 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"equipment_operator_auth": {"equipment_operator_auths", "created_by", ""},
 	"equipment_log":           {"equipment_logs", "created_by", ""},
 	"equipment_meter_reset":   {"equipment_meter_resets", "created_by", ""},
+	"maintenance_work_order":  {"maintenance_work_orders", "created_by", ""},
 }
 
 // DocTypes reports whether a document type is known (for callers that must
@@ -391,6 +392,7 @@ var listSQL = map[string]string{
 	"equipment_operator_auth": `SELECT a.id::text, a.number, a.status, a.created_by, a.created_at, '', 0::numeric, a.operator || ' — ' || lower(a.equipment_class) || ' until ' || a.valid_until || ' (' || a.certificate_ref || ')' FROM equipment_operator_auths a`,
 	"equipment_log":           `SELECT l.id::text, l.number, l.status, l.created_by, l.created_at, l.project_id::text, l.productive_hours, e.number || ' ' || e.name || ' — ' || l.log_date || ' shift ' || l.shift || ', operator ' || l.operator FROM equipment_logs l JOIN equipment e ON e.id = l.equipment_id`,
 	"equipment_meter_reset":   `SELECT m.id::text, m.number, m.status, m.created_by, m.created_at, COALESCE(e.current_project_id::text, ''), m.new_reading, e.number || ' ' || e.name || ' — ' || lower(m.kind) || ': ' || m.old_reading || ' to ' || m.new_reading FROM equipment_meter_resets m JOIN equipment e ON e.id = m.equipment_id`,
+	"maintenance_work_order":  `SELECT m.id::text, m.number, m.status, m.created_by, m.created_at, COALESCE(e.current_project_id::text, ''), COALESCE(m.labour_hours, 0), e.number || ' ' || e.name || ' — ' || lower(m.kind) || ': ' || left(m.description, 80) FROM maintenance_work_orders m JOIN equipment e ON e.id = m.equipment_id`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,
 	       s.imported_by, s.imported_at, '', l.amount, l.reference || ' — ' || l.counterparty FROM bank_statement_lines l JOIN bank_statements s ON s.id = l.statement_id WHERE l.amount > 0`,

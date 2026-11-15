@@ -102,6 +102,8 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT project_id::text FROM ` + map[string]string{"equipment_reservation": "equipment_reservations", "equipment_log": "equipment_logs"}[docType] + ` WHERE id = $1::uuid`
 	case "equipment_meter_reset":
 		q = `SELECT COALESCE(e.current_project_id::text, '') FROM equipment_meter_resets x JOIN equipment e ON e.id = x.equipment_id WHERE x.id = $1::uuid`
+	case "maintenance_work_order":
+		q = `SELECT COALESCE(e.current_project_id::text, '') FROM maintenance_work_orders x JOIN equipment e ON e.id = x.equipment_id WHERE x.id = $1::uuid`
 	case "document_revision":
 		q = `SELECT d.project_id::text FROM document_revisions x JOIN documents d ON d.id = x.document_id WHERE x.id = $1::uuid`
 	case "rfi":

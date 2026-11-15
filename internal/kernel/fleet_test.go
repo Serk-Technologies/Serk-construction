@@ -79,6 +79,21 @@ func (w *fleetWorld) reserve(t *testing.T, eq, project string, by auth.Principal
 	return id
 }
 
+// closedWorkOrder runs a corrective work order to its certified close:
+// prepared and reported by the plant officer, authorised by the plant manager,
+// closed by the inspector.
+func (w *fleetWorld) closedWorkOrder(t *testing.T, eq, what string) string {
+	t.Helper()
+	f := w.f
+	id, err := f.svc.CreateWorkOrder(f.ctx, w.officer, WorkOrderInput{EquipmentID: eq, Kind: "CORRECTIVE", Description: what})
+	must(t, "work order", err)
+	must(t, "submit work order", f.svc.SubmitWorkOrder(f.ctx, w.officer, id))
+	must(t, "authorise work order", f.svc.DecideWorkOrder(f.ctx, w.manager, id, true, ""))
+	must(t, "complete work order", f.svc.CompleteWorkOrder(f.ctx, w.officer, id, what+"; tested under load", dec("3.5")))
+	must(t, "close work order", f.svc.CloseWorkOrder(f.ctx, w.inspector, id, true, ""))
+	return id
+}
+
 func (w *fleetWorld) status(t *testing.T, eq string) string {
 	t.Helper()
 	e, err := w.f.svc.GetEquipment(w.f.ctx, w.officer, eq)
@@ -237,6 +252,11 @@ func TestFleet_RegisterAndLifecycle(t *testing.T) {
 	if _, err := f.svc.MoveEquipment(f.ctx, aiInspector, id, "IN_SERVICE", "Pressure test passed", ""); err == nil {
 		t.Fatal("an AI principal certified equipment fit for service")
 	}
+	// 0056: a machine that has been under maintenance returns to service only after a closed work order.
+	if _, err := f.svc.MoveEquipment(f.ctx, w.inspector, id, "IN_SERVICE", "Hose replaced, pressure test passed, no leaks", ""); err == nil {
+		t.Fatal("a machine left maintenance without a closed work order")
+	}
+	w.closedWorkOrder(t, id, "Hydraulic hose on the boom replaced and pressure tested")
 	got, err := f.svc.MoveEquipment(f.ctx, w.inspector, id, "IN_SERVICE", "Hose replaced, pressure test passed, no leaks", "")
 	if err != nil || got != "ASSIGNED" {
 		t.Fatalf("return to service: %s %v", got, err)

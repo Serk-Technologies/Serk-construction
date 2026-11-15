@@ -178,6 +178,9 @@ const DOCS = {
     actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
   equipment_meter_reset: { title: 'Meter resets', one: 'Meter reset', base: '/v1/equipment-meter-resets', create: 'fleet.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
+  maintenance_work_order: { title: 'Work orders', one: 'Work order', base: '/v1/maintenance-work-orders', create: 'fleet.manage|fleet.operate', form: 'work_order', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'COMPLETED', 'CLOSED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'fleet.manage|fleet.operate'], ['cancel', 'fleet.manage|fleet.operate', 'req']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']],
+      COMPLETED: [['close', 'fleet.release'], ['send-back', 'fleet.release', 'req']] } },
   guarantee: { title: 'Guarantees', one: 'Guarantee', base: '/v1/guarantees', create: 'bond.manage', form: null, statuses: ['ACTIVE', 'RELEASED', 'CALLED'], actions: {} },
   price_index_value: { title: 'Index values', one: 'Index value', base: '/v1/price-index-values', create: 'escalation.manage', form: null,
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
@@ -302,7 +305,8 @@ const DOCS = {
 };
 const ACTION_LABEL = { submit: 'Submit for approval', approve: 'Approve', reject: 'Reject', issue: 'Issue to suppliers', award: 'Award',
   evaluate: 'Record evaluation', confirm: 'Confirm receipt', release: 'Release payment', cancel: 'Cancel', block: 'Block supplier',
-  verify: 'Verify measurement', certify: 'Certify', invoice: 'Issue customer invoice', revoke: 'Revoke' };
+  verify: 'Verify measurement', certify: 'Certify', invoice: 'Issue customer invoice', revoke: 'Revoke',
+  close: 'Accept and close', 'send-back': 'Send back to the workshop' };
 
 // Sidebar: categories in the order work flows through a construction company.
 // Each category folds; the folded set is remembered per browser (NAV_KEY).
@@ -326,7 +330,7 @@ const NAV = [
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
   ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
-    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read']]],
+    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read']]],
   ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
@@ -357,6 +361,8 @@ const QUEUES = [
   ['fleet.log.approve', 'equipment_log', 'SUBMITTED', 'Equipment logs to approve'],
   ['fleet.release', 'equipment_operator_auth', 'SUBMITTED', 'Operator authorisations to approve'],
   ['fleet.release', 'equipment_meter_reset', 'SUBMITTED', 'Meter resets to approve'],
+  ['fleet.approve', 'maintenance_work_order', 'SUBMITTED', 'Work orders to authorise'],
+  ['fleet.release', 'maintenance_work_order', 'COMPLETED', 'Completed work to certify'],
   ['escalation.approve', 'price_index_value', 'SUBMITTED', 'Index values to approve'],
   ['escalation.approve', 'escalation_formula', 'SUBMITTED', 'Price adjustment formulas to approve'],
   ['escalation.approve', 'price_adjustment', 'SUBMITTED', 'Price adjustments to approve'],
@@ -741,7 +747,7 @@ async function renderList(type, status) {
   filter.addEventListener('change', () => { location.hash = `#/list/${type}${filter.value ? '/' + filter.value : ''}`; });
   const listTitle = `${meta.title}${status ? ' — ' + words(status.toLowerCase()) : ''}`;
   const tools = h('div', { class: 'toolbar' }, field('Status', filter),
-    meta.form && S.can.has(meta.create) ? h('a', { class: 'btn', href: `#/new/${meta.form}` }, `New ${meta.one.toLowerCase()}`) : null,
+    meta.form && allowed(meta.create) ? h('a', { class: 'btn', href: `#/new/${meta.form}` }, `New ${meta.one.toLowerCase()}`) : null,
     h('span', { class: 'spacer' }), exportBar(`/v1/p2p/${type}${status ? '?status=' + encodeURIComponent(status) : ''}`, listTitle));
   page(meta.title, null, tools, table(`${meta.title}${status ? ' — ' + words(status.toLowerCase()) : ''} (${r.items.length})`, [
     { label: 'Reference', cell: (d) => {
@@ -836,6 +842,7 @@ async function renderDoc(type, id) {
       ce.budget_version_id ? h('p', {}, 'A budget revision for the cost lines was drafted. The budget moves only when it is submitted and approved: ', h('a', { href: `#/doc/budget_version/${ce.budget_version_id}` }, 'open the drafted revision'), '.')
         : h('p', { class: 'hint' }, 'This change event has no cost lines, so no budget revision was drafted.')));
   }
+  if (type === 'maintenance_work_order') parts.push(await workOrderPanel(d));
   if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
   if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); }
   if (type === 'contract_notice' && d.status === 'OPEN' && S.can.has('claim.manage')) {
@@ -1464,6 +1471,76 @@ const FORMS = {
         location.hash = `#/doc/stock_issue/${res.stock_issue_id}`;
       });
     await sync();
+  },
+
+  async work_order(eqId) {
+    const all = (await api('GET', '/v1/equipment?limit=200')).items.filter((e) => !['RETIRED', 'DISPOSED'].includes(e.status));
+    const eq = select('equipment_id', all.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    if (eqId) eq.value = eqId;
+    const plant = S.can.has('fleet.manage');
+    const kinds = plant ? [['CORRECTIVE', 'Corrective repair'], ['BREAKDOWN', 'Breakdown'], ['PREVENTIVE', 'Preventive service'], ['INSPECTION', 'Inspection']] : [['BREAKDOWN', 'Breakdown']];
+    const kind = select('kind', kinds.map(([value, label]) => ({ value, label })), { required: true });
+    const due = plant ? (await api('GET', '/v1/fleet/maintenance-due')).items.filter((x) => !x.open_work_order) : [];
+    const plan = select('plan_id', [{ value: '', label: 'None' }]);
+    const desc = h('textarea', { name: 'description', rows: '3', required: '', maxlength: '2000' });
+    const sync = () => {
+      plan.textContent = '';
+      plan.append(h('option', { value: '' }, 'None'));
+      for (const x of due.filter((x) => x.equipment_id === eq.value)) plan.append(h('option', { value: x.plan_id }, `${x.title} (${words(x.state.toLowerCase())})`));
+      plan.disabled = kind.value !== 'PREVENTIVE';
+      if (plan.disabled) plan.value = '';
+    };
+    eq.addEventListener('change', sync); kind.addEventListener('change', sync); sync();
+    formPage('New work order', plant ? 'A plant manager authorises the work, plant staff report it complete, and a certifier closes it. A machine that has been under maintenance returns to service only after its work order is closed.'
+      : 'Report a breakdown of a machine at your project. Plant staff take it from there; stop the machine from its own page.',
+      [h('div', { class: 'grid' }, field('Equipment', eq), field('Kind', kind), plant ? field('Carries out plan', plan, 'For a preventive service that is due.') : null), field('What is wrong, or what is to be done', desc)], 'Save work order', async () => {
+        const res = await api('POST', '/v1/maintenance-work-orders', { equipment_id: eq.value, kind: kind.value, description: desc.value.trim(), plan_id: plan.value || undefined });
+        created('maintenance_work_order', res, 'Work order');
+      });
+  },
+
+  async work_order_part(woId) {
+    const wo = await api('GET', `/v1/p2p/maintenance_work_order/${woId}`);
+    const e = await api('GET', `/v1/equipment/${wo.detail.equipment_id}`);
+    const wh = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const item = select('stock_item_id', await docOpts('stock_item', 'ACTIVE'), { required: true });
+    const qty = input('quantity', { inputmode: 'decimal', required: true });
+    const proj = select('project_id', projectOpts(), { required: true });
+    if (e.current_project_id) { proj.value = e.current_project_id; proj.disabled = true; }
+    const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
+    const cc = select('cost_code_id', [], { required: true });
+    const note = input('note', { type: 'text', maxlength: '500' });
+    const loadCC = async () => {
+      cc.textContent = '';
+      if (!proj.value) return;
+      for (const c of (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes) cc.append(h('option', { value: c.id }, `${c.code} ${c.name}`));
+    };
+    proj.addEventListener('change', () => loadCC().catch(showError));
+    formPage(`Request a part for ${wo.number}`, 'This prepares a stock issue linked to the work order. A different person approves the issue; the part then leaves the store and its cost is charged to the project.',
+      [h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty, 'In the item\'s own unit.'), field('Project charged', proj, e.current_project_id ? 'The project the machine is at.' : 'The machine is not at a project: choose the project that bears the cost.'),
+        field('Cost code', cc), field('Expense account', acct)), field('Note', note)], 'Request part', async () => {
+        await api('POST', `/v1/maintenance-work-orders/${woId}/parts`, { warehouse_id: wh.value, stock_item_id: item.value, quantity: qty.value.trim(), project_id: e.current_project_id ? undefined : proj.value,
+          cost_code_id: cc.value, expense_account_id: acct.value, note: note.value.trim() || undefined });
+        say('Part requested. Its stock issue awaits approval.');
+        location.hash = `#/doc/maintenance_work_order/${woId}`;
+      });
+    await loadCC();
+  },
+
+  async maintenance_plan(eqId) {
+    const all = (await api('GET', '/v1/equipment?limit=200')).items.filter((e) => !['RETIRED', 'DISPOSED'].includes(e.status));
+    const eq = select('equipment_id', all.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    if (eqId) eq.value = eqId;
+    const title = input('title', { type: 'text', required: true, maxlength: '200', placeholder: 'e.g. 250 hour service' });
+    const units = input('every_units', { type: 'number', step: '1', min: '1' });
+    const days = input('every_days', { type: 'number', step: '1', min: '1', max: '3650' });
+    formPage('New maintenance plan', 'A service that recurs every so many metered hours or kilometres, every so many days, or whichever comes first. The interval counts from the machine\'s meter and the date today, and again from each certified service.',
+      [h('div', { class: 'grid' }, field('Equipment', eq), field('Title', title), field('Every (metered units)', units, 'Hours or km, by the machine\'s meter.'), field('Every (days)', days))], 'Save plan', async () => {
+        if (!units.value && !days.value) throw new Error('Give an interval in metered units, in days, or both.');
+        await api('POST', '/v1/maintenance-plans', { equipment_id: eq.value, title: title.value.trim(), every_units: units.value || undefined, every_days: days.value ? Number(days.value) : undefined });
+        say('Plan saved.');
+        location.hash = '#/fleet';
+      });
   },
 
   async equipment_operator() {
@@ -4364,11 +4441,38 @@ async function fleetOpts() {
   return r.items.filter((e) => !['REGISTERED', 'SAFETY_HOLD', 'RETIRED', 'DISPOSED'].includes(e.status)).map((e) => ({ value: e.id, label: `${e.number} ${e.name} (${FLEET_STATE[e.status].toLowerCase()})` }));
 }
 const projectCode = (pid) => { const p = (S.ref.projects || []).find((x) => x.id === pid); return p ? p.code : ''; };
+// Work order: its parts (ordinary stock issues), and for authorised work the two things plant and stores staff do next.
+async function workOrderPanel(d) {
+  const parts = (await api('GET', `/v1/maintenance-work-orders/${d.id}/parts`)).items;
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Parts'),
+    table('Parts requested for this work order', [
+      { label: 'Stock issue', cell: (x) => h('a', { href: `#/doc/stock_issue/${x.stock_issue_id}` }, x.issue_number) },
+      { label: 'Item', cell: (x) => `${x.item_code} ${x.item_name}` },
+      { label: 'Quantity', num: true, cell: (x) => `${money(x.quantity)} ${x.unit}` },
+      { label: 'Issue', cell: (x) => words(x.issue_status.toLowerCase()) },
+      { label: 'Cost', num: true, cell: (x) => (x.amount == null ? '' : `${money(x.amount)} ${x.currency}`) },
+    ], parts, 'No parts were requested.'),
+    h('p', { class: 'hint' }, 'A part is an ordinary stock issue: it leaves the store and is charged to the project when a second person approves the issue.'));
+  if (d.status === 'APPROVED' && S.can.has('stock.issue')) box.append(h('div', { class: 'actions' }, h('a', { class: 'btn', href: `#/new/work_order_part/${d.id}` }, 'Request a part')));
+  if (d.status === 'APPROVED' && S.can.has('fleet.manage')) {
+    const done = h('textarea', { name: 'work_done', rows: '3', required: '', maxlength: '4000' });
+    const hours = input('labour_hours', { type: 'number', step: '0.25', min: '0', required: true, value: '0' });
+    const btn = h('button', { type: 'button', class: 'primary' }, 'Report complete');
+    btn.addEventListener('click', async () => {
+      clearError();
+      try { await api('POST', `/v1/maintenance-work-orders/${d.id}/complete`, { work_done: done.value.trim(), labour_hours: hours.value || '0' }); say('Work reported complete. A certifier closes it.'); route(); } catch (e) { showError(e); }
+    });
+    box.append(h('h2', { class: 'section' }, 'Report the work complete'),
+      h('p', { class: 'hint' }, 'Say what was done. A certifier who is not you then accepts the work or sends it back; the machine returns to service only after that.'),
+      h('div', { class: 'grid' }, field('Work done', done), field('Labour hours', hours)), h('div', { class: 'actions' }, btn));
+  }
+  return box;
+}
 async function renderFleet(id) {
   closeSheet();
   if (id) return renderEquipment(id);
   const from = plusDays(-30);
-  const [sum, first, fuel] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50'), api('GET', `/v1/fleet/fuel-reconciliation?from=${from}&to=${today()}`)]);
+  const [sum, first, fuel, due] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50'), api('GET', `/v1/fleet/fuel-reconciliation?from=${from}&to=${today()}`), api('GET', '/v1/fleet/maintenance-due')]);
   const n = (...st) => st.reduce((a, k) => a + (sum.by_status[k] || 0), 0);
   const kpi = (v, k, warn) => h('div', { class: `kpi${warn && v ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(v)), h('div', { class: 'k' }, k));
   const rows = [...first.items];
@@ -4393,9 +4497,9 @@ async function renderFleet(id) {
     try { const p = await api('GET', `/v1/equipment?limit=50&cursor=${encodeURIComponent(next)}`); rows.push(...p.items); next = p.next || ''; draw(); } catch (e) { showError(e); } finally { more.disabled = false; }
   });
   draw();
-  const act = (perm, href, label) => (S.can.has(perm) ? h('a', { class: 'btn', href }, label) : null);
+  const act = (perm, href, label) => (allowed(perm) ? h('a', { class: 'btn', href }, label) : null);
   page('Fleet command centre', 'Every machine, plant item and tool: where it is, what state it is in, and what the approved daily logs of the last 30 days say it did. Figures are computed from the register and approved logs in your scope; nothing here is a sample.',
-    h('div', { class: 'toolbar' }, act('fleet.manage', '#/new/equipment', 'Register equipment'), act('fleet.reserve', '#/new/equipment_reservation', 'Reserve equipment'), act('fleet.operate', '#/new/equipment_log', 'Record a log'), act('stock.issue', '#/new/fuel_dispense', 'Dispense fuel')),
+    h('div', { class: 'toolbar' }, act('fleet.manage', '#/new/equipment', 'Register equipment'), act('fleet.reserve', '#/new/equipment_reservation', 'Reserve equipment'), act('fleet.operate', '#/new/equipment_log', 'Record a log'), act('stock.issue', '#/new/fuel_dispense', 'Dispense fuel'), act('fleet.manage|fleet.operate', '#/new/work_order', 'New work order'), act('fleet.manage', '#/new/maintenance_plan', 'New maintenance plan')),
     h('div', { class: 'kpis' }, kpi(sum.total, 'In the register'), kpi(n('AVAILABLE', 'RESERVED'), 'In the yard, in service'), kpi(n('MOBILIZING', 'ASSIGNED', 'OPERATING', 'IDLE', 'DEMOBILIZING'), 'At projects'),
       kpi(n('UNDER_INSPECTION', 'UNDER_MAINTENANCE', 'BREAKDOWN'), 'Out of service', true), kpi(n('SAFETY_HOLD'), 'On safety hold', true), kpi(n('REGISTERED'), 'Awaiting commissioning')),
     table(`Usage from approved logs, ${from} to ${today()}`, [
@@ -4421,7 +4525,18 @@ async function renderFleet(id) {
       { label: 'Fuel cost', num: true, cell: (l) => money(l.fuel_cost) },
       { label: 'To be explained', cell: (l) => (l.flags.length ? h('ul', { class: 'flags' }, ...l.flags.map((f) => h('li', {}, f.reason))) : 'Nothing') },
     ], fuel.lines, 'No fuel was dispensed or logged in this period.'),
-    h('p', { class: 'hint' }, fuel.basis), holder, h('div', { class: 'actions' }, more));
+    h('p', { class: 'hint' }, fuel.basis),
+    table('Preventive maintenance, most urgent first', [
+      { label: 'Equipment', cell: (x) => h('a', { href: `#/fleet/${x.equipment_id}` }, `${x.number} ${x.name}`) },
+      { label: 'Service', cell: (x) => x.title },
+      { label: 'State', cell: (x) => ({ OVERDUE: 'Overdue', DUE_SOON: 'Due soon', OK: 'Not yet due' }[x.state] || x.state) },
+      { label: 'Meter units left', num: true, cell: (x) => (x.units_left == null ? '' : money(x.units_left)) },
+      { label: 'Days left', num: true, cell: (x) => (x.days_left == null ? '' : String(x.days_left)) },
+      { label: 'Last done', cell: (x) => `${x.last_done_on} at ${money(x.last_done_meter)}` },
+      { label: 'Work order', cell: (x) => (x.open_work_order ? h('a', { href: `#/doc/maintenance_work_order/${x.open_work_order}` }, 'Open') : '') },
+    ], due.items, 'No preventive maintenance plans.'),
+    h('p', { class: 'hint' }, 'Due from each machine\'s meter (advanced only by approved daily logs) and today\'s date. A plan moves on when a certifier closes the preventive work order raised from it.'),
+    holder, h('div', { class: 'actions' }, more));
 }
 async function renderEquipment(id) {
   const e = await api('GET', `/v1/equipment/${id}`);
