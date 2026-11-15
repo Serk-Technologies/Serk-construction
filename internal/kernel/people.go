@@ -1455,9 +1455,22 @@ func (s *Service) AdjustRole(ctx context.Context, p auth.Principal, code string,
 	}
 	sort.Strings(clean)
 	err := s.peopleTx(ctx, p, auth.PermRoleManage, func(ctx context.Context, tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `INSERT INTO role_adjustments (role_code, withheld, reason, updated_by) VALUES ($1, $2, $3, $4)
-			ON CONFLICT (tenant_id, role_code) DO UPDATE SET withheld = EXCLUDED.withheld, reason = EXCLUDED.reason, updated_by = EXCLUDED.updated_by`,
-			code, clean, strings.TrimSpace(reason), p.UserID); err != nil {
+		// DEF-014 (0082): the row is created empty (the role as the product defines
+		// it), then every change is an UPDATE attested for this person with a fresh
+		// second factor, so the database records who withheld or restored what.
+		if _, err := tx.Exec(ctx, `INSERT INTO role_adjustments (role_code, withheld, reason, updated_by) VALUES ($1, '{}', 'role adjustment record created', $2)
+			ON CONFLICT (tenant_id, role_code) DO NOTHING`, code, p.UserID); err != nil {
+			return err
+		}
+		var adj string
+		if err := tx.QueryRow(ctx, `SELECT id::text FROM role_adjustments WHERE role_code = $1`, code).Scan(&adj); err != nil {
+			return err
+		}
+		if err := s.authorize(ctx, tx, p, "people.role_adjust", "role_adjustment", adj, code); err != nil {
+			return err
+		}
+		if err := postgres.Exec1(ctx, tx, `UPDATE role_adjustments SET withheld = $2, reason = $3, updated_by = $4 WHERE id = $1::uuid`,
+			adj, clean, strings.TrimSpace(reason), p.UserID); err != nil {
 			return err
 		}
 		if err := s.record(ctx, tx, p, "people.role_adjusted", "role", code, "people.role_adjusted", map[string]any{"role": code, "withheld": clean, "reason": reason}); err != nil {
