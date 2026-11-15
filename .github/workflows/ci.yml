@@ -89,6 +89,13 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with: { name: test-logs, path: test-logs/test-run.log }
+      # Last in the job log on purpose: the service containers' logs are long, and this keeps the failures easy to find.
+      - name: Failed tests, with their messages
+        if: failure()
+        run: |
+          grep -E -B12 -- '^\s*--- FAIL' test-logs/test-run.log | cut -c1-600 | tail -150 || true
+          grep -E '^(FAIL|panic:)' test-logs/test-run.log || true
+          docker logs --tail 15 clamav 2>&1 | cut -c1-300 || true
       - name: The scanner and object-store integrations really ran
         run: |
           ! grep -E -- '--- SKIP: Test(ClamdAgainstARealDaemon|S3AgainstARealServer|DocSecurity_RealScannerAndObjectStore)' test-logs/test-run.log
