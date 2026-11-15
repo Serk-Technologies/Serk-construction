@@ -339,7 +339,11 @@ D = {
           "TestIdempotentReplayAndConflict", "TestConcurrentIdenticalCreatesAreIdempotent"),
         r("Posting and period close cannot race", V,
           "TestSC08_PostWaitsForInFlightCloseThenRefuses", "TestSC08_CloseWaitsForInFlightPostAndIncludesIt"),
-        r("Balance sheet, income statement and cash-flow statement", N, note="Trial balance, GL detail and journal register exist."),
+        r("Balance sheet, income statement and cash-flow statement", I, note="Trial balance, GL detail and journal register exist.",
+          criteria=[
+            c("Income statement for a period and balance sheet at its end, from posted journals only, balancing against equity and unclosed earnings, checked against a hand-computed reference", V, "TestAPIFinancialStatements"),
+            c("Cash-flow statement (needs operating/investing/financing classification of accounts)", N),
+            c("One-step drill-down from a statement line to its journal lines", N)]),
     ]),
     "CAP-02": ("M3", "Finance controller", [
         r("Supplier invoices post through bound draft journals; payables reconcile to the control account", V,

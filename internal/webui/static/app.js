@@ -445,7 +445,7 @@ const NAV = [
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
   ['Treasury & banking', [['#/cash', 'Cash forecast', '+wide:payment.prepare|intelligence.read'], ['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
     ['#/list/supplier_bank_account', 'Supplier banks', 'p2p.read']]],
-  ['Accounting', [['#/journals', 'Journals', '+wide:journal.read'], ['#/assets', 'Fixed assets', '+wide:asset.manage|asset.approve|journal.read'], ['#/periodend', 'Period end', '+wide:journal.create|journal.read|period.close'], ['#/tax', 'Tax returns & e-invoices', 'tax.prepare|tax.approve'], ['#/consolidation', 'Consolidation', 'consolidation.manage|consolidation.approve'], ['#/revenue', 'Revenue & WIP', '+wide:revenue.run|contract.policy.manage|contract.policy.approve|journal.approve'], ['#/recon', 'Reconciliation', '+wide:journal.read'], ['#/tb', 'Trial balance', '+wide:journal.read']]],
+  ['Accounting', [['#/journals', 'Journals', '+wide:journal.read'], ['#/assets', 'Fixed assets', '+wide:asset.manage|asset.approve|journal.read'], ['#/periodend', 'Period end', '+wide:journal.create|journal.read|period.close'], ['#/tax', 'Tax returns & e-invoices', 'tax.prepare|tax.approve'], ['#/consolidation', 'Consolidation', 'consolidation.manage|consolidation.approve'], ['#/revenue', 'Revenue & WIP', '+wide:revenue.run|contract.policy.manage|contract.policy.approve|journal.approve'], ['#/recon', 'Reconciliation', '+wide:journal.read'], ['#/tb', 'Trial balance', '+wide:journal.read'], ['#/statements', 'Financial statements', '+wide:journal.read']]],
   ['Workforce', [['#/payroll', 'Payroll', 'payroll.prepare|payroll.approve|payment.release|contract.policy.manage|contract.policy.approve']]],
   ['Governance', [['#/people', 'People & access', 'user.manage|role.manage|audit.read'], ['#/org', 'Organisation & calendar', 'p2p.read|org.manage'], ['#/authority', 'Authority & duties', '+wide:p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
     ['#/list/delegation', 'Delegations', 'delegation.create|delegation.approve'], ['#/list/sod_exception', 'Duty-conflict exceptions', 'authority.manage|authority.approve'],
@@ -721,6 +721,7 @@ async function route() {
       case 'site': return await renderDevices();
       case 'reports': return await renderReports();
       case 'tb': return await renderTB();
+      case 'statements': return await renderStatements();
       case 'aging': return await renderAging(a === 'ar' ? 'ar' : 'ap');
       case 'ask': return await renderAsk();
       case 'risk': return await renderRisk(a);
@@ -3518,6 +3519,33 @@ async function renderTB() {
   for (const el of [ent, at]) el.addEventListener('change', () => load().catch(showError));
   page('Trial balance', 'Posted journal lines summed by account up to the date chosen. Only posted entries count.',
     entityToolbar(ent, at, exportBar(src, () => `Trial balance at ${at.value}`, { entity: () => ent.value })), out);
+  await load();
+}
+
+// Financial statements (CAP-01.5): income statement for the period, balance sheet at its end.
+async function renderStatements() {
+  const ent = select('legal_entity_id', entityOpts());
+  const from = input('from', { type: 'date', value: `${today().slice(0, 4)}-01-01` });
+  const to = input('to', { type: 'date', value: today() });
+  const out = h('div');
+  const latest = latestOnly();
+  const lines = (title, rows, total, label) => table(title, [{ label: 'Code', cell: (a) => h('span', { class: 'ref' }, a.account_code) }, { label: 'Account', cell: (a) => a.account_name },
+    { label: 'Amount', num: true, cell: (a) => money(a.amount) }], [...(rows || []), { _class: 'total', account_code: '', account_name: label, amount: total }], 'Nothing in this section.');
+  const load = () => latest(async (signal) => (ent.value && from.value && to.value ? api('GET', `/v1/reports/financial-statements?entity=${ent.value}&from=${from.value}&to=${to.value}`, undefined, undefined, signal) : null), (r) => {
+    out.textContent = '';
+    if (!r) return;
+    out.append(h('h2', { class: 'section' }, `Income statement, ${r.from} to ${r.to}`),
+      lines('Revenue', r.revenue, r.total_revenue, 'Total revenue'), lines('Expenses', r.expenses, r.total_expenses, 'Total expenses'),
+      h('p', { class: 'kpi-line' }, h('strong', {}, `Profit for the period: ${money(r.net_profit)}`)),
+      h('h2', { class: 'section' }, `Balance sheet at ${r.to}`),
+      h('p', { class: r.balanced ? 'notice' : 'alert', role: 'status' }, r.balanced ? 'Assets equal liabilities, equity and unclosed earnings.' : `Out of balance by ${money(r.difference)}.`),
+      lines('Assets', r.assets, r.total_assets, 'Total assets'), lines('Liabilities', r.liabilities, r.total_liabilities, 'Total liabilities'),
+      lines('Equity', r.equity, r.total_equity, 'Total equity'),
+      h('p', {}, `Earnings not yet closed to equity: ${money(r.unclosed_earnings)}`));
+  });
+  for (const el of [ent, from, to]) el.addEventListener('change', () => load().catch(showError));
+  page('Financial statements', 'From posted journals only. Each line is an account: open the trial balance or the journals for its entries. The cash-flow statement is not available yet.',
+    h('div', { class: 'toolbar' }, field('Company', ent), field('From', from), field('To', to)), out);
   await load();
 }
 

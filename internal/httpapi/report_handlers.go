@@ -12,10 +12,12 @@ import (
 // Financial reports (read-only; tenant-wide scope):
 //
 //	GET /v1/reports/trial-balance?entity=<uuid>&as_of=YYYY-MM-DD
+//	GET /v1/reports/financial-statements?entity=<uuid>&from=YYYY-MM-DD&to=YYYY-MM-DD
 //	GET /v1/reports/ap-aging?entity=<uuid>&as_of=YYYY-MM-DD
 //	GET /v1/reports/ar-aging?entity=<uuid>&as_of=YYYY-MM-DD
 func (s *Server) registerReports() {
 	s.mux.Handle("GET /v1/reports/trial-balance", s.authed(s.reportTB))
+	s.mux.Handle("GET /v1/reports/financial-statements", s.authed(s.reportStatements))
 	s.mux.Handle("GET /v1/reports/ap-aging", s.authed(s.reportAging(false)))
 	s.mux.Handle("GET /v1/reports/ar-aging", s.authed(s.reportAging(true)))
 	// Report catalogue (WP-1.5): one registry, one runner (internal/kernel/reportcat.go).
@@ -88,4 +90,24 @@ func (s *Server) reportAging(receivables bool) func(http.ResponseWriter, *http.R
 		}
 		writeJSON(w, http.StatusOK, out)
 	}
+}
+
+func (s *Server) reportStatements(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	entity := q.Get("entity")
+	if !validIDs(w, entity) {
+		return
+	}
+	from, err1 := time.Parse("2006-01-02", q.Get("from"))
+	to, err2 := time.Parse("2006-01-02", q.Get("to"))
+	if err1 != nil || err2 != nil {
+		writeErr(w, http.StatusUnprocessableEntity, "validation", "from and to are dates (YYYY-MM-DD)")
+		return
+	}
+	out, err := s.cfg.Kernel.Statements(r.Context(), principalFrom(r.Context()), entity, from, to)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
 }
