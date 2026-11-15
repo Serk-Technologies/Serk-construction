@@ -5,6 +5,7 @@ package kernel
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -134,6 +135,14 @@ func TestPeriodEnd_FiscalYearRecurringAccrualOverhead(t *testing.T) {
 	if _, err := f.svc.AllocateOverhead(f.ctx, c.accountant, in); err == nil {
 		t.Fatal("the same pool and range were allocated twice")
 	}
+	// DEF-012: an overlapping range (October plus November) is refused: October's pool is allocated once.
+	wide := in
+	wide.To = "2026-11-30"
+	if _, err := f.svc.AllocateOverhead(f.ctx, c.accountant, wide); err == nil || !strings.Contains(err.Error(), "allocated once") {
+		t.Fatalf("overhead was allocated again over an overlapping range: %v", err)
+	}
+	rawRefusedWith(t, f, "claim overhead days directly", "claimed only by an overhead run",
+		`INSERT INTO overhead_run_days (legal_entity_id, pool_account_id, day, run_id) VALUES ($1::uuid, $2::uuid, '2027-01-01', $3::uuid)`, f.entity, w.acct["6200"], run)
 	rawFails(t, f, "forge an overhead share", `INSERT INTO overhead_lines (run_id, project_id, driver, share) VALUES ('`+run+`', '`+f.project+`', 1, 1)`)
 	view, err := f.svc.PeriodEndView(f.ctx, c.accountant)
 	must(t, "view", err)
