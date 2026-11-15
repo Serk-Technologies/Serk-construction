@@ -34,6 +34,13 @@ package httpapi
 //	POST /v1/maintenance-plans                                     {equipment_id, title, every_units?, every_days?}
 //	GET  /v1/fleet/maintenance-due                                 preventive plans, most urgent first
 //	GET  /v1/equipment/{id}/maintenance                            work orders and out-of-service hours of one machine
+//
+// Corrections (0057; ADR 0024): approved fleet policy; plan revision and retirement.
+//
+//	POST /v1/fleet-policies                                        {effective_from, fuel_variance_tolerance, fuel_variance_min_litres, due_soon_fraction, due_soon_days, basis}; /{id}/submit|approve|reject
+//	GET  /v1/fleet/policy?on=                                      the thresholds in force on a date and where they come from
+//	POST /v1/maintenance-plans/{id}/revise                         {title, every_units?, every_days?}: a new version; the old plan is retired and kept
+//	POST /v1/maintenance-plans/{id}/retire                         {reason}
 
 import (
 	"context"
@@ -342,4 +349,40 @@ func (s *Server) registerFleet() {
 		out, err := k.EquipmentMaintenanceOf(r.Context(), principalFrom(r.Context()), id)
 		reply(w, out, err)
 	}))
+	m.Handle("POST /v1/fleet-policies", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.FleetPolicyInput
+		if !decode(w, r, &b) {
+			return
+		}
+		id, err := k.CreateFleetPolicy(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/fleet-policies/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, k.SubmitFleetPolicy(ctx, p, id)
+	})))
+	m.Handle("POST /v1/fleet-policies/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideFleetPolicy(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/fleet-policies/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideFleetPolicy(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("GET /v1/fleet/policy", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		out, err := k.FleetPolicyInForce(r.Context(), principalFrom(r.Context()), r.URL.Query().Get("on"))
+		reply(w, out, err)
+	}))
+	m.Handle("POST /v1/maintenance-plans/{id}/revise", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		var b kernel.MaintenancePlanInput
+		if !decode(w, r, &b) {
+			return
+		}
+		rev, err := k.ReviseMaintenancePlan(r.Context(), principalFrom(r.Context()), id, b)
+		s.created(w, rev, err)
+	}))
+	m.Handle("POST /v1/maintenance-plans/{id}/retire", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.RetireMaintenancePlan(ctx, p, id, b.Reason)
+	})))
 }

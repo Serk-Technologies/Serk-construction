@@ -19,8 +19,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WAVES = [
     ("W0", "Governance and trusted integration", [],
      "nothing", "Branch protection on main and a reviewed pull request: repository administrator."),
-    ("W1", "Fleet completion on the existing stock ledger and journal", ["FLT-02", "FLT-03", "FLT-04", "FLT-01"],
-     "stock ledger, job cost, journal (built)", "Charge-out and depreciation policies: financial controller."),
+    ("W1", "Fleet completion on the existing stock ledger and journal: costing and charge-out (FLT-01.14), then fixed assets (FLT-04)", ["FLT-02", "FLT-03", "FLT-04", "FLT-01"],
+     "stock ledger, job cost, journal (built)", "Charge-out, allocation and depreciation policies: financial controller."),
     ("W2", "Site execution: work packages, measurement, permits, constraints", ["PLB-05", "PLB-03", "PLB-04", "PLB-06", "PLB-07", "PLB-08", "PLB-02", "PLB-01"],
      "WBS, schedule, BOQ, site diary (built)", "Measurement and certification rules: quantity surveying reviewer."),
     ("W3", "Quality, laboratory, HSE", ["ASR-01", "ASR-02", "ASR-03", "ASR-04"],

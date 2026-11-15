@@ -312,8 +312,8 @@ func TestFuel_StandardsAndReconciliation(t *testing.T) {
 		t.Fatalf("figures: %+v", l)
 	}
 	// 24 L dispensed and not logged is over the tolerance; 8 L over the standard is inside it.
-	if len(l.Flags) != 1 || l.Flags[0].Code != "DISPENSED_NOT_LOGGED" || rec.Flagged != 1 || rec.Tolerance != "0.1" || rec.Basis == "" {
-		t.Fatalf("flags: %+v (flagged %d, tolerance %s)", l.Flags, rec.Flagged, rec.Tolerance)
+	if len(l.Flags) != 1 || l.Flags[0].Code != "DISPENSED_NOT_LOGGED" || rec.Flagged != 1 || rec.Policy.Source != "ENGINEERING_DEFAULT" || rec.Policy.FuelVarianceTolerance != "0.1" || rec.Policy.Note == "" || rec.Basis == "" {
+		t.Fatalf("flags: %+v (flagged %d, policy %+v)", l.Flags, rec.Flagged, rec.Policy)
 	}
 	// A later standard applies from its date; the earlier one is kept.
 	_, err = f.svc.SetFuelStandard(f.ctx, w.fw.manager, FuelStandardInput{EquipmentID: eq, LitresPerUnit: dec("10"), EffectiveFrom: dayOff(-1), Basis: "Measured trial on site, 3 shifts"})

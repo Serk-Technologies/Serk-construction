@@ -188,7 +188,7 @@ func TestAPIFuel(t *testing.T) {
 	}
 	rec := a.call(200, "GET", "/v1/fleet/fuel-reconciliation?from="+day(-7)+"&to="+day(0), pm, nil)
 	lines := rec["lines"].([]any)
-	if len(lines) != 1 || rec["tolerance"] != "0.1" || rec["basis"] == "" {
+	if pol := rec["policy"].(map[string]any); len(lines) != 1 || pol["source"] != "ENGINEERING_DEFAULT" || pol["fuel_variance_tolerance"] != "0.1" || rec["basis"] == "" {
 		t.Fatalf("reconciliation: %v", rec)
 	}
 	l := lines[0].(map[string]any)

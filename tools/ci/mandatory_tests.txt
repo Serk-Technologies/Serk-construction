@@ -49,3 +49,8 @@ internal/kernel TestMaintenance_WorkOrderAndReturnToService
 internal/kernel TestMaintenance_PlansAndDue
 internal/httpapi TestAPIMaintenance
 pkg/fleet TestDueState
+
+# Fleet corrections after independent review (ADR 0024)
+internal/kernel TestMaintenance_SeparationAsEnforced
+internal/kernel TestFleetPolicy_ApprovedThresholdsApply
+internal/kernel TestMaintenance_PlanRevisionAndRetirement

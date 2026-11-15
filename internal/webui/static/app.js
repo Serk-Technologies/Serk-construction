@@ -178,6 +178,8 @@ const DOCS = {
     actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
   equipment_meter_reset: { title: 'Meter resets', one: 'Meter reset', base: '/v1/equipment-meter-resets', create: 'fleet.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
+  fleet_policy: { title: 'Fleet policies', one: 'Fleet policy', base: '/v1/fleet-policies', create: 'fleet.manage', form: 'fleet_policy', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']] } },
   maintenance_work_order: { title: 'Work orders', one: 'Work order', base: '/v1/maintenance-work-orders', create: 'fleet.manage|fleet.operate', form: 'work_order', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'COMPLETED', 'CLOSED', 'REJECTED', 'CANCELLED'],
     actions: { DRAFT: [['submit', 'fleet.manage|fleet.operate'], ['cancel', 'fleet.manage|fleet.operate', 'req']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']],
       COMPLETED: [['close', 'fleet.release'], ['send-back', 'fleet.release', 'req']] } },
@@ -330,7 +332,7 @@ const NAV = [
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
   ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
-    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read']]],
+    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read'], ['#/list/fleet_policy', 'Fleet policies', 'p2p.read']]],
   ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
@@ -362,6 +364,7 @@ const QUEUES = [
   ['fleet.release', 'equipment_operator_auth', 'SUBMITTED', 'Operator authorisations to approve'],
   ['fleet.release', 'equipment_meter_reset', 'SUBMITTED', 'Meter resets to approve'],
   ['fleet.approve', 'maintenance_work_order', 'SUBMITTED', 'Work orders to authorise'],
+  ['fleet.approve', 'fleet_policy', 'SUBMITTED', 'Fleet policies to approve'],
   ['fleet.release', 'maintenance_work_order', 'COMPLETED', 'Completed work to certify'],
   ['escalation.approve', 'price_index_value', 'SUBMITTED', 'Index values to approve'],
   ['escalation.approve', 'escalation_formula', 'SUBMITTED', 'Price adjustment formulas to approve'],
@@ -1540,6 +1543,24 @@ const FORMS = {
         await api('POST', '/v1/maintenance-plans', { equipment_id: eq.value, title: title.value.trim(), every_units: units.value || undefined, every_days: days.value ? Number(days.value) : undefined });
         say('Plan saved.');
         location.hash = '#/fleet';
+      });
+  },
+
+  async fleet_policy() {
+    const cur = await api('GET', '/v1/fleet/policy');
+    const from = input('effective_from', { type: 'date', required: true, value: today() });
+    const tol = input('fuel_variance_tolerance', { type: 'number', step: '0.01', min: '0.01', max: '99', required: true, value: String(Number(cur.fuel_variance_tolerance) * 100) });
+    const min = input('fuel_variance_min_litres', { type: 'number', step: '0.5', min: '0', required: true, value: cur.fuel_variance_min_litres });
+    const frac = input('due_soon_fraction', { type: 'number', step: '1', min: '1', max: '99', required: true, value: String(Number(cur.due_soon_fraction) * 100) });
+    const days = input('due_soon_days', { type: 'number', step: '1', min: '0', max: '365', required: true, value: String(cur.due_soon_days) });
+    const basis = h('textarea', { name: 'basis', rows: '3', required: '', maxlength: '1000' });
+    formPage('New fleet policy', 'The thresholds used when fuel is reconciled and maintenance is judged due. A plant manager other than you approves the policy with a fresh second factor; it applies from its effective date and replaces earlier policies from then on.',
+      [h('p', { class: 'hint' }, cur.source === 'APPROVED_POLICY' ? `In force now: ${cur.number}, effective ${cur.effective_from}.` : 'No policy has been approved yet: the figures shown are engineering defaults, not a decision of the company.'),
+        h('div', { class: 'grid' }, field('Effective from', from), field('Fuel difference listed above (%)', tol, 'Of the larger of the two figures compared.'), field('…and above (litres)', min),
+          field('Service due soon when this share of the interval is left (%)', frac), field('…or this many days', days)), field('Basis', basis, 'Who decided this and on what grounds.')], 'Save policy', async () => {
+        const res = await api('POST', '/v1/fleet-policies', { effective_from: from.value, fuel_variance_tolerance: String(Number(tol.value) / 100), fuel_variance_min_litres: min.value || '0',
+          due_soon_fraction: String(Number(frac.value) / 100), due_soon_days: Number(days.value || 0), basis: basis.value.trim() });
+        created('fleet_policy', res, 'Fleet policy');
       });
   },
 
@@ -4526,6 +4547,7 @@ async function renderFleet(id) {
       { label: 'To be explained', cell: (l) => (l.flags.length ? h('ul', { class: 'flags' }, ...l.flags.map((f) => h('li', {}, f.reason))) : 'Nothing') },
     ], fuel.lines, 'No fuel was dispensed or logged in this period.'),
     h('p', { class: 'hint' }, fuel.basis),
+    h('p', { class: 'hint' }, fuel.policy.source === 'APPROVED_POLICY' ? `Thresholds: fleet policy ${fuel.policy.number}, effective ${fuel.policy.effective_from} (${(Number(fuel.policy.fuel_variance_tolerance) * 100).toFixed(1)}% and ${fuel.policy.fuel_variance_min_litres} L).` : `Thresholds: ${fuel.policy.note}`),
     table('Preventive maintenance, most urgent first', [
       { label: 'Equipment', cell: (x) => h('a', { href: `#/fleet/${x.equipment_id}` }, `${x.number} ${x.name}`) },
       { label: 'Service', cell: (x) => x.title },
@@ -4534,6 +4556,17 @@ async function renderFleet(id) {
       { label: 'Days left', num: true, cell: (x) => (x.days_left == null ? '' : String(x.days_left)) },
       { label: 'Last done', cell: (x) => `${x.last_done_on} at ${money(x.last_done_meter)}` },
       { label: 'Work order', cell: (x) => (x.open_work_order ? h('a', { href: `#/doc/maintenance_work_order/${x.open_work_order}` }, 'Open') : '') },
+      { label: 'Plan', cell: (x) => {
+        if (!S.can.has('fleet.manage') || x.open_work_order) return '';
+        const b = h('button', { type: 'button', class: 'ghost', 'aria-label': `Retire the plan ${x.title} of ${x.number}` }, 'Retire');
+        b.addEventListener('click', async () => {
+          const reason = window.prompt(`Why is "${x.title}" of ${x.number} being retired? The plan is kept in the record.`);
+          if (!reason) return;
+          clearError();
+          try { await api('POST', `/v1/maintenance-plans/${x.plan_id}/retire`, { reason }); say('Plan retired.'); route(); } catch (e) { showError(e); }
+        });
+        return b;
+      } },
     ], due.items, 'No preventive maintenance plans.'),
     h('p', { class: 'hint' }, 'Due from each machine\'s meter (advanced only by approved daily logs) and today\'s date. A plan moves on when a certifier closes the preventive work order raised from it.'),
     holder, h('div', { class: 'actions' }, more));

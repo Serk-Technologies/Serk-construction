@@ -169,13 +169,17 @@ func (s *Service) CloseWorkOrder(ctx context.Context, p auth.Principal, id strin
 			return err
 		}
 		var row struct {
+			ApprovedBy  string `json:"approved_by"`
 			CompletedBy string `json:"completed_by"`
 		}
 		if err := json.Unmarshal(d.Detail, &row); err != nil {
 			return err
 		}
-		if err := auth.CheckMakerChecker(p, row.CompletedBy, "completed work"); err != nil {
-			return err
+		// The certifier is independent of every earlier hand: not the reporter, the preparer or the authoriser.
+		for _, earlier := range []string{row.CompletedBy, d.CreatedBy, row.ApprovedBy} {
+			if err := auth.CheckMakerChecker(p, earlier, "this work order"); err != nil {
+				return err
+			}
 		}
 		if err := s.authz.RequireStepUp(p); err != nil {
 			return err
@@ -301,6 +305,7 @@ type MaintenancePlanInput struct {
 	Title       string           `json:"title"`
 	EveryUnits  *decimal.Decimal `json:"every_units,omitempty"` // metered hours or km between services
 	EveryDays   *int             `json:"every_days,omitempty"`
+	Supersedes  string           `json:"-"` // set by ReviseMaintenancePlan
 }
 
 // CreateMaintenancePlan records a plan; its interval counts from the machine's present meter and today.
@@ -318,14 +323,59 @@ func (s *Service) CreateMaintenancePlan(ctx context.Context, p auth.Principal, i
 			return err
 		}
 		var err error
-		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO maintenance_plans (equipment_id, title, every_units, every_days, created_by) VALUES ($1::uuid, $2, $3, $4, $5) RETURNING id::text`,
-			in.EquipmentID, in.Title, in.EveryUnits, in.EveryDays, p.UserID)
+		var supersedes any
+		if in.Supersedes != "" {
+			supersedes = in.Supersedes
+		}
+		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO maintenance_plans (equipment_id, title, every_units, every_days, created_by, supersedes) VALUES ($1::uuid, $2, $3, $4, $5, $6::uuid) RETURNING id::text`,
+			in.EquipmentID, in.Title, in.EveryUnits, in.EveryDays, p.UserID, supersedes)
 		if err != nil {
 			return err
 		}
 		return s.record(ctx, tx, p, "fleet.maintenance.plan.create", "equipment", in.EquipmentID, "maintenance.plan_created", map[string]any{"plan_id": id, "equipment_id": in.EquipmentID, "title": in.Title})
 	})
 	return id, err
+}
+
+// ReviseMaintenancePlan replaces an active plan by a new version (title and
+// intervals as given). The old plan is retired in the same transaction and is
+// kept; the new one continues from the old plan's last service.
+func (s *Service) ReviseMaintenancePlan(ctx context.Context, p auth.Principal, planID string, in MaintenancePlanInput) (string, error) {
+	var equipment string
+	if err := s.p2pTx(ctx, p, auth.PermFleetManage, func(ctx context.Context, tx pgx.Tx) error {
+		return mapNoRows(tx.QueryRow(ctx, `SELECT equipment_id::text FROM maintenance_plans WHERE id = $1::uuid AND retired_at IS NULL`, planID).Scan(&equipment))
+	}); err != nil {
+		return "", err
+	}
+	in.EquipmentID, in.Supersedes = equipment, planID
+	return s.CreateMaintenancePlan(ctx, p, in)
+}
+
+// RetireMaintenancePlan retires an active plan with a reason (fleet.manage; attested). The plan is kept.
+func (s *Service) RetireMaintenancePlan(ctx context.Context, p auth.Principal, planID, reason string) error {
+	if err := requireReason(reason); err != nil {
+		return err
+	}
+	return s.p2pTx(ctx, p, auth.PermFleetManage, func(ctx context.Context, tx pgx.Tx) error {
+		var equipment string
+		var retired bool
+		if err := tx.QueryRow(ctx, `SELECT equipment_id::text, retired_at IS NOT NULL FROM maintenance_plans WHERE id = $1::uuid FOR UPDATE`, planID).Scan(&equipment, &retired); err != nil {
+			return mapNoRows(err)
+		}
+		if retired {
+			return fmt.Errorf("%w: this plan is already retired", ErrInvalidInput)
+		}
+		if _, err := s.visibleDoc(ctx, tx, p, "equipment", equipment, false); err != nil {
+			return err
+		}
+		if err := s.authorize(ctx, tx, p, "fleet.maintenance.plan.retire", "equipment", equipment, planID); err != nil {
+			return err
+		}
+		if err := postgres.Exec1(ctx, tx, `UPDATE maintenance_plans SET retired_at = now(), retired_by = $2, retire_reason = $3 WHERE id = $1::uuid`, planID, p.UserID, strings.TrimSpace(reason)); err != nil {
+			return err
+		}
+		return s.record(ctx, tx, p, "fleet.maintenance.plan.retire", "equipment", equipment, "maintenance.plan_retired", map[string]any{"plan_id": planID, "reason": reason})
+	})
 }
 
 // DuePlan is a preventive plan with how close it is to its next service.
@@ -351,6 +401,10 @@ type DuePlan struct {
 func (s *Service) MaintenanceDue(ctx context.Context, p auth.Principal) ([]DuePlan, error) {
 	out := []DuePlan{}
 	err := s.p2pTx(ctx, p, auth.PermP2PRead, func(ctx context.Context, tx pgx.Tx) error {
+		th, _, err := fleetPolicyAt(ctx, tx, time.Now().UTC())
+		if err != nil {
+			return err
+		}
 		sc := s.authz.ScopeOf(p)
 		rows, err := tx.Query(ctx, `SELECT d.plan_id::text, d.equipment_id::text, e.number, e.name, d.title, d.every_units, d.every_days, d.last_done_meter, d.last_done_on::text,
 				d.meter, d.units_left, d.days_left, COALESCE(d.open_work_order::text, '')
@@ -364,7 +418,7 @@ func (s *Service) MaintenanceDue(ctx context.Context, p auth.Principal) ([]DuePl
 			if err := rows.Scan(&x.PlanID, &x.EquipmentID, &x.Number, &x.Name, &x.Title, &x.EveryUnits, &x.EveryDays, &x.LastDoneMeter, &x.LastDoneOn, &x.Meter, &x.UnitsLeft, &x.DaysLeft, &x.OpenWorkOrder); err != nil {
 				return err
 			}
-			x.State = fleet.DueState(x.UnitsLeft, x.EveryUnits, x.DaysLeft, x.EveryDays)
+			x.State = fleet.DueState(x.UnitsLeft, x.EveryUnits, x.DaysLeft, x.EveryDays, th)
 			out = append(out, x)
 		}
 		return rows.Err()

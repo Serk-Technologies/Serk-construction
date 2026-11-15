@@ -1,6 +1,6 @@
 # ADR 0022: Fleet fuel is stock; a dispense is a stock issue
 
-Status: accepted, 2026-11-15. Extends ADR 0020 (fleet register).
+Status: accepted, 2026-11-15; **amended by ADR 0024** (thresholds are an approved fleet policy; expected fuel is computed across standards). Extends ADR 0020 (fleet register).
 
 ## Context
 

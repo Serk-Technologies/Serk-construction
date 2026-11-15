@@ -23,12 +23,6 @@ import (
 	"github.com/serk-group/serk-construction/pkg/fleet"
 )
 
-// FuelTolerance is the share of the larger figure by which dispensed, logged
-// and expected fuel may differ before the difference is listed for
-// explanation. It is a reporting threshold proposed by engineering, not a
-// policy or a statutory figure; the reconciliation states it.
-var FuelTolerance = decimal.RequireFromString("0.10")
-
 // DesignateFuelItem marks an active stock item as fuel (fleet.approve; attested; permanent).
 func (s *Service) DesignateFuelItem(ctx context.Context, p auth.Principal, stockItemID string) error {
 	return s.p2pTx(ctx, p, auth.PermFleetApprove, func(ctx context.Context, tx pgx.Tx) error {
@@ -290,6 +284,8 @@ type FuelLine struct {
 	LitresPerUnit   *decimal.Decimal `json:"standard_litres_per_unit"`
 	StandardFrom    string           `json:"standard_from,omitempty"`
 	Expected        *decimal.Decimal `json:"expected_litres"`
+	StandardsUsed   int              `json:"standards_in_period"`    // distinct standards applied to this machine's logs
+	UnitsNoStandard decimal.Decimal  `json:"units_without_standard"` // metered units logged on days with no standard in force
 	ActualPerUnit   *decimal.Decimal `json:"actual_litres_per_unit"`
 	DispensedLogged decimal.Decimal  `json:"dispensed_minus_logged"`
 	Flags           []fleet.FuelFlag `json:"flags"`
@@ -297,22 +293,22 @@ type FuelLine struct {
 
 // FuelReconciliation is the comparison of dispensed, logged and expected fuel.
 type FuelReconciliation struct {
-	From      string     `json:"from"`
-	To        string     `json:"to"`
-	Tolerance string     `json:"tolerance"`
-	Basis     string     `json:"basis"`
-	Lines     []FuelLine `json:"lines"`
-	Flagged   int        `json:"flagged"`
+	From    string        `json:"from"`
+	To      string        `json:"to"`
+	Policy  PolicyInForce `json:"policy"` // the thresholds applied and where they come from
+	Basis   string        `json:"basis"`
+	Lines   []FuelLine    `json:"lines"`
+	Flagged int           `json:"flagged"`
 }
 
 // FuelReconciliationOf compares, per machine, the fuel issued from stock, the
 // fuel written in approved daily logs and the fuel the standard predicts. A
 // flag is a question for a person; nothing here decides or posts anything.
 func (s *Service) FuelReconciliationOf(ctx context.Context, p auth.Principal, from, to, projectID string) (FuelReconciliation, error) {
-	out := FuelReconciliation{From: from, To: to, Tolerance: FuelTolerance.String(), Lines: []FuelLine{},
+	out := FuelReconciliation{From: from, To: to, Lines: []FuelLine{},
 		Basis: "Dispensed: approved stock issues of fuel items into the machine, dated in the period. Pending: issues prepared and not yet approved. Cost: the stock ledger's value of the approved issues. " +
-			"Logged: fuel written in approved daily logs. Metered units: meter movement in those logs. Expected: metered units x the fuel standard in force at the end of the period. " +
-			"A line is flagged when two of these differ by more than the tolerance (a reporting threshold, not a policy) and by more than one litre. A flag asks for an explanation; it is not a finding."}
+			"Logged: fuel written in approved daily logs. Metered units: meter movement in those logs. Expected: each approved log's metered units x the fuel standard in force on that log's date, summed (a period may span several standards). " +
+			"A line is flagged when two of these differ by more than the tolerance and the minimum litres of the fleet policy in force at the end of the period (shown under policy). A flag asks for an explanation; it is not a finding."}
 	a, err := time.Parse("2006-01-02", from)
 	if err != nil {
 		return out, fmt.Errorf("%w: from must be a date (YYYY-MM-DD)", ErrInvalidInput)
@@ -333,9 +329,15 @@ func (s *Service) FuelReconciliationOf(ctx context.Context, p auth.Principal, fr
 		case !sc.TenantWide:
 			projects = sc.Projects
 		}
+		th, src, err := fleetPolicyAt(ctx, tx, b)
+		if err != nil {
+			return err
+		}
+		out.Policy = src
 		rows, err := tx.Query(ctx, `SELECT e.id::text, e.number, e.name, e.meter_kind, s.dispensed_litres, s.dispenses, s.pending_litres, s.fuel_cost, s.logged_litres, s.metered_units,
-				s.litres_per_unit, COALESCE(s.standard_from::text, '')
+				s.litres_per_unit, COALESCE(s.standard_from::text, ''), x.expected_litres, COALESCE(x.standards_used, 0), COALESCE(x.units_without_standard, 0)
 			FROM equipment_fuel_summary($1::date, $2::date, $3::uuid[]) s JOIN equipment e ON e.id = s.equipment_id
+			LEFT JOIN equipment_fuel_expected($1::date, $2::date, $3::uuid[]) x ON x.equipment_id = s.equipment_id
 			ORDER BY e.number COLLATE "C" LIMIT 2000`, a, b, projects)
 		if err != nil {
 			return err
@@ -343,17 +345,24 @@ func (s *Service) FuelReconciliationOf(ctx context.Context, p auth.Principal, fr
 		defer rows.Close()
 		for rows.Next() {
 			var l FuelLine
-			if err := rows.Scan(&l.EquipmentID, &l.Number, &l.Name, &l.MeterKind, &l.Dispensed, &l.Dispenses, &l.Pending, &l.Cost, &l.Logged, &l.MeteredUnits, &l.LitresPerUnit, &l.StandardFrom); err != nil {
+			var expected *decimal.Decimal
+			if err := rows.Scan(&l.EquipmentID, &l.Number, &l.Name, &l.MeterKind, &l.Dispensed, &l.Dispenses, &l.Pending, &l.Cost, &l.Logged, &l.MeteredUnits, &l.LitresPerUnit, &l.StandardFrom, &expected, &l.StandardsUsed, &l.UnitsNoStandard); err != nil {
 				return err
 			}
 			f := fleet.FuelFigures{Dispensed: l.Dispensed, Logged: l.Logged, MeteredUnits: l.MeteredUnits, LitresPerUnit: l.LitresPerUnit}
+			switch {
+			case l.StandardsUsed > 0:
+				f.ExpectedLitres = expected // log by log, at the standard of each day
+			case l.MeteredUnits.IsPositive():
+				f.LitresPerUnit = nil // the machine ran, but on days with no standard in force: nothing is predicted
+			}
 			l.Expected = f.Expected()
 			if l.MeteredUnits.IsPositive() {
 				v := l.Dispensed.Div(l.MeteredUnits).Round(4)
 				l.ActualPerUnit = &v
 			}
 			l.DispensedLogged = l.Dispensed.Sub(l.Logged)
-			l.Flags = fleet.FuelFlags(f, FuelTolerance)
+			l.Flags = fleet.FuelFlags(f, th)
 			if len(l.Flags) > 0 {
 				out.Flagged++
 			}

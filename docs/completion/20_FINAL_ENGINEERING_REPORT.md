@@ -1,5 +1,7 @@
 # Engineering report for the completion directive (status at 2026-11-15)
 
+> Superseded for the fleet audit findings by `21_AURA_CYCLE_REPORT.md`. Correction: where this report says FLT-04 costing and FLT-05 fixed assets, read FLT-01.14 (costing and charge-out) and FLT-04 (fixed assets); see ADR 0024.
+
 This is a status report, not a completion report. The directive's scope is 80 business domains; this cycle reproduced the baseline, did what governance work the agent's permissions allow, and delivered two fleet slices. Release decision: **NO-GO**.
 
 The six states the directive distinguishes, as they stand:

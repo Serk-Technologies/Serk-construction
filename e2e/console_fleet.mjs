@@ -126,7 +126,7 @@ try {
   if (reg.length !== 1 || !/Excavator 07.*Assigned.*P-API.*2,008\.00 h/.test(reg[0])) fail(`register row: ${reg.join(' || ')}`);
   // Fuel: the log says 96 L and no stock issue put fuel into the machine, so the difference is listed for explanation.
   const fuelRows = await pm.getByRole('table', { name: /Fuel: dispensed, logged and expected/ }).locator('tbody tr').allTextContents();
-  if (fuelRows.length !== 1 || !/Excavator 07.*0\.00.*96\.00.*8\.00/.test(fuelRows[0]) || !/Approved logs record 96\.00 L; stock issues to this machine total 0\.00 L/.test(fuelRows[0]) || !/No fuel standard is set/.test(fuelRows[0])) fail(`fuel row: ${fuelRows.join(' || ')}`);
+  if (fuelRows.length !== 1 || !/Excavator 07.*0\.00.*96\.00.*8\.00/.test(fuelRows[0]) || !/Approved logs record 96\.00 L; stock issues to this machine total 0\.00 L/.test(fuelRows[0]) || !/No fuel standard was in force/.test(fuelRows[0])) fail(`fuel row: ${fuelRows.join(' || ')}`);
   await audit(pm, 'fleet command centre');
   await snap(pm, 'fleet-command-centre');
   await nav(pm, `#/fleet/${eq}`, /Excavator 07$/);

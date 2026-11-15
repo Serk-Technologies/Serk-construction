@@ -11,10 +11,11 @@ const (
 
 // DueState says how close a plan is to its next service. A plan can run on
 // metered units, on days, or on both (whichever comes first). It is OVERDUE
-// when either interval has run out, DUE_SOON when a tenth or less of an
-// interval is left (and for days, also when seven days or fewer are left),
-// and OK otherwise. nil means the plan does not use that interval.
-func DueState(unitsLeft, everyUnits *decimal.Decimal, daysLeft, everyDays *int) string {
+// when either interval has run out, DUE_SOON when the policy's share of an
+// interval or less is left (and for days, also when the policy's number of
+// days or fewer are left), and OK otherwise. nil means the plan does not use
+// that interval.
+func DueState(unitsLeft, everyUnits *decimal.Decimal, daysLeft, everyDays *int, t Thresholds) string {
 	state := DueOK
 	worse := func(s string) {
 		if s == DueOverdue || (s == DueSoon && state == DueOK) {
@@ -25,7 +26,7 @@ func DueState(unitsLeft, everyUnits *decimal.Decimal, daysLeft, everyDays *int) 
 		switch {
 		case !unitsLeft.IsPositive():
 			worse(DueOverdue)
-		case unitsLeft.LessThanOrEqual(everyUnits.Div(decimal.NewFromInt(10))):
+		case unitsLeft.LessThanOrEqual(everyUnits.Mul(t.DueSoonFraction)):
 			worse(DueSoon)
 		}
 	}
@@ -33,7 +34,7 @@ func DueState(unitsLeft, everyUnits *decimal.Decimal, daysLeft, everyDays *int) 
 		switch {
 		case *daysLeft <= 0:
 			worse(DueOverdue)
-		case *daysLeft <= 7 || *daysLeft*10 <= *everyDays:
+		case *daysLeft <= t.DueSoonDays || decimal.NewFromInt(int64(*daysLeft)).LessThanOrEqual(decimal.NewFromInt(int64(*everyDays)).Mul(t.DueSoonFraction)):
 			worse(DueSoon)
 		}
 	}

@@ -1,6 +1,8 @@
 # ADR 0023: Maintenance work orders gate the return to service
 
-Status: accepted, 2026-11-15. Extends ADR 0020 (fleet lifecycle) and ADR 0022 (fuel as stock).
+Status: accepted, 2026-11-15; **corrected by ADR 0024**. Extends ADR 0020 (fleet lifecycle) and ADR 0022 (fuel as stock).
+
+> Correction (ADR 0024): the phrase "four separate hands" below described four *steps*, not four people. As first built, only two pairs were separated. From migration 0057 the certifier is none of the preparer, authoriser or reporter (at least three people), and authorisation needs a fresh second factor in the database as well.
 
 ## Context
 

@@ -1,4 +1,6 @@
-# Handover — 2026-11-15, second session (updated after the independent audit)
+# Handover — 2026-11-15 (updated after the fleet review corrections, ADR 0024)
+
+> Current state is in `execution-state.json` and `docs/completion/21_AURA_CYCLE_REPORT.md`. Fuel (0055), maintenance (0056) and the review corrections (0057) are built; this file's detailed sections below describe the earlier audit remediation and are kept for history.
 
 For the next engineer or session. Machine-readable state: `execution-state.json`. Earlier history: `CHANGELOG.md`.
 

@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-15 (fleet maintenance done)",
+  "updated": "2026-11-15 (fleet review corrections, ADR 0024)",
   "repository": "Serk-Technologies/Serk-construction",
   "branch": "claude/new-session-xkd5g3",
   "milestone": {
@@ -22,11 +22,11 @@
     ]
   },
   "next_work_item": {
-    "id": "FLT-04",
-    "title": "Equipment costing and charge-out as a management allocation kept apart from statutory postings; needs charge-out and depreciation policies from the financial controller before rates are loaded",
+    "id": "AURA-B1 / FLT-01.14",
+    "title": "AURA design tokens and component foundation applied to the existing console without breaking the browser journeys; then equipment costing and charge-out as approved policy documents",
     "then": [
-      "FLT-05 fixed assets",
-      "W2 site execution (work packages, measurement)",
+      "FLT-04 fixed assets",
+      "W2 site execution",
       "the remaining waves of docs/completion/02_DOMAIN_MAP.md"
     ]
   },
@@ -55,7 +55,8 @@
     "0053_document_security.sql",
     "0054_fleet.sql",
     "0055_fleet_fuel.sql",
-    "0056_fleet_maintenance.sql"
+    "0056_fleet_maintenance.sql",
+    "0057_fleet_corrections.sql"
   ],
   "adrs_added": [
     "0018",
@@ -63,7 +64,8 @@
     "0020",
     "0021",
     "0022",
-    "0023"
+    "0023",
+    "0024"
   ],
   "commands": [
     {
@@ -174,7 +176,9 @@
       "27": "passed (workflow_dispatch), commit 45f4b5c",
       "28": "passed (workflow_dispatch), commit 45f4b5c",
       "29": "passed, 7fdaaf9",
-      "30": "passed, aa3c44f (fuel)"
+      "30": "passed, aa3c44f (fuel)",
+      "31": "passed, 5c3c2a8 (maintenance)",
+      "32": "passed, 45a3dc1"
     },
     "release_candidate": {
       "revision": "45f4b5c10792df76043e75ea922f234c801821a1",
@@ -207,14 +211,15 @@
     "pr_3": "merged into main (1096bf2) while CI was failing; not opened or merged by the agent",
     "main_ci": "failing (run 20)"
   },
-  "current_phase": "Phase 3, wave W1 (fleet completion)",
-  "current_work_package": "FLT-04 costing and charge-out (not started)",
+  "current_phase": "AURA directive, workstream A (immediate correction) done; workstream B (AURA foundation) not started",
+  "current_work_package": "Workstream B: AURA design tokens and component foundation, then FLT-01.14 costing",
   "completed_work_packages": [
     "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
     "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
     "Phase 1 (partial): pre-push checks with CI's Gitleaks; bytecode untracked; unsigned authorisation record",
     "FLT-02 fuel on the stock ledger (0055, ADR 0022)",
-    "FLT-03 maintenance work orders (0056, ADR 0023)"
+    "FLT-03 maintenance work orders (0056, ADR 0023)",
+    "Fleet review corrections: independent certification, second factor at the database, approved fleet policy, plan revision and retirement, fuel across standards, FLT-04 mapping (0057, ADR 0024)"
   ],
   "external_blockers": [
     "Branch protection on main and reviewed merge (repository administrator)",
@@ -223,5 +228,10 @@
     "Statutory payroll, tax and labour rules: professional must supply",
     "Penetration test and all human sign-offs"
   ],
-  "release_decision": "NO-GO"
+  "release_decision": "NO-GO",
+  "requirement_mapping": {
+    "FLT-04": "Fixed assets (capitalisation, depreciation, disposal): unchanged from the original register",
+    "FLT-01.14": "Equipment costing and charge-out (earlier documents called it 'FLT-04 costing')",
+    "FLT-05": "does not exist; earlier documents used it for fixed assets"
+  }
 }

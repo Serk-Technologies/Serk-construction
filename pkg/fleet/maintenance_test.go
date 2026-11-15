@@ -28,8 +28,19 @@ func TestDueState(t *testing.T) {
 		"both: hours overdue, days soon":  {u("-1"), u("250"), d(5), d(90), DueOverdue},
 		"no interval at all (never used)": {nil, nil, nil, nil, DueOK},
 	} {
-		if got := DueState(c.unitsLeft, c.every, c.daysLeft, c.days); got != c.want {
+		if got := DueState(c.unitsLeft, c.every, c.daysLeft, c.days, DefaultThresholds()); got != c.want {
 			t.Errorf("%s: %s, want %s", name, got, c.want)
 		}
+	}
+	// The policy decides what "soon" means.
+	early := Thresholds{DueSoonFraction: decimal.RequireFromString("0.25"), DueSoonDays: 30}
+	if got := DueState(u("60"), u("250"), nil, nil, early); got != DueSoon {
+		t.Errorf("60 of 250 left under a 25%% policy: %s", got)
+	}
+	if got := DueState(nil, nil, d(25), d(365), early); got != DueSoon {
+		t.Errorf("25 days left under a 30 day policy: %s", got)
+	}
+	if got := DueState(u("60"), u("250"), nil, nil, DefaultThresholds()); got != DueOK {
+		t.Errorf("60 of 250 left under the default: %s", got)
 	}
 }

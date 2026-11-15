@@ -2,6 +2,14 @@
 
 Changes made under the SERK Construction OS 3.0 directive (`MASTER_PROMPT.md`). Earlier history: `docs/release/CHECKPOINT_*.md` and `git log`.
 
+## 2026-11-15: fleet corrections after independent review (0057, ADR 0024)
+
+- **Correction of an overstatement:** a work order was described as passing through "four separate hands". Only two pairs were separated. Now the certifier is none of the preparer, authoriser or reporter (at least three people), enforced in the kernel and the database; the documents say exactly that.
+- Authorising a repair needs a fresh second factor at the database, not only in the application.
+- Fuel and maintenance thresholds are an approved, effective-dated fleet policy; reports name the policy used and label engineering defaults.
+- Preventive plans can be revised and retired. Expected fuel is computed across several standards in one period.
+- Requirement mapping: FLT-04 is Fixed assets; costing and charge-out is FLT-01.14; there is no FLT-05.
+
 ## 2026-11-15: fleet part 3, maintenance (0056, ADR 0023)
 
 - Work orders: prepared, authorised (fleet.approve, fresh MFA), reported complete, closed or sent back by a certifier who did not report the work.

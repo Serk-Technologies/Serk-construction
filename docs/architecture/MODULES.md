@@ -38,6 +38,7 @@ even if the kernel is bypassed (`review*_regression_test.go` prove it).
 | Fleet: register, lifecycle, reservations, logs, meters | `fleet.go`, `pkg/fleet` | 0054 | `/v1/equipment*`, `/v1/fleet/summary` | Fleet |
 | Fleet fuel: fuel items, dispensing as a stock issue, standards, reconciliation (ADR 0022) | `fuel.go`, `pkg/fleet/fuel.go`; issues through `stock.go` | 0055 | `/v1/fleet/fuel-*` | Fleet |
 | Fleet maintenance: work orders, parts as stock issues, return-to-service gate, preventive plans (ADR 0023) | `maintenance.go`, `pkg/fleet/maintenance.go` | 0056 | `/v1/maintenance-*`, `/v1/fleet/maintenance-due`, `/v1/equipment/{id}/maintenance` | Fleet |
+| Fleet policy (approved thresholds), plan revision and retirement, fuel across standards (ADR 0024) | `fleetpolicy.go`, `maintenance.go`, `fuel.go` | 0057 | `/v1/fleet-policies`, `/v1/fleet/policy`, `/v1/maintenance-plans/{id}/revise|retire` | Fleet |
 | Sessions, abuse limits | `sessions.go`, `httpapi/abuse*.go` | 0009, 0029 | `/v1/identity/*` | — |
 | Reports and exports | `reports.go`, `internal/export` | — | `/v1/reports/*`, `/v1/export` | Reports, export buttons |
 | **Platform** (0038): company settings, notifications, automation rules, intelligence | `platform.go`, `intelligence.go`, `pkg/automation` | 0038 | `/v1/tenant/settings`, `/v1/notifications`, `/v1/automation/*`, `/v1/intelligence/*`, `/v1/assistant/ask` | Company settings, bell, Automation rules, Risks, Ask, Control review |

@@ -95,9 +95,9 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 	case "guarantee", "escalation_formula", "price_adjustment", "ld_terms":
 		q = map[string]string{"guarantee": "guarantees", "escalation_formula": "escalation_formulas", "price_adjustment": "price_adjustments", "ld_terms": "contract_ld_terms"}[docType]
 		q = `SELECT c.project_id::text FROM ` + q + ` x JOIN contracts c ON c.id = x.contract_id WHERE x.id = $1::uuid`
-	case "equipment", "equipment_operator_auth":
-		// The register is company-wide: anyone who reads documents sees the fleet.
-		q = `SELECT '' FROM ` + map[string]string{"equipment": "equipment", "equipment_operator_auth": "equipment_operator_auths"}[docType] + ` WHERE id = $1::uuid`
+	case "equipment", "equipment_operator_auth", "fleet_policy":
+		// The register is company-wide: anyone who reads documents sees the fleet and its policy.
+		q = `SELECT '' FROM ` + map[string]string{"equipment": "equipment", "equipment_operator_auth": "equipment_operator_auths", "fleet_policy": "fleet_policies"}[docType] + ` WHERE id = $1::uuid`
 	case "equipment_reservation", "equipment_log":
 		q = `SELECT project_id::text FROM ` + map[string]string{"equipment_reservation": "equipment_reservations", "equipment_log": "equipment_logs"}[docType] + ` WHERE id = $1::uuid`
 	case "equipment_meter_reset":

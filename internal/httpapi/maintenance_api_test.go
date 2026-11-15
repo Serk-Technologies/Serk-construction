@@ -166,6 +166,46 @@ func TestAPIMaintenance(t *testing.T) {
 	}
 	code, out = a.do("GET", "/v1/fleet/maintenance-due", "", nil)
 	want("no token", 401, code, out)
+	// 0057: the plan is revised (old one retired and kept) and then retired; the policy is a two-person decision.
+	code, out = a.do("POST", "/v1/maintenance-plans/"+planID+"/revise", eng, map[string]any{"title": "500 hour service", "every_units": "600"})
+	want("plan revised by site staff", 403, code, out)
+	rev := a.id("POST", "/v1/maintenance-plans/"+planID+"/revise", officer, map[string]any{"title": "500 hour service", "every_units": "600"})
+	due = a.call(200, "GET", "/v1/fleet/maintenance-due", pm, nil)["items"].([]any)
+	if len(due) != 1 || due[0].(map[string]any)["plan_id"] != rev || due[0].(map[string]any)["every_units"] != "600" {
+		t.Fatalf("due after revision: %v", due)
+	}
+	code, out = a.do("POST", "/v1/maintenance-plans/"+rev+"/retire", officer, map[string]any{"reason": ""})
+	if code < 400 || code >= 500 {
+		t.Fatalf("retired without a reason: %d %v", code, out)
+	}
+	a.call(200, "POST", "/v1/maintenance-plans/"+rev+"/retire", officer, map[string]any{"reason": "Covered by the dealer's service contract"})
+	if due = a.call(200, "GET", "/v1/fleet/maintenance-due", pm, nil)["items"].([]any); len(due) != 0 {
+		t.Fatalf("a retired plan is still due: %v", due)
+	}
+	if pol := a.call(200, "GET", "/v1/fleet/policy", pm, nil); pol["source"] != "ENGINEERING_DEFAULT" || pol["note"] == "" {
+		t.Fatalf("policy before any is approved: %v", pol)
+	}
+	policy := map[string]any{"effective_from": day(-1), "fuel_variance_tolerance": "0.05", "fuel_variance_min_litres": "5", "due_soon_fraction": "0.2", "due_soon_days": 14, "basis": "Synthetic policy for the test environment"}
+	code, out = a.do("POST", "/v1/fleet-policies", eng, policy)
+	want("policy prepared by site staff", 403, code, out)
+	code, out = a.do("POST", "/v1/fleet-policies", officer, map[string]any{"effective_from": day(-1), "fuel_variance_tolerance": "2", "basis": "Out of range tolerance"})
+	want("policy out of range", 422, code, out)
+	polID := a.id("POST", "/v1/fleet-policies", officer, policy)
+	a.call(200, "POST", "/v1/fleet-policies/"+polID+"/submit", officer, nil)
+	code, out = a.do("POST", "/v1/fleet-policies/"+polID+"/approve", manager, nil)
+	want("policy approved without a fresh second factor", 401, code, out)
+	code, out = a.do("POST", "/v1/fleet-policies/"+polID+"/approve", inspectorMFA, nil)
+	want("policy approved by the inspector", 403, code, out)
+	a.call(200, "POST", "/v1/fleet-policies/"+polID+"/approve", managerMFA, nil)
+	if pol := a.call(200, "GET", "/v1/fleet/policy", pm, nil); pol["source"] != "APPROVED_POLICY" || pol["policy_id"] != polID || pol["fuel_variance_tolerance"] != "0.05" || pol["due_soon_days"] != float64(14) {
+		t.Fatalf("policy in force: %v", pol)
+	}
+	if pol := a.call(200, "GET", "/v1/fleet/policy?on="+day(-30), pm, nil); pol["source"] != "ENGINEERING_DEFAULT" {
+		t.Fatalf("policy a month ago: %v", pol)
+	}
+	code, out = a.do("GET", "/v1/fleet/policy?on=someday", pm, nil)
+	want("bad date", 422, code, out)
+
 	// The work order list is the generic document list.
 	if list := a.call(200, "GET", "/v1/p2p/maintenance_work_order", pm, nil)["items"].([]any); len(list) != 1 {
 		t.Fatalf("work order list: %v", list)
