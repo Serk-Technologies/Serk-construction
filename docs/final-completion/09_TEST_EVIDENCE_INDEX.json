@@ -1,10 +1,12 @@
 {
  "generated_by": "tools/final_completion.py",
  "directory": "docs/engineering/evidence",
- "register_results_file": "docs/engineering/evidence/2026-11-15-period-end-1d9c9a0.tests.txt",
+ "register_results_file": "docs/engineering/evidence/2026-11-15-cancellations-f518c83.tests.txt",
  "files": [
   "2026-11-15-baseline-711a174-fresh-db.json",
   "2026-11-15-baseline.tests.txt",
+  "2026-11-15-cancellations-f518c83.summary.json",
+  "2026-11-15-cancellations-f518c83.tests.txt",
   "2026-11-15-chargeout-560bfdd.summary.json",
   "2026-11-15-chargeout-560bfdd.tests.txt",
   "2026-11-15-credit-calendar-bf31d1b.summary.json",

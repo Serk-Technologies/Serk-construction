@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-period-end-1d9c9a0.tests.txt",
- "commit": "1d9c9a0",
+ "results_file": "docs/engineering/evidence/2026-11-15-cancellations-f518c83.tests.txt",
+ "commit": "f518c83",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",

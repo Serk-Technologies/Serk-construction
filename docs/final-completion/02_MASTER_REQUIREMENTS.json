@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-period-end-1d9c9a0.tests.txt",
- "register_commit": "1d9c9a0",
+ "results_file": "docs/engineering/evidence/2026-11-15-cancellations-f518c83.tests.txt",
+ "register_commit": "f518c83",
  "requirement_counts": {
   "VERIFIED": 107,
   "NOT_STARTED": 70,

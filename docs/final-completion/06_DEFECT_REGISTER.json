@@ -192,12 +192,13 @@
    "id": "DEF-017",
    "severity": "Low",
    "area": "Several",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Cancellations without attestation (consolidation run 0068:350, subcontract payment 0062:170, tax return 0069:139); asset disposal relies on pg_trigger_depth (0063:210)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Weak evidence of who cancelled",
    "next_action": "Attest cancellations",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0084 and commit f518c83; consolidation, tax and subcontract tests assert forged cancellations refused; TestFixedAssets_CapitaliseDepreciateDispose asserts disposal by approval only"
   },
   {
    "id": "DEF-018",
