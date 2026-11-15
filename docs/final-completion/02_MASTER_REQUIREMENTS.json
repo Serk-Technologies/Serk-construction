@@ -1,10 +1,10 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-cancellations-f518c83.tests.txt",
- "register_commit": "f518c83",
+ "results_file": "docs/engineering/evidence/2026-11-15-correspondence-certs-e412014.tests.txt",
+ "register_commit": "e412014",
  "requirement_counts": {
-  "VERIFIED": 107,
-  "NOT_STARTED": 70,
+  "VERIFIED": 109,
+  "NOT_STARTED": 68,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
@@ -1511,8 +1511,11 @@
    "domain": "PPL-05",
    "product": "PEOPLE",
    "text": "Certifications and safety training with expiry",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestCertifications_VerifyExpireRevoke",
+    "TestConsoleBrowserField"
+   ],
    "criteria": [],
    "work_package": "WP-012",
    "human_acceptance": "PENDING"
@@ -2424,8 +2427,12 @@
    "domain": "CNX-05",
    "product": "CONNECT",
    "text": "Correspondence register (in/out) linked to contracts",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestCorrespondence_RegisterRepliesAndOverdue",
+    "TestAPICorrespondence",
+    "TestConsoleBrowserDocuments"
+   ],
    "criteria": [],
    "work_package": "WP-016",
    "human_acceptance": "PENDING"

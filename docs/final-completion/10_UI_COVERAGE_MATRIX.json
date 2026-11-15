@@ -450,6 +450,12 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/list/correspondence",
+   "label": "Correspondence",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
    "route": "#/timesheets",
    "label": "Timesheets",
    "browser_journeys": [

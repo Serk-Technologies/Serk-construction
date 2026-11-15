@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "f518c83",
+ "register_commit": "e412014",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -907,8 +907,7 @@
     "PPL-01.1",
     "PPL-02.1",
     "PPL-03.1",
-    "PPL-04.1",
-    "PPL-05.1"
+    "PPL-04.1"
    ],
    "dependencies": [],
    "acceptance_criteria": [
@@ -930,11 +929,6 @@
     {
      "id": "PPL-04.1",
      "text": "Crew output and labour cost by work package",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "PPL-05.1",
-     "text": "Certifications and safety training with expiry",
      "status": "NOT_STARTED"
     },
     {
@@ -964,6 +958,7 @@
     }
    ],
    "tests": [
+    "TestCertifications_VerifyExpireRevoke",
     "TestConsoleBrowserField",
     "TestWorkforce_TimesheetsAndHSE"
    ],
@@ -1305,7 +1300,6 @@
     "CNX-02.2",
     "CNX-03.2",
     "CNX-04.1",
-    "CNX-05.1",
     "CNX-07.2",
     "CNX-08.1",
     "CNX-10.1",
@@ -1349,11 +1343,6 @@
      "id": "CNX-04.1",
      "text": "Submittals with review cycles and consultant responses",
      "status": "IMPLEMENTING"
-    },
-    {
-     "id": "CNX-05.1",
-     "text": "Correspondence register (in/out) linked to contracts",
-     "status": "NOT_STARTED"
     },
     {
      "id": "CNX-07.2",
@@ -1432,6 +1421,7 @@
     }
    ],
    "tests": [
+    "TestAPICorrespondence",
     "TestAPIDocumentSecurity",
     "TestAPIDocumentsAndRFIs",
     "TestAPIReportsAndExports",
@@ -1442,6 +1432,7 @@
     "TestAuthority_MatrixGovernanceAndLimits",
     "TestClamdAgainstARealDaemon",
     "TestConsoleBrowserDocuments",
+    "TestCorrespondence_RegisterRepliesAndOverdue",
     "TestDocSecurity_DownloadLinksAndExportBudget",
     "TestDocSecurity_FailClosedQuarantine",
     "TestDocSecurity_InfectedAndMaliciousUploads",

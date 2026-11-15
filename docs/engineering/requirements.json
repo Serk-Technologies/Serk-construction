@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-cancellations-f518c83.tests.txt",
- "commit": "f518c83",
+ "results_file": "docs/engineering/evidence/2026-11-15-correspondence-certs-e412014.tests.txt",
+ "commit": "e412014",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,11 +11,11 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 107,
+  "VERIFIED": 109,
   "NOT_STARTED": 68,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 3
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
@@ -24,10 +24,9 @@
   "VERIFIED": 22
  },
  "domain_counts": {
-  "IMPLEMENTING": 49,
+  "IMPLEMENTING": 51,
   "NOT_STARTED": 27,
-  "BLOCKED": 2,
-  "IMPLEMENTED_UNVERIFIED": 2
+  "BLOCKED": 2
  },
  "domains": [
   {
@@ -1787,13 +1786,13 @@
    "domain": "Competency",
    "milestone": "M6",
    "owner": "Construction lead",
-   "status": "IMPLEMENTED_UNVERIFIED",
-   "all_listed_requirements_verified": false,
+   "status": "IMPLEMENTING",
+   "all_listed_requirements_verified": true,
    "requirements": [
     {
      "id": "PPL-05.1",
      "text": "Certifications and safety training with expiry",
-     "status": "IMPLEMENTED_UNVERIFIED",
+     "status": "VERIFIED",
      "evidence_tests": [
       "TestCertifications_VerifyExpireRevoke",
       "TestConsoleBrowserField"
@@ -2839,13 +2838,13 @@
    "domain": "Correspondence",
    "milestone": "M7",
    "owner": "Product owner",
-   "status": "IMPLEMENTED_UNVERIFIED",
-   "all_listed_requirements_verified": false,
+   "status": "IMPLEMENTING",
+   "all_listed_requirements_verified": true,
    "requirements": [
     {
      "id": "CNX-05.1",
      "text": "Correspondence register (in/out) linked to contracts",
-     "status": "IMPLEMENTED_UNVERIFIED",
+     "status": "VERIFIED",
      "evidence_tests": [
       "TestCorrespondence_RegisterRepliesAndOverdue",
       "TestAPICorrespondence",

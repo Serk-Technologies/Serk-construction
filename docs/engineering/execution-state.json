@@ -66,7 +66,9 @@
   "0081_designation_approval.sql",
   "0082_role_adjustment_attestation.sql",
   "0083_period_end_binding.sql",
-  "0084_cancellation_attestation.sql"
+  "0084_cancellation_attestation.sql",
+  "0085_correspondence.sql",
+  "0086_certifications.sql"
  ],
  "adrs_added": [
   "0018",
@@ -283,7 +285,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-cancellations-f518c83.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-correspondence-certs-e412014.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -292,7 +294,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "CNX-05.1 correspondence (0085), PPL-05.1 certifications (0086) drafted in the scratchpad; then CNX-07.2 tasks, SUP-05.4 returns/scrap/quarantine.",
+  "exact_next_action": "CNX-07.2 tasks (0087 drafted), DEF-019 forecast change-rule test drafted; then SUP-05.4 returns/scrap/quarantine (new STK document types), DEF-018, DEF-004.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -311,8 +313,9 @@
    "DEF-015 designations approved (9eb1445)",
    "DEF-014 role adjustments attested (26b7a29)",
    "DEF-013 period-end journals bound, templates approved (1d9c9a0)",
-   "DEF-017 cancellations attested, disposal by approval (f518c83)"
+   "DEF-017 cancellations attested, disposal by approval (f518c83)",
+   "CNX-05.1 correspondence, PPL-05.1 certifications (e412014)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-cancellations-f518c83.summary.json (501/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-correspondence-certs-e412014.summary.json (504/0/0)"
 }
