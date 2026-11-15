@@ -408,7 +408,11 @@ D = {
           criteria=[
             c("Object storage with encryption and short-lived authorised download", N),
             c("Resumable upload: an interrupted upload continues without re-sending completed parts and is scanned before acceptance", N)]),
-        r("Transmittals, QR verification of a revision, retention policy and legal hold", N),
+        r("Transmittals, QR verification of a revision, retention policy and legal hold", I, criteria=[
+            c("A transmittal records the approved revisions sent to a party and never changes; items only in the sending transaction", V, "TestDocflow_TransmittalsAndSubmittals", "TestConsoleBrowserDocuments"),
+            c("QR verification of a printed revision", N),
+            c("Retention policy per document type", N),
+            c("Legal hold that blocks deletion and retention expiry", N)]),
         r("Files over the PostgreSQL cap are stored encrypted in an S3-compatible store under a tenant-scoped, immutable key fixed by the database; a tampered, swapped or cross-tenant object is not served", V,
           "TestDocSecurity_ObjectStorageAndMigration", "TestS3AgainstARealServer", "TestSealedRoundTripAndTamperDetection", "TestObjectKeyIsTenantScopedAndStrict", "TestDocumentStorageConfig"),
         r("Migration from PostgreSQL to object storage is incremental and repeatable, verifies each copy by reading it back, and removes no byte until the schema owner releases it", V,
@@ -440,7 +444,10 @@ D = {
           "TestDocuments_RFILifecycle", "TestAPIDocumentsAndRFIs"),
         r("RFI cost/time impact linked to change events", N),
     ]),
-    "CNX-04": ("M7", "Construction lead", [r("Submittals with review cycles and consultant responses", N)]),
+    "CNX-04": ("M7", "Construction lead", [r("Submittals with review cycles and consultant responses", I, criteria=[
+            c("A submittal is reviewed once, with a code A-D, by someone other than the submitter; attested; C and D need a note", V, "TestDocflow_TransmittalsAndSubmittals", "TestConsoleBrowserDocuments"),
+            c("A resubmission is linked to the submittal it answers, forming a review cycle", N),
+            c("Consultant responses through the consultant portal", N, note="Depends on CNX-12.")])]),
     "CNX-05": ("M7", "Product owner", [r("Correspondence register (in/out) linked to contracts", N,
                                          note="Contract notices exist under CON-03.")]),
     "CNX-06": ("M1", "Chief architect", [

@@ -141,6 +141,9 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"consolidation_run":   {"consolidation_runs", "created_by", ""},
 	"tax_return":          {"tax_returns", "created_by", ""},
 	"itp":                 {"itps", "created_by", ""},
+	// Transmittals and submittals (0077).
+	"transmittal": {"transmittals", "created_by", ""},
+	"submittal":   {"submittals", "created_by", ""},
 	// Timesheets (0076).
 	"timesheet": {"timesheets", "created_by", ""},
 }
@@ -431,6 +434,8 @@ var listSQL = map[string]string{
 	"consolidation_run":       `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', 0::numeric, (SELECT code FROM consolidation_groups WHERE id = r.group_id) || ' ' || r.period_start || ' to ' || r.period_end FROM consolidation_runs r`,
 	"tax_return":              `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', COALESCE((SELECT sum(amount) FROM tax_return_lines l WHERE l.return_id = r.id), 0), r.kind || ' ' || r.period_start || ' to ' || r.period_end FROM tax_returns r`,
 	"timesheet":               `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, COALESCE((SELECT sum(hours_normal + hours_ot) FROM timesheet_lines l WHERE l.timesheet_id = t.id), 0), t.work_date || ' — ' || (SELECT count(*) FROM timesheet_lines l WHERE l.timesheet_id = t.id) || ' people' FROM timesheets t`,
+	"transmittal":             `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, (SELECT count(*) FROM transmittal_items i WHERE i.transmittal_id = t.id)::numeric, t.subject || ' — to ' || t.to_party || ' (' || lower(replace(t.purpose, '_', ' ')) || ')' FROM transmittals t`,
+	"submittal":               `SELECT x.id::text, x.number, x.status || COALESCE('/' || x.review_code, ''), x.created_by, x.created_at, x.project_id::text, 0::numeric, x.spec_section || ' — ' || x.title FROM submittals x`,
 	"itp":                     `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, 0::numeric, t.title || COALESCE(' — activity ' || t.activity_code, '') FROM itps t`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,

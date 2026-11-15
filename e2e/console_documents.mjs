@@ -139,6 +139,33 @@ try {
   await snap(eng, 'rfi-closed');
   log('RFI raised, answered and closed');
 
+  // ---- 5b. Transmittal of the approved drawing; a submittal reviewed by someone else (0077) ---
+  await nav(eng, '#/new/transmittal', 'Send a transmittal');
+  await selectByText(eng.getByLabel('Project', { exact: true }), 'P-API');
+  await eng.getByRole('checkbox', { name: /^A-101 rev B/ }).check();
+  await eng.getByLabel('Subject').fill('General arrangement for construction');
+  await eng.getByLabel('To', { exact: true }).fill('Abay Construction PLC');
+  await audit(eng, 'transmittal form');
+  await eng.getByRole('button', { name: 'Send transmittal' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Transmittal TRM-/ }).waitFor();
+  log('transmittal sent');
+  await nav(eng, '#/new/submittal', 'New submittal');
+  await selectByText(eng.getByLabel('Project', { exact: true }), 'P-API');
+  await eng.getByLabel('Specification section').fill('03 30 00');
+  await eng.getByLabel('Title').fill('Concrete mix design C30');
+  await eng.getByRole('button', { name: 'Submit for review' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Submittal SBM-/ }).waitFor();
+  const sbm = await idFromHash(eng);
+  if (await eng.getByRole('button', { name: 'Record the review' }).count()) fail('the submitter is offered to review their own submittal');
+  await nav(pm, `#/doc/submittal/${sbm}`, /^Submittal SBM-/);
+  await audit(pm, 'submittal review');
+  await selectByText(pm.getByLabel('Review code'), 'C —');
+  await pm.getByLabel('Note').fill('Increase the cement content to meet the 28-day strength');
+  await pm.getByRole('button', { name: 'Record the review' }).click();
+  await pm.getByRole('button', { name: 'Record the review' }).waitFor({ state: 'detached' });
+  await pm.locator('main').filter({ hasText: 'REVIEWED' }).first().waitFor();
+  log('submittal reviewed (C)');
+
   // ---- 6. Phone width, dark theme ------------------------------------------------------------
   const phone = await as('pmPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   await nav(phone, `#/documents/${docID}`, /^A-101/);

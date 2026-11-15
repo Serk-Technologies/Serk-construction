@@ -87,6 +87,38 @@ func serveFile(w http.ResponseWriter, f kernel.DocumentRevision, rc io.ReadClose
 func (s *Server) registerDocuments() {
 	m := s.mux
 	k := s.cfg.Kernel
+	// Transmittals and submittals (0077); lists and details through /v1/p2p/{transmittal,submittal}.
+	m.Handle("POST /v1/transmittals", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.TransmittalInput
+		if !decode(w, r, &b) || !validIDs(w, append([]string{b.ProjectID}, b.DocumentIDs...)...) {
+			return
+		}
+		id, err := k.SendTransmittal(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/submittals", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.SubmittalInput
+		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) {
+			return
+		}
+		id, err := k.SubmitSubmittal(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/submittals/{id}/review", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		var b struct {
+			Code string `json:"code"`
+			Note string `json:"note"`
+		}
+		if !validIDs(w, id) || !decode(w, r, &b) {
+			return
+		}
+		if err := k.ReviewSubmittal(r.Context(), principalFrom(r.Context()), id, b.Code, b.Note); err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "status": "REVIEWED"})
+	}))
 	m.Handle("GET /v1/documents", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		project := r.URL.Query().Get("project")
 		if project != "" && !validIDs(w, project) {

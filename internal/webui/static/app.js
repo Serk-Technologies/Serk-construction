@@ -267,6 +267,8 @@ const DOCS = {
   document_revision: { title: 'Document revisions', one: 'Document revision', base: '/v1/document-revisions', create: 'document.manage', form: 'document',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
     actions: { DRAFT: [['submit', 'document.manage']], SUBMITTED: [['approve', 'document.approve', 'opt'], ['reject', 'document.approve', 'req']] } },
+  transmittal: { title: 'Transmittals', one: 'Transmittal', base: '/v1/transmittals', create: 'document.manage', form: 'transmittal', statuses: ['SENT'], actions: {} },
+  submittal: { title: 'Submittals', one: 'Submittal', base: '/v1/submittals', create: 'document.manage', form: 'submittal', statuses: ['SUBMITTED', 'REVIEWED'], actions: {} },
   rfi: { title: 'Requests for information', one: 'Request for information', base: '/v1/rfis', create: 'document.manage', form: 'rfi', statuses: ['OPEN', 'ANSWERED', 'CLOSED'], actions: {} },
   equipment_reservation: { title: 'Equipment reservations', one: 'Equipment reservation', base: '/v1/equipment-reservations', create: 'fleet.reserve', form: 'equipment_reservation',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
@@ -432,7 +434,7 @@ const NAV = [
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
   ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
     ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read'], ['#/list/fleet_policy', 'Fleet policies', 'p2p.read']]],
-  ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read']]],
+  ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read'], ['#/list/transmittal', 'Transmittals', 'p2p.read'], ['#/list/submittal', 'Submittals', 'p2p.read']]],
   ['Site workforce, safety & quality', [['#/timesheets', 'Timesheets', 'timesheet.record|timesheet.approve'], ['#/hse', 'Health and safety', 'hse.report|hse.manage'], ['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct'], ['#/credit', 'Progress credit', 'credit.manage|credit.approve|credit.record']]],
   ['Subcontracts', [['#/list/subcontract', 'Subcontracts', 'p2p.read'], ['#/list/subcontract_application', 'Applications and certificates', 'p2p.read'], ['#/list/subcontract_backcharge', 'Back-charges', 'p2p.read'], ['#/list/subcontract_payment', 'Subcontract payments', 'p2p.read|payment.prepare|payment.approve|payment.release'], ['#/subpolicy', 'Subcontract accounts', 'contract.policy.manage|contract.policy.approve']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
@@ -468,6 +470,7 @@ const QUEUES = [
   ['fleet.release', 'equipment_meter_reset', 'SUBMITTED', 'Meter resets to approve'],
   ['fleet.approve', 'maintenance_work_order', 'SUBMITTED', 'Work orders to authorise'],
   ['fleet.approve', 'fleet_policy', 'SUBMITTED', 'Fleet policies to approve'],
+  ['document.approve', 'submittal', 'SUBMITTED', 'Submittals to review'],
   ['fleet.release', 'maintenance_work_order', 'COMPLETED', 'Completed work to certify'],
   ['subcontract.approve', 'subcontract', 'SUBMITTED', 'Subcontracts to approve'],
   ['subcontract.certify', 'subcontract_application', 'SUBMITTED', 'Subcontractor applications to certify'],
@@ -1006,6 +1009,7 @@ async function renderDoc(type, id) {
   if (type === 'timesheet') parts.push(await timesheetPanel(d));
   if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
   if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); }
+  if (type === 'submittal') { const p = submittalPanel(d, head); if (p) parts.push(p); }
   if (type === 'subcontract') parts.push(await subcontractPanel(d));
   if (type === 'subcontract_application') parts.push(await applicationPanel(d));
   if (type === 'fixed_asset') parts.push(await disposalPanel(d));
@@ -1883,6 +1887,42 @@ const FORMS = {
         const id = existing ? existing.id : (await api('POST', '/v1/documents', { project_id: proj.value, reference: ref.value.trim(), doc_type: kind.value, title: title.value.trim(), discipline: disc.value.trim() })).id;
         const res = await api('POST', `/v1/documents/${id}/revisions`, { revision: rev.value.trim(), file_name: f.name.replace(/[^A-Za-z0-9 ._()-]/g, '_').slice(0, 150), media_type: media, change_note: note.value.trim(), content });
         created('document_revision', res, 'Revision');
+      });
+  },
+
+  async transmittal() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const subject = input('subject', { type: 'text', required: true, minlength: '3', maxlength: '300' });
+    const party = input('to_party', { type: 'text', required: true, minlength: '2', maxlength: '200' });
+    const purpose = select('purpose', [['FOR_INFORMATION', 'For information'], ['FOR_REVIEW', 'For review'], ['FOR_APPROVAL', 'For approval'], ['FOR_CONSTRUCTION', 'For construction'], ['AS_BUILT', 'As built']].map(([value, label]) => ({ value, label })), { required: true });
+    const docs = h('fieldset', {}, h('legend', {}, 'Documents (their approved revision is sent)'));
+    const latestDocs = latestOnly();
+    const load = () => latestDocs(async (signal) => (proj.value ? (await api('GET', `/v1/documents?project=${proj.value}`, undefined, undefined, signal)).documents : []), (list) => {
+      const ok = (list || []).filter((x) => x.current);
+      docs.replaceChildren(h('legend', {}, 'Documents (their approved revision is sent)'), ...(ok.length ? ok.map((x) => {
+        const cb = h('input', { type: 'checkbox', name: 'document_ids', value: x.id, id: nextId('td') });
+        return h('div', { class: 'check' }, cb, h('label', { for: cb.id }, `${x.reference} rev ${x.current.revision} — ${x.title}`));
+      }) : [h('p', { class: 'empty' }, 'No document of this project has an approved revision.')]));
+    });
+    proj.addEventListener('change', () => load().catch(showError));
+    formPage('Send a transmittal', 'Records the approved revision of each chosen document as sent to a party. A transmittal never changes.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Subject', subject), field('To', party), field('Purpose', purpose)), docs], 'Send transmittal', async () => {
+        const ids = [...docs.querySelectorAll('input[name=document_ids]:checked')].map((c) => c.value);
+        if (!ids.length) throw new Error('Choose at least one document.');
+        const res = await api('POST', '/v1/transmittals', { project_id: proj.value, subject: subject.value.trim(), to_party: party.value.trim(), purpose: purpose.value, document_ids: ids });
+        created('transmittal', res, 'Transmittal');
+      });
+    await load();
+  },
+
+  async submittal() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const section = input('spec_section', { type: 'text', required: true, minlength: '2', maxlength: '60', placeholder: '03 30 00' });
+    const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '300' });
+    formPage('New submittal', 'A contractor submittal (shop drawing, sample, product data) for review. Someone other than you records the review code.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Specification section', section), field('Title', title))], 'Submit for review', async () => {
+        const res = await api('POST', '/v1/submittals', { project_id: proj.value, spec_section: section.value.trim(), title: title.value.trim() });
+        created('submittal', res, 'Submittal');
       });
   },
 
@@ -5116,6 +5156,20 @@ function revisionPanel(d, head, doc) {
     h('p', {}, `${SCAN_STATE[scan] || scan}${head.scan_engine ? ' — ' + head.scan_engine : ''}`), scanNote ? h('p', { class: 'hint' }, scanNote) : null,
     h('p', { class: 'hint' }, `SHA-256 ${head.sha256}`), warn,
     h('div', { class: 'actions' }, acts, doc.id ? h('a', { href: `#/documents/${doc.id}` }, 'All revisions of this document') : null), discard);
+}
+// A submittal is reviewed once, with a code, by someone other than the submitter (0077, attested).
+function submittalPanel(d, head) {
+  const x = head || d;
+  if (x.status !== 'SUBMITTED' || !S.can.has('document.approve') || x.created_by === S.me.user_id) return null;
+  const code = select('code', [['A', 'A — approved'], ['B', 'B — approved as noted'], ['C', 'C — revise and resubmit'], ['D', 'D — rejected']].map(([value, label]) => ({ value, label })), { required: true });
+  const note = input('note', { type: 'text', maxlength: '2000', placeholder: 'Required for C and D' });
+  const btn = h('button', { type: 'button', class: 'primary' }, 'Record the review');
+  btn.addEventListener('click', async () => {
+    clearError();
+    try { await api('POST', `/v1/submittals/${d.id}/review`, { code: code.value, note: note.value.trim() }); say('Review recorded.'); route(); } catch (e) { showError(e); }
+  });
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Review'), h('p', { class: 'hint' }, 'The review is recorded once and attested in your name.'),
+    h('div', { class: 'grid' }, field('Review code', code), field('Note', note)), h('div', { class: 'actions' }, btn));
 }
 function rfiPanel(d, head) {
   const manage = S.can.has('document.manage');
