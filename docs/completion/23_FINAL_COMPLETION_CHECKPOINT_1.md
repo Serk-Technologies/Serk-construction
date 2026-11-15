@@ -51,13 +51,14 @@ evidences every clause of a register requirement. Acceptance criteria are counte
 | WP-001 form state | State-held lines, in-place choice refresh, unresolved choices, pending gating, stale-error suppression, leave prompt; barrier-driven journey fails on the old console | `5a8c052`; 492/0/0 |
 | WP-002 API | RFC 9457 problem details everywhere (router 404/405 included); cursor pagination on `/v1/p2p/{type}` bound to tenant, type and filter | `5a8c052` |
 | WP-024 part 1 | DEF-008 (attested inspection results, NCR closure), DEF-009 (DB maker-checker on tax returns, consolidation, ITPs), DEF-010 (employee records approved by a second person before pay) | `9bce5f0`, `dbe049a`; 492/0/0 each |
+| WP-024 part 3 | DEF-012: overhead allocated once per day of the pool (race-free claim of days) | `dc0cd61`; 492/0/0 |
 | WP-024 part 2 | DEF-016: no fake e-invoice adapter by default; 503 until an authorised adapter is configured | `47d5d5c`; 492/0/0 |
 
 ## 5. Defects
 
 Canonical: `docs/final-completion/06_DEFECT_REGISTER.json`. Closed this session: DEF-003, DEF-006, DEF-008,
-DEF-009, DEF-010, DEF-016. Open High: DEF-001 (colliding new-version parts not yet
-rebuilt), DEF-002 (main unprotected; administrator). Open Medium: DEF-011 to DEF-015, DEF-017; Low/Info:
+DEF-009, DEF-010, DEF-012, DEF-016. Open High: DEF-001 (colliding new-version parts not yet
+rebuilt), DEF-002 (main unprotected; administrator). Open Medium: DEF-011, DEF-013, DEF-014, DEF-015, DEF-017; Low/Info:
 DEF-004, DEF-005, DEF-007, DEF-018 to DEF-020.
 
 ## 6. Verification integrity

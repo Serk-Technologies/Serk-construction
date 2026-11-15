@@ -130,12 +130,13 @@
    "id": "DEF-012",
    "severity": "Medium",
    "area": "Period end",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Overhead can be allocated twice over overlapping date ranges (0064_period_end.sql:194, 164)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Double allocation of overhead",
    "next_action": "Refuse overlapping ranges in the database",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0075 and commit dc0cd61; TestPeriodEnd_FiscalYearRecurringAccrualOverhead fails on a fresh database without the fix"
   },
   {
    "id": "DEF-013",
@@ -156,7 +157,7 @@
    "title": "Role adjustments have no attestation or MFA in the database (0066_role_adjustments.sql:52)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Withheld permissions can be restored by the tenant login",
-   "next_action": "Attest adjustments with MFA",
+   "next_action": "Design needed: role adjustments are upserted by role code, so there is no subject row to attest before the first adjustment; give adjustments their own versioned rows with ids, attest each version with fresh MFA, and read the latest approved version",
    "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
   },
   {

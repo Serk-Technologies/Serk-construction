@@ -56,7 +56,8 @@
   "0058-0071 (carried from new-version, renumbered)",
   "0072_integration_subjects.sql",
   "0073_carried_module_hardening.sql",
-  "0074_employee_approval.sql"
+  "0074_employee_approval.sql",
+  "0075_overhead_no_overlap.sql"
  ],
  "adrs_added": [
   "0018",
@@ -283,15 +284,16 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "WP-024 part 3: Medium defects DEF-011 (attest rule-of-credit approval), DEF-012 (refuse overlapping overhead ranges), DEF-013 (bind overhead/recurring/accrual journals to computed amounts; approve templates), DEF-014 (attest role adjustments with MFA), DEF-015 (approve tax and intercompany account designations), DEF-017 (attest cancellations). Then rebuild new-version 0064 timesheets and HSE on this branch's tables with attested closures, verifications and permit steps (DEF-001).",
+  "exact_next_action": "WP-024 part 3 continued: DEF-011 (attest rule-of-credit approval), DEF-013 (bind overhead/recurring/accrual journal lines to computed amounts; approve recurring templates), DEF-015 (approve tax and intercompany account designations), DEF-017 (attest cancellations), DEF-014 (versioned, attested role adjustments; see its next_action). Then rebuild new-version 0064 timesheets and HSE on this branch's tables with attested steps (DEF-001).",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
    "WP-001 form state (partial: four forms without own regression)",
    "WP-002 problem details and document-list cursors (other lists open)",
    "WP-024 part 1: DEF-008, DEF-009 (9bce5f0), DEF-010 (dbe049a)",
-   "WP-024 part 2: DEF-016 (47d5d5c)"
+   "WP-024 part 2: DEF-016 (47d5d5c)",
+   "WP-024 part 3: DEF-012 (dc0cd61)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-einvoice-47d5d5c.summary.json (492/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-overhead-dc0cd61.summary.json (492/0/0)"
 }
