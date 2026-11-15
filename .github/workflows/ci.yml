@@ -82,6 +82,8 @@ jobs:
           SERK_TEST_S3_ENDPOINT: http://127.0.0.1:9000
           SERK_TEST_S3_BUCKET: serk-test-e3b0c44298fc
         run: |
+          # pipefail: without it the step takes tee's exit status and a failing test run is reported green.
+          set -o pipefail
           mkdir -p test-logs
           go test -race -count=1 -p 1 -v ./... | tee test-logs/test-run.log
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

@@ -22,7 +22,7 @@ trap 'psql "$ADMIN" -q -c "DROP DATABASE IF EXISTS $DB WITH (FORCE)"' EXIT
 psql "$DSN" -q -v ON_ERROR_STOP=1 -f deploy/00-roles.sql
 SERK_ADMIN_DSN="$DSN" go run ./cmd/serk-migrate > /dev/null
 TENANT=$(psql "$DSN" -At -c "SELECT gen_random_uuid()")
-SERK_ADMIN_DSN="$DSN" SERK_TENANT_DB_SECRET=capacity-run-only-secret-0123456789abcdef SERK_APPROVAL_SIGNING_KEY=capacity-run-only-signing-0123456789abcdef \
+SERK_ADMIN_DSN="$DSN" SERK_TENANT_DB_SECRET="$(openssl rand -hex 24)" SERK_APPROVAL_SIGNING_KEY="$(openssl rand -hex 24)" \
   go run ./cmd/serk-migrate provision-tenant --tenant "$TENANT" --name "Capacity Fixture" > /dev/null
 ROLE=$(psql "$DSN" -At -c "SELECT role_name FROM tenant_db_roles WHERE tenant_id = '$TENANT'")
 echo "### fleet measurement $(date -u +%FT%TZ): $EQUIPMENT machines, $LOGS approved logs, tenant role $ROLE"
