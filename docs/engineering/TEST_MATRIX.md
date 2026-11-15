@@ -43,7 +43,7 @@ Status: **COVERED** = the named tests exercise the required result and passed in
 | AI-002 | Abstain or show caveats on thin evidence | PARTIAL | `TestPlatform_IntelligenceAndAssistant` (answers carry sources, assumptions and missing data). Gap: no forecast-uncertainty evaluation |
 | SCALE-001 | Correct totals and isolation under large data and load | NOT COVERED | No load test has been run |
 | HIST-001 | Archive and restore old data | NOT COVERED | No archive exists |
-| DR-001 | Restore and reconcile with measured RPO/RTO | see `evidence/` | `deploy/drills/pitr_drill.sh`; the result of this session's run, if any, is recorded in `HANDOVER.md` |
+| DR-001 | Restore and reconcile with measured RPO/RTO | PARTIAL | `deploy/drills/pitr_drill.sh` run on 2026-11-15 (`evidence/2026-11-15-pitr-drill.txt`): PASS; 16 table fingerprints identical at the restore point, audit chains verify, all 52 migrations replayed; restore verified in 0.64 s; 5 s of committed writes lost on losing the primary with `archive_timeout=10s`. Gap: disposable local clusters and a few hundred rows; no offsite, encrypted or production-scale restore in this session |
 | LOC-001 | Ethiopian calendar, currency, rules | PARTIAL | `TestParseQuantisesToMinorUnits`, `TestAllocateConservesEveryMinorUnit`, `TestPDFEthiopicFontOnlyWhenNeeded`. Gap: no Ethiopian calendar conversion, no reviewed statutory fixtures |
 | E2E-001 | Tender to receipt with reconciliation | PARTIAL | `TestAPIJourneyA_EndToEnd`, `TestAPIJourneyB_ContractToCash`, `TestAPIJourneyC_StockValuation` and the browser journeys cover BOQ → budget → purchase → receipt → issue → measurement → IPC → invoice → receipt → reports. Gap: tender and estimate stages do not exist |
 

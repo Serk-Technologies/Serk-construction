@@ -1,0 +1,44 @@
+{
+  "updated": "2026-11-15",
+  "repository": "Serk-Technologies/Serk-construction",
+  "branch": "claude/new-session-xkd5g3",
+  "base_commit": "fad2cd4",
+  "milestone": {
+    "current": "M6",
+    "completed_this_session": ["M0"],
+    "found_built_at_baseline": ["M1", "M2 (BOQ, budget, WBS; no estimating)", "M3", "M4 (no work packages)", "M5 (server side only)"],
+    "slices_this_session": ["M7: controlled documents, revisions, RFIs (CNX-01, CNX-02, CNX-03)"]
+  },
+  "next_work_item": {
+    "id": "FLT-01",
+    "title": "Fleet and equipment: asset register, meter readings, fuel, maintenance, equipment cost to job",
+    "then": ["ASR-01", "ASR-03", "EST-06", "PLB-05", "XCT-API.2", "XCT-SCALE.4"]
+  },
+  "requirement_ids_touched": ["CNX-01.1", "CNX-01.2", "CNX-01.3", "CNX-02.1", "CNX-03.1", "XCT-DR.1"],
+  "migrations_added": ["0052_document_control.sql"],
+  "adrs_added": ["docs/adr/0018-controlled-documents-in-postgres.md"],
+  "commands": [
+    {"command": "gofmt -l . ; go vet ./...", "outcome": "clean, exit 0", "when": "baseline and after change"},
+    {"command": "go test -race -count=1 -p 1 -json ./...", "outcome": "427 pass, 0 fail, 0 skip", "when": "baseline at fad2cd4", "evidence": "docs/engineering/evidence/2026-11-15-baseline.tests.txt"},
+    {"command": "go test -race -count=1 -p 1 -json ./...", "outcome": "433 pass, 0 fail, 0 skip", "when": "after the documents slice", "evidence": "docs/engineering/evidence/2026-11-15-documents-slice.tests.txt"},
+    {"command": "deploy/drills/pitr_drill.sh", "outcome": "DRILL VERDICT: PASS; restore verified 0.64 s; RPO 5 s at archive_timeout=10s (tiny dataset)", "evidence": "docs/engineering/evidence/2026-11-15-pitr-drill.txt"},
+    {"command": "python3 tools/requirements_register.py --results docs/engineering/evidence/2026-11-15-documents-slice.tests.txt", "outcome": "VERIFIED 72, IMPLEMENTING 5, IMPLEMENTED_UNVERIFIED 1, BLOCKED 10, NOT_STARTED 71; no claim downgraded"}
+  ],
+  "environment": {"cpu": 4, "ram_gib": 15, "go": "1.26.0", "postgres": "16.15", "browser": "Chromium via Playwright"},
+  "not_run": ["GitHub Actions CI", "Docker image build", "govulncheck / supply-chain script", "offsite encrypted backup drill", "load tests", "any deployment"],
+  "known_blockers": [
+    "No malware scanner for uploaded documents (CNX-01.4)",
+    "No field mobile client; none can be verified in this environment (XCT-OFFLINE.3)",
+    "No authorised identity provider, bank, messaging provider, object storage or model endpoint",
+    "Payroll, tax and statutory rules need professional approval before any real value is loaded",
+    "Penetration test and human release gates"
+  ],
+  "assumptions": [
+    "Files in PostgreSQL with a 10 MiB cap until object storage is available (ADR 0018)",
+    "Role grants: document.manage to site_engineer, quantity_surveyor, planner; document.approve to project_manager",
+    "An RFI may be answered by any document.manage holder on the project other than its author"
+  ],
+  "authorisation": {"deploy": false, "merge_to_main": false, "real_data": false, "push": "to the session branch claude/new-session-xkd5g3 only"},
+  "release_status": "NO-GO",
+  "resume_command": "Read CLAUDE.md and docs/engineering/execution-state.json, inspect Git and the last evidence, rerun the baseline checks in docs/engineering/RUNBOOK.md, and implement the next item of 'Next work' in docs/engineering/HANDOVER.md as one vertical slice."
+}

@@ -44,8 +44,9 @@ PRODUCTS = [
 ]
 
 
-def r(text, status, *tests, note=""):
-    return {"text": text, "status": status, "tests": list(tests), "note": note}
+def r(text, status, *tests, note="", drill=""):
+    # drill: a recorded drill report (path under the repository) that must end in a PASS verdict.
+    return {"text": text, "status": status, "tests": list(tests), "note": note, "drill": drill}
 
 
 # domain id -> (milestone, owner role from the Bible's approval table, requirements)
@@ -356,8 +357,11 @@ X = {
         r("Measured load at tier T1 or above", N, note="No load test at scale has been run; see CAPACITY_PLAN.md."),
     ]),
     "XCT-DR": ("M11", "Deployment and recovery", [
+        r("Base backup plus WAL archive restores exactly to a named point, every migration included; data loss on losing the primary is measured", V,
+          drill="docs/engineering/evidence/2026-11-15-pitr-drill.txt",
+          note="Local disposable clusters, a few hundred rows: restore verified in 0.64 s, 5 s of committed writes lost with archive_timeout=10s. Not a production-scale measurement."),
         r("Encrypted, signed offsite PITR backup restores exactly; forged or colliding archives are refused", U,
-          note="Drill scripts and a recorded run exist (docs/operations/BACKUP_PITR_RESTORE_PROOF.md); the drill was not re-run in this baseline."),
+          note="Drill script and an earlier recorded run exist (docs/operations/BACKUP_PITR_RESTORE_PROOF.md); not re-run in this session."),
         r("Request telemetry, trace context and alert rules fire on induced failures", V,
           "TestAlertDrill_InducedFailuresFireTheRightAlerts", "TestRequestTelemetryAndTraceContext"),
         r("Outbox relay delivers in order, retries, dead-letters and replays; consumers dedupe", V,
@@ -376,6 +380,11 @@ X = {
         r("Problem details per RFC 9457 and cursor pagination on every list", I, note="Errors use a consistent {code,message} body; lists are bounded by LIMIT, not cursors."),
     ]),
 }
+
+
+# Domains whose requirement list a named owner has reviewed as complete against
+# the Bible. Only these can be VERIFIED as a domain. None has been reviewed.
+DECOMPOSITION_REVIEWED = set()
 
 
 def load_pass(path):
@@ -417,6 +426,9 @@ def main():
     for d in domains + cross:
         for q in d["requirements"]:
             counts[q["status"]] = counts.get(q["status"], 0) + 1
+    dcounts = {}
+    for d in domains:
+        dcounts[d["status"]] = dcounts.get(d["status"], 0) + 1
     out = {
         "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
         "results_file": a.results or "",
@@ -424,6 +436,7 @@ def main():
         "status_vocabulary": [N, I, U, V, B],
         "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
         "requirement_counts": counts,
+        "domain_counts": dcounts,
         "domains": domains,
         "cross_cutting": cross,
     }
@@ -440,13 +453,22 @@ def build(did, product, name, milestone, owner, reqs, passed, downgraded):
     items = []
     for i, q in enumerate(reqs, 1):
         status = q["status"]
-        if status == V and (not q["tests"] or any(t not in passed for t in q["tests"])):
+        drill_ok = bool(q["drill"]) and (ROOT / q["drill"]).is_file() and "DRILL VERDICT: PASS" in (ROOT / q["drill"]).read_text()
+        if status == V and q["drill"] and not drill_ok:
+            status = U
+            downgraded.append(f"{did}.{i}: no PASS verdict in {q['drill']}")
+        elif status == V and not q["drill"] and (not q["tests"] or any(t not in passed for t in q["tests"])):
             status = U
             downgraded.append(f"{did}.{i}: " + ", ".join(t for t in q["tests"] if t not in passed))
-        items.append({"id": f"{did}.{i}", "text": q["text"], "status": status, "evidence_tests": q["tests"], "note": q["note"]})
+        items.append({"id": f"{did}.{i}", "text": q["text"], "status": status, "evidence_tests": q["tests"], "evidence_file": q["drill"], "note": q["note"]})
     st = {x["status"] for x in items}
-    if st == {V}:
+    all_listed = st == {V}
+    if all_listed and did in DECOMPOSITION_REVIEWED:
         dstatus = V
+    elif all_listed:
+        # Every listed requirement is verified, but nobody accountable has
+        # confirmed that the list covers the Bible's scope for this domain.
+        dstatus = I
     elif st <= {N}:
         dstatus = N
     elif st <= {B} or st <= {B, N} and B in st and len(items) == 1:
@@ -455,7 +477,8 @@ def build(did, product, name, milestone, owner, reqs, passed, downgraded):
         dstatus = U
     else:
         dstatus = I
-    return {"id": did, "product": product, "domain": name, "milestone": milestone, "owner": owner, "status": dstatus, "requirements": items}
+    return {"id": did, "product": product, "domain": name, "milestone": milestone, "owner": owner, "status": dstatus,
+            "all_listed_requirements_verified": all_listed, "requirements": items}
 
 
 def markdown(out):
@@ -464,16 +487,19 @@ def markdown(out):
          "",
          f"Test results used: `{out['results_file']}`" + (f" at commit `{out['commit']}`" if out["commit"] else "") + ".",
          "",
-         "**VERIFIED** means every test named as evidence passed in that executed run. It is not a human acceptance, "
-         "and a domain is VERIFIED only when every one of its requirements is. A domain that is partly built is IMPLEMENTING.",
+         "**VERIFIED** on a requirement means every test named as evidence passed in that executed run. It is not a human acceptance. "
+         "A domain is VERIFIED only when every listed requirement is verified **and** its owner has reviewed the list as complete "
+         "against the Bible; no domain has had that review, so no domain is VERIFIED. A domain marked † has every listed requirement "
+         "verified and awaits that review. A domain that is partly built is IMPLEMENTING.",
          "",
-         "Requirement counts: " + ", ".join(f"{k} {v}" for k, v in sorted(out["requirement_counts"].items())) + ".", ""]
+         "Requirement counts: " + ", ".join(f"{k} {v}" for k, v in sorted(out["requirement_counts"].items())) + ".", "",
+         "Domain counts (80): " + ", ".join(f"{k} {v}" for k, v in sorted(out["domain_counts"].items())) + ".", ""]
     by = {}
     for d in out["domains"]:
         by.setdefault(d["product"], []).append(d)
     L += ["## Domain status", "", "| ID | Product | Domain | Milestone | Status |", "|---|---|---|---|---|"]
     for d in out["domains"]:
-        L.append(f"| {d['id']} | {d['product']} | {d['domain']} | {d['milestone']} | {d['status']} |")
+        L.append(f"| {d['id']} | {d['product']} | {d['domain']} | {d['milestone']} | {d['status']}{' †' if d['all_listed_requirements_verified'] else ''} |")
     L.append("")
     for group, title in ((out["domains"], "Requirements by domain"), (out["cross_cutting"], "Cross-cutting platform requirements")):
         L += [f"## {title}", ""]
@@ -481,7 +507,7 @@ def markdown(out):
             L += [f"### {d['id']} {d['domain']} — {d['status']}", "", f"Product {d['product']} · milestone {d['milestone']} · owner {d['owner']}", "",
                   "| ID | Requirement | Status | Evidence |", "|---|---|---|---|"]
             for q in d["requirements"]:
-                ev = ", ".join(f"`{t}`" for t in q["evidence_tests"])
+                ev = ", ".join([f"`{t}`" for t in q["evidence_tests"]] + ([f"`{q['evidence_file']}`"] if q["evidence_file"] else []))
                 if q["note"]:
                     ev = (ev + " — " if ev else "") + q["note"]
                 L.append(f"| {q['id']} | {q['text']} | {q['status']} | {ev} |")
