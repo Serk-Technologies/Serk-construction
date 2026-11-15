@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-credit-calendar-bf31d1b.tests.txt",
- "commit": "bf31d1b",
+ "results_file": "docs/engineering/evidence/2026-11-15-chargeout-560bfdd.tests.txt",
+ "commit": "560bfdd",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -12,16 +12,16 @@
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
   "VERIFIED": 105,
-  "NOT_STARTED": 73,
-  "IMPLEMENTING": 22,
+  "NOT_STARTED": 72,
+  "IMPLEMENTING": 23,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 41,
+  "NOT_STARTED": 42,
   "BLOCKED": 12,
-  "VERIFIED": 16
+  "VERIFIED": 19
  },
  "domain_counts": {
   "IMPLEMENTING": 48,
@@ -1266,11 +1266,46 @@
     {
      "id": "FLT-01.14",
      "text": "Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "Mapping: earlier handovers called this 'FLT-04 costing' and fixed assets 'FLT-05'. The register's FLT-04 is and remains Fixed assets (capitalisation, depreciation, disposal); there is no FLT-05. Costing lives here because the original register has no separate costing domain. Blocked in part on the financial controller's charge-out and allocation policy; synthetic policies may be used in test environments.",
-     "criteria": []
+     "note": "Charge-out built in 0079 (rates and runs); operating cost per machine (fuel, parts, labour, workshop) as one report is not built.",
+     "criteria": [
+      {
+       "id": "FLT-01.14.a",
+       "text": "Internal charge-out rates per machine are effective-dated documents approved by another person with a fresh second factor, attested; none is shipped",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestFleet_ChargeOut"
+       ],
+       "note": ""
+      },
+      {
+       "id": "FLT-01.14.b",
+       "text": "A charge run prices a project's approved logs of a month at the rate in force on each day; a log without a rate stops the run; each log is charged once",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestFleet_ChargeOut"
+       ],
+       "note": ""
+      },
+      {
+       "id": "FLT-01.14.c",
+       "text": "The run's EQP_CHG journal (Dr project equipment cost per cost code, Cr recovery) equals the run when approved or posted, and is cancelled only with the run while a draft",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestFleet_ChargeOut"
+       ],
+       "note": ""
+      },
+      {
+       "id": "FLT-01.14.d",
+       "text": "Operating cost per machine (fuel, parts, labour, workshop) reported against its charge-out recovery",
+       "status": "NOT_STARTED",
+       "evidence_tests": [],
+       "note": ""
+      }
+     ]
     }
    ]
   },

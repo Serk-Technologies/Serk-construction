@@ -5,12 +5,13 @@
    "id": "DEF-001",
    "severity": "Medium",
    "area": "Repository / integration",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Part of new-version not yet rebuilt on this branch: internal equipment hire charge-out (timesheets and HSE in 0076; transmittals and submittals in 0077)",
    "evidence": "git log claude/new-session-xkd5g3..origin/new-version; both lines define documents, document_revisions, rfis and equipment differently; the migration runner refuses duplicate versions",
    "impact": "About 21,000 lines of owner-authored work (revenue recognition, subcontracts, fixed assets, period end, payroll, consolidation, tax, workforce, HSE, quality, documents) are outside the candidate; neither line can be merged into main as it stands",
    "next_action": "Integrate on this branch: renumber the non-colliding migrations after 0057, port transmittals/submittals, timesheets and HSE onto this branch's document and equipment tables, and run both lines' tests (ADR 0025)",
-   "found": "2026-11-15 final-completion discovery"
+   "found": "2026-11-15 final-completion discovery",
+   "closure": "Integrated (abb80ec) and every colliding part rebuilt on this branch: timesheets and HSE (0076), transmittals and submittals (0077), internal charge-out (0079, 560bfdd)"
   },
   {
    "id": "DEF-002",

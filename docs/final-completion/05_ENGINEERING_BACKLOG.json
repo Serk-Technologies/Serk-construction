@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "bf31d1b",
+ "register_commit": "560bfdd",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -287,7 +287,7 @@
     {
      "id": "FLT-01.14",
      "text": "Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "FLT-04.1",
@@ -303,11 +303,17 @@
      "id": "FLT-01.11.b",
      "text": "A duplicate or replayed command applies once; a conflict is returned, never merged",
      "status": "NOT_STARTED"
+    },
+    {
+     "id": "FLT-01.14.d",
+     "text": "Operating cost per machine (fuel, parts, labour, workshop) reported against its charge-out recovery",
+     "status": "NOT_STARTED"
     }
    ],
    "tests": [
     "TestAPIFleet",
     "TestConsoleBrowserFleet",
+    "TestFleet_ChargeOut",
     "TestFleet_DailyLogsAndMeter",
     "TestFleet_RegisterAndLifecycle",
     "TestFleet_ReservationsNeverDoubleBook",

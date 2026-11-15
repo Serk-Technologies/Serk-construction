@@ -400,6 +400,18 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/list/equipment_charge_rate",
+   "label": "Charge-out rates",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/equipment_charge_run",
+   "label": "Charge runs",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
    "route": "#/documents",
    "label": "Document register",
    "browser_journeys": [

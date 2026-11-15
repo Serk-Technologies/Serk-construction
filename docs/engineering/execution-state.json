@@ -60,7 +60,8 @@
   "0075_overhead_no_overlap.sql",
   "0076_workforce_hse.sql",
   "0077_transmittals_submittals.sql",
-  "0078_credit_rule_attestation.sql"
+  "0078_credit_rule_attestation.sql",
+  "0079_equipment_charge_out.sql"
  ],
  "adrs_added": [
   "0018",
@@ -286,7 +287,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "FLT-01.14 equipment charge-out (DEF-001 remainder): approved, attested, effective-dated charge rates per machine; a charge run per project and month over approved equipment logs (each log charged once), producing an EQP_CHG subledger journal bound like FA_DEP (new EQP family in subledger_expected_lines/_text, journals_subledger_guard, journal_lines_p2p_birth, journals_reserved_idempotency, no-reversal trigger, copied verbatim from 0067 plus EQP). Then DEF-013/014/015/017.",
+  "exact_next_action": "CAP-01.5 financial statements (income statement and balance sheet from posted journals, balanced, with account drill-down; cash-flow classification needs account metadata) ; then DEF-013, DEF-014, DEF-015, DEF-017; then PLB-04.1 risk register, CNX-05.1 correspondence, CNX-07.2 tasks, SUP-05.4 returns/scrap/quarantine, PPL-05.1 certifications.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -298,8 +299,9 @@
    "DEF-001 part: timesheets and HSE rebuilt with attested decisions (dd68054)",
    "DEF-001 part: transmittals and submittals (4fedeca)",
    "DEF-011 (bf31d1b)",
-   "XCT-LOC.3 Ethiopian calendar conversion and display (bf31d1b)"
+   "XCT-LOC.3 Ethiopian calendar conversion and display (bf31d1b)",
+   "FLT-01.14 charge-out; DEF-001 closed (560bfdd)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-credit-calendar-bf31d1b.summary.json (497/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-chargeout-560bfdd.summary.json (498/0/0)"
 }
