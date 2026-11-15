@@ -219,6 +219,7 @@
    "route": "#/stock",
    "label": "Stock on hand",
    "browser_journeys": [
+    "console_forms.mjs",
     "console_journey_c.mjs"
    ],
    "status": "COVERED_BY_BROWSER_JOURNEY"

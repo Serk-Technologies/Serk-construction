@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-cashflow-f9106d5.tests.txt",
- "commit": "f9106d5",
+ "results_file": "docs/engineering/evidence/2026-11-15-calendar-2e0c8c7.tests.txt",
+ "commit": "2e0c8c7",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",

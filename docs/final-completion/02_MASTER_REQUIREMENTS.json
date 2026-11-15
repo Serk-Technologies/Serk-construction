@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-cashflow-f9106d5.tests.txt",
- "register_commit": "f9106d5",
+ "results_file": "docs/engineering/evidence/2026-11-15-calendar-2e0c8c7.tests.txt",
+ "register_commit": "2e0c8c7",
  "requirement_counts": {
   "VERIFIED": 113,
   "NOT_STARTED": 65,
@@ -11,9 +11,9 @@
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 42,
+  "NOT_STARTED": 41,
   "BLOCKED": 12,
-  "VERIFIED": 28
+  "VERIFIED": 29
  },
  "requirements": [
   {
@@ -1299,9 +1299,12 @@
     {
      "id": "FLT-03.1.d",
      "text": "Fleet maintenance calendar of due and scheduled work",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
-     "note": ""
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_PlansAndDue",
+      "TestConsoleBrowserFleet"
+     ],
+     "note": "0092: day-based plans on their due day, meter-based plans projected from 30 days of approved logs (labelled estimates), work orders on their planned day (fixed at creation)."
     }
    ],
    "work_package": "WP-004",

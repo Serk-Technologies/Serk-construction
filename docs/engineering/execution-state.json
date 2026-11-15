@@ -73,7 +73,8 @@
   "0088_stock_quarantine_writeoff.sql",
   "0089_stock_returns.sql",
   "0090_rfi_change_submittal_cycle.sql",
-  "0091_cash_flow_classes.sql"
+  "0091_cash_flow_classes.sql",
+  "0092_work_order_planned_date.sql"
  ],
  "adrs_added": [
   "0018",
@@ -290,7 +291,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-cashflow-f9106d5.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-calendar-2e0c8c7.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -299,7 +300,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "DEF-004 (contingency, stock issue, fuel and work-order part forms without race regression); XCT-API.2.e cursor lists for journals; DEF-005 screenshot review; further NOT_STARTED domains (EST-06 rate build-up, PLB-09 deliverables, SUP-03.3 supplier qualification).",
+  "exact_next_action": "SUP-03.3 supplier performance scoring, conflict declarations and qualification (policy-gated); then DEF-004 remaining two forms; XCT-API.2.e cursor lists; DEF-005.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -325,8 +326,9 @@
    "SUP-05.4 quarantine and scrap (67620b4)",
    "SUP-05.4 site returns (4da1b31)",
    "CAP-01.5.c drill-down, CNX-03.2, CNX-04.1.b; DEF-021 (f5e0b8c)",
-   "CAP-01.5 complete: cash-flow statement (f9106d5)"
+   "CAP-01.5 complete: cash-flow statement (f9106d5)",
+   "FLT-03.1.d maintenance calendar; DEF-004 two forms (2e0c8c7)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-cashflow-f9106d5.summary.json (510/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-calendar-2e0c8c7.summary.json (510/0/0)"
 }

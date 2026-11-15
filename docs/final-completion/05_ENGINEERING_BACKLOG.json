@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "f9106d5",
+ "register_commit": "2e0c8c7",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -198,11 +198,6 @@
     {
      "id": "FLT-03.1.c",
      "text": "Workshop cost centres for machines not at a project",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "FLT-03.1.d",
-     "text": "Fleet maintenance calendar of due and scheduled work",
      "status": "NOT_STARTED"
     }
    ],
