@@ -1,6 +1,9 @@
-/* SERK operations console.
-   Identity: forest green and cream. Day = green ink on cream paper; night is
-   the exact reverse, cream ink on deep green. Brass is a rare accent only.
+/* SERK operations console, SERK AURA theme.
+   The colour variables below are generated from docs/design/aura/tokens.json
+   (tools/design/aura_contrast.py --check-css fails if they drift, and computes
+   the WCAG contrast of every pair they are used in). Day: a bright, calm
+   canvas with forest green as the one product accent. Night: the same
+   hierarchy on a deep neutral green. Brass is a rare accent only.
    Fonts are self-hosted (CSP font-src 'self'): Fraunces (display), Manrope
    (text), IBM Plex Mono (references). All SIL OFL 1.1, see fonts/LICENSES.txt.
    Colours meet WCAG 2.2 AA contrast in both themes. */
@@ -9,14 +12,14 @@
 @font-face { font-family: "Plex Mono"; src: url("fonts/plex-mono.woff2") format("woff2"); font-weight: 400; font-display: swap; }
 
 :root {
-  /* Day: cream paper, forest ink. */
-  --bg: #f3ecd9; --panel: #fbf7ec; --panel-2: #efe6cf; --ink: #10291d; --muted: #4a5a4e; --line: #d8cdb0;
-  --accent: #1b4a33; --accent-ink: #f6efdc; --brass: #8a6420; --focus: #0b6bcb;
-  --band: #10291d; --band-ink: #f3ecd9; --band-muted: #c9c1a6;
-  --ok: #17603a; --ok-bg: #dcefdc; --warn: #7a4b07; --warn-bg: #f6e3b4; --bad: #9b1c1c; --bad-bg: #f8dcd6;
-  --info: #1d4a5e; --info-bg: #d9e8e6;
-  --radius: 10px; --gap: 16px; --shadow: 0 1px 0 rgba(16, 41, 29, .06), 0 6px 18px -10px rgba(16, 41, 29, .25);
-  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --bg: #F7F9F8; --panel: #FFFFFF; --panel-2: #EEF3F0; --ink: #14201C; --muted: #52635D; --line: #E0E7E3; --line-strong: #7C8C86;
+  --accent: #103E32; --accent-ink: #FFFFFF; --brass: #7A5A12; --focus: #175CD3;
+  --band: #103E32; --band-ink: #FFFFFF; --band-muted: #C9DDD3; --band-focus: #FFFFFF;
+  --ok: #16794A; --ok-bg: #DFF3E9; --warn: #946000; --warn-bg: #FFF1D6; --bad: #B42318; --bad-bg: #FDE7E4;
+  --info: #175CD3; --info-bg: #E3EDFC;
+  --radius: 10px; --gap: 16px; --shadow: 0 1px 2px rgba(20, 32, 28, .06);
+  /* AURA: one family for interface and headings; Fraunces stays available for printed documents. */
+  --display: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Ethiopic", sans-serif;
   --text: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Ethiopic", sans-serif;
   --mono: "Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   color-scheme: light;
@@ -25,21 +28,21 @@
 /* Night: the reverse, cream ink on deep forest. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0d1f16; --panel: #13291e; --panel-2: #183326; --ink: #f1e9d2; --muted: #bdc2ad; --line: #2b4a39;
-    --accent: #eadfbf; --accent-ink: #0d1f16; --brass: #d9b36a; --focus: #8cc4ff;
-    --band: #f1e9d2; --band-ink: #0d1f16; --band-muted: #4a5a4e;
-    --ok: #9fe0b0; --ok-bg: #173d29; --warn: #f2cf7e; --warn-bg: #3d3011; --bad: #f6a8a0; --bad-bg: #44191a;
-    --info: #b5dcd6; --info-bg: #17393a;
+    --bg: #0E1512; --panel: #151E1A; --panel-2: #1C2823; --ink: #EAF1ED; --muted: #A9B8B1; --line: #2A3A33; --line-strong: #7E9087;
+    --accent: #8FD9B6; --accent-ink: #0E1512; --brass: #D9B36A; --focus: #8CB8FF;
+    --band: #0A100E; --band-ink: #EAF1ED; --band-muted: #A9B8B1; --band-focus: #8CB8FF;
+    --ok: #7FD6A4; --ok-bg: #143325; --warn: #F2C879; --warn-bg: #3A2C0C; --bad: #F7A59B; --bad-bg: #43191A;
+    --info: #9CC2FF; --info-bg: #14274A;
     --shadow: 0 1px 0 rgba(0, 0, 0, .25), 0 8px 22px -12px rgba(0, 0, 0, .7);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0d1f16; --panel: #13291e; --panel-2: #183326; --ink: #f1e9d2; --muted: #bdc2ad; --line: #2b4a39;
-  --accent: #eadfbf; --accent-ink: #0d1f16; --brass: #d9b36a; --focus: #8cc4ff;
-  --band: #f1e9d2; --band-ink: #0d1f16; --band-muted: #4a5a4e;
-  --ok: #9fe0b0; --ok-bg: #173d29; --warn: #f2cf7e; --warn-bg: #3d3011; --bad: #f6a8a0; --bad-bg: #44191a;
-  --info: #b5dcd6; --info-bg: #17393a;
+  --bg: #0E1512; --panel: #151E1A; --panel-2: #1C2823; --ink: #EAF1ED; --muted: #A9B8B1; --line: #2A3A33; --line-strong: #7E9087;
+  --accent: #8FD9B6; --accent-ink: #0E1512; --brass: #D9B36A; --focus: #8CB8FF;
+  --band: #0A100E; --band-ink: #EAF1ED; --band-muted: #A9B8B1; --band-focus: #8CB8FF;
+  --ok: #7FD6A4; --ok-bg: #143325; --warn: #F2C879; --warn-bg: #3A2C0C; --bad: #F7A59B; --bad-bg: #43191A;
+  --info: #9CC2FF; --info-bg: #14274A;
   --shadow: 0 1px 0 rgba(0, 0, 0, .25), 0 8px 22px -12px rgba(0, 0, 0, .7);
   color-scheme: dark;
 }
@@ -211,7 +214,7 @@ legend { font-weight: 700; padding: 0 6px; }
 button, .btn { font: inherit; font-weight: 700; border-radius: 8px; padding: 8px 16px; min-height: 40px; cursor: pointer; text-decoration: none;
   display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink); }
 button:hover, .btn:hover { filter: brightness(1.08); }
-button.ghost, .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+button.ghost, .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
 button.danger { background: transparent; color: var(--bad); border-color: var(--bad); }
 button[disabled] { opacity: .55; cursor: not-allowed; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-top: 14px; }
@@ -492,6 +495,14 @@ span.rolecard { cursor: default; }
 @media (max-width: 560px) { .termrow { grid-template-columns: 1fr 1fr; } .termrow button { grid-column: 1 / -1; } }
 .kpi.datek .v { font-size: 19px; white-space: nowrap; padding-top: 6px; }
 
-/* Fuel reconciliation: the questions a line raises, as a compact list inside a table cell. */
-ul.flags { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; max-width: 44ch; }
+/* Fuel reconciliation: the questions the figures raise, as sentences under the table. */
+ul.flags { margin: 0; padding-left: 1.1rem; max-width: 90ch; }
 ul.flags li + li { margin-top: 0.25rem; }
+
+/* ---------- AURA additions ---------- */
+/* The page's blue focus ring is 2.0:1 on the forest band; the band has its own. */
+.top :focus-visible { outline-color: var(--band-focus); }
+/* Touch: 44px targets where a finger is the pointer. */
+@media (pointer: coarse) { button, .btn, input, select { min-height: 44px; } input[type=checkbox], input[type=radio] { min-height: 0; min-width: 22px; height: 22px; } }
+/* Motion clarifies state and is never required: honour the reader's setting. */
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

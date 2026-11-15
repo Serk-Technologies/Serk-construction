@@ -16,6 +16,8 @@ jobs:
         run: go vet ./...
       - name: The CI result gate rejects what it must (its own tests)
         run: python3 tools/ci/test_check_test_results.py
+      - name: AURA tokens meet their contrast targets and the stylesheet matches them
+        run: python3 tools/design/aura_contrast.py --check-css
 
   supply-chain:
     runs-on: ubuntu-24.04

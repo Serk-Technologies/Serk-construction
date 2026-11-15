@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-fleet-maintenance.tests.txt",
- "commit": "5c3c2a8",
+ "results_file": "docs/engineering/evidence/2026-11-15-fleet-corrections.tests.txt",
+ "commit": "12ca58e",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,8 +11,8 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 97,
-  "NOT_STARTED": 75,
+  "VERIFIED": 101,
+  "NOT_STARTED": 76,
   "IMPLEMENTING": 9,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
@@ -1082,6 +1082,14 @@
      "evidence_tests": [],
      "evidence_file": "",
      "note": ""
+    },
+    {
+     "id": "FLT-01.14",
+     "text": "Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": "Mapping: earlier handovers called this 'FLT-04 costing' and fixed assets 'FLT-05'. The register's FLT-04 is and remains Fixed assets (capitalisation, depreciation, disposal); there is no FLT-05. Costing lives here because the original register has no separate costing domain. Blocked in part on the financial controller's charge-out and allocation policy; synthetic policies may be used in test environments."
     }
    ]
   },
@@ -1146,7 +1154,7 @@
       "TestConsoleBrowserFleet"
      ],
      "evidence_file": "",
-     "note": "The 10% threshold is an engineering default stated in the report, not an approved policy. The standard applied is the one in force at the end of the period."
+     "note": "Thresholds come from the approved fleet policy (FLT-02.7); expected fuel is computed log by log across standards (FLT-02.8)."
     },
     {
      "id": "FLT-02.6",
@@ -1155,6 +1163,31 @@
      "evidence_tests": [],
      "evidence_file": "",
      "note": "A tank count today is the existing stock count."
+    },
+    {
+     "id": "FLT-02.7",
+     "text": "The thresholds for listing a fuel difference and for a service being due soon are an approved, versioned, effective-dated fleet policy (prepared by fleet.manage, approved by another person with fleet.approve and a fresh second factor); reports name the policy applied, and say so when only engineering defaults exist",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleetPolicy_ApprovedThresholdsApply",
+      "TestAPIMaintenance",
+      "TestFuelFlags",
+      "TestDueState"
+     ],
+     "evidence_file": "",
+     "note": "ADR 0024. Charge-out rates, workshop allocation and utilisation rules are not part of this policy yet (FLT-01.14)."
+    },
+    {
+     "id": "FLT-02.8",
+     "text": "Expected fuel for a period that spans several effective-dated standards is the sum of each approved log's metered units at the standard in force on that log's date; days logged with no standard in force predict nothing and are reported",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleetPolicy_ApprovedThresholdsApply",
+      "TestFuel_StandardsAndReconciliation",
+      "TestFuelFlags"
+     ],
+     "evidence_file": "",
+     "note": ""
     }
    ]
   },
@@ -1221,7 +1254,7 @@
       "TestConsoleBrowserFleet"
      ],
      "evidence_file": "",
-     "note": "DUE_SOON is a tenth of the interval or seven days: an engineering default. A plan cannot yet be retired or edited."
+     "note": "The due-soon rule comes from the approved fleet policy (FLT-02.7). Revision and retirement of plans: FLT-03.9."
     },
     {
      "id": "FLT-03.6",
@@ -1240,7 +1273,30 @@
      "status": "NOT_STARTED",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "Labour hours are recorded without a rate. Parts for a machine in the yard must name a project to charge until equipment costing (FLT-04) exists."
+     "note": "Labour hours are recorded without a rate. Parts for a machine in the yard must name a project to charge until equipment costing (FLT-01.14) exists."
+    },
+    {
+     "id": "FLT-03.8",
+     "text": "Separation on a work order as enforced in the kernel and in the database: the authoriser is not the preparer; the certifier is none of the preparer, the authoriser or the reporter; authorising and certifying each need a fresh second factor at the database boundary; an attestation serves one decision on one record once; forged session settings and direct writes are refused; other projects and tenants reach nothing",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_SeparationAsEnforced",
+      "TestMaintenance_WorkOrderAndReturnToService",
+      "TestAPIMaintenance"
+     ],
+     "evidence_file": "",
+     "note": "At least three distinct people (the preparer may also report the work complete), not four. Whether four are required is a policy question for the owner (ADR 0024)."
+    },
+    {
+     "id": "FLT-03.9",
+     "text": "A preventive plan is revised by a new version that retires the old one in the same transaction and continues from its last service, or retired with a reason; retired plans are kept, are not due and take no work orders; neither is possible while a work order of the plan is open",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_PlanRevisionAndRetirement",
+      "TestAPIMaintenance"
+     ],
+     "evidence_file": "",
+     "note": ""
     }
    ]
   },

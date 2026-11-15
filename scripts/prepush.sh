@@ -25,6 +25,17 @@ esac
 test -z "$(gofmt -l .)" || { echo "prepush: FAIL: gofmt"; gofmt -l .; exit 1; }
 go vet ./...
 python3 tools/ci/test_check_test_results.py
+python3 tools/design/aura_contrast.py --check-css > /dev/null || { echo "prepush: FAIL: AURA tokens (run tools/design/aura_contrast.py --check-css)"; exit 1; }
+# A workflow file that does not parse is only discovered on GitHub, after the push.
+python3 - <<'PYEOF'
+import glob, sys
+try:
+    import yaml
+except ImportError:
+    print("prepush: note: PyYAML not installed; workflow files not parsed", file=sys.stderr); sys.exit(0)
+for f in glob.glob(".github/workflows/*.yml"):
+    yaml.safe_load(open(f))
+PYEOF
 "$GL" git . --redact --no-banner --exit-code 1
 OUT="${TMPDIR:-/tmp}/serk-supply-chain" scripts/supply_chain_local.sh
 echo "prepush: PASS"

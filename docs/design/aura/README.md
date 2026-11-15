@@ -1,6 +1,8 @@
 # SERK AURA: design system (foundation)
 
-**Status: DESIGNED, not implemented.** These files are a specification. The console (`internal/webui/static/`) has not been restyled to them, no Figma file has been created, and no screen should be described as "AURA" until its implementation and visual check are recorded here.
+**Status: the colour, type and motion foundation is implemented in the console's light and dark themes. Everything else in AURA is not built.** No Figma file exists.
+
+What "implemented" means here: the console's stylesheet takes its colours from `tokens.json` (CI fails if they differ or if any listed colour pair misses its contrast target); the seven real-browser journeys pass under the new theme with their accessibility audits; and the Fleet page was looked at as rendered, at desktop width in the light theme and at 390 px in the dark theme. That inspection found one layout defect (a clipped column in the fuel table, from the fuel slice, not from the theme), which was fixed and now has an assertion in the journey. Other screens were exercised by their journeys but not individually inspected by eye.
 
 | File | What it is |
 |---|---|
@@ -12,14 +14,18 @@
 - Every text pair in the directive's palette passes 4.5:1 on white and on the canvas, including the semantic colours and white on the forest primary.
 - **The specified border colour `#E0E7E3` is 1.26:1 against white.** It is suitable as a decorative divider and unsuitable as the boundary of an input, checkbox or unfilled button (WCAG 2.2 SC 1.4.11 asks 3:1). A second token, `border-control` (`#7C8C86`), is added for control boundaries. This is the one place the foundation departs from the palette as given.
 
-## What exists in the product today
+## What changed in the console
 
-The console has its own stylesheet with light and dark themes, a responsive layout checked at 390 px in the browser journeys, and automated accessibility audits on every journey page. It predates AURA and does not use these tokens.
+- Light theme: bright canvas `#F7F9F8`, white panels, forest green `#103E32` as the single product accent and top band; the earlier cream-and-serif look is gone. Dark theme: the same hierarchy on a deep neutral green.
+- One type family (Manrope) for interface and headings; IBM Plex Mono for references; tabular numerals in tables as before.
+- Lighter elevation. Outline buttons use the control-boundary colour.
+- A focus ring of its own on the top band (the page's blue ring was 2.0:1 there).
+- 44 px minimum targets where the pointer is coarse; transitions and animations switched off under "reduce motion".
 
 ## Not done (in the order they should be done)
 
-1. Dark, warm and high-contrast themes as token sets, each through the contrast tool.
-2. Mapping the console's existing CSS variables onto the tokens, one screen family at a time, with the browser journeys and their accessibility audits as the regression gate and screenshots at the listed breakpoints for visual review.
+1. Warm and high-contrast themes as token sets, each through the contrast tool.
+2. Screenshot review of every screen family at the listed breakpoints (only the Fleet page has been reviewed by eye so far).
 3. Sign-in page, personal workspace, navigation shell, command palette, component catalogue.
 4. Figma library. The session has a Figma connector, but no file was created or authorised for this work; nothing here should be read as a Figma deliverable.
 5. Ethiopic type and calendar, translations (which need professional review before acceptance).
