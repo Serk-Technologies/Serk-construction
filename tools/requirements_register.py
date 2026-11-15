@@ -347,6 +347,8 @@ D = {
             c("Income statement for a period and balance sheet at its end, from posted journals only, balancing against equity and unclosed earnings, checked against a hand-computed reference", V, "TestAPIFinancialStatements"),
             c("Cash-flow statement (needs operating/investing/financing classification of accounts)", N),
             c("One-step drill-down from a statement line to its journal lines", N)]),
+        r("Period end: fiscal years in the Gregorian or Ethiopian calendar; recurring journals only from templates approved by another person with a fresh second factor; accruals reversed once on their date; overhead spread by posted direct cost; the database refuses an overhead or recurring journal that differs from its computation (DEF-012, DEF-013; 0064, 0075, 0083)", V,
+          "TestPeriodEnd_FiscalYearRecurringAccrualOverhead", "TestEthiopianFiscalYear", "TestAPIRecurringJournalApproval"),
     ]),
     "CAP-02": ("M3", "Finance controller", [
         r("Supplier invoices post through bound draft journals; payables reconcile to the control account", V,
@@ -524,6 +526,8 @@ D = {
           "TestPeople_DirectoryRolesAndProfile", "TestDefaultRolesSeparateDuties", "TestReservedPermissionsNotGrantableByRoles"),
         r("Tenant settings and a setup checklist that reads real state", V, "TestPlatform_TenantSettings", "TestSetup_ChecklistReadsRealState"),
         r("Access reviews, legal hold and break-glass access", N),
+        r("A security administrator withholds or restores permissions of a product role with a fresh second factor; the database refuses any change not attested for that person (DEF-014, 0082)", V,
+          "TestPeople_AdjustProductRole"),
     ]),
 }
 

@@ -80,6 +80,31 @@ func TestPeriodEnd_FiscalYearRecurringAccrualOverhead(t *testing.T) {
 	}
 	tpl, err := f.svc.CreateRecurring(f.ctx, c.accountant, RecurringInput{LegalEntityID: f.entity, Name: "Yard rent", FirstRunOn: "2026-10-05", EndsOn: "2026-11-30", Lines: rent})
 	must(t, "template", err)
+
+	// DEF-013 (0083): a template runs only once someone other than its maker
+	// approved it, attested in the database with a fresh second factor; its
+	// lines are written with it and never later.
+	if early, err := f.svc.RunRecurring(f.ctx, c.accountant, "2026-11-08"); err != nil || len(early) != 0 {
+		t.Fatalf("an unapproved template ran: %v %v", early, err)
+	}
+	rawRefusedWith(t, f, "add a line to a template later", "written with it",
+		`INSERT INTO recurring_journal_lines (template_id, line_no, account_id, side, amount) VALUES ($1::uuid, 3, $2::uuid, 'DEBIT', 1)`, tpl, w.acct["6300"])
+	rawRefusedWith(t, f, "approve a template by a forged update", "approval attestation",
+		`UPDATE recurring_journals SET approved_by = 'u-finance-manager' WHERE id = $1::uuid`, tpl)
+	rawRefusedWith(t, f, "the maker approves the template", "segregation of duties",
+		`UPDATE recurring_journals SET approved_by = 'u-accountant' WHERE id = $1::uuid`, tpl)
+	stale := c.finMgr
+	stale.MFA = false
+	if err := f.svc.ApproveRecurring(f.ctx, stale, tpl); err == nil {
+		t.Fatal("a template was approved without a fresh second factor")
+	}
+	if err := f.svc.ApproveRecurring(f.ctx, c.accountant, tpl); err == nil {
+		t.Fatal("the maker approved the template")
+	}
+	must(t, "approve template", f.svc.ApproveRecurring(f.ctx, c.finMgr, tpl))
+	if err := f.svc.ApproveRecurring(f.ctx, c.finMgr, tpl); !errors.Is(err, ErrWorkflowState) {
+		t.Fatalf("a template was approved twice: %v", err)
+	}
 	made, err := f.svc.RunRecurring(f.ctx, c.accountant, "2026-11-08")
 	must(t, "run", err)
 	if len(made) != 2 {
@@ -89,7 +114,43 @@ func TestPeriodEnd_FiscalYearRecurringAccrualOverhead(t *testing.T) {
 		t.Fatalf("second run: %v %v", again, err)
 	}
 	rawFails(t, f, "move a template back", `UPDATE recurring_journals SET next_run_on = '2026-10-05' WHERE id = '`+tpl+`'`)
-	w.financePost(t, made...)
+
+	// DEF-013: a RECURRING journal changed while DRAFT, one no run refers to,
+	// and a run recording a journal that differs from its template are refused.
+	must(t, "duplicate the lines of a draft", f.app.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `INSERT INTO journal_lines SELECT (jsonb_populate_record(NULL::journal_lines, to_jsonb(l) || jsonb_build_object('line_no', l.line_no + 10))).*
+			FROM journal_lines l WHERE l.journal_id = $1::uuid`, made[0])
+		return err
+	}))
+	approveRefused := func(what, reason, id string) {
+		t.Helper()
+		r := f.svc.ApproveJournals(f.ctx, c.finMgr, []string{id})
+		if len(r) != 1 || r[0].OK || !strings.Contains(r[0].Error, reason) {
+			t.Fatalf("%s: approval was not refused for %q: %+v", what, reason, r)
+		}
+	}
+	// The kernel refuses it (content changed since creation); the database
+	// refuses it too, even under a genuine attestation written directly.
+	approveRefused("a recurring journal edited while draft", "changed after creation", made[0])
+	attestedWriteRefusedWith(t, f, c.finMgr, "journal.approve", "journal", made[0], "", "no longer equals",
+		`UPDATE journals SET status = 'APPROVED', approved_by = 'u-finance-manager', approved_at = now() WHERE id = $1::uuid`, made[0])
+	forge := func(source, ref, key, amount string, at time.Time) string {
+		t.Helper()
+		j, err := f.svc.journalOf(f.ctx, c.accountant, f.entity, "", "forged "+source, source, ref, key, at,
+			[]JournalLineInput{{AccountID: w.acct["6300"], Side: "DEBIT", Amount: dec(amount)}, {AccountID: w.acct["2400"], Side: "CREDIT", Amount: dec(amount)}})
+		must(t, "forge "+source, err)
+		res, err := f.svc.CreateJournal(f.ctx, c.accountant, j)
+		must(t, "create forged "+source, err)
+		return res.JournalID
+	}
+	approveRefused("a recurring journal no run refers to", "not bound", forge("RECURRING", tpl, "forged-recurring", "30000", time.Date(2026, 12, 5, 0, 0, 0, 0, time.UTC)))
+	lease, err := f.svc.CreateRecurring(f.ctx, c.accountant, RecurringInput{LegalEntityID: f.entity, Name: "Generator lease", FirstRunOn: "2026-12-05", Lines: rent})
+	must(t, "lease", err)
+	must(t, "approve lease", f.svc.ApproveRecurring(f.ctx, c.finMgr, lease))
+	wrong := forge("RECURRING", lease, "forged-lease", "31000", time.Date(2026, 12, 5, 0, 0, 0, 0, time.UTC))
+	rawRefusedWith(t, f, "record a run with other amounts", "does not equal its template",
+		`INSERT INTO recurring_journal_runs (template_id, run_on, journal_id, created_by) VALUES ($1::uuid, '2026-12-05', $2::uuid, 'u-accountant')`, lease, wrong)
+	w.financePost(t, made[1]) // October's draft keeps its altered lines and stays unapproved
 
 	// Accrual dated 31 October reversing on 1 November.
 	acc, err := f.svc.CreateAccrual(f.ctx, c.accountant, AccrualInput{LegalEntityID: f.entity, Description: "Unbilled consultancy October", Date: "2026-10-31", ReverseOn: "2026-11-01",
@@ -144,9 +205,17 @@ func TestPeriodEnd_FiscalYearRecurringAccrualOverhead(t *testing.T) {
 	rawRefusedWith(t, f, "claim overhead days directly", "claimed only by an overhead run",
 		`INSERT INTO overhead_run_days (legal_entity_id, pool_account_id, day, run_id) VALUES ($1::uuid, $2::uuid, '2027-01-01', $3::uuid)`, f.entity, w.acct["6200"], run)
 	rawFails(t, f, "forge an overhead share", `INSERT INTO overhead_lines (run_id, project_id, driver, share) VALUES ('`+run+`', '`+f.project+`', 1, 1)`)
+	// DEF-013: an OVERHEAD journal no allocation refers to is never approved; the
+	// allocation's own journal is.
+	approveRefused("an overhead journal no run refers to", "not bound", forge("OVERHEAD", run, "forged-overhead", "12000", time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC)))
+	var ovj string
+	must(t, "overhead journal", f.app.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT journal_id::text FROM overhead_lines WHERE run_id = $1::uuid`, run).Scan(&ovj)
+	}))
+	w.financePost(t, ovj)
 	view, err := f.svc.PeriodEndView(f.ctx, c.accountant)
 	must(t, "view", err)
-	if len(view["recurring"].([]map[string]any)) != 1 || len(view["accruals"].([]map[string]any)) != 1 || len(view["overhead"].([]map[string]any)) != 1 {
+	if len(view["recurring"].([]map[string]any)) != 2 || len(view["accruals"].([]map[string]any)) != 1 || len(view["overhead"].([]map[string]any)) != 1 {
 		t.Fatalf("view: %v", view)
 	}
 }

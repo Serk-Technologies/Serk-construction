@@ -11,11 +11,11 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 105,
+  "VERIFIED": 106,
   "NOT_STARTED": 70,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 1
+  "IMPLEMENTED_UNVERIFIED": 2
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
@@ -2054,6 +2054,19 @@
        "note": ""
       }
      ]
+    },
+    {
+     "id": "CAP-01.6",
+     "text": "Period end: fiscal years in the Gregorian or Ethiopian calendar; recurring journals only from templates approved by another person with a fresh second factor; accruals reversed once on their date; overhead spread by posted direct cost; the database refuses an overhead or recurring journal that differs from its computation (DEF-012, DEF-013; 0064, 0075, 0083)",
+     "status": "IMPLEMENTED_UNVERIFIED",
+     "evidence_tests": [
+      "TestPeriodEnd_FiscalYearRecurringAccrualOverhead",
+      "TestEthiopianFiscalYear",
+      "TestAPIRecurringJournalApproval"
+     ],
+     "evidence_file": "",
+     "note": "",
+     "criteria": []
     }
    ]
   },
@@ -3362,6 +3375,17 @@
      "text": "Access reviews, legal hold and break-glass access",
      "status": "NOT_STARTED",
      "evidence_tests": [],
+     "evidence_file": "",
+     "note": "",
+     "criteria": []
+    },
+    {
+     "id": "BRS-04.4",
+     "text": "A security administrator withholds or restores permissions of a product role with a fresh second factor; the database refuses any change not attested for that person (DEF-014, 0082)",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestPeople_AdjustProductRole"
+     ],
      "evidence_file": "",
      "note": "",
      "criteria": []

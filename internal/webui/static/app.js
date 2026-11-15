@@ -6650,12 +6650,24 @@ function peRecurring(v, ent) {
     const run = h('button', { type: 'button' }, 'Create the journals due today');
     run.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/recurring-journals/run', { as_of: today() }); say(`${r.journals.length} journal(s) created as drafts.`); renderPeriodEnd('recurring'); } catch (e) { showError(e); } });
     out.append(h('div', { class: 'toolbar' }, run), h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'New recurring journal'),
-      h('p', { class: 'hint' }, 'The first date sets the day of the month (1 to 28). Each date creates one draft journal, once.'),
+      h('p', { class: 'hint' }, 'The first date sets the day of the month (1 to 28). Someone other than you approves the template, with a fresh second factor; then each date creates one draft journal, once.'),
       h('div', { class: 'grid' }, field('Name', name), field('First date', first), field('Ends on (optional)', ends)), grid, h('div', { class: 'actions' }, b)));
   }
   out.append(table('Recurring journals', [{ label: 'Number', cell: (x) => x.number }, { label: 'Name', cell: (x) => x.name }, { label: 'Amount', num: true, cell: (x) => money(x.amount) },
-    { label: 'Next date', cell: (x) => x.next_run_on }, { label: 'Ends', cell: (x) => x.ends_on || '' }, { label: 'Journals made', num: true, cell: (x) => String(x.runs) }, { label: 'Status', cell: (x) => chip(x.status) }], v.recurring, 'No recurring journal.'));
+    { label: 'Next date', cell: (x) => x.next_run_on }, { label: 'Ends', cell: (x) => x.ends_on || '' }, { label: 'Journals made', num: true, cell: (x) => String(x.runs) }, { label: 'Status', cell: (x) => chip(x.status) },
+    { label: 'Approval', cell: (x) => recurringApproval(x) }], v.recurring, 'No recurring journal.'));
   return out;
+}
+
+// DEF-013: a template runs only once someone other than its maker approved it (journal.approve, fresh MFA).
+function recurringApproval(x) {
+  if (x.approved_by) return h('span', {}, `Approved by ${x.approved_by}`);
+  if (!S.can.has('journal.approve') || x.status !== 'ACTIVE' || x.created_by === S.me?.user_id) return chip('PENDING');
+  const b = h('button', { type: 'button', 'data-approve-recurring': x.number }, 'Approve');
+  b.addEventListener('click', async () => {
+    try { clearError(); b.disabled = true; await api('POST', `/v1/recurring-journals/${x.id}/approve`, {}); say(`${x.number} approved.`); renderPeriodEnd('recurring'); } catch (e) { b.disabled = false; showError(e); }
+  });
+  return b;
 }
 
 function peAccruals(v, ent) {

@@ -102,7 +102,7 @@ func (s *Server) registerAssets() {
 // Period-end (0058).
 //
 //	GET  /v1/fiscal-periods?entity=; POST /v1/fiscal-years {legal_entity_id, calendar, year}
-//	GET  /v1/period-end; POST /v1/recurring-journals; POST /v1/recurring-journals/run {as_of}
+//	GET  /v1/period-end; POST /v1/recurring-journals; POST /v1/recurring-journals/{id}/approve; POST /v1/recurring-journals/run {as_of}
 //	POST /v1/accruals; POST /v1/accruals/reverse-due {as_of}
 //	GET  /v1/overhead/preview?entity=&from=&to=&pool=&target=; POST /v1/overhead-allocations
 func (s *Server) registerPeriodEnd() {
@@ -146,6 +146,14 @@ func (s *Server) registerPeriodEnd() {
 		}
 		id, err := k.CreateRecurring(r.Context(), principalFrom(r.Context()), b)
 		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/recurring-journals/{id}/approve", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		err := k.ApproveRecurring(r.Context(), principalFrom(r.Context()), id)
+		reply(w, http.StatusOK, map[string]any{"id": id, "status": "APPROVED"}, err)
 	}))
 	m.Handle("POST /v1/recurring-journals/run", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		var b struct {
