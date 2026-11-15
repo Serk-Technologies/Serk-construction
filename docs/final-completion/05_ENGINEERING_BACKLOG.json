@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "dd68054",
+ "register_commit": "4fedeca",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -1296,7 +1296,7 @@
     {
      "id": "CNX-01.6",
      "text": "Transmittals, QR verification of a revision, retention policy and legal hold",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CNX-01.12",
@@ -1321,7 +1321,7 @@
     {
      "id": "CNX-04.1",
      "text": "Submittals with review cycles and consultant responses",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CNX-05.1",
@@ -1369,6 +1369,31 @@
      "status": "NOT_STARTED"
     },
     {
+     "id": "CNX-01.6.b",
+     "text": "QR verification of a printed revision",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "CNX-01.6.c",
+     "text": "Retention policy per document type",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "CNX-01.6.d",
+     "text": "Legal hold that blocks deletion and retention expiry",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "CNX-04.1.b",
+     "text": "A resubmission is linked to the submittal it answers, forming a review cycle",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "CNX-04.1.c",
+     "text": "Consultant responses through the consultant portal",
+     "status": "NOT_STARTED"
+    },
+    {
      "id": "CNX-13.1.a",
      "text": "Export formats, connector boundary, validation, retry and audit with contract tests",
      "status": "NOT_STARTED"
@@ -1389,12 +1414,14 @@
     "TestAuthority_DelegationLifecycle",
     "TestAuthority_MatrixGovernanceAndLimits",
     "TestClamdAgainstARealDaemon",
+    "TestConsoleBrowserDocuments",
     "TestDocSecurity_DownloadLinksAndExportBudget",
     "TestDocSecurity_FailClosedQuarantine",
     "TestDocSecurity_InfectedAndMaliciousUploads",
     "TestDocSecurity_KeyRotation",
     "TestDocSecurity_ObjectStorageAndMigration",
     "TestDocSecurity_RealScannerAndObjectStore",
+    "TestDocflow_TransmittalsAndSubmittals",
     "TestDocumentKeyRotationConfig",
     "TestDocumentStorageConfig",
     "TestDocuments_ConcurrentPublicationKeepsOneCurrent",

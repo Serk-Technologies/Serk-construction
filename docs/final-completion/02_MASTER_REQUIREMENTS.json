@@ -1,19 +1,19 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-workforce-hse-dd68054.tests.txt",
- "register_commit": "dd68054",
+ "results_file": "docs/engineering/evidence/2026-11-15-docflow-4fedeca.tests.txt",
+ "register_commit": "4fedeca",
  "requirement_counts": {
   "VERIFIED": 105,
-  "NOT_STARTED": 76,
-  "IMPLEMENTING": 19,
+  "NOT_STARTED": 74,
+  "IMPLEMENTING": 21,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 35,
+  "NOT_STARTED": 40,
   "BLOCKED": 12,
-  "VERIFIED": 12
+  "VERIFIED": 14
  },
  "requirements": [
   {
@@ -2069,9 +2069,41 @@
    "domain": "CNX-01",
    "product": "CONNECT",
    "text": "Transmittals, QR verification of a revision, retention policy and legal hold",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
-   "criteria": [],
+   "criteria": [
+    {
+     "id": "CNX-01.6.a",
+     "text": "A transmittal records the approved revisions sent to a party and never changes; items only in the sending transaction",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocflow_TransmittalsAndSubmittals",
+      "TestConsoleBrowserDocuments"
+     ],
+     "note": ""
+    },
+    {
+     "id": "CNX-01.6.b",
+     "text": "QR verification of a printed revision",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CNX-01.6.c",
+     "text": "Retention policy per document type",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CNX-01.6.d",
+     "text": "Legal hold that blocks deletion and retention expiry",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
    "work_package": "WP-016",
    "human_acceptance": "PENDING"
   },
@@ -2256,9 +2288,34 @@
    "domain": "CNX-04",
    "product": "CONNECT",
    "text": "Submittals with review cycles and consultant responses",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
-   "criteria": [],
+   "criteria": [
+    {
+     "id": "CNX-04.1.a",
+     "text": "A submittal is reviewed once, with a code A-D, by someone other than the submitter; attested; C and D need a note",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocflow_TransmittalsAndSubmittals",
+      "TestConsoleBrowserDocuments"
+     ],
+     "note": ""
+    },
+    {
+     "id": "CNX-04.1.b",
+     "text": "A resubmission is linked to the submittal it answers, forming a review cycle",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CNX-04.1.c",
+     "text": "Consultant responses through the consultant portal",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": "Depends on CNX-12."
+    }
+   ],
    "work_package": "WP-016",
    "human_acceptance": "PENDING"
   },

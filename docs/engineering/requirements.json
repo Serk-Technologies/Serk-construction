@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-workforce-hse-dd68054.tests.txt",
- "commit": "dd68054",
+ "results_file": "docs/engineering/evidence/2026-11-15-docflow-4fedeca.tests.txt",
+ "commit": "4fedeca",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -12,20 +12,20 @@
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
   "VERIFIED": 105,
-  "NOT_STARTED": 76,
-  "IMPLEMENTING": 19,
+  "NOT_STARTED": 74,
+  "IMPLEMENTING": 21,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 35,
+  "NOT_STARTED": 40,
   "BLOCKED": 12,
-  "VERIFIED": 12
+  "VERIFIED": 14
  },
  "domain_counts": {
-  "IMPLEMENTING": 47,
-  "NOT_STARTED": 31,
+  "IMPLEMENTING": 48,
+  "NOT_STARTED": 30,
   "BLOCKED": 2
  },
  "domains": [
@@ -2474,11 +2474,43 @@
     {
      "id": "CNX-01.6",
      "text": "Transmittals, QR verification of a revision, retention policy and legal hold",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
      "note": "",
-     "criteria": []
+     "criteria": [
+      {
+       "id": "CNX-01.6.a",
+       "text": "A transmittal records the approved revisions sent to a party and never changes; items only in the sending transaction",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestDocflow_TransmittalsAndSubmittals",
+        "TestConsoleBrowserDocuments"
+       ],
+       "note": ""
+      },
+      {
+       "id": "CNX-01.6.b",
+       "text": "QR verification of a printed revision",
+       "status": "NOT_STARTED",
+       "evidence_tests": [],
+       "note": ""
+      },
+      {
+       "id": "CNX-01.6.c",
+       "text": "Retention policy per document type",
+       "status": "NOT_STARTED",
+       "evidence_tests": [],
+       "note": ""
+      },
+      {
+       "id": "CNX-01.6.d",
+       "text": "Legal hold that blocks deletion and retention expiry",
+       "status": "NOT_STARTED",
+       "evidence_tests": [],
+       "note": ""
+      }
+     ]
     },
     {
      "id": "CNX-01.7",
@@ -2660,17 +2692,42 @@
    "domain": "Submittals",
    "milestone": "M7",
    "owner": "Construction lead",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "CNX-04.1",
      "text": "Submittals with review cycles and consultant responses",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
      "note": "",
-     "criteria": []
+     "criteria": [
+      {
+       "id": "CNX-04.1.a",
+       "text": "A submittal is reviewed once, with a code A-D, by someone other than the submitter; attested; C and D need a note",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestDocflow_TransmittalsAndSubmittals",
+        "TestConsoleBrowserDocuments"
+       ],
+       "note": ""
+      },
+      {
+       "id": "CNX-04.1.b",
+       "text": "A resubmission is linked to the submittal it answers, forming a review cycle",
+       "status": "NOT_STARTED",
+       "evidence_tests": [],
+       "note": ""
+      },
+      {
+       "id": "CNX-04.1.c",
+       "text": "Consultant responses through the consultant portal",
+       "status": "NOT_STARTED",
+       "evidence_tests": [],
+       "note": "Depends on CNX-12."
+      }
+     ]
     }
    ]
   },

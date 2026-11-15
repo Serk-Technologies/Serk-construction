@@ -420,6 +420,18 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/list/transmittal",
+   "label": "Transmittals",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/submittal",
+   "label": "Submittals",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
    "route": "#/timesheets",
    "label": "Timesheets",
    "browser_journeys": [

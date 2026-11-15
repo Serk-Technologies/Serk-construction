@@ -58,7 +58,8 @@
   "0073_carried_module_hardening.sql",
   "0074_employee_approval.sql",
   "0075_overhead_no_overlap.sql",
-  "0076_workforce_hse.sql"
+  "0076_workforce_hse.sql",
+  "0077_transmittals_submittals.sql"
  ],
  "adrs_added": [
   "0018",
@@ -278,14 +279,13 @@
   "register_evidence": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
-   "DEF-001 colliding new-version parts (timesheets, HSE, internal hire, transmittals, submittals) not yet rebuilt",
    "DEF-002 main unprotected (administrator)"
   ],
   "external_blockers": "docs/final-completion/08_EXTERNAL_BLOCKERS.json",
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "Rebuild transmittals (bound to the same transaction, not a 5-minute window) and submittals (review attested) from new-version 0066 on this branch's documents (APPROVED revisions); then internal hire charge-out on equipment logs (FLT-01.14); then DEF-011, DEF-013, DEF-014, DEF-015, DEF-017.",
+  "exact_next_action": "DEF-011 (attest rule-of-credit approval: subject type credit_rule, trigger, kernel authorize); then internal hire charge-out on equipment logs under an approved charge-out rate policy (FLT-01.14, DEF-001 remainder); then DEF-013, DEF-014, DEF-015, DEF-017.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -294,8 +294,9 @@
    "WP-024 part 1: DEF-008, DEF-009 (9bce5f0), DEF-010 (dbe049a)",
    "WP-024 part 2: DEF-016 (47d5d5c)",
    "WP-024 part 3: DEF-012 (dc0cd61)",
-   "DEF-001 part: timesheets and HSE rebuilt with attested decisions (dd68054)"
+   "DEF-001 part: timesheets and HSE rebuilt with attested decisions (dd68054)",
+   "DEF-001 part: transmittals and submittals (4fedeca)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-workforce-hse-dd68054.summary.json (494/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-docflow-4fedeca.summary.json (495/0/0)"
 }
