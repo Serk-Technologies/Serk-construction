@@ -273,7 +273,8 @@ D = {
             c("Plans, work orders, parts as stock issues and downtime", V, "TestMaintenance_WorkOrderAndReturnToService", "TestMaintenance_PlansAndDue"),
             c("Labour hours on a work order priced by an approved labour-rate policy", N),
             c("Workshop cost centres for machines not at a project", N),
-            c("Fleet maintenance calendar of due and scheduled work", N)]),
+            c("Fleet maintenance calendar of due and scheduled work", V, "TestMaintenance_PlansAndDue", "TestConsoleBrowserFleet",
+              note="0092: day-based plans on their due day, meter-based plans projected from 30 days of approved logs (labelled estimates), work orders on their planned day (fixed at creation).")]),
         r("A work order is prepared (plant staff; site staff for a breakdown of a machine at their project), authorised by fleet.approve with a fresh second factor, reported complete by plant staff and closed or sent back by a certifier who did not report it; a decided work order never changes; none of these decisions can be taken by an AI or service principal", V,
           "TestMaintenance_WorkOrderAndReturnToService", "TestAPIMaintenance", "TestConsoleBrowserFleet"),
         r("A machine that has been under maintenance returns to service only after a work order for it was closed after it entered maintenance, never while a work order is open, and not by passing through inspection; an earlier work order does not release a later spell", V,
@@ -619,7 +620,7 @@ X = {
         r("Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests", I, "TestConsoleBrowserForms",
           note="Asking first is verified; cancellation on navigation is implemented (AbortController) but not tested."),
         r("Every reloading form has a barrier-driven regression that fails without the fix", I, "TestConsoleBrowserForms",
-          note="Seven of eleven: requisition, budget revision, change event, BOQ, schedule, budget transfer (barrier) and RFI (held answer). Not yet: contingency drawdown, stock issue, fuel dispense, work-order part."),
+          note="Nine of eleven: requisition, budget revision, change event, BOQ, schedule, budget transfer, contingency drawdown, stock issue (barrier) and RFI (held answer). Not yet: fuel dispense and work-order part (equipment-driven; the journey has no equipment at two projects)."),
     ]),
     "XCT-UI": ("M6", "SERK AURA experience", [
         r("AURA light and dark token sets meet their contrast targets and the console stylesheet matches them", V,

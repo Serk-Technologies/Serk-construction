@@ -1812,6 +1812,7 @@ const FORMS = {
     const due = plant ? (await api('GET', '/v1/fleet/maintenance-due')).items.filter((x) => !x.open_work_order) : [];
     const plan = select('plan_id', [{ value: '', label: 'None' }]);
     const desc = h('textarea', { name: 'description', rows: '3', required: '', maxlength: '2000' });
+    const planned = input('planned_for', { type: 'date', min: today() }); // 0092: shown on the maintenance calendar
     const sync = () => {
       plan.textContent = '';
       plan.append(h('option', { value: '' }, 'None'));
@@ -1822,8 +1823,8 @@ const FORMS = {
     eq.addEventListener('change', sync); kind.addEventListener('change', sync); sync();
     formPage('New work order', plant ? 'A plant manager authorises the work, plant staff report it complete, and a certifier closes it. A machine that has been under maintenance returns to service only after its work order is closed.'
       : 'Report a breakdown of a machine at your project. Plant staff take it from there; stop the machine from its own page.',
-      [h('div', { class: 'grid' }, field('Equipment', eq), field('Kind', kind), plant ? field('Carries out plan', plan, 'For a preventive service that is due.') : null), field('What is wrong, or what is to be done', desc)], 'Save work order', async () => {
-        const res = await api('POST', '/v1/maintenance-work-orders', { equipment_id: eq.value, kind: kind.value, description: desc.value.trim(), plan_id: plan.value || undefined });
+      [h('div', { class: 'grid' }, field('Equipment', eq), field('Kind', kind), plant ? field('Carries out plan', plan, 'For a preventive service that is due.') : null, field('Planned for (optional)', planned, 'Shown on the maintenance calendar; it cannot be moved later.')), field('What is wrong, or what is to be done', desc)], 'Save work order', async () => {
+        const res = await api('POST', '/v1/maintenance-work-orders', { equipment_id: eq.value, kind: kind.value, description: desc.value.trim(), plan_id: plan.value || undefined, planned_for: planned.value || undefined });
         created('maintenance_work_order', res, 'Work order');
       });
   },
@@ -5253,7 +5254,8 @@ async function renderFleet(id) {
   closeSheet();
   if (id) return renderEquipment(id);
   const from = plusDays(-30);
-  const [sum, first, fuel, due] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50'), api('GET', `/v1/fleet/fuel-reconciliation?from=${from}&to=${today()}`), api('GET', '/v1/fleet/maintenance-due')]);
+  const [sum, first, fuel, due, cal] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50'), api('GET', `/v1/fleet/fuel-reconciliation?from=${from}&to=${today()}`), api('GET', '/v1/fleet/maintenance-due'),
+    api('GET', `/v1/fleet/maintenance-calendar?from=${today()}&to=${plusDays(60)}`)]);
   const n = (...st) => st.reduce((a, k) => a + (sum.by_status[k] || 0), 0);
   const kpi = (v, k, warn) => h('div', { class: `kpi${warn && v ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(v)), h('div', { class: 'k' }, k));
   const rows = [...first.items];
@@ -5331,6 +5333,14 @@ async function renderFleet(id) {
         return b;
       } },
     ], due.items, 'No preventive maintenance plans.'),
+    // FLT-03.1.d (0092): the next 60 days.
+    table('Maintenance calendar, next 60 days', [
+      { label: 'Date', cell: (x) => (x.overdue ? h('strong', {}, `${x.date} (overdue)`) : x.date) },
+      { label: 'Equipment', cell: (x) => h('a', { href: `#/fleet/${x.equipment_id}` }, x.equipment) },
+      { label: 'What', cell: (x) => x.title },
+      { label: 'Kind', cell: (x) => ({ PLAN_DUE: 'Service due (days)', PLAN_PROJECTED: 'Service due (meter, estimated)', WORK_ORDER: 'Planned work order' }[x.kind] || x.kind) },
+      { label: 'Basis', cell: (x) => x.basis },
+    ], cal.items, 'Nothing due or planned in the next 60 days.'),
     h('p', { class: 'hint' }, 'Due from each machine\'s meter (advanced only by approved daily logs) and today\'s date. A plan moves on when a certifier closes the preventive work order raised from it.'),
     holder, h('div', { class: 'actions' }, more));
 }

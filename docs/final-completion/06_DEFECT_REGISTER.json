@@ -41,10 +41,10 @@
    "severity": "Low",
    "area": "Console forms",
    "status": "OPEN",
-   "title": "Four of the eleven reloading forms have no race regression of their own (contingency drawdown, stock issue, fuel dispense, work-order part)",
+   "title": "Two of the eleven reloading forms have no race regression of their own (fuel dispense, work-order part); contingency drawdown and stock issue were added on 2026-11-15",
    "evidence": "e2e/*.mjs: reproductions exist for RFI, requisition and schedule only",
    "impact": "A regression in those eight forms would not be caught",
-   "next_action": "WP-001 barrier-driven regressions",
+   "next_action": "Equipment at two projects in the forms journey, then the fuel and work-order part forms in FORMS (both use the same newest-answer-wins loader as the covered forms)",
    "found": "2026-11-15"
   },
   {

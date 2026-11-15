@@ -72,7 +72,8 @@ func TestConsoleBrowserForms(t *testing.T) {
 	a.srv = srv
 	P := []string{a.project, p2}
 	tokens := map[string]string{"siteEng": a.tok("u-se", P, false, "site_engineer"), "pm": a.tok("u-pm", P, false, "project_manager"),
-		"estimator": a.tok("u-est", P, false, "estimator"), "planner": a.tok("u-planner", P, false, "planner")}
+		"estimator": a.tok("u-est", P, false, "estimator"), "planner": a.tok("u-planner", P, false, "planner"),
+		"store": a.tok("u-store", P, false, "storekeeper")}
 	dir := t.TempDir()
 	// XCT-LOC.3: the console's Ethiopian calendar must agree with pkg/ethcal on
 	// every sampled day (one every 37 days, 1901-2099) and on today.

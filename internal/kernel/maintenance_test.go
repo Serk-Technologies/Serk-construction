@@ -279,8 +279,38 @@ func TestMaintenance_PlansAndDue(t *testing.T) {
 	if _, err := f.svc.CreateWorkOrder(f.ctx, fw.officer, WorkOrderInput{EquipmentID: other, PlanID: plan, Kind: "PREVENTIVE", Description: "250 hour service: oils and filters"}); err == nil {
 		t.Fatal("a plan of one machine was carried out on another")
 	}
-	wo, err := f.svc.CreateWorkOrder(f.ctx, fw.officer, WorkOrderInput{EquipmentID: eq, PlanID: plan, Kind: "PREVENTIVE", Description: "250 hour service: oils and filters"})
+	// FLT-03.1.d (0092): the calendar. Approved logs ran 240 h over the last 30 days (8 a day), 10 h are
+	// left: the meter-based service is projected 2 days out, labelled an estimate; the 90-day interval
+	// falls 90 days after the plan was made; a work order cannot be planned in the past.
+	day := func(n int) string { return time.Now().UTC().AddDate(0, 0, n).Format("2006-01-02") }
+	cal, err := f.svc.MaintenanceCalendar(f.ctx, c.pm, time.Now().UTC().Truncate(24*time.Hour), time.Now().UTC().AddDate(0, 0, 100))
+	must(t, "calendar", err)
+	kinds := map[string]string{}
+	for _, e := range cal {
+		kinds[e.Kind] = e.Date
+		if e.Kind == "PLAN_PROJECTED" && !strings.HasPrefix(e.Basis, "estimate:") {
+			t.Fatalf("a projected service is not labelled an estimate: %+v", e)
+		}
+	}
+	if len(cal) != 2 || kinds["PLAN_PROJECTED"] != day(2) || kinds["PLAN_DUE"] != day(90) {
+		t.Fatalf("calendar: %+v", cal)
+	}
+	if _, err := f.svc.CreateWorkOrder(f.ctx, fw.officer, WorkOrderInput{EquipmentID: eq, Kind: "INSPECTION", Description: "Inspection planned yesterday", PlannedFor: day(-1)}); err == nil {
+		t.Fatal("a work order was planned in the past")
+	}
+	wo, err := f.svc.CreateWorkOrder(f.ctx, fw.officer, WorkOrderInput{EquipmentID: eq, PlanID: plan, Kind: "PREVENTIVE", Description: "250 hour service: oils and filters", PlannedFor: day(1)})
 	must(t, "preventive work order", err)
+	cal, err = f.svc.MaintenanceCalendar(f.ctx, c.pm, time.Now().UTC().Truncate(24*time.Hour), time.Now().UTC().AddDate(0, 0, 100))
+	must(t, "calendar 2", err)
+	if len(cal) != 3 || cal[0].Kind != "WORK_ORDER" || cal[0].Date != day(1) || cal[1].Reference != wo {
+		t.Fatalf("calendar with the planned work order: %+v", cal)
+	}
+	if err := w.rawExec(`UPDATE maintenance_work_orders SET planned_for = current_date + 30 WHERE id = $1::uuid`, wo); err == nil {
+		t.Fatal("a work order's planned day was moved by raw SQL")
+	}
+	if list, err := f.svc.MaintenanceCalendar(f.ctx, f.outsider, time.Now().UTC(), time.Now().UTC().AddDate(0, 0, 100)); err == nil && len(list) != 0 {
+		t.Fatalf("another tenant sees the calendar: %+v", list)
+	}
 	if _, err := f.svc.CreateWorkOrder(f.ctx, fw.officer, WorkOrderInput{EquipmentID: eq, PlanID: plan, Kind: "PREVENTIVE", Description: "250 hour service: oils and filters"}); err == nil {
 		t.Fatal("a due service was raised twice")
 	}

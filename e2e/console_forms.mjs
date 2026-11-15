@@ -17,6 +17,9 @@ const FORMS = [
   { name: 'BOQ', role: 'estimator', hash: '#/new/boq', heading: /BOQ/, cc: 'Cost code, line 1', typed: 'Description, line 1', submit: /Create/ },
   { name: 'schedule', role: 'planner', hash: '#/new/schedule', heading: 'New schedule', cc: 'Cost code, line 1', typed: 'Name, line 1', submit: 'Compute and save', exact: true },
   { name: 'budget transfer', role: 'pm', hash: '#/new/budget_transfer', heading: 'Request budget transfer', cc: 'From cost code', submit: 'Submit transfer request' },
+  // DEF-004: the remaining project-driven forms.
+  { name: 'contingency drawdown', role: 'pm', hash: '#/new/contingency_drawdown', heading: 'Request contingency drawdown', cc: 'To cost code', typed: 'Reason', submit: 'Create drawdown request' },
+  { name: 'stock issue', role: 'store', hash: '#/new/stockissue', heading: 'Issue stock to a project', cc: 'Cost code', typed: 'Quantity', submit: 'Request issue' },
 ];
 
 const options = async (sel) => (await sel.locator('option').allTextContents()).join(' | ');

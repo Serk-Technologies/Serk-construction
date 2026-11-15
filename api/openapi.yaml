@@ -3178,3 +3178,8 @@ paths:
       x-generated: true  # stub: replace with a hand-written description
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/fleet/maintenance-calendar:
+    get:
+      summary: "Read maintenance calendar (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }

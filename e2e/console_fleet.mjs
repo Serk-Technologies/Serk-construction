@@ -178,6 +178,20 @@ try {
   await audit(officer, 'fleet command centre with maintenance');
   log('work order closed by the certifier; plan shown as not yet due');
 
+  // FLT-03.1.d (0092): a work order planned three days out appears on the maintenance calendar.
+  const inThree = new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10);
+  await nav(officer, '#/new/work_order', 'New work order');
+  await officer.getByLabel('Equipment').selectOption(eq);
+  await selectByText(officer.getByLabel('Kind'), 'Inspection');
+  await officer.getByLabel('Planned for (optional)').fill(inThree);
+  await officer.getByLabel('What is wrong, or what is to be done').fill('Quarterly lifting gear inspection');
+  await officer.getByRole('button', { name: 'Save work order' }).click();
+  await officer.getByRole('heading', { level: 1, name: /^Work order MWO-/ }).waitFor();
+  await nav(officer, '#/fleet', 'Fleet command centre');
+  await officer.getByRole('table', { name: /Maintenance calendar/ }).getByRole('row').filter({ hasText: inThree }).filter({ hasText: 'Planned work order' }).waitFor();
+  await audit(officer, 'maintenance calendar');
+  log('planned work order shown on the maintenance calendar');
+
   // ---- 6. Phone width, dark theme ---------------------------------------------------------
   const phone = await as('engPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   await nav(phone, `#/fleet/${eq}`, /Excavator 07$/);

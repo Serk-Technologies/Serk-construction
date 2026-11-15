@@ -19,9 +19,9 @@
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 42,
+  "NOT_STARTED": 41,
   "BLOCKED": 12,
-  "VERIFIED": 28
+  "VERIFIED": 29
  },
  "domain_counts": {
   "IMPLEMENTING": 51,
@@ -1544,9 +1544,12 @@
       {
        "id": "FLT-03.1.d",
        "text": "Fleet maintenance calendar of due and scheduled work",
-       "status": "NOT_STARTED",
-       "evidence_tests": [],
-       "note": ""
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestMaintenance_PlansAndDue",
+        "TestConsoleBrowserFleet"
+       ],
+       "note": "0092: day-based plans on their due day, meter-based plans projected from 30 days of approved logs (labelled estimates), work orders on their planned day (fixed at creation)."
       }
      ]
     },
@@ -3919,7 +3922,7 @@
       "TestConsoleBrowserForms"
      ],
      "evidence_file": "",
-     "note": "Seven of eleven: requisition, budget revision, change event, BOQ, schedule, budget transfer (barrier) and RFI (held answer). Not yet: contingency drawdown, stock issue, fuel dispense, work-order part.",
+     "note": "Nine of eleven: requisition, budget revision, change event, BOQ, schedule, budget transfer, contingency drawdown, stock issue (barrier) and RFI (held answer). Not yet: fuel dispense and work-order part (equipment-driven; the journey has no equipment at two projects).",
      "criteria": []
     }
    ]

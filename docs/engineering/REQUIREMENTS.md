@@ -8,7 +8,7 @@ Test results used: `docs/engineering/evidence/2026-11-15-cashflow-f9106d5.tests.
 
 Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 24, NOT_STARTED 65, VERIFIED 113.
 
-Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTING 7, NOT_STARTED 42, VERIFIED 28.
+Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTING 7, NOT_STARTED 41, VERIFIED 29.
 
 Domain counts (80): BLOCKED 2, IMPLEMENTING 51, NOT_STARTED 27.
 
@@ -462,7 +462,7 @@ Product FLEET · milestone M6 · owner Construction lead
 | FLT-03.1.a | ↳ Plans, work orders, parts as stock issues and downtime | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestMaintenance_PlansAndDue` |
 | FLT-03.1.b | ↳ Labour hours on a work order priced by an approved labour-rate policy | NOT_STARTED |  |
 | FLT-03.1.c | ↳ Workshop cost centres for machines not at a project | NOT_STARTED |  |
-| FLT-03.1.d | ↳ Fleet maintenance calendar of due and scheduled work | NOT_STARTED |  |
+| FLT-03.1.d | ↳ Fleet maintenance calendar of due and scheduled work | VERIFIED | `TestMaintenance_PlansAndDue`, `TestConsoleBrowserFleet` — 0092: day-based plans on their due day, meter-based plans projected from 30 days of approved logs (labelled estimates), work orders on their planned day (fixed at creation). |
 | FLT-03.2 | A work order is prepared (plant staff; site staff for a breakdown of a machine at their project), authorised by fleet.approve with a fresh second factor, reported complete by plant staff and closed or sent back by a certifier who did not report it; a decided work order never changes; none of these decisions can be taken by an AI or service principal | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestAPIMaintenance`, `TestConsoleBrowserFleet` |
 | FLT-03.3 | A machine that has been under maintenance returns to service only after a work order for it was closed after it entered maintenance, never while a work order is open, and not by passing through inspection; an earlier work order does not release a later spell | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestFleet_RegisterAndLifecycle`, `TestAPIMaintenance` |
 | FLT-03.4 | A part used on a work order is an ordinary stock issue linked to the work order: approved by a second person, valued by the stock ledger, charged to the machine's project; a work order is not reported complete while a part awaits approval | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestAPIMaintenance` |
@@ -994,7 +994,7 @@ Product PLATFORM · milestone M6 · owner Chief architect
 | XCT-FORM.3 | Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently | VERIFIED | `TestConsoleBrowserForms` |
 | XCT-FORM.4 | Submission is blocked while dependent data is loading and cannot be sent twice | IMPLEMENTING | `TestConsoleBrowserForms` — Blocking while loading is verified; the guard against a second send exists but has no test of its own. |
 | XCT-FORM.5 | Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests | IMPLEMENTING | `TestConsoleBrowserForms` — Asking first is verified; cancellation on navigation is implemented (AbortController) but not tested. |
-| XCT-FORM.6 | Every reloading form has a barrier-driven regression that fails without the fix | IMPLEMENTING | `TestConsoleBrowserForms` — Seven of eleven: requisition, budget revision, change event, BOQ, schedule, budget transfer (barrier) and RFI (held answer). Not yet: contingency drawdown, stock issue, fuel dispense, work-order part. |
+| XCT-FORM.6 | Every reloading form has a barrier-driven regression that fails without the fix | IMPLEMENTING | `TestConsoleBrowserForms` — Nine of eleven: requisition, budget revision, change event, BOQ, schedule, budget transfer, contingency drawdown, stock issue (barrier) and RFI (held answer). Not yet: fuel dispense and work-order part (equipment-driven; the journey has no equipment at two projects). |
 
 ### XCT-UI SERK AURA experience — IMPLEMENTING
 

@@ -48,6 +48,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -338,6 +339,16 @@ func (s *Server) registerFleet() {
 		}
 		id, err := k.CreateMaintenancePlan(r.Context(), principalFrom(r.Context()), b)
 		s.created(w, id, err)
+	}))
+	m.Handle("GET /v1/fleet/maintenance-calendar", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		from, err1 := time.Parse("2006-01-02", r.URL.Query().Get("from"))
+		to, err2 := time.Parse("2006-01-02", r.URL.Query().Get("to"))
+		if err1 != nil || err2 != nil || to.Sub(from) > 366*24*time.Hour {
+			writeErr(w, http.StatusUnprocessableEntity, "validation", "from and to are dates (YYYY-MM-DD) at most a year apart")
+			return
+		}
+		out, err := k.MaintenanceCalendar(r.Context(), principalFrom(r.Context()), from, to)
+		reply(w, map[string]any{"items": out}, err)
 	}))
 	m.Handle("GET /v1/fleet/maintenance-due", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		out, err := k.MaintenanceDue(r.Context(), principalFrom(r.Context()))

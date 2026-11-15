@@ -35,6 +35,8 @@ type WorkOrderInput struct {
 	PlanID      string `json:"plan_id,omitempty"` // a preventive plan this order carries out
 	Kind        string `json:"kind"`              // PREVENTIVE | CORRECTIVE | BREAKDOWN | INSPECTION
 	Description string `json:"description"`
+	// PlannedFor is the day the work is planned for (YYYY-MM-DD, today or later; optional; 0092).
+	PlannedFor string `json:"planned_for,omitempty"`
 }
 
 // workOrderPerm is the permission under which p prepares or submits a work
@@ -79,8 +81,8 @@ func (s *Service) CreateWorkOrder(ctx context.Context, p auth.Principal, in Work
 		if in.PlanID != "" {
 			plan = in.PlanID
 		}
-		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO maintenance_work_orders (equipment_id, plan_id, number, kind, description, created_by)
-			VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6) RETURNING id::text`, in.EquipmentID, plan, num, in.Kind, in.Description, p.UserID)
+		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO maintenance_work_orders (equipment_id, plan_id, number, kind, description, created_by, planned_for)
+			VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, NULLIF($7, '')::date) RETURNING id::text`, in.EquipmentID, plan, num, in.Kind, in.Description, p.UserID, strings.TrimSpace(in.PlannedFor))
 		if err != nil {
 			return err
 		}
@@ -498,4 +500,115 @@ func (s *Service) EquipmentMaintenanceOf(ctx context.Context, p auth.Principal, 
 		return rows.Err()
 	})
 	return out, err
+}
+
+// CalendarEntry is one day's item on the maintenance calendar (FLT-03.1.d).
+type CalendarEntry struct {
+	Date        string `json:"date"`
+	Kind        string `json:"kind"` // PLAN_DUE (by days), PLAN_PROJECTED (by meter, estimated), WORK_ORDER (planned)
+	EquipmentID string `json:"equipment_id"`
+	Equipment   string `json:"equipment"`
+	Title       string `json:"title"`
+	Reference   string `json:"reference,omitempty"` // the work order number, or the plan's open work order
+	Basis       string `json:"basis"`
+	Overdue     bool   `json:"overdue"`
+}
+
+// MaintenanceCalendar lists what is due or planned between from and to for the
+// machines in the caller's scope: date-based plans on their due day, meter-based
+// plans on a day projected from the last 30 days of approved daily logs (an
+// estimate, said so), and open work orders on their planned day. Anything
+// already overdue is shown on from.
+func (s *Service) MaintenanceCalendar(ctx context.Context, p auth.Principal, from, to time.Time) ([]CalendarEntry, error) {
+	if to.Before(from) {
+		return nil, fmt.Errorf("%w: the period ends before it starts", ErrInvalidInput)
+	}
+	plans, err := s.MaintenanceDue(ctx, p)
+	if err != nil {
+		return nil, err
+	}
+	out := []CalendarEntry{}
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	in := func(d time.Time) bool { return !d.Before(from) && !d.After(to) }
+	clamp := func(d time.Time) (time.Time, bool) {
+		if d.Before(today) {
+			return maxTime(today, from), true
+		}
+		return d, false
+	}
+	err = s.p2pTx(ctx, p, auth.PermP2PRead, func(ctx context.Context, tx pgx.Tx) error {
+		for _, x := range plans {
+			label := x.Number + " " + x.Name
+			if x.EveryDays != nil {
+				last, err := time.Parse("2006-01-02", x.LastDoneOn)
+				if err != nil {
+					return err
+				}
+				d, overdue := clamp(last.AddDate(0, 0, *x.EveryDays))
+				if in(d) {
+					out = append(out, CalendarEntry{Date: d.Format("2006-01-02"), Kind: "PLAN_DUE", EquipmentID: x.EquipmentID, Equipment: label, Title: x.Title,
+						Reference: x.OpenWorkOrder, Basis: fmt.Sprintf("every %d days, last done %s", *x.EveryDays, x.LastDoneOn), Overdue: overdue})
+				}
+			}
+			if x.EveryUnits != nil && x.UnitsLeft != nil {
+				var usage *decimal.Decimal
+				if err := tx.QueryRow(ctx, `SELECT equipment_daily_usage($1::uuid, 30)`, x.EquipmentID).Scan(&usage); err != nil {
+					return err
+				}
+				var d time.Time
+				basis := ""
+				switch {
+				case !x.UnitsLeft.IsPositive():
+					d, basis = today, fmt.Sprintf("meter %s reached the service at %s", x.Meter, x.LastDoneMeter.Add(*x.EveryUnits))
+				case usage != nil && usage.IsPositive():
+					days := x.UnitsLeft.Div(*usage).Ceil().IntPart()
+					d, basis = today.AddDate(0, 0, int(days)), fmt.Sprintf("estimate: %s units left at %s a day (last 30 days of approved logs)", x.UnitsLeft, usage.Round(2))
+				default:
+					continue // no recent usage: no honest projection
+				}
+				d, overdue := clamp(d)
+				if in(d) {
+					out = append(out, CalendarEntry{Date: d.Format("2006-01-02"), Kind: "PLAN_PROJECTED", EquipmentID: x.EquipmentID, Equipment: label, Title: x.Title,
+						Reference: x.OpenWorkOrder, Basis: basis, Overdue: overdue || !x.UnitsLeft.IsPositive()})
+				}
+			}
+		}
+		sc := s.authz.ScopeOf(p)
+		rows, err := tx.Query(ctx, `SELECT w.planned_for, w.equipment_id::text, e.number || ' ' || e.name, w.description, w.number, w.kind
+			FROM maintenance_work_orders w JOIN equipment e ON e.id = w.equipment_id
+			WHERE w.planned_for IS NOT NULL AND w.status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'COMPLETED')
+			  AND ($1 OR e.current_project_id = ANY($2::uuid[]))`, sc.TenantWide, sc.Projects)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var d time.Time
+			var c CalendarEntry
+			var kind string
+			if err := rows.Scan(&d, &c.EquipmentID, &c.Equipment, &c.Title, &c.Reference, &kind); err != nil {
+				return err
+			}
+			d, c.Overdue = clamp(d)
+			if in(d) {
+				c.Date, c.Kind, c.Basis = d.Format("2006-01-02"), "WORK_ORDER", "planned "+strings.ToLower(kind)+" work order"
+				out = append(out, c)
+			}
+		}
+		return rows.Err()
+	})
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Date != out[j].Date {
+			return out[i].Date < out[j].Date
+		}
+		return out[i].Equipment < out[j].Equipment
+	})
+	return out, err
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
 }
