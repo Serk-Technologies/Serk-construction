@@ -141,6 +141,8 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"consolidation_run":   {"consolidation_runs", "created_by", ""},
 	"tax_return":          {"tax_returns", "created_by", ""},
 	"itp":                 {"itps", "created_by", ""},
+	// Timesheets (0076).
+	"timesheet": {"timesheets", "created_by", ""},
 }
 
 // DocTypes reports whether a document type is known (for callers that must
@@ -428,6 +430,7 @@ var listSQL = map[string]string{
 	"consolidation_group":     `SELECT g.id::text, g.code || '-v' || g.version, g.status, g.created_by, g.created_at, '', 0::numeric, g.name || ' (' || g.presentation_currency || ', ' || (SELECT count(*) FROM consolidation_members m WHERE m.group_id = g.id) || ' members)' FROM consolidation_groups g`,
 	"consolidation_run":       `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', 0::numeric, (SELECT code FROM consolidation_groups WHERE id = r.group_id) || ' ' || r.period_start || ' to ' || r.period_end FROM consolidation_runs r`,
 	"tax_return":              `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', COALESCE((SELECT sum(amount) FROM tax_return_lines l WHERE l.return_id = r.id), 0), r.kind || ' ' || r.period_start || ' to ' || r.period_end FROM tax_returns r`,
+	"timesheet":               `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, COALESCE((SELECT sum(hours_normal + hours_ot) FROM timesheet_lines l WHERE l.timesheet_id = t.id), 0), t.work_date || ' — ' || (SELECT count(*) FROM timesheet_lines l WHERE l.timesheet_id = t.id) || ' people' FROM timesheets t`,
 	"itp":                     `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, 0::numeric, t.title || COALESCE(' — activity ' || t.activity_code, '') FROM itps t`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,

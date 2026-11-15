@@ -84,8 +84,6 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT project_id::text FROM site_diaries WHERE id = $1::uuid`
 	case "timesheet":
 		q = `SELECT project_id::text FROM timesheets WHERE id = $1::uuid`
-	case "equipment_usage":
-		q = `SELECT project_id::text FROM equipment_usage WHERE id = $1::uuid`
 	case "itp":
 		q = `SELECT project_id::text FROM itps WHERE id = $1::uuid`
 	case "project_stage_gate":

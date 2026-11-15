@@ -106,18 +106,6 @@ func sortStrings(a []string) {
 	}
 }
 
-// IncidentIn reports an incident.
-type IncidentIn struct {
-	ProjectID      string `json:"project_id"`
-	Kind           string `json:"kind"`
-	Severity       string `json:"severity"`
-	OccurredAt     string `json:"occurred_at"` // RFC 3339
-	Location       string `json:"location"`
-	Description    string `json:"description"`
-	PeopleInvolved int    `json:"people_involved"`
-	LostDays       int    `json:"lost_days"`
-}
-
 func parseTime(field, v string) (time.Time, error) {
 	t, err := time.Parse(time.RFC3339, strings.TrimSpace(v))
 	if err != nil {

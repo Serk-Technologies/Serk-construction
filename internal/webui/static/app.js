@@ -433,7 +433,7 @@ const NAV = [
   ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
     ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read'], ['#/list/fleet_policy', 'Fleet policies', 'p2p.read']]],
   ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read']]],
-  ['Site quality & records', [['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct'], ['#/credit', 'Progress credit', 'credit.manage|credit.approve|credit.record']]],
+  ['Site workforce, safety & quality', [['#/timesheets', 'Timesheets', 'timesheet.record|timesheet.approve'], ['#/hse', 'Health and safety', 'hse.report|hse.manage'], ['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct'], ['#/credit', 'Progress credit', 'credit.manage|credit.approve|credit.record']]],
   ['Subcontracts', [['#/list/subcontract', 'Subcontracts', 'p2p.read'], ['#/list/subcontract_application', 'Applications and certificates', 'p2p.read'], ['#/list/subcontract_backcharge', 'Back-charges', 'p2p.read'], ['#/list/subcontract_payment', 'Subcontract payments', 'p2p.read|payment.prepare|payment.approve|payment.release'], ['#/subpolicy', 'Subcontract accounts', 'contract.policy.manage|contract.policy.approve']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
@@ -733,6 +733,8 @@ async function route() {
       case 'payroll': return await renderPayroll(a);
       case 'consolidation': return await renderConsolidation(a);
       case 'tax': return await renderTax(a);
+      case 'timesheets': return await renderTimesheets(a);
+      case 'hse': return await renderHSE(a);
       case 'quality': return await renderQuality(a);
       case 'siterecords': return await renderSiteRecords(a);
       case 'credit': return await renderCredit(a);
@@ -1001,6 +1003,7 @@ async function renderDoc(type, id) {
     parts.push(rec);
   }
   if (type === 'maintenance_work_order') parts.push(await workOrderPanel(d));
+  if (type === 'timesheet') parts.push(await timesheetPanel(d));
   if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
   if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); }
   if (type === 'subcontract') parts.push(await subcontractPanel(d));
@@ -6052,6 +6055,155 @@ async function tabbedPage(hashKey, title, lede, TABS, tab, build, head) {
 const fkpi = (val, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(val)), h('div', { class: 'k' }, k));
 const reasonPrompt = (what) => { const t = (prompt(`Why ${what}?`) || '').trim(); if (t.length < 5) { showError(new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return t; };
 const nowLocal = (plusH = 0) => { const d = new Date(Date.now() + plusH * 3600000); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+
+// ---------- timesheets and health and safety (0076; carried from new-version) ----------
+// ---- timesheets
+async function renderTimesheets(tab) {
+  const TABS = [['record', 'Record a day'], ['list', 'Timesheets']];
+  await tabbedPage('timesheets', 'Timesheets', 'Hours worked per person and day on each project. The site records and submits; a project manager approves; approved hours feed payroll. Nobody is paid for more than 16 approved hours a day or twice for the same project and day.', TABS, tab, async (k) => {
+    if (k === 'list') {
+      const items = (await api('GET', '/v1/p2p/timesheet')).items || [];
+      return table('Timesheets', [{ label: 'Number', cell: (t) => h('a', { href: `#/doc/timesheet/${t.id}` }, t.number) }, { label: 'Day and people', cell: (t) => t.label }, { label: 'Hours', num: true, cell: (t) => String(Number(t.amount)) },
+        { label: 'Status', cell: (t) => chip(t.status) }, { label: 'Recorded by', cell: (t) => t.created_by }], items, 'No timesheet yet.');
+    }
+    const out = h('div');
+    if (!S.can.has('timesheet.record')) return h('p', { class: 'callout' }, 'Recording hours is done by site engineers. Open the Timesheets tab to review and approve.');
+    const proj = select('project_id', opt(S.ref.projects || [], (p) => `${p.code} — ${p.name}`));
+    const date = input('work_date', { type: 'date', value: new Date(Date.now() - 86400000).toISOString().slice(0, 10), max: today() });
+    const notes = input('notes', { type: 'text', maxlength: '300' });
+    const slot = h('div');
+    let roster = [];
+    const paint = async () => {
+      slot.textContent = '';
+      roster = (await api('GET', `/v1/roster?project=${proj.value}`)).employees || [];
+      const emps = roster.map((e) => ({ value: e.id, label: `${e.number} ${e.name}${e.trade ? ' (' + e.trade + ')' : ''}` }));
+      slot.append(slot.grid = lineGrid('Hours', [{ key: 'employee_id', label: 'Person', make: () => select('employee_id', emps) }, { key: 'hours_normal', label: 'Normal hours', make: num('hours_normal', { value: '8' }) },
+        { key: 'hours_ot', label: 'Overtime hours', make: num('hours_ot', { value: '0' }) }], [{}], true));
+    };
+    proj.addEventListener('change', () => paint().catch(showError));
+    await paint();
+    const save = (submit) => async () => {
+      try {
+        clearError();
+        const lines = slot.grid.rows().filter((l) => l.employee_id).map((l) => ({ employee_id: l.employee_id, hours_normal: l.hours_normal || '0', hours_ot: l.hours_ot || '0' }));
+        const r = await api('POST', '/v1/timesheets', { project_id: proj.value, work_date: date.value, notes: notes.value.trim(), lines });
+        if (submit) await api('POST', `/v1/timesheets/${r.id}/submit`, {});
+        flash(submit ? 'Timesheet submitted for approval.' : 'Timesheet saved as a draft.'); renderTimesheets('list');
+      } catch (e) { showError(e); }
+    };
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a day'), h('div', { class: 'grid' }, field('Project', proj), field('Day', date), field('Notes', notes)), slot,
+      h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: save(true) } }, 'Save and submit'), h('button', { type: 'button', class: 'ghost', on: { click: save(false) } }, 'Save as draft'))));
+    return out;
+  });
+}
+
+async function timesheetPanel(d) {
+  const t = await api('GET', `/v1/timesheets/${d.id}`);
+  return table('Hours', [{ label: 'Person', cell: (l) => `${l.number} ${l.name}` }, { label: 'Trade', cell: (l) => l.trade || '' }, { label: 'Cost code', cell: (l) => l.cost_code || '' },
+    { label: 'Normal', num: true, cell: (l) => String(Number(l.hours_normal)) }, { label: 'Overtime', num: true, cell: (l) => String(Number(l.hours_ot)) }], t.lines || [], '');
+}
+
+// ---- health, safety and environment
+async function renderHSE(tab) {
+  const v = await api('GET', '/v1/hse');
+  const k = v.kpi || {};
+  const mgr = S.can.has('hse.manage');
+  const projOpts = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const TABS = [['incidents', 'Incidents'], ['permits', 'Permits to work'], ['people', 'Inductions and talks'], ['inspections', 'Inspections']];
+  const head = h('div', { class: 'kpis' }, fkpi(k.ltifr == null ? '—' : Number(k.ltifr).toLocaleString(), 'LTIFR (12 months)'), fkpi(k.lost_time_injuries_12m || 0, 'Lost-time injuries', (k.lost_time_injuries_12m || 0) > 0),
+    fkpi((v.incidents || []).filter((i) => i.status !== 'CLOSED').length, 'Open incidents', (v.incidents || []).some((i) => i.status !== 'CLOSED')), fkpi((v.actions || []).filter((a) => a.overdue).length, 'Overdue actions', (v.actions || []).some((a) => a.overdue)),
+    fkpi((v.permits || []).filter((p) => p.in_force).length, 'Permits in force'));
+  await tabbedPage('hse', 'Health, safety and environment', 'Incidents with investigation and verified corrective actions, permits to work that need three different people, site inductions, toolbox talks and inspections. LTIFR = lost-time injuries × 1,000,000 ÷ hours worked (approved timesheets).', TABS, tab, async (t) => {
+    const out = h('div');
+    if (t === 'incidents') {
+      if (S.can.has('hse.report') && projOpts.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Report an incident');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projOpts); const kind = select('kind', ['NEAR_MISS', 'FIRST_AID', 'MEDICAL', 'LOST_TIME', 'FATALITY', 'ENVIRONMENTAL', 'PROPERTY'].map((x) => ({ value: x, label: words(x.toLowerCase()) })));
+          const sev = select('severity', ['MINOR', 'MAJOR', 'CRITICAL'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const at = input('occurred_at', { type: 'datetime-local', value: nowLocal(-1), max: nowLocal(0) });
+          const loc = input('location', { type: 'text', maxlength: '200' }); const desc = input('description', { type: 'text', maxlength: '1000' }); const ppl = input('people_involved', { inputmode: 'numeric', value: '0' }); const lost = input('lost_days', { inputmode: 'numeric', value: '0' });
+          const save = h('button', { type: 'button', class: 'primary' }, 'Report');
+          const sheet = openSheet('Report an incident', h('div', {}, h('h2', {}, 'Report an incident'), h('p', { class: 'hint' }, 'A major or critical incident notifies the HSE officers and project managers at once.')),
+            h('div', { class: 'grid' }, field('Project', pr), field('Kind', kind), field('Severity', sev), field('When', at), field('Where', loc), field('What happened', desc), field('People involved', ppl), field('Days lost', lost)), h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => {
+            try { await api('POST', '/v1/incidents', { project_id: pr.value, kind: kind.value, severity: sev.value, occurred_at: new Date(at.value).toISOString(), location: loc.value.trim(), description: desc.value.trim(), people_involved: Number(ppl.value || 0), lost_days: Number(lost.value || 0) });
+              closeSheet(); flash('Incident reported.'); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); }
+          });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      const open = (i) => {
+        const body = h('div', {}, h('h2', {}, `${i.number} — ${words(i.kind.toLowerCase())}`), h('p', { class: 'hint' }, `${i.project} · ${i.severity.toLowerCase()} · `, chip(i.status)), h('p', {}, i.description));
+        const sheet = openSheet(`Incident ${i.number}`, body);
+        const go = async (path, payload, msg) => { try { await api('POST', `/v1/incidents/${i.id}/${path}`, payload); flash(msg); closeSheet(); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); } };
+        if (i.investigation) body.append(h('p', { class: 'callout' }, `Root cause: ${i.investigation.root_cause}. Findings: ${i.investigation.findings}`));
+        const acts = (v.actions || []).filter((a) => a.incident === i.number);
+        if (acts.length) body.append(table('Corrective actions', [{ label: 'Action', cell: (a) => a.description }, { label: 'Owner', cell: (a) => a.owner_name }, { label: 'Due', cell: (a) => a.due_on }, { label: 'Status', cell: (a) => chip(a.status) },
+          { label: '', cell: (a) => (mgr && ['OPEN', 'DONE'].includes(a.status) ? h('button', { type: 'button', class: 'ghost', on: { click: async () => { try { await api('POST', `/v1/capas/${a.id}/${a.status === 'OPEN' ? 'done' : 'verify'}`, {}); flash(a.status === 'OPEN' ? 'Action marked done.' : 'Action verified.'); closeSheet(); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); } } } }, a.status === 'OPEN' ? 'Mark done' : 'Verify') : '') }], acts, ''));
+        if (mgr && i.status === 'REPORTED') {
+          const rc = input('root_cause', { type: 'text', maxlength: '1000' }); const fi = input('findings', { type: 'text', maxlength: '1000' });
+          body.append(h('div', { class: 'grid' }, field('Root cause', rc), field('Findings', fi)), h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: () => go('investigate', { root_cause: rc.value.trim(), findings: fi.value.trim() }, 'Investigation recorded.') } }, 'Record investigation')));
+        }
+        if (mgr && i.status === 'INVESTIGATING') {
+          const ds = input('description', { type: 'text', maxlength: '500' }); const ow = input('owner_name', { type: 'text', maxlength: '120' }); const du = input('due_on', { type: 'date', value: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10) });
+          const note = input('note', { type: 'text', maxlength: '500' });
+          body.append(h('div', { class: 'grid' }, field('New corrective action', ds), field('Owner', ow), field('Due', du)), h('div', { class: 'actions' }, h('button', { type: 'button', on: { click: () => go('actions', { description: ds.value.trim(), owner_name: ow.value.trim(), due_on: du.value }, 'Action raised.') } }, 'Raise action')),
+            h('div', { class: 'grid' }, field('Closing note', note)), h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: () => go('close', { note: note.value.trim() }, 'Incident closed.') } }, 'Close incident')),
+            h('p', { class: 'hint' }, 'The reporter cannot close their own incident; every action must be done and verified by a different person first.'));
+        }
+      };
+      out.append(table('Incidents', [{ label: 'Incident', cell: (i) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); open(i); } } }, i.number) }, { label: 'Project', cell: (i) => i.project }, { label: 'Kind', cell: (i) => words(i.kind.toLowerCase()) },
+        { label: 'Severity', cell: (i) => chip(i.severity) }, { label: 'When', cell: (i) => String(i.occurred_at).slice(0, 16).replace('T', ' ') }, { label: 'Days lost', num: true, cell: (i) => String(i.lost_days) },
+        { label: 'Open actions', num: true, cell: (i) => `${i.open_actions} of ${i.actions}` }, { label: 'Status', cell: (i) => chip(i.status) }], v.incidents || [], 'No incident recorded.'));
+    } else if (t === 'permits') {
+      if (S.can.has('hse.report') && projOpts.length) {
+        const pr = select('project_id', projOpts); const kind = select('kind', ['HOT_WORK', 'CONFINED_SPACE', 'WORK_AT_HEIGHT', 'EXCAVATION', 'ELECTRICAL', 'LIFTING'].map((x) => ({ value: x, label: words(x.toLowerCase()) })));
+        const loc = input('location', { type: 'text', maxlength: '200' }); const desc = input('description', { type: 'text', maxlength: '1000' }); const from = input('valid_from', { type: 'datetime-local', value: nowLocal(0) }); const to = input('valid_to', { type: 'datetime-local', value: nowLocal(8) });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Request permit');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/permits', { project_id: pr.value, kind: kind.value, location: loc.value.trim(), description: desc.value.trim(), valid_from: new Date(from.value).toISOString(), valid_to: new Date(to.value).toISOString() }); flash('Permit requested.'); renderHSE('permits'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Request a permit to work'), h('div', { class: 'grid' }, field('Project', pr), field('Kind', kind), field('Where', loc), field('Work to be done', desc), field('Valid from', from), field('Valid to', to)),
+          h('p', { class: 'hint' }, 'A permit lasts at most 31 days. The requester, the issuer (HSE officer) and the person who accepts it are three different people.'), h('div', { class: 'actions' }, b)));
+      }
+      const step = async (w, path, msg, body) => { try { await api('POST', `/v1/permits/${w.id}/${path}`, body || {}); flash(msg); renderHSE('permits'); } catch (e) { showError(e); } };
+      out.append(table('Permits', [{ label: 'Permit', cell: (w) => w.number }, { label: 'Project', cell: (w) => w.project }, { label: 'Kind', cell: (w) => words(w.kind.toLowerCase()) }, { label: 'Where', cell: (w) => w.location }, { label: 'Work', cell: (w) => w.description },
+        { label: 'Valid', cell: (w) => `${String(w.valid_from).slice(0, 16).replace('T', ' ')} → ${String(w.valid_to).slice(0, 16).replace('T', ' ')}` }, { label: 'Status', cell: (w) => h('span', {}, chip(w.status), w.in_force ? chip('IN FORCE') : '') },
+        { label: '', cell: (w) => h('span', {}, w.status === 'REQUESTED' && mgr ? h('button', { type: 'button', class: 'ghost', on: { click: () => { const c = prompt('Conditions for the work (optional)') || ''; step(w, 'issue', 'Permit issued.', { note: c }); } } }, 'Issue…') : '',
+          w.status === 'ISSUED' && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'accept', 'Permit accepted.') } }, 'Accept') : '',
+          w.status === 'ACCEPTED' && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'close', 'Permit closed.') } }, 'Close') : '',
+          ['REQUESTED', 'ISSUED'].includes(w.status) && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'cancel', 'Permit cancelled.') } }, 'Cancel') : '') }], v.permits || [], 'No permit yet.'));
+    } else if (t === 'people') {
+      if (mgr) {
+        const gate = h('input', { type: 'checkbox', id: 'gate', checked: k.induction_gate ? 'checked' : null });
+        gate.checked = !!k.induction_gate;
+        gate.addEventListener('change', async () => { try { clearError(); await api('POST', '/v1/hse/induction-gate', { on: gate.checked }); flash(gate.checked ? 'Induction gate on: nobody without a valid induction is submitted on a timesheet.' : 'Induction gate off.'); renderHSE('people'); } catch (e) { showError(e); } });
+        const pr = select('project_id', projOpts); const emp = select('employee_id', []); const roster = async () => { emp.textContent = ''; for (const e of ((await api('GET', `/v1/roster?project=${pr.value}`)).employees || [])) emp.append(h('option', { value: e.id }, `${e.number} ${e.name}`)); };
+        pr.addEventListener('change', () => roster().catch(showError)); await roster();
+        const on = input('inducted_on', { type: 'date', value: today(), max: today() }); const to = input('valid_to', { type: 'date', value: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10) }); const tp = input('topics', { type: 'text', maxlength: '300', placeholder: 'Site rules, PPE, emergency…' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record induction');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/inductions', { employee_id: emp.value, project_id: pr.value, inducted_on: on.value, valid_to: to.value, topics: tp.value.trim() }); flash('Induction recorded.'); renderHSE('people'); } catch (e) { showError(e); } });
+        const tpr = select('project_id', projOpts); const th = input('held_on', { type: 'date', value: today(), max: today() }); const tt = input('topic', { type: 'text', maxlength: '300' }); const ta = input('attendees', { inputmode: 'numeric', value: '10' });
+        const tb = h('button', { type: 'button' }, 'Record toolbox talk');
+        tb.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/toolbox-talks', { project_id: tpr.value, held_on: th.value, topic: tt.value.trim(), attendees: Number(ta.value || 0) }); flash('Toolbox talk recorded.'); renderHSE('people'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('label', { class: 'check', for: 'gate' }, gate, ' Induction gate: a timesheet cannot be submitted for anyone without a valid induction on the project')),
+          h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record an induction'), h('div', { class: 'grid' }, field('Project', pr), field('Person', emp), field('Inducted on', on), field('Valid to', to), field('Topics', tp)), h('div', { class: 'actions' }, b)),
+          h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a toolbox talk'), h('div', { class: 'grid' }, field('Project', tpr), field('Held on', th), field('Topic', tt), field('Attendees', ta)), h('div', { class: 'actions' }, tb)));
+      }
+      out.append(table('Inductions', [{ label: 'Person', cell: (i) => `${i.number} ${i.name}` }, { label: 'Project', cell: (i) => i.project }, { label: 'Inducted', cell: (i) => i.inducted_on }, { label: 'Valid to', cell: (i) => i.valid_to },
+        { label: 'Valid', cell: (i) => chip(i.valid ? 'VALID' : 'EXPIRED') }], v.inductions || [], 'No induction recorded.'),
+      table('Toolbox talks', [{ label: 'Project', cell: (i) => i.project }, { label: 'Held on', cell: (i) => i.held_on }, { label: 'Topic', cell: (i) => i.topic }, { label: 'Attendees', num: true, cell: (i) => String(i.attendees) }], v.talks || [], 'No toolbox talk recorded.'));
+    } else {
+      if (mgr) {
+        const pr = select('project_id', projOpts); const on = input('inspected_on', { type: 'date', value: today(), max: today() }); const ar = input('area', { type: 'text', maxlength: '200' }); const sc = input('score', { inputmode: 'numeric', value: '80' }); const fi = input('findings', { type: 'text', maxlength: '1000' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record inspection');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/safety-inspections', { project_id: pr.value, inspected_on: on.value, area: ar.value.trim(), score: Number(sc.value || 0), findings: fi.value.trim() }); flash('Inspection recorded.'); renderHSE('inspections'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a safety inspection'), h('div', { class: 'grid' }, field('Project', pr), field('Date', on), field('Area', ar), field('Score (0–100)', sc), field('Findings', fi)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Inspections', [{ label: 'Project', cell: (i) => i.project }, { label: 'Date', cell: (i) => i.inspected_on }, { label: 'Area', cell: (i) => i.area }, { label: 'Score', num: true, cell: (i) => String(i.score) }, { label: 'Findings', cell: (i) => i.findings || '' }], v.inspections || [], 'No inspection recorded.'));
+    }
+    return out;
+  }, head);
+}
+
 
 // ---------- quality and site records (0065) ----------
 async function renderQuality(tab) {

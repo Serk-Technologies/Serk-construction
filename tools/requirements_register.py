@@ -280,8 +280,13 @@ D = {
     "FLT-04": ("M6", "Finance controller", [r("Capitalisation, depreciation and disposal posted through the ledger", I, note="Integrated from new-version (ADR 0025), TestFixedAssets_CapitaliseDepreciateDispose. Independent review: capitalisation journal lines not asserted; no link to the fleet register; disposal relies on trigger depth (DEF-017).")]),
     # ------------------------------------------------------------- PEOPLE
     "PPL-01": ("M6", "Product owner", [r("Employee and contractor records with protected personal data", N)]),
-    "PPL-02": ("M6", "Construction lead", [r("Attendance and timesheets with approval, duplicate and overlap detection", N,
-                                             note="Labour hours on site diaries exist; they are not attendance records.")]),
+    "PPL-02": ("M6", "Construction lead", [r("Attendance and timesheets with approval, duplicate and overlap detection", I,
+          note="Timesheets rebuilt from new-version (0076): attested approval by another person, at most 16 approved hours per person and day across projects, one approved line per person, project and day, induction gate; feeds payroll (TestWorkforce_TimesheetsAndHSE, TestConsoleBrowserField). Clock-in attendance is not built.",
+          criteria=[
+            c("Daily timesheets recorded by the site and approved by a different person, attested", V, "TestWorkforce_TimesheetsAndHSE", "TestConsoleBrowserField"),
+            c("Duplicate and overlapping hours refused (one approved line per person, project and day; at most 16 hours a day across projects)", V, "TestWorkforce_TimesheetsAndHSE"),
+            c("Approved hours imported into a pay run once", V, "TestWorkforce_TimesheetsAndHSE"),
+            c("Clock-in/clock-out attendance capture, including offline from the field device", N)])]),
     "PPL-03": ("M6", "Finance controller", [r("Payroll preview → approval → locked run → posting → payment, on effective-dated reviewed rules", B,
                                               note="No statutory payroll rules may be shipped without professional approval (MASTER_PROMPT 4.8).",
           criteria=[
@@ -377,7 +382,14 @@ D = {
     # ------------------------------------------------------------- ASSURE
     "ASR-01": ("M6", "Construction lead", [r("ITP with hold/witness points, NCR and corrective action through independent closure", I, note="Integrated from new-version (ADR 0025), TestQuality_HoldPointNCRAndSiteRecords. Independent review: inspection results and NCR closure are unattested (DEF-008), witness points not asserted.")]),
     "ASR-02": ("M6", "Construction lead", [r("Samples with chain of custody, calibrated equipment, results against limits; failed tests preserved", N)]),
-    "ASR-03": ("M6", "Construction lead", [r("Permits to work, incidents, toolbox talks; stop-work effective offline; no AI release", N)]),
+    "ASR-03": ("M6", "Construction lead", [r("Permits to work, incidents, toolbox talks; stop-work effective offline; no AI release", I,
+          note="HSE rebuilt from new-version (0076) with every decision attested (incident closure, corrective action done and verified, permit issue, acceptance and closure).",
+          criteria=[
+            c("Incidents investigated and closed by someone other than the reporter; major incidents need a verified corrective action; attested", V, "TestWorkforce_TimesheetsAndHSE", "TestConsoleBrowserField"),
+            c("Permits to work requested, issued and accepted by three different people, attested, with bounded validity", V, "TestWorkforce_TimesheetsAndHSE", "TestConsoleBrowserField"),
+            c("Toolbox talks, inductions and safety inspections recorded; LTIFR from approved hours", V, "TestWorkforce_TimesheetsAndHSE"),
+            c("Stop-work effective offline on the field device", N),
+            c("No AI identity can close, issue or accept (decisions reserved to human principals)", I, note="authorize() refuses non-human principals for decisions; no HSE-specific test yet")])]),
     "ASR-04": ("M6", "Product owner", [r("Carbon, waste, water and energy records with versioned factors; measured vs estimated", N)]),
     # ------------------------------------------------------------ CONNECT
     "CNX-01": ("M7", "Product owner", [

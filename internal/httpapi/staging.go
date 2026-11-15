@@ -77,6 +77,7 @@ var StagingPersonas = []Persona{
 	{"u-payroll", "Payroll officer", []string{"payroll_officer"}, false},
 	{"u-hr-manager", "HR manager (approves payroll)", []string{"hr_manager"}, false},
 	{"u-plant", "Plant manager", []string{"plant_manager"}, false},
+	{"u-hse", "HSE officer", []string{"hse_officer"}, false},
 	{"u-quality", "Quality engineer", []string{"quality_engineer"}, false},
 	{"u-doc-controller", "Document controller", []string{"document_controller"}, false},
 }

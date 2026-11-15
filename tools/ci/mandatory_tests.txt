@@ -59,3 +59,5 @@ internal/kernel TestMaintenance_PlanRevisionAndRetirement
 internal/httpapi TestConsoleBrowserForms
 internal/httpapi TestProblemDetailsRFC9457
 internal/httpapi TestListCursorPagination
+internal/kernel TestWorkforce_TimesheetsAndHSE
+internal/httpapi TestConsoleBrowserField
