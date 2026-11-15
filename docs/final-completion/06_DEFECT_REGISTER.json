@@ -166,12 +166,13 @@
    "id": "DEF-015",
    "severity": "Medium",
    "area": "Tax / consolidation",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Tax-account and intercompany-account designations are unapproved (0069, 0068)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Return and elimination content can be changed silently",
    "next_action": "Designations through approval",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0081 and commit 9eb1445; TestTax_VATReturnAndEInvoice and TestConsolidation_TranslateEliminateApprove assert the refusals"
   },
   {
    "id": "DEF-016",
