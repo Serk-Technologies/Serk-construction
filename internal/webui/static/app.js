@@ -60,6 +60,20 @@ function select(name, options, attrs = {}) {
   return s;
 }
 
+// A form that reloads a list when another field changes can have two requests in
+// flight; the older answer must never overwrite the newer one (or the choice the
+// user has made since). latestOnly() returns a runner that applies only the
+// result of the most recent call.
+function latestOnly() {
+  let seq = 0;
+  return async (fetchIt, apply) => { const me = ++seq; const res = await fetchIt(); if (me === seq) apply(res); };
+}
+// Refill a <select> and keep the current choice when it is still on offer.
+function refill(sel, options) {
+  const keep = sel.value;
+  sel.replaceChildren(...options);
+  if ([...sel.options].some((o) => o.value === keep)) sel.value = keep;
+}
 function say(msg) { const s = $('status'); s.textContent = ''; setTimeout(() => { s.textContent = msg; }, 30); }
 function showError(err) {
   const a = $('alert');
@@ -1454,14 +1468,17 @@ const FORMS = {
     const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
     const cc = select('cost_code_id', [], { required: true });
     const note = input('note', { type: 'text', maxlength: '500' });
-    const sync = async () => {
+    const latestCC = latestOnly();
+    const sync = () => {
       const e = machines.find((x) => x.id === eq.value);
-      cc.textContent = '';
-      if (!e) return;
-      meter.disabled = e.meter_kind === 'NONE';
-      meter.required = !meter.disabled;
-      meter.value = meter.disabled ? '' : e.last_meter;
-      for (const c of (await api('GET', `/v1/projects/${e.current_project_id}/cost-codes`)).cost_codes) cc.append(h('option', { value: c.id }, `${c.code} ${c.name}`));
+      if (e) {
+        meter.disabled = e.meter_kind === 'NONE';
+        meter.required = !meter.disabled;
+        meter.value = meter.disabled ? '' : e.last_meter;
+      }
+      return latestCC(
+        async () => (e ? (await api('GET', `/v1/projects/${e.current_project_id}/cost-codes`)).cost_codes : []),
+        (list) => refill(cc, list.map((c) => h('option', { value: c.id }, `${c.code} ${c.name}`))));
     };
     eq.addEventListener('change', () => sync().catch(showError));
     formPage('Dispense fuel to a machine', 'Fuel is stock: this prepares a stock issue from the tank and records which machine took it and at what meter reading. Nothing leaves the tank and nothing is charged until a different person approves the issue; its cost is then charged to the project the machine is working on.',
@@ -1513,11 +1530,10 @@ const FORMS = {
     const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
     const cc = select('cost_code_id', [], { required: true });
     const note = input('note', { type: 'text', maxlength: '500' });
-    const loadCC = async () => {
-      cc.textContent = '';
-      if (!proj.value) return;
-      for (const c of (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes) cc.append(h('option', { value: c.id }, `${c.code} ${c.name}`));
-    };
+    const latestCC = latestOnly();
+    const loadCC = () => latestCC(
+      async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []),
+      (list) => refill(cc, list.map((c) => h('option', { value: c.id }, `${c.code} ${c.name}`))));
     proj.addEventListener('change', () => loadCC().catch(showError));
     formPage(`Request a part for ${wo.number}`, 'This prepares a stock issue linked to the work order. A different person approves the issue; the part then leaves the store and its cost is charged to the project.',
       [h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty, 'In the item\'s own unit.'), field('Project charged', proj, e.current_project_id ? 'The project the machine is at.' : 'The machine is not at a project: choose the project that bears the cost.'),
@@ -1612,10 +1628,10 @@ const FORMS = {
     const question = h('textarea', { name: 'question', required: true, minlength: '10', maxlength: '4000', rows: '5' });
     const to = input('assigned_to', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the person expected to answer' });
     const due = input('due_on', { type: 'date', required: true, value: plusDays(7), min: today() });
-    const loadDocs = async () => {
-      const list = proj.value ? (await api('GET', `/v1/documents?project=${proj.value}`)).documents : [];
-      about.replaceChildren(h('option', { value: '' }, 'No particular document'), ...list.filter((x) => x.current).map((x) => h('option', { value: x.current.id }, `${x.reference} rev ${x.current.revision} — ${x.title}`)));
-    };
+    const latest = latestOnly();
+    const loadDocs = () => latest(
+      async () => (proj.value ? (await api('GET', `/v1/documents?project=${proj.value}`)).documents : []),
+      (list) => refill(about, [h('option', { value: '' }, 'No particular document'), ...list.filter((x) => x.current).map((x) => h('option', { value: x.current.id }, `${x.reference} rev ${x.current.revision} — ${x.title}`))]));
     proj.addEventListener('change', loadDocs);
     formPage('Raise a request for information', 'Ask a question about the works, optionally about the current revision of a document. Someone other than you answers it, once; then you close it. An answer that changes cost or time is followed by a change event.',
       [h('div', { class: 'grid' }, field('Project', proj), field('About', about), field('Subject', subject), field('Expected to answer', to), field('Answer due', due)), field('Question', question)], 'Raise the RFI', async () => {
@@ -2388,11 +2404,10 @@ const FORMS = {
     const date = input('issue_date', { type: 'date', value: today(), required: true });
     const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
     const cc = select('cost_code_id', [], { required: true });
-    const loadCC = async () => {
-      cc.textContent = '';
-      if (!proj.value) return;
-      for (const c of (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes) cc.append(h('option', { value: c.id }, `${c.code} ${c.name}`));
-    };
+    const latestCC = latestOnly();
+    const loadCC = () => latestCC(
+      async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []),
+      (list) => refill(cc, list.map((c) => h('option', { value: c.id }, `${c.code} ${c.name}`))));
     proj.addEventListener('change', () => loadCC().catch(showError));
     formPage('Issue stock to a project', 'The site engineer or project manager approves the issue; its cost (FIFO or average) is computed then and charged to the cost code.', [
       h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty), field('Unit (optional)', unit, 'Counted in another unit? It is converted with an approved conversion.'), field('Against a reservation', resv, 'An issue against a reservation uses it up when approved.'),

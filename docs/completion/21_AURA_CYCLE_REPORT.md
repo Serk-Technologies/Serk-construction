@@ -36,9 +36,14 @@ Migration 0057, ADR 0024. Full run after the corrections: 471 passed, 0 failed, 
 | With a standard set but no logs, the reconciliation reported "no standard" | existing API test | only logged days without a standard count as unpredicted |
 | The page's focus ring was 2.0:1 on the forest top band | contrast computation, before any styling | a focus colour for the band |
 | The fuel table's last column was clipped and stretched its row | looking at the rendered page | explanations moved under the table; journey asserts the table fits |
+| **A late answer to an earlier request could silently reset a choice in a form** (the RFI's document link; found because GitHub run 35 failed while the same tree passed locally). Predates this session | CI on GitHub's timing | forms apply only the newest answer and keep the current choice; the documents journey now holds the first answer back on purpose and fails without the fix |
 | A workflow step name broke the workflow file's YAML | local check before push | fixed; `scripts/prepush.sh` now parses workflow files |
 
 In the first draft of the corrective migration I again linked two writes through a session setting a tenant login could forge; it was replaced before it reached the tree by a check against the row written in the same transaction.
+
+### Known remaining instance of that defect class
+
+The fix was applied to the RFI form, the stock-issue form, the fuel form and the work-order part form. Seven other forms reload their cost-code list on a project change with the older pattern (a late answer can replace the list; the user's choice is then the first entry rather than what they picked). They are not yet converted and have no reproduction test. This is a real, user-visible defect on slow connections and is the first item of the next cycle.
 
 ## 6. AURA: what exists and what does not
 
@@ -59,6 +64,7 @@ Equipment costing and charge-out (FLT-01.14), fixed assets (FLT-04), tank readin
 
 ## 9. Next steps, exactly
 
+1. Convert the seven remaining forms to the newest-answer-wins loader, each with a reproduction in a journey.
 1. Record the CI result of this cycle's final commit; if it is to be a candidate, run it three times.
 2. AURA: review each screen family by screenshot at the listed breakpoints; warm and high-contrast token sets; then the sign-in page and personal workspace as real, working screens.
 3. FLT-01.14 costing as approved policy documents with synthetic policies in test; then FLT-04 fixed assets through the existing posting interfaces.

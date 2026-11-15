@@ -92,10 +92,31 @@ try {
   log('current revision downloaded and matches the upload');
 
   // ---- 5. RFI: raised by the engineer, answered by the planner, closed by the engineer ---
+  // Regression (run 35): the form asks for the document list when it opens and again when the project changes.
+  // Hold the FIRST answer back so that it arrives last; it must not undo the choice made meanwhile.
+  let heldFirst = false;
+  let firstAnswered;
+  const firstDone = new Promise((r) => { firstAnswered = r; });
+  await eng.route(/\/v1\/documents\?project=/, async (route) => {
+    if (heldFirst) return route.continue();
+    heldFirst = true;
+    await new Promise((r) => setTimeout(r, 600));
+    await route.continue();
+    firstAnswered();
+  });
   await nav(eng, '#/new/rfi', 'Raise a request for information');
   await selectByText(eng.getByLabel('Project'), 'P-API');
   await eng.getByLabel('About').locator('option', { hasText: 'A-101 rev B' }).waitFor({ state: 'attached' });
   await selectByText(eng.getByLabel('About'), 'A-101 rev B');
+  if (heldFirst) await firstDone;
+  // The held answer has now been delivered to the page. Watch the choice while the page handles it.
+  const seen = await eng.getByLabel('About').evaluate(async (el) => {
+    const texts = new Set();
+    for (let i = 0; i < 20; i++) { texts.add(el.options[el.selectedIndex].text); await new Promise((r) => setTimeout(r, 25)); }
+    return [...texts];
+  });
+  await eng.unroute(/\/v1\/documents\?project=/);
+  if (seen.length !== 1 || !/A-101 rev B/.test(seen[0])) fail(`a late answer to an earlier request reset the RFI's document: saw ${JSON.stringify(seen)}`);
   await eng.getByLabel('Subject').fill('Slab thickness at grid C-4');
   await eng.getByLabel('Question').fill('Section 2 shows 200 mm, the schedule shows 250 mm. Which governs?');
   await eng.getByLabel('Expected to answer').fill('u-doc-planner');

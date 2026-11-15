@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-15 (fleet review corrections, ADR 0024)",
+  "updated": "2026-11-15 (AURA theme applied; form race fixed)",
   "repository": "Serk-Technologies/Serk-construction",
   "branch": "claude/new-session-xkd5g3",
   "milestone": {
@@ -114,6 +114,11 @@
       "command": "fresh database; go test -race -count=1 -p 1 -shuffle=on -json ./... on 5c3c2a8 (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright); gate; Gitleaks 8.21.2",
       "outcome": "468 pass, 0 fail, 0 skip, 34 mandatory",
       "evidence": "docs/engineering/evidence/2026-11-15-fleet-maintenance.summary.json"
+    },
+    {
+      "command": "fresh database; full suite as above",
+      "outcome": "with migration 0057: 471 pass, 0 fail, 0 skip, 37 mandatory. With the AURA theme (tree of e6bcb8d): 471/0/0",
+      "evidence": "docs/engineering/evidence/2026-11-15-fleet-corrections.summary.json"
     }
   ],
   "environment": {
@@ -178,7 +183,10 @@
       "29": "passed, 7fdaaf9",
       "30": "passed, aa3c44f (fuel)",
       "31": "passed, 5c3c2a8 (maintenance)",
-      "32": "passed, 45a3dc1"
+      "32": "passed, 45a3dc1",
+      "33": "passed, 12ca58e (fleet corrections)",
+      "34": "passed, 01d727e (tokens)",
+      "35": "FAILED, e6bcb8d: TestConsoleBrowserDocuments post-check; root cause a stale-response race in the RFI form (pre-existing), fixed in the following commit"
     },
     "release_candidate": {
       "revision": "45f4b5c10792df76043e75ea922f234c801821a1",
@@ -212,14 +220,16 @@
     "main_ci": "failing (run 20)"
   },
   "current_phase": "AURA directive, workstream A (immediate correction) done; workstream B (AURA foundation) not started",
-  "current_work_package": "Workstream B: AURA design tokens and component foundation, then FLT-01.14 costing",
+  "current_work_package": "Convert the remaining forms to the newest-answer-wins loader; then AURA screen review, sign-in and workspace; then FLT-01.14",
   "completed_work_packages": [
     "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
     "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
     "Phase 1 (partial): pre-push checks with CI's Gitleaks; bytecode untracked; unsigned authorisation record",
     "FLT-02 fuel on the stock ledger (0055, ADR 0022)",
     "FLT-03 maintenance work orders (0056, ADR 0023)",
-    "Fleet review corrections: independent certification, second factor at the database, approved fleet policy, plan revision and retirement, fuel across standards, FLT-04 mapping (0057, ADR 0024)"
+    "Fleet review corrections: independent certification, second factor at the database, approved fleet policy, plan revision and retirement, fuel across standards, FLT-04 mapping (0057, ADR 0024)",
+    "AURA light and dark themes applied to the console from tokens (CI-enforced)",
+    "Stale-response race in forms fixed for RFI, stock issue, fuel and work-order part forms, with a deterministic reproduction"
   ],
   "external_blockers": [
     "Branch protection on main and reviewed merge (repository administrator)",
@@ -233,5 +243,9 @@
     "FLT-04": "Fixed assets (capitalisation, depreciation, disposal): unchanged from the original register",
     "FLT-01.14": "Equipment costing and charge-out (earlier documents called it 'FLT-04 costing')",
     "FLT-05": "does not exist; earlier documents used it for fixed assets"
-  }
+  },
+  "known_defects": [
+    "Seven forms still reload their cost-code list on project change without ordering: a late answer can replace the list and reset the choice (user-visible on slow connections)",
+    "Only the Fleet page has been reviewed by eye under the AURA theme"
+  ]
 }
