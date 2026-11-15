@@ -37,7 +37,7 @@ Command for the suite: `go test -race -count=1 -p 1 -json ./...` with `SERK_TEST
 
 ### GitHub Actions, as actually run
 
-Full table and root causes: `AUDIT_REMEDIATION_2026-11-15.md`. In short: runs 14 to 20 failed (run 20 is `main` after PR #3 was merged while failing); run 21 passed but with the browser journeys skipped; **run 22 (`be030f7`) is the first run with all six jobs passing and no skipped test** (457 tests). An earlier version of this file said the `test` job passed in run 14: that was wrong, the step could not fail.
+Full table and root causes: `AUDIT_REMEDIATION_2026-11-15.md`. In short: runs 14 to 20 failed (run 20 is `main` after PR #3 was merged while failing); run 21 passed but with the browser journeys skipped; **run 22 (`be030f7`) is the first run with all six jobs passing and no skipped test**; runs 24 and 25 failed the secret scan on a test fixture (resolved); **the release candidate `45f4b5c` passed runs 26, 27 and 28** (460 tests, none skipped). An earlier version of this file said the `test` job passed in run 14: that was wrong, the step could not fail.
 
 ## Security findings
 
@@ -75,7 +75,7 @@ ClamAV public signatures and the Go vulnerability database (network); a Docker d
 Feature work is suspended by the audit directive. In order:
 
 1. **People:** enable branch protection on `main` and bring the fixes to `main` through a reviewed pull request (`AUDIT_REMEDIATION_2026-11-15.md`, section 4).
-2. Confirm three consecutive passing runs of the release-candidate revision (`execution-state.json`, `ci.release_candidate`).
+2. Done: release candidate `45f4b5c` passed three consecutive runs (26, 27, 28). A pull request to `main` should be made from that revision or a later documentation-only one.
 3. Document keys: versions, rotation and recovery are built (ADR 0021). Still open: re-encryption of existing files, KMS/HSM custody.
 4. Stale-signature alerting for the scanner; load, soak and fault-injection runs; penetration-test scope and environment.
 5. Only then: fleet part 2 (fuel), as described in `CHANGELOG.md`.

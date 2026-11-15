@@ -71,8 +71,9 @@ GitHub runs on this branch and `main`:
 | 23 | `a3bc292` | **passed** | this report's first version |
 | 24 | `bf3c05d` | failed | `secrets` job only: one Gitleaks finding (section 9); the other five jobs passed |
 | 25 | `d2e2c68` | failed | same finding (the scan covers history) |
+| 26, 27, 28 | `45f4b5c` | **passed x3** | release candidate: three consecutive runs of one revision (ids 43715406899, 43716286362, 43717074098), all six jobs each; 460 tests, 0 failed, 0 skipped |
 
-The three consecutive runs of the release-candidate revision are recorded in `execution-state.json` (`ci.release_candidate`) once they have run; this file is part of that revision and cannot contain its own run numbers.
+Release candidate: `45f4b5c`. This file was amended afterwards to record its three runs; the amendment changes documentation only.
 
 ## 4. Blocked on people (the agent cannot do these and has not tried to go around them)
 
@@ -109,7 +110,7 @@ The three consecutive runs of the release-candidate revision are recorded in `ex
 
 ## 8. Release readiness
 
-**NO-GO.** P0 is met on the development branch except for the items only an administrator can do (4.1, 4.2). Feature work (fleet, payroll, AI, BIM) stays suspended until those are done. Production deployment and live financial operation remain prohibited pending independent human authorisation.
+**NO-GO.** P0 is met on the development branch (release candidate `45f4b5c`, three consecutive clean runs) except for the items only an administrator can do (4.1, 4.2). Feature work (fleet, payroll, AI, BIM) stays suspended until those are done. Production deployment and live financial operation remain prohibited pending independent human authorisation.
 
 ## 9. Secret-scan finding in runs 24 and 25
 

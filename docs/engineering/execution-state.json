@@ -156,11 +156,34 @@
       "22": "passed: all six jobs, 457 tests, 0 skipped, commit be030f7, run id 43712828637",
       "23": "passed: all six jobs, commit a3bc292",
       "24": "failed: secrets job, one Gitleaks finding (synthetic test fixture in bf3c05d); other five jobs passed",
-      "25": "failed: same finding, commit d2e2c68"
+      "25": "failed: same finding, commit d2e2c68",
+      "26": "passed (push), commit 45f4b5c",
+      "27": "passed (workflow_dispatch), commit 45f4b5c",
+      "28": "passed (workflow_dispatch), commit 45f4b5c"
     },
     "release_candidate": {
-      "revision": "the commit that adds .gitleaksignore (recorded after its three runs)",
-      "runs": []
+      "revision": "45f4b5c10792df76043e75ea922f234c801821a1",
+      "runs": [
+        {
+          "run": 26,
+          "id": 43715406899,
+          "event": "push",
+          "result": "success, all six jobs"
+        },
+        {
+          "run": 27,
+          "id": 43716286362,
+          "event": "workflow_dispatch",
+          "result": "success, all six jobs"
+        },
+        {
+          "run": 28,
+          "id": 43717074098,
+          "event": "workflow_dispatch",
+          "result": "success, all six jobs; gate line read from the log: 460 passed, 0 failed, 0 skipped, 26 mandatory"
+        }
+      ],
+      "note": "Run one after another, each started after the previous finished. A green test job implies the gate's conditions (no failure, no skip, 26 mandatory tests, at least 458 passed); the count was read from the log for run 28 only. Commits after 45f4b5c on the branch change documentation only."
     }
   },
   "feature_development": "SUSPENDED by the audit remediation directive until the P0 stabilisation gate is met",
