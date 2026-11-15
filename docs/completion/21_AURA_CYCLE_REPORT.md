@@ -41,9 +41,13 @@ Migration 0057, ADR 0024. Full run after the corrections: 471 passed, 0 failed, 
 
 In the first draft of the corrective migration I again linked two writes through a session setting a tenant login could forge; it was replaced before it reached the tree by a check against the row written in the same transaction.
 
-### Known remaining instance of that defect class
+### That defect class, closed in the console
 
-The fix was applied to the RFI form, the stock-issue form, the fuel form and the work-order part form. Seven other forms reload their cost-code list on a project change with the older pattern (a late answer can replace the list; the user's choice is then the first entry rather than what they picked). They are not yet converted and have no reproduction test. This is a real, user-visible defect on slow connections and is the first item of the next cycle.
+All eleven forms that reload a list when another field changes now apply only the newest answer (`latestOnly`) and keep the current choice when it is still on offer (`refill`): RFI, stock issue, fuel dispense, work-order part, budget revision, budget transfer, contingency drawdown, change event, requisition, BOQ and schedule. No form uses the older pattern any more.
+
+In the five forms that rebuild a line grid the defect was worse than a reset choice: a late answer rebuilt the grid and discarded lines the user had already typed.
+
+Reproductions that hold an early answer back on purpose and fail without the fix exist for three forms: RFI (choice reset), requisition and schedule (typed lines discarded). The other eight use the same two helpers and are exercised by their ordinary journeys or not at all; they have no reproduction of their own. While writing the schedule reproduction, the first version passed without the fix because it read the old, detached grid; the watcher now reports a replaced element.
 
 ## 6. AURA: what exists and what does not
 
@@ -64,7 +68,6 @@ Equipment costing and charge-out (FLT-01.14), fixed assets (FLT-04), tank readin
 
 ## 9. Next steps, exactly
 
-1. Convert the seven remaining forms to the newest-answer-wins loader, each with a reproduction in a journey.
 1. Record the CI result of this cycle's final commit; if it is to be a candidate, run it three times.
 2. AURA: review each screen family by screenshot at the listed breakpoints; warm and high-contrast token sets; then the sign-in page and personal workspace as real, working screens.
 3. FLT-01.14 costing as approved policy documents with synthetic policies in test; then FLT-04 fixed assets through the existing posting interfaces.

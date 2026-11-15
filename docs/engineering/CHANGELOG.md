@@ -2,6 +2,10 @@
 
 Changes made under the SERK Construction OS 3.0 directive (`MASTER_PROMPT.md`). Earlier history: `docs/release/CHECKPOINT_*.md` and `git log`.
 
+## 2026-11-15: console forms apply only the newest answer
+
+- A slow earlier response could arrive after a newer one and overwrite it: a reset choice in six forms, and in five forms a rebuilt line grid that discarded typed lines. Found because a GitHub run failed on timing the build environment did not have. All eleven forms converted; three have reproductions that fail without the fix.
+
 ## 2026-11-15: fleet corrections after independent review (0057, ADR 0024)
 
 - **Correction of an overstatement:** a work order was described as passing through "four separate hands". Only two pairs were separated. Now the certifier is none of the preparer, authoriser or reporter (at least three people), enforced in the kernel and the database; the documents say exactly that.

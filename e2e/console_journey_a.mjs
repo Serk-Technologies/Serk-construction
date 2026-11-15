@@ -13,6 +13,38 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 
+// (This journey predates console_lib.mjs and keeps its own helpers; these two are the same as there.)
+// holdFirstAnswer delays the first response matching pattern so that it arrives
+// AFTER later ones: the situation in which a form that applies answers in
+// arrival order overwrites newer data with older. Returns { delivered, stop }:
+// await delivered once the held answer has been handed to the page.
+async function holdFirstAnswer(page, pattern, ms = 600) {
+  let held = false;
+  let done;
+  const delivered = new Promise((r) => { done = r; });
+  await page.route(pattern, async (route) => {
+    if (held) return route.continue();
+    held = true;
+    await new Promise((r) => setTimeout(r, ms));
+    await route.continue();
+    done();
+  });
+  return { delivered: () => (held ? delivered : Promise.resolve()), stop: () => page.unroute(pattern) };
+}
+
+// stays samples a value in the page for half a second and returns the distinct values seen
+// (or that the element was replaced).
+async function stays(locator, read) {
+  return locator.evaluate(async (el, src) => {
+    const f = new Function('el', `return (${src})(el)`);
+    const seen = new Set();
+    // An element the page has replaced still holds its old value: report the replacement, not the stale value.
+    for (let i = 0; i < 20; i++) { seen.add(el.isConnected ? String(f(el)) : '(element replaced by the page)'); await new Promise((r) => setTimeout(r, 25)); }
+    return [...seen];
+  }, read.toString());
+}
+
+
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.SERK_PLAYWRIGHT);
 const BASE = process.env.SERK_URL + '/console/';
@@ -165,10 +197,17 @@ try {
   // ---- 1. Requisition: site engineer creates and submits ------------------------
   const se = await as('siteEng');
   await audit(se, 'home (site engineer)');
+  // Regression: a late answer to the form's first cost-code request must not rebuild the lines over typed text.
+  const heldPR = await holdFirstAnswer(se, /\/v1\/projects\/[^/]+\/cost-codes/);
   await nav(se, '#/new/requisition', 'New requisition');
+  await se.getByLabel('Project').dispatchEvent('change');
   await se.getByLabel('Cost code, line 1').waitFor();
   await se.getByLabel('Justification').fill('Level 3 slab reinforcement and concrete');
   await se.getByLabel('Description, line 1').fill('Reinforcement steel Grade 60');
+  await heldPR.delivered();
+  const keptPR = await stays(se.getByLabel('Description, line 1'), (el) => (el.isConnected ? el.value : '(line removed)'));
+  await heldPR.stop();
+  if (keptPR.length !== 1 || keptPR[0] !== 'Reinforcement steel Grade 60') fail(`a late answer rebuilt the requisition lines over typed text: saw ${JSON.stringify(keptPR)}`);
   await se.getByLabel('Unit, line 1').fill('t');
   await se.getByLabel('Quantity, line 1').fill('20');
   await se.getByLabel('Estimated unit price, line 1').fill('86000');

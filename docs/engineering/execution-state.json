@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-15 (AURA theme applied; form race fixed)",
+  "updated": "2026-11-15 (all console forms apply only the newest answer)",
   "repository": "Serk-Technologies/Serk-construction",
   "branch": "claude/new-session-xkd5g3",
   "milestone": {
@@ -186,7 +186,8 @@
       "32": "passed, 45a3dc1",
       "33": "passed, 12ca58e (fleet corrections)",
       "34": "passed, 01d727e (tokens)",
-      "35": "FAILED, e6bcb8d: TestConsoleBrowserDocuments post-check; root cause a stale-response race in the RFI form (pre-existing), fixed in the following commit"
+      "35": "FAILED, e6bcb8d: TestConsoleBrowserDocuments post-check; root cause a stale-response race in the RFI form (pre-existing), fixed in the following commit",
+      "36": "passed, 5c74bd2 (race fix for four forms)"
     },
     "release_candidate": {
       "revision": "45f4b5c10792df76043e75ea922f234c801821a1",
@@ -220,7 +221,7 @@
     "main_ci": "failing (run 20)"
   },
   "current_phase": "AURA directive, workstream A (immediate correction) done; workstream B (AURA foundation) not started",
-  "current_work_package": "Convert the remaining forms to the newest-answer-wins loader; then AURA screen review, sign-in and workspace; then FLT-01.14",
+  "current_work_package": "AURA screen review, sign-in and workspace; then FLT-01.14 costing",
   "completed_work_packages": [
     "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
     "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
@@ -229,7 +230,8 @@
     "FLT-03 maintenance work orders (0056, ADR 0023)",
     "Fleet review corrections: independent certification, second factor at the database, approved fleet policy, plan revision and retirement, fuel across standards, FLT-04 mapping (0057, ADR 0024)",
     "AURA light and dark themes applied to the console from tokens (CI-enforced)",
-    "Stale-response race in forms fixed for RFI, stock issue, fuel and work-order part forms, with a deterministic reproduction"
+    "Stale-response race in forms fixed for RFI, stock issue, fuel and work-order part forms, with a deterministic reproduction",
+    "Stale-response race closed in all eleven reloading forms; reproductions for RFI, requisition and schedule"
   ],
   "external_blockers": [
     "Branch protection on main and reviewed merge (repository administrator)",
@@ -245,7 +247,7 @@
     "FLT-05": "does not exist; earlier documents used it for fixed assets"
   },
   "known_defects": [
-    "Seven forms still reload their cost-code list on project change without ordering: a late answer can replace the list and reset the choice (user-visible on slow connections)",
-    "Only the Fleet page has been reviewed by eye under the AURA theme"
+    "Only the Fleet page has been reviewed by eye under the AURA theme",
+    "Eight of the eleven converted forms have no race reproduction of their own (same helpers as the three that do)"
   ]
 }

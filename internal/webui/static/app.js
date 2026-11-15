@@ -1141,15 +1141,15 @@ const FORMS = {
     const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
     let grid;
     const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (cc) => {
       grid = lineGrid('Budget lines', [
         { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
         { key: 'amount', label: 'Amount', make: num('amount') },
         { key: 'contingency_flag', label: 'Contingency?', make: () => select('contingency_flag', [{ value: false, label: 'No' }, { value: true, label: 'Yes' }]) },
       ], [], true);
       holder.replaceChildren(grid);
-    };
+    });
     proj.addEventListener('change', load);
     formPage('New budget revision', 'Prepare the ORIGINAL baseline or a REVISION per cost code. A revision may reduce a code (negative amount). Mark a line as contingency to allow drawdowns from it. A different person approves.',
       [h('div', { class: 'grid' }, field('Project', proj), field('Kind', kind), field('Reason', reason)), holder], 'Create budget revision', async () => {
@@ -1166,12 +1166,12 @@ const FORMS = {
     const toCC = select('to_cost_code', [], { required: true });
     const amt = input('amount', { type: 'number', step: '0.01', min: '0.01', required: true });
     const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
-    const load = async () => {
-      const ccs = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (ccs) => {
       const opts = opt(ccs, (c) => `${c.code} ${c.name}`);
-      fromCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
-      toCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
-    };
+      refill(fromCC, opts.map((o) => h('option', { value: o.value }, o.label)));
+      refill(toCC, opts.map((o) => h('option', { value: o.value }, o.label)));
+    });
     proj.addEventListener('change', load);
     formPage('Request budget transfer', 'Transfer budget between cost codes within the same project with net-zero impact.',
       [h('div', { class: 'grid' }, field('Project', proj), field('From cost code', fromCC), field('To cost code', toCC), field('Amount', amt), field('Reason', reason))], 'Submit transfer request', async () => {
@@ -1193,15 +1193,18 @@ const FORMS = {
     const toCC = select('to_cost_code', [], { required: true });
     const amt = input('amount', { type: 'number', step: '0.01', min: '0.01', required: true });
     const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
-    const load = async () => {
-      const ccs = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async () => {
+      if (!proj.value) return { ccs: [], pos: [] };
+      const [a, b] = await Promise.all([api('GET', `/v1/projects/${proj.value}/cost-codes`), api('GET', `/v1/projects/${proj.value}/budget`)]);
+      return { ccs: a.cost_codes, pos: (b.cost_codes || []).filter((r) => r.is_contingency) };
+    }, ({ ccs, pos }) => {
       const opts = opt(ccs, (c) => `${c.code} ${c.name}`);
-      toCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
+      refill(toCC, opts.map((o) => h('option', { value: o.value }, o.label)));
       // Source: the project's contingency code(s); empty = the only one.
-      const pos = proj.value ? ((await api('GET', `/v1/projects/${proj.value}/budget`)).cost_codes || []).filter((r) => r.is_contingency) : [];
-      fromCC.replaceChildren(h('option', { value: '' }, pos.length === 1 ? `${pos[0].cost_code} (the project's contingency)` : 'Choose the contingency code'),
-        ...pos.map((r) => h('option', { value: r.cost_code_id }, `${r.cost_code} — current ${r.current}`)));
-    };
+      refill(fromCC, [h('option', { value: '' }, pos.length === 1 ? `${pos[0].cost_code} (the project's contingency)` : 'Choose the contingency code'),
+        ...pos.map((r) => h('option', { value: r.cost_code_id }, `${r.cost_code} — current ${r.current}`))]);
+    });
     proj.addEventListener('change', load);
     formPage('Request contingency drawdown', 'Draw down from project contingency into a project cost code.',
       [h('div', { class: 'grid' }, field('Project', proj), field('From contingency code', fromCC, 'Money comes out of this code. It must hold contingency.'),
@@ -1354,15 +1357,15 @@ const FORMS = {
     const days = input('schedule_impact_days', { type: 'number', step: '1', value: '0' });
     let grid;
     const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (cc) => {
       grid = lineGrid('Expected cost impact by cost code (more cost is positive, a saving is negative)', [
         { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
         { key: 'cost_impact', label: 'Cost impact', make: num('cost_impact') },
         { key: 'note', label: 'Note', make: txt('note', { maxlength: '200' }) },
       ], [], true);
       holder.replaceChildren(grid);
-    };
+    });
     proj.addEventListener('change', load);
     formPage('Raise a change event', 'Record a change to the money or time of a project before it is agreed. A different person decides it with a fresh multi-factor sign-in; if it has cost lines, approval drafts the budget revision that carries them (a draft only: the budget moves when that revision is approved).',
       [h('div', { class: 'grid' }, field('Project', proj), field('Title', title), field('Source', src), field('Description', desc), field('Revenue impact (what the client pays; signed)', rev), field('Schedule impact (days; signed)', days)), holder], 'Create change event', async () => {
@@ -1708,8 +1711,8 @@ const FORMS = {
     const need = input('needed_by', { type: 'date', value: plusDays(14) });
     let grid;
     const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (cc) => {
       grid = lineGrid('Requested lines', [
         { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
         { key: 'description', label: 'Description', make: txt('description') },
@@ -1718,7 +1721,7 @@ const FORMS = {
         { key: 'est_unit_price', label: 'Estimated unit price', make: num('est_unit_price') },
       ], [], true);
       holder.replaceChildren(grid);
-    };
+    });
     proj.addEventListener('change', load);
     formPage('New requisition', 'Request materials or services against an approved cost code. Approval checks the project budget.',
       [h('div', { class: 'grid' }, field('Project', proj), field('Justification', just), field('Needed by', need)), holder], 'Create requisition', async () => {
@@ -1734,8 +1737,8 @@ const FORMS = {
     const desc = input('description', { type: 'text', required: true });
     let grid;
     const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (cc) => {
       grid = lineGrid('BOQ items', [
         { key: 'item_no', label: 'Item no.', make: txt('item_no', { size: '6' }) },
         { key: 'description', label: 'Description', make: txt('description') },
@@ -1745,7 +1748,7 @@ const FORMS = {
         { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
       ], [], true);
       holder.replaceChildren(grid);
-    };
+    });
     proj.addEventListener('change', load);
     formPage('New BOQ version', 'Priced bill of quantities; once approved it is the budget for its cost codes.',
       [h('div', { class: 'grid' }, field('Project', proj), field('Description', desc)), holder], 'Create BOQ', async () => {
@@ -2220,8 +2223,8 @@ const FORMS = {
     });
     let acts;
     const actHolder = h('div');
-    const loadActs = async () => {
-      const ccs = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoadacts = latestOnly();
+    const loadActs = () => latestLoadacts(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (ccs) => {
       const ccOpts = [{ value: '', label: '(none)' }, ...opt(ccs, (c) => `${c.code} ${c.name}`)];
       acts = lineGrid('Activities', [
         { key: 'code', label: 'Code', make: txt('code', { size: '8' }) },
@@ -2231,7 +2234,7 @@ const FORMS = {
         { key: 'budget', label: 'Budget', make: num('budget') },
       ], [], true);
       actHolder.replaceChildren(acts);
-    };
+    });
     proj.addEventListener('change', () => loadActs().catch(showError));
     await loadActs();
     const links = lineGrid('Dependencies', [

@@ -3,17 +3,28 @@
 // approved BOQ and verifies earned value through the API afterwards). The
 // planner builds the textbook network (docs/testing/E2E_PLANNING.md) in the
 // schedule form; accessibility is audited on every new page.
-import { as, nav, act, selectByText, snap, audit, idFromHash, log, fail, failures, browser, pages } from './console_lib.mjs';
+import { as, nav, act, selectByText, snap, audit, idFromHash, log, fail, failures, browser, pages, holdFirstAnswer, stays } from './console_lib.mjs';
 
 try {
   // ---- 1. Planner builds the schedule -------------------------------------------------
   const planner = await as('planner');
   await nav(planner, '#/new/schedule', 'New schedule');
   await selectByText(planner.getByLabel('Project'), 'P-API');
+  // Regression: every change of project asks for that project's cost codes and rebuilds the activity grid from
+  // the answer. This form waits for its first answer before it appears, so the race is between two changes:
+  // hold the answer to the first back so it arrives after the second. It must not rebuild the grid over typed lines.
+  const heldCC = await holdFirstAnswer(planner, /\/v1\/projects\/[^/]+\/cost-codes/);
+  await planner.getByLabel('Project').dispatchEvent('change');
+  await planner.getByLabel('Project').dispatchEvent('change');
   await planner.getByLabel('Description').fill('Tender programme rev A');
   await planner.getByLabel('Start date').fill('2026-10-05');
   const actsGrid = planner.getByRole('group', { name: 'Activities' });
   await actsGrid.getByLabel('Code, line 1', { exact: true }).waitFor();
+  await actsGrid.getByLabel('Code, line 1', { exact: true }).fill('TYPED-BEFORE-THE-LATE-ANSWER');
+  await heldCC.delivered();
+  const kept = await stays(planner.getByRole('group', { name: 'Activities' }), (el) => (el.querySelector('input') || {}).value);
+  await heldCC.stop();
+  if (kept.length !== 1 || kept[0] !== 'TYPED-BEFORE-THE-LATE-ANSWER') fail(`a late answer rebuilt the activity grid over typed lines: saw ${JSON.stringify(kept)}`);
   const acts = [['A', 'Mobilisation', '3', '1000000'], ['B', 'Excavation', '4', '2000000'], ['C', 'Drainage', '2', '500000'],
     ['D', 'Foundations', '5', '3000000'], ['E', 'Handover', '1', '']];
   for (let i = 0; i < acts.length; i++) {
