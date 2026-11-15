@@ -19,6 +19,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"github.com/google/uuid"
 	"io"
 	"os"
 	"path/filepath"
@@ -534,6 +535,18 @@ func TestDocSecurity_RealScannerAndObjectStore(t *testing.T) {
 	f := w.f
 	scanner := docscan.Clamd{Network: "tcp", Address: clamd}
 	s3 := &blob.S3{Endpoint: ep, Region: "us-east-1", Bucket: os.Getenv("SERK_TEST_S3_BUCKET"), AccessKey: os.Getenv("SERK_TEST_S3_ACCESS_KEY"), SecretKey: os.Getenv("SERK_TEST_S3_SECRET_KEY"), PartSize: 5 << 20}
+	// The bucket is provisioned before the suite (tools/ci/s3provision); this
+	// test neither creates it nor relies on another test having done so.
+	if err := s3.CheckBucket(f.ctx); err != nil {
+		t.Fatalf("the test bucket must be provisioned before the suite (go run ./tools/ci/s3provision): %v", err)
+	}
+	// An upload into a bucket that does not exist is reported as that, not as a missing file.
+	gone := *s3
+	gone.Bucket = "serk-absent-" + strings.ReplaceAll(uuid.NewString(), "-", "")[:16]
+	noBucket := w.svcWith(DocumentStore{Blob: &blob.Sealed{Store: &gone, Master: testdb.DocumentKey}, Scanner: scanner, Key: testdb.DocumentKey, MaxBytes: 64 << 20})
+	if _, err := noBucket.AddRevisionStream(f.ctx, w.eng, w.doc(t, "REAL-0"), RevisionInput{Revision: "A", FileName: "x.pdf", MediaType: "application/pdf", ChangeNote: "No bucket"}, bytes.NewReader(pdf("x\n"))); !errors.Is(err, blob.ErrBucketNotFound) || errors.Is(err, blob.ErrNotFound) {
+		t.Fatalf("upload into a missing bucket: %v", err)
+	}
 	svc := w.svcWith(DocumentStore{Blob: &blob.Sealed{Store: s3, Master: testdb.DocumentKey}, Scanner: scanner, Key: testdb.DocumentKey, MaxBytes: 64 << 20})
 	if pol, err := svc.GetDocumentPolicy(f.ctx, w.eng); err != nil || !pol.ScannerConfigured || pol.Storage != "s3" || !pol.ScanRequired {
 		t.Fatalf("policy with real services: %+v %v", pol, err)

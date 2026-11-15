@@ -23,6 +23,7 @@ import (
 	"github.com/serk-group/serk-construction/internal/webui"
 	"github.com/serk-group/serk-construction/pkg/attest"
 	"github.com/serk-group/serk-construction/pkg/auth"
+	"github.com/serk-group/serk-construction/pkg/blob"
 	"github.com/serk-group/serk-construction/pkg/fx"
 	"github.com/serk-group/serk-construction/pkg/ledger"
 	"github.com/serk-group/serk-construction/pkg/money"
@@ -557,6 +558,13 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 // caller's own tenant are 403.
 func (s *Server) fail(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, blob.ErrBucketNotFound), errors.Is(err, blob.ErrAccessDenied), errors.Is(err, blob.ErrUnavailable):
+		// File storage is misconfigured or down: an operations fault. It is
+		// logged with its class and answered as a retryable 503, never as
+		// "not found" (which would tell the user their file does not exist).
+		s.cfg.Logger.Error("document storage fault", "err", err.Error())
+		w.Header().Set("Retry-After", "30")
+		writeErr(w, http.StatusServiceUnavailable, "storage_unavailable", "file storage is temporarily unavailable; nothing was lost, try again shortly")
 	case errors.Is(err, kernel.ErrNotFound), errors.Is(err, auth.ErrTenantMismatch):
 		writeErr(w, http.StatusNotFound, "not_found", "not found")
 	case errors.Is(err, auth.ErrStepUpRequired):

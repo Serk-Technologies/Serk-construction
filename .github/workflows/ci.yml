@@ -1,5 +1,6 @@
 name: ci
-on: [push, pull_request]
+# workflow_dispatch: lets the same revision be run again without a new commit (release-candidate repeatability).
+on: [push, pull_request, workflow_dispatch]
 permissions: { contents: read }
 
 jobs:
@@ -13,6 +14,8 @@ jobs:
         run: test -z "$(gofmt -l .)"
       - name: Go vet
         run: go vet ./...
+      - name: The CI result gate rejects what it must (its own tests)
+        run: python3 tools/ci/test_check_test_results.py
 
   supply-chain:
     runs-on: ubuntu-24.04
@@ -59,9 +62,9 @@ jobs:
         with: { go-version: "1.26.11" }
       - name: Cluster roles
         run: PGPASSWORD=ci-only-throwaway-password psql -h localhost -U postgres -d serk_ci -v ON_ERROR_STOP=1 -f deploy/00-roles.sql
-      # Real services for the document security tests (ADR 0019). If either
-      # fails to start, the tests that need it SKIP, and the "no skipped
-      # integration" step below fails the job: a skip is never a pass.
+      # Real services for the document security tests (ADR 0019). Nothing here
+      # is optional: the result gate below rejects the run if any test is
+      # skipped, so a service that fails to start fails the job.
       - name: Start an S3-compatible store (MinIO, built from source at a pinned version) and a ClamAV daemon
         run: |
           # Credentials for this run only, generated here: nothing secret is in the repository.
@@ -70,37 +73,57 @@ jobs:
           echo "SERK_TEST_S3_ACCESS_KEY=$S3_ACCESS" >> "$GITHUB_ENV"
           echo "SERK_TEST_S3_SECRET_KEY=$S3_SECRET" >> "$GITHUB_ENV"
           (cd "$RUNNER_TEMP" && GOFLAGS=-mod=mod GOBIN="$RUNNER_TEMP/bin" go install github.com/minio/minio@v0.0.0-20260212201848-7aac2a2c5b7c)
-          # A directory under the data path is a bucket: the tests expect theirs to exist, as a deployment's would.
-          mkdir -p "$RUNNER_TEMP/minio-data/serk-test-e3b0c44298fc"
+          mkdir -p "$RUNNER_TEMP/minio-data"
           MINIO_ROOT_USER="$S3_ACCESS" MINIO_ROOT_PASSWORD="$S3_SECRET" nohup "$RUNNER_TEMP/bin/minio" server "$RUNNER_TEMP/minio-data" --address 127.0.0.1:9000 > "$RUNNER_TEMP/minio.log" 2>&1 &
           docker run -d --name clamav -p 3310:3310 clamav/clamav:1.4
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:9000/minio/health/live && break; sleep 1; done
-          for i in $(seq 1 120); do (echo > /dev/tcp/127.0.0.1/3310) 2>/dev/null && break; sleep 2; done
-      - name: Unit + PostgreSQL integration/adversarial/concurrency tests (race detector)
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:9000/minio/health/live && break; sleep 1; done
+          curl -sf http://127.0.0.1:9000/minio/health/live
+      - name: Provision the test bucket and prove it is private (authenticated create, write/read, anonymous and wrong-secret refusal)
+        env:
+          S3_ENDPOINT: http://127.0.0.1:9000
+          S3_BUCKET: serk-test-e3b0c44298fc
+        run: S3_ACCESS_KEY="$SERK_TEST_S3_ACCESS_KEY" S3_SECRET_KEY="$SERK_TEST_S3_SECRET_KEY" go run ./tools/ci/s3provision
+      - name: The ClamAV daemon answers, with its engine and signature database version
+        run: |
+          set -o pipefail
+          # Ask the daemon itself (PING/VERSION over its socket), not just the TCP port: Docker accepts connections before clamd is ready.
+          for i in $(seq 1 150); do
+            if docker exec clamav clamdscan --ping 1 >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          docker exec clamav clamdscan --ping 1
+          docker exec clamav clamdscan --version | tee clamav-version.txt
+          docker exec clamav sh -c 'sigtool --info /var/lib/clamav/daily.c?d | grep -E "^(Build time|Version|Signatures)"' | tee -a clamav-version.txt
+      # Browser journeys: Playwright pinned to the version the journeys were written against, with its matching Chromium.
+      - name: Install Playwright 1.63.0 and Chromium
+        run: |
+          node --version
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund --save-exact playwright@1.63.0
+          npx playwright install --with-deps chromium
+          echo "SERK_PLAYWRIGHT=$RUNNER_TEMP/pw/node_modules/playwright" >> "$GITHUB_ENV"
+      - name: Unit + PostgreSQL integration/adversarial/concurrency tests (race detector), as structured results
         env:
           SERK_TEST_ADMIN_DSN: postgres://postgres:ci-only-throwaway-password@localhost:5432/serk_ci?sslmode=disable
           SERK_TEST_CLAMD: 127.0.0.1:3310
           SERK_TEST_S3_ENDPOINT: http://127.0.0.1:9000
           SERK_TEST_S3_BUCKET: serk-test-e3b0c44298fc
         run: |
-          # pipefail: without it the step takes tee's exit status and a failing test run is reported green.
-          set -o pipefail
           mkdir -p test-logs
-          go test -race -count=1 -p 1 -v ./... | tee test-logs/test-run.log
+          # No pipe: the exit status is go test's own and is handed to the gate, which decides from the JSON events.
+          rc=0
+          go test -race -count=1 -p 1 -json ./... > test-logs/test-run.json || rc=$?
+          python3 tools/ci/check_test_results.py test-logs/test-run.json --mandatory tools/ci/mandatory_tests.txt \
+            --go-exit "$rc" --min-pass 455 --summary test-logs/test-summary.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
-        with: { name: test-logs, path: test-logs/test-run.log }
-      # Last in the job log on purpose: the service containers' logs are long, and this keeps the failures easy to find.
-      - name: Failed tests, with their messages
-        if: failure()
-        run: |
-          grep -E -B12 -- '^\s*--- FAIL' test-logs/test-run.log | cut -c1-600 | tail -150 || true
-          grep -E '^(FAIL|panic:)' test-logs/test-run.log || true
-          docker logs --tail 15 clamav 2>&1 | cut -c1-300 || true
-      - name: The scanner and object-store integrations really ran
-        run: |
-          ! grep -E -- '--- SKIP: Test(ClamdAgainstARealDaemon|S3AgainstARealServer|DocSecurity_RealScannerAndObjectStore)' test-logs/test-run.log
-          grep -E -- '--- PASS: TestDocSecurity_RealScannerAndObjectStore' test-logs/test-run.log
+        with:
+          name: test-logs
+          path: |
+            test-logs/test-run.json
+            test-logs/test-summary.json
+            clamav-version.txt
       - name: Production configuration refuses demo defaults
         run: go test -count=1 -run 'Manifest|Demo|ProductionRules' ./internal/config/
       - name: Build binaries
@@ -137,6 +160,6 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: The console's scripts parse (the browser journeys run in the test job when Playwright is present)
+      - name: The console's scripts parse (the seven browser journeys are mandatory in the test job)
         run: |
           for f in internal/webui/static/*.js e2e/*.mjs; do node --check "$f"; done

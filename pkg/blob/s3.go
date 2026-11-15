@@ -23,7 +23,8 @@ import (
 // the standard library so the service takes on no SDK dependency. Objects
 // larger than PartSize are sent as a multipart upload, one part in memory at a
 // time. The bucket must be private: this client never sets a public ACL and
-// never creates a bucket.
+// never creates a bucket
+// on its own (CreateBucket exists for provisioning tools only).
 type S3 struct {
 	Endpoint  string // e.g. https://s3.eu-central-1.amazonaws.com or http://minio:9000
 	Region    string
@@ -132,9 +133,21 @@ func (s *S3) send(ctx context.Context, method, path string, query url.Values, bo
 	}
 	req.ContentLength = int64(len(body))
 	req.Header.Set("Authorization", "AWS4-HMAC-SHA256 Credential="+s.AccessKey+"/"+scope+", SignedHeaders="+signed+", Signature="+sig)
-	return s.client().Do(req)
+	resp, err := s.client().Do(req)
+	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, fmt.Errorf("%w (%v)", ErrUnavailable, err)
+	}
+	return resp, nil
 }
 
+// s3Err classifies a failed response. A missing bucket, a missing object, a
+// refused credential and a failing service are different faults with different
+// owners (deployment, caller, secrets, operations) and are never folded into
+// one another: a 404 is "object not found" only when the store says the key,
+// not the bucket, is what is missing.
 func s3Err(resp *http.Response, what string) error {
 	defer resp.Body.Close()
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
@@ -142,13 +155,91 @@ func s3Err(resp *http.Response, what string) error {
 		Code string `xml:"Code"`
 	}
 	_ = xml.Unmarshal(b, &e)
+	detail := fmt.Sprintf("S3 %s: HTTP %d %s", what, resp.StatusCode, e.Code)
 	switch {
-	case resp.StatusCode == http.StatusNotFound:
+	case e.Code == "NoSuchBucket":
+		return fmt.Errorf("%w (%s)", ErrBucketNotFound, detail)
+	case e.Code == "NoSuchKey" || e.Code == "NoSuchUpload" || e.Code == "NoSuchVersion":
 		return ErrNotFound
 	case resp.StatusCode == http.StatusPreconditionFailed || e.Code == "PreconditionFailed":
 		return ErrExists
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return fmt.Errorf("%w (%s)", ErrAccessDenied, detail)
+	case resp.StatusCode >= 500 || resp.StatusCode == http.StatusTooManyRequests || e.Code == "SlowDown":
+		return fmt.Errorf("%w (%s)", ErrUnavailable, detail)
+	case resp.StatusCode == http.StatusNotFound:
+		// No error document (a HEAD, or a store that sends none): the caller
+		// decides with CheckBucket whether the bucket or the key is missing.
+		return ErrNotFound
 	}
-	return fmt.Errorf("blob: S3 %s failed: HTTP %d %s", what, resp.StatusCode, e.Code)
+	return fmt.Errorf("blob: %s", detail)
+}
+
+// CheckBucket reports whether the configured bucket exists and accepts these
+// credentials: nil, ErrBucketNotFound, ErrAccessDenied or ErrUnavailable.
+// The service calls it at start-up and refuses to run without its bucket.
+func (s *S3) CheckBucket(ctx context.Context) error {
+	resp, err := s.send(ctx, http.MethodHead, "/"+s3Escape(s.Bucket, false), nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	switch {
+	case resp.StatusCode == http.StatusOK:
+		return nil
+	case resp.StatusCode == http.StatusNotFound:
+		return fmt.Errorf("%w (bucket %q)", ErrBucketNotFound, s.Bucket)
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return fmt.Errorf("%w (bucket %q: HTTP %d)", ErrAccessDenied, s.Bucket, resp.StatusCode)
+	}
+	return fmt.Errorf("%w (bucket %q: HTTP %d)", ErrUnavailable, s.Bucket, resp.StatusCode)
+}
+
+// CreateBucket creates the configured bucket with the store's default
+// (private) access. It is for provisioning tools and test set-up; the service
+// never calls it. An existing bucket owned by these credentials is not an error.
+func (s *S3) CreateBucket(ctx context.Context) error {
+	resp, err := s.send(ctx, http.MethodPut, "/"+s3Escape(s.Bucket, false), nil, nil, nil)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusOK {
+		resp.Body.Close()
+		return nil
+	}
+	b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+	resp.Body.Close()
+	var e struct {
+		Code string `xml:"Code"`
+	}
+	_ = xml.Unmarshal(b, &e)
+	if e.Code == "BucketAlreadyOwnedByYou" {
+		return nil
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(b))
+	return s3Err(resp, "create bucket")
+}
+
+// VerifyPrivate proves that the bucket refuses requests without credentials:
+// both listing it and reading the named object must be denied. It returns an
+// error describing the first request that was served.
+func (s *S3) VerifyPrivate(ctx context.Context, key string) error {
+	base := strings.TrimRight(s.Endpoint, "/") + "/" + s3Escape(s.Bucket, false)
+	for what, u := range map[string]string{"list": base + "?list-type=2", "read": base + "/" + s3Escape(key, true)} {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+		if err != nil {
+			return err
+		}
+		resp, err := s.client().Do(req)
+		if err != nil {
+			return fmt.Errorf("%w (anonymous %s: %v)", ErrUnavailable, what, err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusForbidden && resp.StatusCode != http.StatusUnauthorized {
+			return fmt.Errorf("blob: bucket %q is not private: an anonymous %s answered HTTP %d", s.Bucket, what, resp.StatusCode)
+		}
+	}
+	return nil
 }
 
 func (s *S3) exists(ctx context.Context, key string) (bool, error) {
@@ -162,8 +253,10 @@ func (s *S3) exists(ctx context.Context, key string) (bool, error) {
 		return true, nil
 	case http.StatusNotFound:
 		return false, nil
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return false, fmt.Errorf("%w (S3 head: HTTP %d)", ErrAccessDenied, resp.StatusCode)
 	}
-	return false, fmt.Errorf("blob: S3 head failed: HTTP %d", resp.StatusCode)
+	return false, fmt.Errorf("%w (S3 head: HTTP %d)", ErrUnavailable, resp.StatusCode)
 }
 
 // Put stores the object once. The write is conditional (If-None-Match: *)

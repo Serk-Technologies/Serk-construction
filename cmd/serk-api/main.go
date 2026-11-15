@@ -111,6 +111,15 @@ func main() {
 	case "s3":
 		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, Store: &blob.S3{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
 			AccessKey: cfg.S3AccessKey, SecretKey: string(cfg.S3SecretKey), Client: &http.Client{Timeout: 30 * time.Minute}}}
+		// Fail closed at start-up: a missing bucket or refused credentials is a
+		// deployment fault to fix now, not something to discover on the first upload.
+		bctx, bcancel := context.WithTimeout(ctx, 20*time.Second)
+		err := docs.Blob.Store.(*blob.S3).CheckBucket(bctx)
+		bcancel()
+		if err != nil {
+			log.Error("object storage is not usable", "bucket", cfg.S3Bucket, "err", err)
+			os.Exit(1)
+		}
 		log.Info("document files go to object storage, encrypted by this service", "bucket", cfg.S3Bucket)
 	case "fs":
 		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, Store: blob.FS{Root: cfg.BlobDir}}

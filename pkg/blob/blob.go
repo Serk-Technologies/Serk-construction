@@ -32,6 +32,14 @@ var (
 	// ErrCorrupt: the object failed authentication (tampered, truncated or
 	// written under another key or tenant).
 	ErrCorrupt = errors.New("blob: object failed integrity verification")
+	// ErrBucketNotFound: the configured bucket does not exist. A deployment
+	// fault, never "the file is missing".
+	ErrBucketNotFound = errors.New("blob: bucket not found")
+	// ErrAccessDenied: the store refused the credentials or the signature.
+	ErrAccessDenied = errors.New("blob: access denied by the object store")
+	// ErrUnavailable: the store could not be reached or failed (5xx, throttling).
+	// The only class worth retrying.
+	ErrUnavailable = errors.New("blob: object store unavailable")
 	// ErrKey: malformed object key.
 	ErrKey = errors.New("blob: invalid object key")
 )
