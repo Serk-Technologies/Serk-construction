@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py",
  "directory": "docs/engineering/evidence",
- "register_results_file": "docs/engineering/evidence/2026-11-15-role-adjust-26b7a29.tests.txt",
+ "register_results_file": "docs/engineering/evidence/2026-11-15-period-end-1d9c9a0.tests.txt",
  "files": [
   "2026-11-15-baseline-711a174-fresh-db.json",
   "2026-11-15-baseline.tests.txt",
@@ -38,6 +38,8 @@
   "2026-11-15-new-version-7ac2a6c.summary.json",
   "2026-11-15-overhead-dc0cd61.summary.json",
   "2026-11-15-overhead-dc0cd61.tests.txt",
+  "2026-11-15-period-end-1d9c9a0.summary.json",
+  "2026-11-15-period-end-1d9c9a0.tests.txt",
   "2026-11-15-pitr-drill-0054.txt",
   "2026-11-15-pitr-drill.txt",
   "2026-11-15-risks-47d2fb2.summary.json",

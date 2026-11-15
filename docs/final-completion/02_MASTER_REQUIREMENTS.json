@@ -1,9 +1,9 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-role-adjust-26b7a29.tests.txt",
- "register_commit": "26b7a29",
+ "results_file": "docs/engineering/evidence/2026-11-15-period-end-1d9c9a0.tests.txt",
+ "register_commit": "1d9c9a0",
  "requirement_counts": {
-  "VERIFIED": 105,
+  "VERIFIED": 107,
   "NOT_STARTED": 70,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
@@ -1746,6 +1746,21 @@
    "human_acceptance": "PENDING"
   },
   {
+   "id": "CAP-01.6",
+   "domain": "CAP-01",
+   "product": "CAPITAL",
+   "text": "Period end: fiscal years in the Gregorian or Ethiopian calendar; recurring journals only from templates approved by another person with a fresh second factor; accruals reversed once on their date; overhead spread by posted direct cost; the database refuses an overhead or recurring journal that differs from its computation (DEF-012, DEF-013; 0064, 0075, 0083)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPeriodEnd_FiscalYearRecurringAccrualOverhead",
+    "TestEthiopianFiscalYear",
+    "TestAPIRecurringJournalApproval"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
    "id": "CAP-02.1",
    "domain": "CAP-02",
    "product": "CAPITAL",
@@ -2823,6 +2838,19 @@
    "text": "Access reviews, legal hold and break-glass access",
    "status": "NOT_STARTED",
    "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-04.4",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "A security administrator withholds or restores permissions of a product role with a fresh second factor; the database refuses any change not attested for that person (DEF-014, 0082)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPeople_AdjustProductRole"
+   ],
    "criteria": [],
    "work_package": "WP-018",
    "human_acceptance": "PENDING"

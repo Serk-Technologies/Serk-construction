@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "26b7a29",
+ "register_commit": "1d9c9a0",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -1049,6 +1049,7 @@
     "CAP-01.3",
     "CAP-01.4",
     "CAP-01.5",
+    "CAP-01.6",
     "CAP-02.1",
     "CAP-03.1",
     "CAP-04.1",
@@ -1149,12 +1150,14 @@
    ],
    "tests": [
     "TestAPIFinancialStatements",
+    "TestAPIRecurringJournalApproval",
     "TestAmbiguityIsAnError",
     "TestAuditChainLinearUnderConcurrency",
     "TestClosedPeriodBlocksPosting",
     "TestConcurrentIdenticalCreatesAreIdempotent",
     "TestConvertIsExactAndBoundToSnapshot",
     "TestEffectiveDatingAndReviewStatus",
+    "TestEthiopianFiscalYear",
     "TestForecast_MethodsAndGuards",
     "TestForecast_WIPScheduleAndSummary",
     "TestHappyPathPostsAndBalancesAccounts",
@@ -1165,6 +1168,7 @@
     "TestJourneyB_ContractToCashToGL",
     "TestJourneyB_CreditNoteRacesReceipt",
     "TestOutboxAndPeriodsCannotBeTamperedByAppRole",
+    "TestPeriodEnd_FiscalYearRecurringAccrualOverhead",
     "TestPostedJournalIsImmutable",
     "TestPrivileges_TenantLoginCannotRewriteHistory",
     "TestR3_01_SubledgerJournalLinesAppendedAfterBinding",
@@ -1539,7 +1543,8 @@
     "BRS-03.5",
     "BRS-04.1",
     "BRS-04.2",
-    "BRS-04.3"
+    "BRS-04.3",
+    "BRS-04.4"
    ],
    "open_requirement_ids": [
     "BRS-01.1",
@@ -1612,6 +1617,7 @@
     "TestAPISessionRevocationAcrossReplicas",
     "TestDefaultRolesSeparateDuties",
     "TestGovernedAI_DraftOnly",
+    "TestPeople_AdjustProductRole",
     "TestPeople_DirectoryRolesAndProfile",
     "TestPlatform_IntelligenceAndAssistant",
     "TestPlatform_TenantSettings",

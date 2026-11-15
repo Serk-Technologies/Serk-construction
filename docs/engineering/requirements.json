@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-role-adjust-26b7a29.tests.txt",
- "commit": "26b7a29",
+ "results_file": "docs/engineering/evidence/2026-11-15-period-end-1d9c9a0.tests.txt",
+ "commit": "1d9c9a0",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,11 +11,11 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 106,
+  "VERIFIED": 107,
   "NOT_STARTED": 70,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 2
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
@@ -2058,7 +2058,7 @@
     {
      "id": "CAP-01.6",
      "text": "Period end: fiscal years in the Gregorian or Ethiopian calendar; recurring journals only from templates approved by another person with a fresh second factor; accruals reversed once on their date; overhead spread by posted direct cost; the database refuses an overhead or recurring journal that differs from its computation (DEF-012, DEF-013; 0064, 0075, 0083)",
-     "status": "IMPLEMENTED_UNVERIFIED",
+     "status": "VERIFIED",
      "evidence_tests": [
       "TestPeriodEnd_FiscalYearRecurringAccrualOverhead",
       "TestEthiopianFiscalYear",

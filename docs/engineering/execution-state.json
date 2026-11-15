@@ -64,7 +64,8 @@
   "0079_equipment_charge_out.sql",
   "0080_project_risks.sql",
   "0081_designation_approval.sql",
-  "0082_role_adjustment_attestation.sql"
+  "0082_role_adjustment_attestation.sql",
+  "0083_period_end_binding.sql"
  ],
  "adrs_added": [
   "0018",
@@ -281,7 +282,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-role-adjust-26b7a29.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-period-end-1d9c9a0.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -290,7 +291,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "DEF-013: 0083 (overhead and recurring journals bound to their computation at binding and approval; recurring templates approved by another person with fresh MFA, attested; lines by xmin), ApproveRecurring, route, console; then DEF-017; then CNX-05.1, CNX-07.2, SUP-05.4, PPL-05.1.",
+  "exact_next_action": "DEF-017: 0084 (document_cancellations attested for consolidation runs, tax returns, subcontract payments; asset disposal by AFTER trigger with xmin, no trigger depth); then CNX-05.1 correspondence (0085 drafted), CNX-07.2, SUP-05.4, PPL-05.1.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -307,8 +308,9 @@
    "CAP-01.5 income statement and balance sheet (87bb3ec)",
    "PLB-04.1 risk register (47d2fb2)",
    "DEF-015 designations approved (9eb1445)",
-   "DEF-014 role adjustments attested (26b7a29)"
+   "DEF-014 role adjustments attested (26b7a29)",
+   "DEF-013 period-end journals bound, templates approved (1d9c9a0)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-role-adjust-26b7a29.summary.json (500/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-period-end-1d9c9a0.summary.json (501/0/0)"
 }

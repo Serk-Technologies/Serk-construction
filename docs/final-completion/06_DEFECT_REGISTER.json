@@ -144,12 +144,13 @@
    "id": "DEF-013",
    "severity": "Medium",
    "area": "Period end",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Overhead, recurring and accrual journals are not bound to computed amounts; recurring templates unapproved; line binding uses a one-minute window (0064:95, 221)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Unverified journal amounts",
    "next_action": "Bind journal lines to the computed share; approve templates",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0083 and commit 1d9c9a0; TestPeriodEnd_FiscalYearRecurringAccrualOverhead and TestAPIRecurringJournalApproval assert the refusals; removing each new trigger or keeping the one-minute window fails the test"
   },
   {
    "id": "DEF-014",
