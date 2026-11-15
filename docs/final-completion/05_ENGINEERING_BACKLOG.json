@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "67620b4",
+ "register_commit": "4da1b31",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -836,7 +836,7 @@
     {
      "id": "SUP-05.4",
      "text": "Returns, scrap and quarantine",
-     "status": "IMPLEMENTING"
+     "status": "IMPLEMENTED_UNVERIFIED"
     },
     {
      "id": "SUP-06.2",
@@ -856,11 +856,6 @@
     {
      "id": "SUP-09.2",
      "text": "BOQ theoretical quantity against actual issues and installation (waste)",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "SUP-05.4.c",
-     "text": "Site returns: material returned from a project to a store at the issue's cost, crediting the project",
      "status": "NOT_STARTED"
     }
    ],
@@ -889,6 +884,7 @@
     "TestStockPlus_ConversionsAreControlled",
     "TestStockPlus_ReservationsIssuesAndReorder",
     "TestStock_QuarantineAndWriteoff",
+    "TestStock_SiteReturns",
     "TestSupplierExposureNeedsDualApproval",
     "TestSupplierExposureWindowAndConcurrency"
    ],

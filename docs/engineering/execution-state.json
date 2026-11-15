@@ -70,7 +70,8 @@
   "0085_correspondence.sql",
   "0086_certifications.sql",
   "0087_work_tasks.sql",
-  "0088_stock_quarantine_writeoff.sql"
+  "0088_stock_quarantine_writeoff.sql",
+  "0089_stock_returns.sql"
  ],
  "adrs_added": [
   "0018",
@@ -287,7 +288,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-stock-writeoff-67620b4.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-stock-returns-4da1b31.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -296,7 +297,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "SUP-05.4.c site returns (stock_returns, STK_RETURN at the issue's unit cost, reconciliation and the 0039 budget availability function); DEF-004 (four forms without race regression); DEF-005 (screenshot review).",
+  "exact_next_action": "CAP-01.5.c statement drill-down; CNX-04.1.b submittal resubmission cycle; CNX-03.2 RFI impact linked to change events; then DEF-004, DEF-005.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -319,8 +320,9 @@
    "CNX-05.1 correspondence, PPL-05.1 certifications (e412014)",
    "CNX-07.2 tasks; DEF-019 (995dbe1)",
    "DEF-018 rawFails (37f5100)",
-   "SUP-05.4 quarantine and scrap (67620b4)"
+   "SUP-05.4 quarantine and scrap (67620b4)",
+   "SUP-05.4 site returns (4da1b31)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-stock-writeoff-67620b4.summary.json (507/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-stock-returns-4da1b31.summary.json (508/0/0)"
 }
