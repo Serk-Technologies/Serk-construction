@@ -18,6 +18,8 @@ jobs:
         run: python3 tools/ci/test_check_test_results.py
       - name: AURA tokens meet their contrast targets and the stylesheet matches them
         run: python3 tools/design/aura_contrast.py --check-css
+      - name: Completion register keeps its baseline and its evidence exists
+        run: python3 tools/final_completion.py --check
 
   supply-chain:
     runs-on: ubuntu-24.04

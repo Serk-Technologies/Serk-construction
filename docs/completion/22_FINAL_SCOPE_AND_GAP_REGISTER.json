@@ -1,0 +1,101 @@
+{
+ "generated": "2026-11-15",
+ "inspected_commit": "dd0e9bc055176e84f6edc2fe741f6c40369f4464",
+ "other_refs": {
+  "main": "1096bf2",
+  "new-version": "7ac2a6c"
+ },
+ "open_pull_requests": 0,
+ "findings": [
+  {
+   "id": "GAP-01",
+   "class": "acceptance-critical",
+   "area": "Repository",
+   "finding": "Branch new-version holds two unmerged commits (6cbcdac, 7ac2a6c, 2026-11-09, by the repository owner): migrations 0052-0067, about 21,000 lines, covering cost forecasting with CPI, IFRS 15 revenue, change/variation links, subcontracts and their payments, fixed assets, period end, cash plan, role adjustments, payroll, consolidation, tax, workforce and HSE, quality and site, documents, credit rules.",
+   "consequence": "The migration versions collide with this branch's 0052-0057 and the runner refuses duplicates; documents, document_revisions, rfis and equipment are defined differently on each line.",
+   "decision": "Integrate on this branch (ADR 0025): carry the non-colliding work with renumbered migrations and both lines' tests; rebuild the colliding parts (transmittals, submittals, timesheets, HSE, internal hire) on this branch's document and equipment tables.",
+   "register": "DEF-001"
+  },
+  {
+   "id": "GAP-02",
+   "class": "acceptance-critical",
+   "area": "Governance",
+   "finding": "main is unprotected, at 1096bf2, merged while CI was failing.",
+   "consequence": "No enforced review or required checks.",
+   "decision": "Owner/administrator decision (GOV-01).",
+   "register": "DEF-002"
+  },
+  {
+   "id": "GAP-03",
+   "class": "acceptance-critical",
+   "area": "Console",
+   "finding": "Form state lives in the DOM; eight of eleven reloading forms have no own race regression.",
+   "consequence": "Typed lines can be lost on re-render; regressions undetected.",
+   "decision": "WP-001.",
+   "register": "DEF-003, DEF-004"
+  },
+  {
+   "id": "GAP-04",
+   "class": "acceptance-critical",
+   "area": "API",
+   "finding": "Errors are {error:{code,message}}, not RFC 9457; lists are bounded by LIMIT, cursors only on the equipment register.",
+   "consequence": "XCT-API.2 open.",
+   "decision": "WP-002.",
+   "register": "XCT-API.2"
+  },
+  {
+   "id": "GAP-05",
+   "class": "acceptance-critical",
+   "area": "Requirements",
+   "finding": "95 of 196 baseline requirements are not verified (76 not started, 9 implementing, 9 blocked, 1 implemented-unverified).",
+   "consequence": "Gate B not passable.",
+   "decision": "Work packages WP-003..WP-022; large requirements decomposed into acceptance criteria.",
+   "register": "02_MASTER_REQUIREMENTS.json"
+  },
+  {
+   "id": "GAP-06",
+   "class": "acceptance-critical",
+   "area": "Console coverage",
+   "finding": "Many navigation routes are visited by no browser journey (see 10_UI_COVERAGE_MATRIX.json).",
+   "consequence": "Route-level regressions undetected.",
+   "decision": "Extend journeys per screen family under WP-006.",
+   "register": "10_UI_COVERAGE_MATRIX.json"
+  },
+  {
+   "id": "GAP-07",
+   "class": "informational",
+   "area": "Code markers",
+   "finding": "No TODO, FIXME, HACK or not-implemented markers in production code; matches are test fixture strings only.",
+   "consequence": "None.",
+   "decision": "None.",
+   "register": ""
+  },
+  {
+   "id": "GAP-08",
+   "class": "informational",
+   "area": "Tests",
+   "finding": "Integration tests skip when SERK_TEST_ADMIN_DSN or browser variables are absent (internal/testdb, console_browser_*).",
+   "consequence": "A local run without services is not evidence; the CI gate rejects any skip, so CI runs are.",
+   "decision": "Keep the gate's zero-skip rule.",
+   "register": ""
+  },
+  {
+   "id": "GAP-09",
+   "class": "corrected",
+   "area": "Documentation",
+   "finding": "execution-state.json named fuel as the next milestone and said AURA workstream B had not started; run 37 was not recorded in its CI history.",
+   "consequence": "Misleading resume point.",
+   "decision": "Corrected; historical entries labelled.",
+   "register": "DEF-006"
+  },
+  {
+   "id": "GAP-10",
+   "class": "hygiene",
+   "area": "Repository",
+   "finding": "new-version commits a 15 MB built binary (serk-seed) at the repository root.",
+   "consequence": "Unreviewable binary.",
+   "decision": "Not carried into the integration.",
+   "register": "DEF-007"
+  }
+ ]
+}

@@ -1,253 +1,278 @@
 {
-  "updated": "2026-11-15 (all console forms apply only the newest answer)",
-  "repository": "Serk-Technologies/Serk-construction",
-  "branch": "claude/new-session-xkd5g3",
-  "milestone": {
-    "current": "M6 (fleet part 1 done; fuel next)",
-    "completed": [
-      "M0"
-    ],
-    "found_built_at_baseline": [
-      "M1",
-      "M2 (BOQ, budget, WBS; no estimating)",
-      "M3",
-      "M4 (no work packages)",
-      "M5 (server side only)"
-    ],
-    "slices": [
-      "M7: controlled documents, revisions, RFIs (0052)",
-      "Priority A: document security, object storage, scanning (0053)",
-      "Priority A.2: CI repair and extension",
-      "Priority B.1-B.4 in part: fleet register, lifecycle, reservations, logs, meters (0054)"
-    ]
+ "updated": "2026-11-15 (final-completion directive: discovery, control centre)",
+ "repository": "Serk-Technologies/Serk-construction",
+ "branch": "claude/new-session-xkd5g3",
+ "milestone": {
+  "current": "M6 enterprise operations (fleet register, fuel and maintenance built; AURA light/dark applied); final-completion programme started",
+  "completed": [
+   "M0"
+  ],
+  "found_built_at_baseline": [
+   "M1",
+   "M2 (BOQ, budget, WBS; no estimating)",
+   "M3",
+   "M4 (no work packages)",
+   "M5 (server side only)"
+  ],
+  "slices": [
+   "M7: controlled documents, revisions, RFIs (0052)",
+   "Priority A: document security, object storage, scanning (0053)",
+   "Priority A.2: CI repair and extension",
+   "Priority B.1-B.4 in part: fleet register, lifecycle, reservations, logs, meters (0054)"
+  ],
+  "history_note": "Earlier values of this field ('fleet part 1 done; fuel next') are historical and superseded."
+ },
+ "next_work_item": {
+  "id": "WP-INT",
+  "title": "Integrate the unmerged new-version line (DEF-001), then WP-002 API problem details and WP-001 form state"
+ },
+ "requirement_ids_touched": [
+  "CNX-01.10",
+  "CNX-01.11",
+  "CNX-01.14",
+  "CNX-01.15",
+  "CNX-01.4",
+  "CNX-01.5",
+  "CNX-01.7",
+  "CNX-01.8",
+  "CNX-01.9",
+  "FLT-01.1",
+  "FLT-01.2",
+  "FLT-01.3",
+  "FLT-01.4",
+  "FLT-01.5",
+  "FLT-01.6",
+  "FLT-01.7",
+  "FLT-01.8",
+  "XCT-DR.1"
+ ],
+ "migrations_added": [
+  "0052_document_control.sql",
+  "0053_document_security.sql",
+  "0054_fleet.sql",
+  "0055_fleet_fuel.sql",
+  "0056_fleet_maintenance.sql",
+  "0057_fleet_corrections.sql"
+ ],
+ "adrs_added": [
+  "0018",
+  "0019",
+  "0020",
+  "0021",
+  "0022",
+  "0023",
+  "0024"
+ ],
+ "commands": [
+  {
+   "command": "go test -race -count=1 -p 1 -json ./...",
+   "outcome": "433 pass, 0 fail, 0 skip",
+   "when": "baseline reproduced at 12c3cec"
   },
-  "next_work_item": {
-    "id": "AURA-B1 / FLT-01.14",
-    "title": "AURA design tokens and component foundation applied to the existing console without breaking the browser journeys; then equipment costing and charge-out as approved policy documents",
-    "then": [
-      "FLT-04 fixed assets",
-      "W2 site execution",
-      "the remaining waves of docs/completion/02_DOMAIN_MAP.md"
-    ]
+  {
+   "command": "same, with a real clamd and MinIO",
+   "outcome": "445 pass, 0 fail, 0 skip",
+   "when": "1ae8f5b",
+   "evidence": "docs/engineering/evidence/2026-11-15-document-security.tests.txt"
   },
-  "requirement_ids_touched": [
-    "CNX-01.10",
-    "CNX-01.11",
-    "CNX-01.14",
-    "CNX-01.15",
-    "CNX-01.4",
-    "CNX-01.5",
-    "CNX-01.7",
-    "CNX-01.8",
-    "CNX-01.9",
-    "FLT-01.1",
-    "FLT-01.2",
-    "FLT-01.3",
-    "FLT-01.4",
-    "FLT-01.5",
-    "FLT-01.6",
-    "FLT-01.7",
-    "FLT-01.8",
-    "XCT-DR.1"
-  ],
-  "migrations_added": [
-    "0052_document_control.sql",
-    "0053_document_security.sql",
-    "0054_fleet.sql",
-    "0055_fleet_fuel.sql",
-    "0056_fleet_maintenance.sql",
-    "0057_fleet_corrections.sql"
-  ],
-  "adrs_added": [
-    "0018",
-    "0019",
-    "0020",
-    "0021",
-    "0022",
-    "0023",
-    "0024"
-  ],
-  "commands": [
+  {
+   "command": "same",
+   "outcome": "454 pass, 0 fail, 0 skip",
+   "when": "fleet part 1",
+   "evidence": "docs/engineering/evidence/2026-11-15-fleet-part1.tests.txt"
+  },
+  {
+   "command": "deploy/drills/pitr_drill.sh",
+   "outcome": "PASS; 54 migrations; restore verified 1.15 s; RPO 5 s",
+   "evidence": "docs/engineering/evidence/2026-11-15-pitr-drill-0054.txt"
+  },
+  {
+   "command": "tools/capacity/fleet_measure.sh (100000 machines, 1000000 logs)",
+   "outcome": "register page 0.09 ms; project summary 37 ms; company summary 695 ms",
+   "evidence": "docs/engineering/evidence/2026-11-15-fleet-query-measurement.txt"
+  },
+  {
+   "command": "3 x go test -race -count=1 -p 1 -shuffle=on -json ./... (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright)",
+   "outcome": "457 pass, 0 fail, 0 skip in each run",
+   "evidence": "docs/engineering/evidence/2026-11-15-stability-3x-shuffle.json"
+  },
+  {
+   "command": "go test -race -count=1 -p 1 -shuffle=on -json ./... on bf3c05d (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright), judged by tools/ci/check_test_results.py",
+   "outcome": "460 pass, 0 fail, 0 skip; 26 mandatory tests present and passing",
+   "evidence": "docs/engineering/evidence/2026-11-15-key-rotation.tests.txt"
+  },
+  {
+   "command": "fresh database; go test -race -count=1 -p 1 -shuffle=on -json ./... (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright); gate; Gitleaks 8.21.2",
+   "outcome": "baseline 711a174: 460 pass, 0 fail, 0 skip. With fuel: 464 pass, 0 fail, 0 skip, 30 mandatory",
+   "evidence": "docs/engineering/evidence/2026-11-15-baseline-711a174-fresh-db.json, 2026-11-15-fleet-fuel.summary.json"
+  },
+  {
+   "command": "fresh database; go test -race -count=1 -p 1 -shuffle=on -json ./... on 5c3c2a8 (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright); gate; Gitleaks 8.21.2",
+   "outcome": "468 pass, 0 fail, 0 skip, 34 mandatory",
+   "evidence": "docs/engineering/evidence/2026-11-15-fleet-maintenance.summary.json"
+  },
+  {
+   "command": "fresh database; full suite as above",
+   "outcome": "with migration 0057: 471 pass, 0 fail, 0 skip, 37 mandatory. With the AURA theme (tree of e6bcb8d): 471/0/0",
+   "evidence": "docs/engineering/evidence/2026-11-15-fleet-corrections.summary.json"
+  }
+ ],
+ "environment": {
+  "cpu": 4,
+  "ram_gib": 15,
+  "go": "1.26.0",
+  "postgres": "16.15",
+  "browser": "Chromium via Playwright"
+ },
+ "not_run": [
+  "govulncheck locally (vulnerability database unreachable)",
+  "ClamAV with the public signature feed",
+  "Offsite encrypted backup drill",
+  "Concurrent load test",
+  "Any deployment",
+  "Load, soak and fault-injection tests",
+  "Any test against a real identity provider or KMS/HSM"
+ ],
+ "known_blockers": [
+  "ClamAV signature feed and Go vulnerability database unreachable from the build environment",
+  "No Docker daemon in the build environment",
+  "No field mobile client",
+  "No authorised identity provider, bank, messaging provider or model endpoint",
+  "Professional review of roles, accounting, tax and payroll",
+  "Penetration test and human release gates"
+ ],
+ "assumptions": [
+  "Files in PostgreSQL with a 10 MiB cap until object storage is available (ADR 0018)",
+  "Role grants: document.manage to site_engineer, quantity_surveyor, planner; document.approve to project_manager",
+  "An RFI may be answered by any document.manage holder on the project other than its author",
+  "Scanning is required by default; a tenant relaxes it only by an attested decision",
+  "Objects are encrypted by the service; download links are API-signed rather than store pre-signed",
+  "Fleet role grants as in docs/engineering/ROLE_PERMISSION_PROPOSAL.md"
+ ],
+ "authorisation": {
+  "deploy": false,
+  "merge_to_main": false,
+  "real_data": false,
+  "push": "authorised by the owner to claude/new-session-xkd5g3 only"
+ },
+ "release_status": "NO-GO",
+ "resume_command": "Read CLAUDE.md, docs/engineering/execution-state.json and docs/completion/02_DOMAIN_MAP.md; check the latest GitHub Actions run; reproduce the baseline with scripts in docs/engineering/RUNBOOK.md; continue with next_work_item.",
+ "session_start_commit": "12c3cec",
+ "ci": {
+  "note": "Green test jobs before run 17 are not evidence: the step piped into tee without pipefail and could not fail.",
+  "runs": {
+   "14": "failed",
+   "15": "failed",
+   "16": "failed (8 tests failed behind a green step)",
+   "17": "failed (missing bucket)",
+   "18": "failed",
+   "19": "failed (pull_request)",
+   "20": "failed (main, merge of PR #3)",
+   "21": "passed, NOT acceptable evidence (7 browser journeys skipped)",
+   "22": "passed: all six jobs, 457 tests, 0 skipped, commit be030f7, run id 43712828637",
+   "23": "passed: all six jobs, commit a3bc292",
+   "24": "failed: secrets job, one Gitleaks finding (synthetic test fixture in bf3c05d); other five jobs passed",
+   "25": "failed: same finding, commit d2e2c68",
+   "26": "passed (push), commit 45f4b5c",
+   "27": "passed (workflow_dispatch), commit 45f4b5c",
+   "28": "passed (workflow_dispatch), commit 45f4b5c",
+   "29": "passed, 7fdaaf9",
+   "30": "passed, aa3c44f (fuel)",
+   "31": "passed, 5c3c2a8 (maintenance)",
+   "32": "passed, 45a3dc1",
+   "33": "passed, 12ca58e (fleet corrections)",
+   "34": "passed, 01d727e (tokens)",
+   "35": "FAILED, e6bcb8d: TestConsoleBrowserDocuments post-check; root cause a stale-response race in the RFI form (pre-existing), fixed in the following commit",
+   "36": "passed, 5c74bd2 (race fix for four forms)",
+   "37": "success on dd0e9bc (all six jobs)"
+  },
+  "release_candidate": {
+   "revision": "45f4b5c10792df76043e75ea922f234c801821a1",
+   "runs": [
     {
-      "command": "go test -race -count=1 -p 1 -json ./...",
-      "outcome": "433 pass, 0 fail, 0 skip",
-      "when": "baseline reproduced at 12c3cec"
+     "run": 26,
+     "id": 43715406899,
+     "event": "push",
+     "result": "success, all six jobs"
     },
     {
-      "command": "same, with a real clamd and MinIO",
-      "outcome": "445 pass, 0 fail, 0 skip",
-      "when": "1ae8f5b",
-      "evidence": "docs/engineering/evidence/2026-11-15-document-security.tests.txt"
+     "run": 27,
+     "id": 43716286362,
+     "event": "workflow_dispatch",
+     "result": "success, all six jobs"
     },
     {
-      "command": "same",
-      "outcome": "454 pass, 0 fail, 0 skip",
-      "when": "fleet part 1",
-      "evidence": "docs/engineering/evidence/2026-11-15-fleet-part1.tests.txt"
-    },
-    {
-      "command": "deploy/drills/pitr_drill.sh",
-      "outcome": "PASS; 54 migrations; restore verified 1.15 s; RPO 5 s",
-      "evidence": "docs/engineering/evidence/2026-11-15-pitr-drill-0054.txt"
-    },
-    {
-      "command": "tools/capacity/fleet_measure.sh (100000 machines, 1000000 logs)",
-      "outcome": "register page 0.09 ms; project summary 37 ms; company summary 695 ms",
-      "evidence": "docs/engineering/evidence/2026-11-15-fleet-query-measurement.txt"
-    },
-    {
-      "command": "3 x go test -race -count=1 -p 1 -shuffle=on -json ./... (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright)",
-      "outcome": "457 pass, 0 fail, 0 skip in each run",
-      "evidence": "docs/engineering/evidence/2026-11-15-stability-3x-shuffle.json"
-    },
-    {
-      "command": "go test -race -count=1 -p 1 -shuffle=on -json ./... on bf3c05d (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright), judged by tools/ci/check_test_results.py",
-      "outcome": "460 pass, 0 fail, 0 skip; 26 mandatory tests present and passing",
-      "evidence": "docs/engineering/evidence/2026-11-15-key-rotation.tests.txt"
-    },
-    {
-      "command": "fresh database; go test -race -count=1 -p 1 -shuffle=on -json ./... (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright); gate; Gitleaks 8.21.2",
-      "outcome": "baseline 711a174: 460 pass, 0 fail, 0 skip. With fuel: 464 pass, 0 fail, 0 skip, 30 mandatory",
-      "evidence": "docs/engineering/evidence/2026-11-15-baseline-711a174-fresh-db.json, 2026-11-15-fleet-fuel.summary.json"
-    },
-    {
-      "command": "fresh database; go test -race -count=1 -p 1 -shuffle=on -json ./... on 5c3c2a8 (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright); gate; Gitleaks 8.21.2",
-      "outcome": "468 pass, 0 fail, 0 skip, 34 mandatory",
-      "evidence": "docs/engineering/evidence/2026-11-15-fleet-maintenance.summary.json"
-    },
-    {
-      "command": "fresh database; full suite as above",
-      "outcome": "with migration 0057: 471 pass, 0 fail, 0 skip, 37 mandatory. With the AURA theme (tree of e6bcb8d): 471/0/0",
-      "evidence": "docs/engineering/evidence/2026-11-15-fleet-corrections.summary.json"
+     "run": 28,
+     "id": 43717074098,
+     "event": "workflow_dispatch",
+     "result": "success, all six jobs; gate line read from the log: 460 passed, 0 failed, 0 skipped, 26 mandatory"
     }
-  ],
-  "environment": {
-    "cpu": 4,
-    "ram_gib": 15,
-    "go": "1.26.0",
-    "postgres": "16.15",
-    "browser": "Chromium via Playwright"
+   ],
+   "note": "Run one after another, each started after the previous finished. A green test job implies the gate's conditions (no failure, no skip, 26 mandatory tests, at least 458 passed); the count was read from the log for run 28 only. Commits after 45f4b5c on the branch change documentation only."
+  }
+ },
+ "feature_development": "Resumed by the completion directive of 2026-11-15 (fleet slices in order). Governance blockers on main remain open and are the administrator's.",
+ "governance": {
+  "main_branch_protection": "reported disabled by the independent audit; the agent has no administrative access",
+  "pr_3": "merged into main (1096bf2) while CI was failing; not opened or merged by the agent",
+  "main_ci": "failing (run 20)"
+ },
+ "current_phase": "Final-completion directive: WP-000 done (control centre, frozen baseline, validator in CI); integration of the unmerged new-version line next (DEF-001)",
+ "current_work_package": "WP-INT: integrate new-version (ADR 0025)",
+ "completed_work_packages": [
+  "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
+  "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
+  "Phase 1 (partial): pre-push checks with CI's Gitleaks; bytecode untracked; unsigned authorisation record",
+  "FLT-02 fuel on the stock ledger (0055, ADR 0022)",
+  "FLT-03 maintenance work orders (0056, ADR 0023)",
+  "Fleet review corrections: independent certification, second factor at the database, approved fleet policy, plan revision and retirement, fuel across standards, FLT-04 mapping (0057, ADR 0024)",
+  "AURA light and dark themes applied to the console from tokens (CI-enforced)",
+  "Stale-response race in forms fixed for RFI, stock issue, fuel and work-order part forms, with a deterministic reproduction",
+  "Stale-response race closed in all eleven reloading forms; reproductions for RFI, requisition and schedule"
+ ],
+ "external_blockers": [
+  "Branch protection on main and reviewed merge (repository administrator)",
+  "No authorisation to open a pull request has been given",
+  "Real identity provider, KMS/HSM, bank, messaging, AI provider: owner must authorise and supply",
+  "Statutory payroll, tax and labour rules: professional must supply",
+  "Penetration test and all human sign-offs"
+ ],
+ "release_decision": "NO-GO",
+ "requirement_mapping": {
+  "FLT-04": "Fixed assets (capitalisation, depreciation, disposal): unchanged from the original register",
+  "FLT-01.14": "Equipment costing and charge-out (earlier documents called it 'FLT-04 costing')",
+  "FLT-05": "does not exist; earlier documents used it for fixed assets"
+ },
+ "known_defects": "moved to docs/final-completion/06_DEFECT_REGISTER.json (canonical)",
+ "final_completion": {
+  "program": "SERK Construction OS 3.0 Final Completion",
+  "design_system": "SERK AURA",
+  "current_branch": "claude/new-session-xkd5g3",
+  "baseline_commit": "dd0e9bc",
+  "baseline_requirements": 196,
+  "current_requirement_count": 210,
+  "requirement_counts": {
+   "VERIFIED": 101,
+   "NOT_STARTED": 88,
+   "IMPLEMENTING": 10,
+   "BLOCKED": 9,
+   "IMPLEMENTED_UNVERIFIED": 2
   },
-  "not_run": [
-    "govulncheck locally (vulnerability database unreachable)",
-    "ClamAV with the public signature feed",
-    "Offsite encrypted backup drill",
-    "Concurrent load test",
-    "Any deployment",
-    "Load, soak and fault-injection tests",
-    "Any test against a real identity provider or KMS/HSM"
-  ],
-  "known_blockers": [
-    "ClamAV signature feed and Go vulnerability database unreachable from the build environment",
-    "No Docker daemon in the build environment",
-    "No field mobile client",
-    "No authorised identity provider, bank, messaging provider or model endpoint",
-    "Professional review of roles, accounting, tax and payroll",
-    "Penetration test and human release gates"
-  ],
-  "assumptions": [
-    "Files in PostgreSQL with a 10 MiB cap until object storage is available (ADR 0018)",
-    "Role grants: document.manage to site_engineer, quantity_surveyor, planner; document.approve to project_manager",
-    "An RFI may be answered by any document.manage holder on the project other than its author",
-    "Scanning is required by default; a tenant relaxes it only by an attested decision",
-    "Objects are encrypted by the service; download links are API-signed rather than store pre-signed",
-    "Fleet role grants as in docs/engineering/ROLE_PERMISSION_PROPOSAL.md"
-  ],
-  "authorisation": {
-    "deploy": false,
-    "merge_to_main": false,
-    "real_data": false,
-    "push": "authorised by the owner to claude/new-session-xkd5g3 only"
+  "criteria_counts": {
+   "NOT_STARTED": 42,
+   "BLOCKED": 12,
+   "VERIFIED": 2
   },
-  "release_status": "NO-GO",
-  "resume_command": "Read CLAUDE.md, docs/engineering/execution-state.json and docs/completion/02_DOMAIN_MAP.md; check the latest GitHub Actions run; reproduce the baseline with scripts in docs/engineering/RUNBOOK.md; continue with next_work_item.",
-  "session_start_commit": "12c3cec",
-  "ci": {
-    "note": "Green test jobs before run 17 are not evidence: the step piped into tee without pipefail and could not fail.",
-    "runs": {
-      "14": "failed",
-      "15": "failed",
-      "16": "failed (8 tests failed behind a green step)",
-      "17": "failed (missing bucket)",
-      "18": "failed",
-      "19": "failed (pull_request)",
-      "20": "failed (main, merge of PR #3)",
-      "21": "passed, NOT acceptable evidence (7 browser journeys skipped)",
-      "22": "passed: all six jobs, 457 tests, 0 skipped, commit be030f7, run id 43712828637",
-      "23": "passed: all six jobs, commit a3bc292",
-      "24": "failed: secrets job, one Gitleaks finding (synthetic test fixture in bf3c05d); other five jobs passed",
-      "25": "failed: same finding, commit d2e2c68",
-      "26": "passed (push), commit 45f4b5c",
-      "27": "passed (workflow_dispatch), commit 45f4b5c",
-      "28": "passed (workflow_dispatch), commit 45f4b5c",
-      "29": "passed, 7fdaaf9",
-      "30": "passed, aa3c44f (fuel)",
-      "31": "passed, 5c3c2a8 (maintenance)",
-      "32": "passed, 45a3dc1",
-      "33": "passed, 12ca58e (fleet corrections)",
-      "34": "passed, 01d727e (tokens)",
-      "35": "FAILED, e6bcb8d: TestConsoleBrowserDocuments post-check; root cause a stale-response race in the RFI form (pre-existing), fixed in the following commit",
-      "36": "passed, 5c74bd2 (race fix for four forms)"
-    },
-    "release_candidate": {
-      "revision": "45f4b5c10792df76043e75ea922f234c801821a1",
-      "runs": [
-        {
-          "run": 26,
-          "id": 43715406899,
-          "event": "push",
-          "result": "success, all six jobs"
-        },
-        {
-          "run": 27,
-          "id": 43716286362,
-          "event": "workflow_dispatch",
-          "result": "success, all six jobs"
-        },
-        {
-          "run": 28,
-          "id": 43717074098,
-          "event": "workflow_dispatch",
-          "result": "success, all six jobs; gate line read from the log: 460 passed, 0 failed, 0 skipped, 26 mandatory"
-        }
-      ],
-      "note": "Run one after another, each started after the previous finished. A green test job implies the gate's conditions (no failure, no skip, 26 mandatory tests, at least 458 passed); the count was read from the log for run 28 only. Commits after 45f4b5c on the branch change documentation only."
-    }
-  },
-  "feature_development": "Resumed by the completion directive of 2026-11-15 (fleet slices in order). Governance blockers on main remain open and are the administrator's.",
-  "governance": {
-    "main_branch_protection": "reported disabled by the independent audit; the agent has no administrative access",
-    "pr_3": "merged into main (1096bf2) while CI was failing; not opened or merged by the agent",
-    "main_ci": "failing (run 20)"
-  },
-  "current_phase": "AURA directive, workstream A (immediate correction) done; workstream B (AURA foundation) not started",
-  "current_work_package": "AURA screen review, sign-in and workspace; then FLT-01.14 costing",
-  "completed_work_packages": [
-    "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
-    "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
-    "Phase 1 (partial): pre-push checks with CI's Gitleaks; bytecode untracked; unsigned authorisation record",
-    "FLT-02 fuel on the stock ledger (0055, ADR 0022)",
-    "FLT-03 maintenance work orders (0056, ADR 0023)",
-    "Fleet review corrections: independent certification, second factor at the database, approved fleet policy, plan revision and retirement, fuel across standards, FLT-04 mapping (0057, ADR 0024)",
-    "AURA light and dark themes applied to the console from tokens (CI-enforced)",
-    "Stale-response race in forms fixed for RFI, stock issue, fuel and work-order part forms, with a deterministic reproduction",
-    "Stale-response race closed in all eleven reloading forms; reproductions for RFI, requisition and schedule"
+  "register_evidence": "docs/engineering/evidence/2026-11-15-fleet-corrections.tests.txt",
+  "control_centre": "docs/final-completion/ (tools/final_completion.py)",
+  "critical_defects": [
+   "DEF-001 unmerged new-version line",
+   "DEF-002 main unprotected"
   ],
-  "external_blockers": [
-    "Branch protection on main and reviewed merge (repository administrator)",
-    "No authorisation to open a pull request has been given",
-    "Real identity provider, KMS/HSM, bank, messaging, AI provider: owner must authorise and supply",
-    "Statutory payroll, tax and labour rules: professional must supply",
-    "Penetration test and all human sign-offs"
-  ],
+  "external_blockers": "docs/final-completion/08_EXTERNAL_BLOCKERS.json",
+  "qualified_candidate": "",
+  "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "requirement_mapping": {
-    "FLT-04": "Fixed assets (capitalisation, depreciation, disposal): unchanged from the original register",
-    "FLT-01.14": "Equipment costing and charge-out (earlier documents called it 'FLT-04 costing')",
-    "FLT-05": "does not exist; earlier documents used it for fixed assets"
-  },
-  "known_defects": [
-    "Only the Fleet page has been reviewed by eye under the AURA theme",
-    "Eight of the eleven converted forms have no race reproduction of their own (same helpers as the three that do)"
-  ]
+  "exact_next_action": "Integrate new-version: evaluate its suite on a fresh database, merge its history, renumber its non-colliding migrations after 0057, union the shared subject functions, and rebuild its colliding document and equipment parts on this branch's tables (ADR 0025)."
+ }
 }

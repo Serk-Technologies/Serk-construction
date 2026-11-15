@@ -6,7 +6,9 @@ Test results used: `docs/engineering/evidence/2026-11-15-fleet-corrections.tests
 
 **VERIFIED** on a requirement means every test named as evidence passed in that executed run. It is not a human acceptance. A domain is VERIFIED only when every listed requirement is verified **and** its owner has reviewed the list as complete against the Bible; no domain has had that review, so no domain is VERIFIED. A domain marked † has every listed requirement verified and awaits that review. A domain that is partly built is IMPLEMENTING.
 
-Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 9, NOT_STARTED 76, VERIFIED 101.
+Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 2, IMPLEMENTING 10, NOT_STARTED 88, VERIFIED 101.
+
+Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, NOT_STARTED 42, VERIFIED 2.
 
 Domain counts (80): BLOCKED 2, IMPLEMENTING 40, NOT_STARTED 38.
 
@@ -141,7 +143,16 @@ Product COMMAND · milestone M4 · owner Product owner
 |---|---|---|---|
 | CMD-05.1 | Every dashboard tile equals the report it drills into; the KPI catalogue documents formula and source | VERIFIED | `TestDashboard_TilesEqualTheirReports`, `TestDashboard_ScopeAndPermissions`, `TestKPICatalogueDocumentIsCurrent` |
 | CMD-05.2 | 13-week cash projection separating certified, billed and collected amounts | IMPLEMENTING | A 90-day outlook from approved invoices and ledger cash exists (docs/BACKLOG.md 5.4); payroll, tax and supplier schedules are missing. |
+| CMD-05.2.a | ↳ Certified, billed and collected amounts are separate lines of the projection | NOT_STARTED |  |
+| CMD-05.2.b | ↳ Supplier payment schedule from approved invoices and open purchase orders by due date | NOT_STARTED |  |
+| CMD-05.2.c | ↳ Payroll schedule from approved payroll runs (synthetic rules in test) | NOT_STARTED |  |
+| CMD-05.2.d | ↳ Tax payment schedule from posted tax liabilities | NOT_STARTED |  |
+| CMD-05.2.e | ↳ Collection schedule from issued customer invoices by due date | NOT_STARTED |  |
+| CMD-05.2.f | ↳ A reference dataset with independently calculated weekly cash positions matches the projection to the cent | NOT_STARTED |  |
 | CMD-05.3 | Daily exception digest by e-mail or Telegram | BLOCKED | No authorised messaging adapter or credentials. In-app notifications exist (TestPlatform_RulesLifecycleAndWorker). |
+| CMD-05.3.a | ↳ Messaging-provider interface, templates, delivery queue, idempotency and retry | NOT_STARTED |  |
+| CMD-05.3.b | ↳ Delivery audit, user preferences and approved recipients, verified against a local test provider | NOT_STARTED |  |
+| CMD-05.3.c | ↳ Real delivery through an authorised e-mail or Telegram provider | BLOCKED |  |
 
 ### EST-01 CRM — NOT_STARTED
 
@@ -272,6 +283,9 @@ Product PLAN / BUILD · milestone M4 · owner Construction lead
 |---|---|---|---|
 | PLB-08.1 | Progress reports against the approved baseline are approved before they count | VERIFIED | `TestR9_ScheduleProgressAndRaw` |
 | PLB-08.2 | Installed, measured, certified, billed and collected quantities are reported side by side | IMPLEMENTING | Measured/certified/billed/collected exist for contract lines (Journey B); installed quantity by work package does not. |
+| PLB-08.2.a | ↳ Installed quantities come from work packages, not typed onto the report | NOT_STARTED |  |
+| PLB-08.2.b | ↳ Measured, certified and billed quantities trace to measurement lines, certificates and invoices | NOT_STARTED |  |
+| PLB-08.2.c | ↳ Collected amounts trace to receipts applied to those invoices; physical progress never counts as collected | NOT_STARTED |  |
 
 ### PLB-09 Engineering — NOT_STARTED
 
@@ -404,6 +418,8 @@ Product FLEET · milestone M6 · owner Construction lead
 | FLT-01.9 | Work-package assignment, capacity planning, cross-project requests, availability forecasting, rental agreements, standby periods | NOT_STARTED |  |
 | FLT-01.10 | Attachments, equipment documents and photographs, fixed-asset linkage, warranty and insurance expiry alerts | NOT_STARTED | Warranty and insurance dates are stored; nothing acts on them yet. |
 | FLT-01.11 | Daily logs captured offline through the field device command log | IMPLEMENTING | The log API is idempotent on a client reference (verified); it is not yet a command kind of /v1/sync, and no field client exists. |
+| FLT-01.11.a | ↳ An equipment daily log is accepted as a signed, idempotent field-device command | NOT_STARTED |  |
+| FLT-01.11.b | ↳ A duplicate or replayed command applies once; a conflict is returned, never merged | NOT_STARTED |  |
 | FLT-01.12 | Telematics ingestion (GPS, engine hours, fuel level) with authenticated devices and replay protection, stored apart from accounting data | NOT_STARTED |  |
 | FLT-01.13 | Deterministic allocation and transfer recommendations with explainable constraints | NOT_STARTED |  |
 | FLT-01.14 | Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy | NOT_STARTED | Mapping: earlier handovers called this 'FLT-04 costing' and fixed assets 'FLT-05'. The register's FLT-04 is and remains Fixed assets (capitalisation, depreciation, disposal); there is no FLT-05. Costing lives here because the original register has no separate costing domain. Blocked in part on the financial controller's charge-out and allocation policy; synthetic policies may be used in test environments. |
@@ -415,6 +431,9 @@ Product FLEET · milestone M6 · owner Construction lead
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
 | FLT-02.1 | Fuel issues linked to asset, operator, meter and stock movement; variance review | IMPLEMENTING | The link and the reconciliation are built and verified (FLT-02.2 to FLT-02.5). A variance is listed with both figures for a person to explain; a recorded, approved investigation of a variance is FLT-02.6 and is not built. |
+| FLT-02.1.a | ↳ Each dispense is a stock issue linked to machine, operator and meter | VERIFIED | `TestFuel_DispenseIsAStockIssue` |
+| FLT-02.1.b | ↳ A variance is investigated in a recorded document with findings, reviewed and approved by someone other than the investigator | NOT_STARTED |  |
+| FLT-02.1.c | ↳ Tank dip readings are reconciled to the stock ledger and the difference is explained or adjusted through an approved count | NOT_STARTED |  |
 | FLT-02.2 | Fuel is ordinary stock: a dispense is a stock issue of a designated fuel item, prepared with the machine, meter reading and operator, and takes effect (tank quantity, value, journal, project cost) only when a second person approves the issue; there is no second fuel ledger | VERIFIED | `TestFuel_DispenseIsAStockIssue`, `TestAPIFuel` |
 | FLT-02.3 | A dispense is refused for an item not designated as fuel, a machine not at the project, a meter reading behind the last approved one, or more than the tank holds; an offline retry records once; a tenant database login cannot write or alter a dispense around the kernel | VERIFIED | `TestFuel_DispenseIsAStockIssue` |
 | FLT-02.4 | Fuel items and fuel standards (litres per metered unit, effective-dated, append-only) are set only by a person with fleet.approve, attested | VERIFIED | `TestFuel_DispenseIsAStockIssue`, `TestFuel_StandardsAndReconciliation`, `TestAPIFuel` — One person sets a standard; it is a reporting benchmark, not a financial figure. Old standards are kept. |
@@ -430,6 +449,10 @@ Product FLEET · milestone M6 · owner Construction lead
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
 | FLT-03.1 | Maintenance plans, work orders, parts and downtime | IMPLEMENTING | Work orders, parts, plans and out-of-service hours are built and verified (FLT-03.2 to FLT-03.6). Labour cost, workshop cost centres and maintenance schedules across a fleet calendar are not (FLT-03.7). |
+| FLT-03.1.a | ↳ Plans, work orders, parts as stock issues and downtime | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestMaintenance_PlansAndDue` |
+| FLT-03.1.b | ↳ Labour hours on a work order priced by an approved labour-rate policy | NOT_STARTED |  |
+| FLT-03.1.c | ↳ Workshop cost centres for machines not at a project | NOT_STARTED |  |
+| FLT-03.1.d | ↳ Fleet maintenance calendar of due and scheduled work | NOT_STARTED |  |
 | FLT-03.2 | A work order is prepared (plant staff; site staff for a breakdown of a machine at their project), authorised by fleet.approve with a fresh second factor, reported complete by plant staff and closed or sent back by a certifier who did not report it; a decided work order never changes; none of these decisions can be taken by an AI or service principal | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestAPIMaintenance`, `TestConsoleBrowserFleet` |
 | FLT-03.3 | A machine that has been under maintenance returns to service only after a work order for it was closed after it entered maintenance, never while a work order is open, and not by passing through inspection; an earlier work order does not release a later spell | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestFleet_RegisterAndLifecycle`, `TestAPIMaintenance` |
 | FLT-03.4 | A part used on a work order is an ordinary stock issue linked to the work order: approved by a second person, valued by the stock ledger, charged to the machine's project; a work order is not reported complete while a part awaits approval | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestAPIMaintenance` |
@@ -470,6 +493,10 @@ Product PEOPLE · milestone M6 · owner Finance controller
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
 | PPL-03.1 | Payroll preview → approval → locked run → posting → payment, on effective-dated reviewed rules | BLOCKED | No statutory payroll rules may be shipped without professional approval (MASTER_PROMPT 4.8). |
+| PPL-03.1.a | ↳ Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated | NOT_STARTED |  |
+| PPL-03.1.b | ↳ Preview, independent approval, locked run, journal and payment record with synthetic test rules | NOT_STARTED |  |
+| PPL-03.1.c | ↳ Reversal and reconciliation of a payroll run | NOT_STARTED |  |
+| PPL-03.1.d | ↳ Statutory rules supplied and approved by a named professional | BLOCKED |  |
 
 ### PPL-04 Productivity — NOT_STARTED
 
@@ -522,6 +549,9 @@ Product CONTRACT · milestone M4 · owner Finance controller
 | CON-04.1 | Payment certificate = cumulative certified − previous, less retention and advance recovery; never negative; no duplicate certification | VERIFIED | `TestJourneyB_ContractToCashToGL`, `TestR6_01_NegativeAmountDue`, `TestR6_03_AdvanceRecoveryEdges`, `TestJourneyB_CertificateHashConstant` |
 | CON-04.2 | Retention release, credit notes and price adjustment are separate approved documents | VERIFIED | `TestJourneyB_RetentionRelease`, `TestJourneyB_CreditNote`, `TestBonds_PriceAdjustment` |
 | CON-04.3 | Certification, invoice, revenue recognition and collection are distinct states | IMPLEMENTING | Certificate, invoice and receipt are distinct; IFRS 15 revenue recognition is not implemented and needs accounting policy approval. |
+| CON-04.3.a | ↳ Certification, invoicing and collection are distinct, separately evidenced states | NOT_STARTED |  |
+| CON-04.3.b | ↳ Revenue recognition follows a contract-specific, approved policy and is not triggered by invoicing alone | NOT_STARTED |  |
+| CON-04.3.c | ↳ A recognition change is reviewed by someone other than its preparer | NOT_STARTED |  |
 
 ### CAP-01 GL — IMPLEMENTING
 
@@ -569,6 +599,8 @@ Product CAPITAL · milestone M3 · owner Finance controller
 | CAP-05.1 | Payments are prepared, approved and released by different people and settled only by an independent bank statement | VERIFIED | `TestJourneyA_PaymentControls`, `TestR3_09_FabricatedStatementSettlesPayment`, `TestR4_04_ReconcilerSeparation` |
 | CAP-05.2 | FX rates are policy-bound, maker/checker approved and re-checked at posting | VERIFIED | `TestSC02_DatabaseRejectsIneligibleFXAndRechecksAtPost`, `TestSC03_FXMakerChecker`, `TestConvertIsExactAndBoundToSnapshot` |
 | CAP-05.3 | Bank transfers through a bank API | BLOCKED | No authorised bank sandbox; payments are instructions released by people. |
+| CAP-05.3.a | ↳ Bank adapter interface with validation, idempotency, status and reconciliation, verified against a sandbox double | NOT_STARTED |  |
+| CAP-05.3.b | ↳ Live bank integration under explicit authorisation and banking credentials | BLOCKED |  |
 
 ### CAP-06 Tax — IMPLEMENTING
 
@@ -578,6 +610,8 @@ Product CAPITAL · milestone M11 · owner Finance controller
 |---|---|---|---|
 | CAP-06.1 | Tax rules are effective-dated data with review status; ambiguity is an error | VERIFIED | `TestRulesValidate`, `TestEffectiveDatingAndReviewStatus`, `TestAmbiguityIsAnError` |
 | CAP-06.2 | Real jurisdiction tax and withholding rules | BLOCKED | Needs professional approval per jurisdiction; no real rates are shipped. |
+| CAP-06.2.a | ↳ Configurable tax engine: effective dates, bases, exemptions, withholding, rounding, source and approval | NOT_STARTED |  |
+| CAP-06.2.b | ↳ Real rates and rules from a named tax professional with sources | BLOCKED |  |
 
 ### CAP-07 Consolidation — NOT_STARTED
 
@@ -594,6 +628,8 @@ Product CAPITAL · milestone M6 · owner Finance controller
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
 | CAP-08.1 | Cash forecast scenarios including payroll, tax and supplier schedules | IMPLEMENTING | See CMD-05. |
+| CAP-08.1.a | ↳ Scenarios are versioned with stated assumptions | NOT_STARTED |  |
+| CAP-08.1.b | ↳ Each scenario uses the supplier, payroll, tax and collection schedules of CMD-05.2 | NOT_STARTED |  |
 
 ### CAP-09 Audit — IMPLEMENTING
 
@@ -648,6 +684,8 @@ Product CONNECT · milestone M7 · owner Product owner
 | CNX-01.3 | Documents are visible only inside the tenant and the reader's project scope; every download is recorded | VERIFIED | `TestDocuments_ScopeAndTenantIsolation`, `TestAPIDocumentsAndRFIs` |
 | CNX-01.4 | Malware scanning and quarantine before a file can be downloaded | VERIFIED | `TestDocSecurity_FailClosedQuarantine`, `TestDocSecurity_InfectedAndMaliciousUploads`, `TestClamdAgainstARealDaemon`, `TestDocSecurity_RealScannerAndObjectStore` — Fail closed: unscanned, failed-scan and infected files cannot be submitted, published or downloaded while scanning is required (the default). Verified against a real ClamAV daemon: locally with a database holding only the EICAR test hash, and in GitHub Actions from run 22 with the public signature database. Detection coverage beyond the standard test file is not measured (ADR 0019). |
 | CNX-01.5 | Object storage with pre-signed, short-lived URLs and resumable upload | IMPLEMENTING | Object storage and short-lived links are done (CNX-01.7, CNX-01.9). Links are issued by the API, not pre-signed by the store, because objects are encrypted by the service. Resumable upload from the client is CNX-01.13. |
+| CNX-01.5.a | ↳ Object storage with encryption and short-lived authorised download | NOT_STARTED |  |
+| CNX-01.5.b | ↳ Resumable upload: an interrupted upload continues without re-sending completed parts and is scanned before acceptance | NOT_STARTED |  |
 | CNX-01.6 | Transmittals, QR verification of a revision, retention policy and legal hold | NOT_STARTED |  |
 | CNX-01.7 | Files over the PostgreSQL cap are stored encrypted in an S3-compatible store under a tenant-scoped, immutable key fixed by the database; a tampered, swapped or cross-tenant object is not served | VERIFIED | `TestDocSecurity_ObjectStorageAndMigration`, `TestS3AgainstARealServer`, `TestSealedRoundTripAndTamperDetection`, `TestObjectKeyIsTenantScopedAndStrict`, `TestDocumentStorageConfig` |
 | CNX-01.8 | Migration from PostgreSQL to object storage is incremental and repeatable, verifies each copy by reading it back, and removes no byte until the schema owner releases it | VERIFIED | `TestDocSecurity_ObjectStorageAndMigration` |
@@ -759,6 +797,8 @@ Product CONNECT · milestone M11 · owner Product owner
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
 | CNX-13.1 | Government/regulator portal | BLOCKED | No authorised interface or requirement owner identified. |
+| CNX-13.1.a | ↳ Export formats, connector boundary, validation, retry and audit with contract tests | NOT_STARTED |  |
+| CNX-13.1.b | ↳ Official specification and authorised interface | BLOCKED |  |
 
 ### RES-01 Sales — NOT_STARTED
 
@@ -810,6 +850,8 @@ Product BRAIN / SENTINEL · milestone M9 · owner Security lead
 | BRS-02.2 | The assistant answers only from permission-filtered computed facts and shows sources | VERIFIED | `TestPlatform_IntelligenceAndAssistant`, `TestAIPhraserAdapter` |
 | BRS-02.3 | Model-independent gateway, agent registry and evaluation sets | NOT_STARTED |  |
 | BRS-02.4 | A live model provider | BLOCKED | No model endpoint is reachable or authorised from the build environment. |
+| BRS-02.4.a | ↳ Provider-neutral gateway with policy controls, data filtering, cost limits and safe fallback, verified with a local provider | NOT_STARTED |  |
+| BRS-02.4.b | ↳ Approved provider credentials and data-sharing authorisation | BLOCKED |  |
 
 ### BRS-03 Security — IMPLEMENTING
 
@@ -822,6 +864,10 @@ Product BRAIN / SENTINEL · milestone M1 · owner Security lead
 | BRS-03.3 | Pre-authentication abuse limits shared across replicas | VERIFIED | `TestSharedAbuse_LockoutAndBudgetsSpanReplicas`, `TestAPIPreAuthFloodProtection` |
 | BRS-03.4 | Production configuration fails closed on any demo default | VERIFIED | `TestProductionRefusesTheOldDemoDefaults`, `TestProductionManifestHasNoDemoDefaults` |
 | BRS-03.5 | Independent penetration test; a real identity provider with step-up; HSM/KMS custody of the signer key | BLOCKED | Needs named people and infrastructure (docs/release/GO_NO_GO.md). |
+| BRS-03.5.a | ↳ Real identity provider integration with step-up and revocation | BLOCKED |  |
+| BRS-03.5.b | ↳ KMS/HSM custody of the approval-signer key | BLOCKED |  |
+| BRS-03.5.c | ↳ KMS/HSM custody of document keys | BLOCKED |  |
+| BRS-03.5.d | ↳ External penetration test by an independent tester | BLOCKED |  |
 
 ### BRS-04 Platform admin — IMPLEMENTING
 
@@ -865,9 +911,15 @@ Product PLATFORM · milestone M11 · owner Chief architect
 |---|---|---|---|
 | XCT-DR.1 | Base backup plus WAL archive restores exactly to a named point, every migration included; data loss on losing the primary is measured | VERIFIED | `docs/engineering/evidence/2026-11-15-pitr-drill-0054.txt` — Local disposable clusters, a few hundred rows: all 54 migrations replayed, restore verified in 1.15 s, 5 s of committed writes lost with archive_timeout=10s. Not a production-scale measurement. |
 | XCT-DR.2 | Encrypted, signed offsite PITR backup restores exactly; forged or colliding archives are refused | IMPLEMENTED_UNVERIFIED | Drill script and an earlier recorded run exist (docs/operations/BACKUP_PITR_RESTORE_PROOF.md); not re-run in this session. |
+| XCT-DR.2.a | ↳ Restore is exact at the current commit (fresh evidence) | NOT_STARTED |  |
+| XCT-DR.2.b | ↳ A forged or colliding archive is refused | NOT_STARTED |  |
+| XCT-DR.2.c | ↳ An interrupted restore can be resumed or restarted safely | NOT_STARTED |  |
+| XCT-DR.2.d | ↳ Object storage, document keys and approval verification material restore with the database | NOT_STARTED |  |
 | XCT-DR.3 | Request telemetry, trace context and alert rules fire on induced failures | VERIFIED | `TestAlertDrill_InducedFailuresFireTheRightAlerts`, `TestRequestTelemetryAndTraceContext` |
 | XCT-DR.4 | Outbox relay delivers in order, retries, dead-letters and replays; consumers dedupe | VERIFIED | `TestRelayDeliversInOrderExactlyOnceWhenHealthy`, `TestRelayCrashAfterPublishRedeliversAndConsumerDedupes`, `TestRelayRetryDeadLetterHeadOfLineAndReplay` |
 | XCT-DR.5 | Operated staging and production environments | BLOCKED | Deployment needs the owner's authorisation and infrastructure. |
+| XCT-DR.5.a | ↳ Reproducible deployment profiles for internal test and staging | NOT_STARTED |  |
+| XCT-DR.5.b | ↳ An operated environment deployed under explicit authorisation | BLOCKED |  |
 
 ### XCT-LOC Localisation — IMPLEMENTING
 
@@ -880,6 +932,8 @@ Product PLATFORM · milestone M11 · owner Chief architect
 | XCT-LOC.3 | Ethiopian calendar display and input with round-trip tests | NOT_STARTED |  |
 | XCT-LOC.4 | Translated interface (Amharic, Tigrinya, Afan Oromo) | NOT_STARTED |  |
 | XCT-LOC.5 | Ethiopian statutory tax, payroll and forms | BLOCKED | Needs local legal and accounting approval. |
+| XCT-LOC.5.a | ↳ Localisation architecture for statutory forms and reporting formats | NOT_STARTED |  |
+| XCT-LOC.5.b | ↳ Current professional legal and accounting review | BLOCKED |  |
 
 ### XCT-API API and events — IMPLEMENTING
 
@@ -889,3 +943,35 @@ Product PLATFORM · milestone M1 · owner Chief architect
 |---|---|---|---|
 | XCT-API.1 | The OpenAPI contract matches the routes served | VERIFIED | `TestOpenAPIMatchesRoutes` |
 | XCT-API.2 | Problem details per RFC 9457 and cursor pagination on every list | IMPLEMENTING | Errors use a consistent {code,message} body; lists are bounded by LIMIT, not cursors. |
+| XCT-API.2.a | ↳ Every error response is application/problem+json with type, title, status and detail | NOT_STARTED |  |
+| XCT-API.2.b | ↳ Document lists page by an opaque cursor with stable ordering | NOT_STARTED |  |
+| XCT-API.2.c | ↳ A cursor cannot cross tenants or change the filters it was issued for | NOT_STARTED |  |
+| XCT-API.2.d | ↳ Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page | NOT_STARTED |  |
+
+### XCT-FORM Console form reliability — IMPLEMENTING
+
+Product PLATFORM · milestone M6 · owner Chief architect
+
+| ID | Requirement | Status | Evidence |
+|---|---|---|---|
+| XCT-FORM.1 | A dependent form applies only the newest answer for each list it loads; an older answer or error never replaces a newer one | IMPLEMENTING | `TestConsoleBrowserDocuments`, `TestConsoleBrowserJourneyA`, `TestConsoleBrowserPlanning` — latestOnly/refill in all eleven reloading forms; three forms have their own race reproduction. |
+| XCT-FORM.2 | Form state (lines, amounts, descriptions) lives in a state object with stable line identities, independent of the DOM | NOT_STARTED |  |
+| XCT-FORM.3 | Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently | NOT_STARTED |  |
+| XCT-FORM.4 | Submission is blocked while dependent data is loading and cannot be sent twice | NOT_STARTED |  |
+| XCT-FORM.5 | Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests | NOT_STARTED |  |
+| XCT-FORM.6 | Every reloading form has a barrier-driven regression that fails without the fix | NOT_STARTED |  |
+
+### XCT-UI SERK AURA experience — IMPLEMENTING
+
+Product PLATFORM · milestone M6 · owner Chief architect
+
+| ID | Requirement | Status | Evidence |
+|---|---|---|---|
+| XCT-UI.1 | AURA light and dark token sets meet their contrast targets and the console stylesheet matches them | IMPLEMENTED_UNVERIFIED | `TestAURATokensMatchStylesheet` — Runs tools/design/aura_contrast.py --check-css. |
+| XCT-UI.2 | AURA warm and high-contrast themes, selectable per user | NOT_STARTED |  |
+| XCT-UI.3 | Sign-in page: accessible labels, password-manager friendly, MFA and SSO when configured, no unsupported claims | NOT_STARTED |  |
+| XCT-UI.4 | Personal workspace: tasks, approvals, deadlines, recent records; layout preferences saved per user and tenant | NOT_STARTED |  |
+| XCT-UI.5 | Application shell: project switcher, command palette, notification centre, permission-aware search | NOT_STARTED |  |
+| XCT-UI.6 | Role workspaces for the roles in the directive, each with its own working queue | NOT_STARTED |  |
+| XCT-UI.7 | Every screen family reviewed by screenshot at the listed widths, with defects recorded and fixed | NOT_STARTED |  |
+| XCT-UI.8 | Automated accessibility checks on every screen family; manual review recorded separately | NOT_STARTED |  |

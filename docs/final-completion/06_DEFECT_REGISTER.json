@@ -1,0 +1,82 @@
+{
+ "canonical": "This file is the canonical defect register (hand-maintained). Severity: Critical, High, Medium, Low.",
+ "defects": [
+  {
+   "id": "DEF-001",
+   "severity": "High",
+   "area": "Repository / integration",
+   "status": "OPEN",
+   "title": "Unmerged parallel line on branch new-version (6cbcdac, 7ac2a6c; 2026-11-09) with migrations 0052-0067 that collide with this branch's 0052-0057",
+   "evidence": "git log claude/new-session-xkd5g3..origin/new-version; both lines define documents, document_revisions, rfis and equipment differently; the migration runner refuses duplicate versions",
+   "impact": "About 21,000 lines of owner-authored work (revenue recognition, subcontracts, fixed assets, period end, payroll, consolidation, tax, workforce, HSE, quality, documents) are outside the candidate; neither line can be merged into main as it stands",
+   "next_action": "Integrate on this branch: renumber the non-colliding migrations after 0057, port transmittals/submittals, timesheets and HSE onto this branch's document and equipment tables, and run both lines' tests (ADR 0025)",
+   "found": "2026-11-15 final-completion discovery"
+  },
+  {
+   "id": "DEF-002",
+   "severity": "High",
+   "area": "Governance",
+   "status": "OPEN",
+   "title": "main is unprotected and at 1096bf2, which was merged while CI was failing",
+   "evidence": "GitHub branch listing (protected: false); docs/completion/GOVERNANCE_REVIEW_PACKAGE.md",
+   "impact": "A green development branch is not a healthy main; nothing prevents an unreviewed merge",
+   "next_action": "Repository administrator: branch protection with required checks and review (owner decision)",
+   "found": "independent audit"
+  },
+  {
+   "id": "DEF-003",
+   "severity": "Medium",
+   "area": "Console forms",
+   "status": "OPEN",
+   "title": "Form state lives in the DOM; a re-render can lose typed lines (directive 7.1)",
+   "evidence": "app.js forms rebuild line grids from fetched data; latestOnly only orders answers",
+   "impact": "Entered financial lines depend on whether a DOM node survives",
+   "next_action": "WP-001 form-state module",
+   "found": "directive 7.1"
+  },
+  {
+   "id": "DEF-004",
+   "severity": "Medium",
+   "area": "Console forms",
+   "status": "OPEN",
+   "title": "Eight of the eleven reloading forms have no race regression of their own",
+   "evidence": "e2e/*.mjs: reproductions exist for RFI, requisition and schedule only",
+   "impact": "A regression in those eight forms would not be caught",
+   "next_action": "WP-001 barrier-driven regressions",
+   "found": "2026-11-15"
+  },
+  {
+   "id": "DEF-005",
+   "severity": "Medium",
+   "area": "AURA",
+   "status": "OPEN",
+   "title": "Only the Fleet screen family has been reviewed by screenshot under AURA",
+   "evidence": "docs/completion/21_AURA_CYCLE_REPORT.md",
+   "impact": "Visual defects elsewhere are unknown",
+   "next_action": "WP-006 screenshot review at the listed widths",
+   "found": "2026-11-15"
+  },
+  {
+   "id": "DEF-006",
+   "severity": "Low",
+   "area": "Documentation",
+   "status": "CLOSED",
+   "title": "execution-state.json said the current milestone was 'fuel next' and that AURA workstream B had not started",
+   "evidence": "docs/engineering/execution-state.json before this commit",
+   "impact": "Misleading resume point",
+   "next_action": "Corrected in the final-completion commit; historical entries are labelled as such",
+   "found": "directive 7.3"
+  },
+  {
+   "id": "DEF-007",
+   "severity": "Low",
+   "area": "Repository hygiene",
+   "status": "OPEN",
+   "title": "new-version commits a 15 MB built binary (serk-seed) into the repository root",
+   "evidence": "git show --stat 6cbcdac",
+   "impact": "Unreviewable binary in history; must not be carried into the integration",
+   "next_action": "Exclude from the integration; build the seeder from cmd/serk-seed",
+   "found": "2026-11-15 final-completion discovery"
+  }
+ ]
+}

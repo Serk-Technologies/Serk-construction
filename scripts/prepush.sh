@@ -26,6 +26,7 @@ test -z "$(gofmt -l .)" || { echo "prepush: FAIL: gofmt"; gofmt -l .; exit 1; }
 go vet ./...
 python3 tools/ci/test_check_test_results.py
 python3 tools/design/aura_contrast.py --check-css > /dev/null || { echo "prepush: FAIL: AURA tokens (run tools/design/aura_contrast.py --check-css)"; exit 1; }
+python3 tools/final_completion.py --check > /dev/null || { echo "prepush: FAIL: completion register (run tools/final_completion.py --check)"; exit 1; }
 # A workflow file that does not parse is only discovered on GitHub, after the push.
 python3 - <<'PYEOF'
 import glob, sys

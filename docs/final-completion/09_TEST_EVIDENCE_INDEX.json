@@ -1,0 +1,25 @@
+{
+ "generated_by": "tools/final_completion.py",
+ "directory": "docs/engineering/evidence",
+ "register_results_file": "docs/engineering/evidence/2026-11-15-fleet-corrections.tests.txt",
+ "files": [
+  "2026-11-15-baseline-711a174-fresh-db.json",
+  "2026-11-15-baseline.tests.txt",
+  "2026-11-15-document-security.tests.txt",
+  "2026-11-15-documents-slice.tests.txt",
+  "2026-11-15-fleet-corrections.summary.json",
+  "2026-11-15-fleet-corrections.tests.txt",
+  "2026-11-15-fleet-fuel.summary.json",
+  "2026-11-15-fleet-fuel.tests.txt",
+  "2026-11-15-fleet-maintenance.summary.json",
+  "2026-11-15-fleet-maintenance.tests.txt",
+  "2026-11-15-fleet-part1-password-auth.tests.txt",
+  "2026-11-15-fleet-part1.tests.txt",
+  "2026-11-15-fleet-query-measurement.txt",
+  "2026-11-15-key-rotation.tests.txt",
+  "2026-11-15-pitr-drill-0054.txt",
+  "2026-11-15-pitr-drill.txt",
+  "2026-11-15-stability-3x-shuffle.json",
+  "2026-11-15-stabilization.tests.txt"
+ ]
+}

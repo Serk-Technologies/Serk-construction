@@ -44,9 +44,16 @@ PRODUCTS = [
 ]
 
 
-def r(text, status, *tests, note="", drill=""):
+def r(text, status, *tests, note="", drill="", criteria=()):
     # drill: a recorded drill report (path under the repository) that must end in a PASS verdict.
-    return {"text": text, "status": status, "tests": list(tests), "note": note, "drill": drill}
+    # criteria: atomic acceptance criteria (c(...)) that decompose a large requirement. They get IDs
+    # <requirement>.<a, b, ...>, are judged by the same evidence rule, and the parent cannot be VERIFIED
+    # unless every criterion is. Append criteria; never insert or reorder them (IDs are positional).
+    return {"text": text, "status": status, "tests": list(tests), "note": note, "drill": drill, "criteria": list(criteria)}
+
+
+def c(text, status, *tests, note=""):
+    return {"text": text, "status": status, "tests": list(tests), "note": note, "drill": ""}
 
 
 # domain id -> (milestone, owner role from the Bible's approval table, requirements)
@@ -73,8 +80,19 @@ D = {
         r("Every dashboard tile equals the report it drills into; the KPI catalogue documents formula and source", V,
           "TestDashboard_TilesEqualTheirReports", "TestDashboard_ScopeAndPermissions", "TestKPICatalogueDocumentIsCurrent"),
         r("13-week cash projection separating certified, billed and collected amounts", I,
-          note="A 90-day outlook from approved invoices and ledger cash exists (docs/BACKLOG.md 5.4); payroll, tax and supplier schedules are missing."),
-        r("Daily exception digest by e-mail or Telegram", B, note="No authorised messaging adapter or credentials. In-app notifications exist (TestPlatform_RulesLifecycleAndWorker)."),
+          note="A 90-day outlook from approved invoices and ledger cash exists (docs/BACKLOG.md 5.4); payroll, tax and supplier schedules are missing.",
+          criteria=[
+            c("Certified, billed and collected amounts are separate lines of the projection", N),
+            c("Supplier payment schedule from approved invoices and open purchase orders by due date", N),
+            c("Payroll schedule from approved payroll runs (synthetic rules in test)", N),
+            c("Tax payment schedule from posted tax liabilities", N),
+            c("Collection schedule from issued customer invoices by due date", N),
+            c("A reference dataset with independently calculated weekly cash positions matches the projection to the cent", N)]),
+        r("Daily exception digest by e-mail or Telegram", B, note="No authorised messaging adapter or credentials. In-app notifications exist (TestPlatform_RulesLifecycleAndWorker).",
+          criteria=[
+            c("Messaging-provider interface, templates, delivery queue, idempotency and retry", N),
+            c("Delivery audit, user preferences and approved recipients, verified against a local test provider", N),
+            c("Real delivery through an authorised e-mail or Telegram provider", B)]),
     ]),
     # ----------------------------------------------------------- ESTIMATE
     "EST-01": ("M7", "Product owner", [r("Lead and opportunity pipeline", N)]),
@@ -125,7 +143,11 @@ D = {
     "PLB-08": ("M4", "Construction lead", [
         r("Progress reports against the approved baseline are approved before they count", V, "TestR9_ScheduleProgressAndRaw"),
         r("Installed, measured, certified, billed and collected quantities are reported side by side", I,
-          note="Measured/certified/billed/collected exist for contract lines (Journey B); installed quantity by work package does not."),
+          note="Measured/certified/billed/collected exist for contract lines (Journey B); installed quantity by work package does not.",
+          criteria=[
+            c("Installed quantities come from work packages, not typed onto the report", N),
+            c("Measured, certified and billed quantities trace to measurement lines, certificates and invoices", N),
+            c("Collected amounts trace to receipts applied to those invoices; physical progress never counts as collected", N)]),
     ]),
     "PLB-09": ("M7", "Construction lead", [r("Engineering deliverables register linked to RFIs and submittals", N)]),
     # ------------------------------------------------------------- DESIGN
@@ -194,7 +216,10 @@ D = {
         r("Attachments, equipment documents and photographs, fixed-asset linkage, warranty and insurance expiry alerts", N,
           note="Warranty and insurance dates are stored; nothing acts on them yet."),
         r("Daily logs captured offline through the field device command log", I,
-          note="The log API is idempotent on a client reference (verified); it is not yet a command kind of /v1/sync, and no field client exists."),
+          note="The log API is idempotent on a client reference (verified); it is not yet a command kind of /v1/sync, and no field client exists.",
+          criteria=[
+            c("An equipment daily log is accepted as a signed, idempotent field-device command", N),
+            c("A duplicate or replayed command applies once; a conflict is returned, never merged", N)]),
         r("Telematics ingestion (GPS, engine hours, fuel level) with authenticated devices and replay protection, stored apart from accounting data", N),
         r("Deterministic allocation and transfer recommendations with explainable constraints", N),
         r("Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy", N,
@@ -202,7 +227,11 @@ D = {
     ]),
     "FLT-02": ("M6", "Construction lead", [
         r("Fuel issues linked to asset, operator, meter and stock movement; variance review", I,
-          note="The link and the reconciliation are built and verified (FLT-02.2 to FLT-02.5). A variance is listed with both figures for a person to explain; a recorded, approved investigation of a variance is FLT-02.6 and is not built."),
+          note="The link and the reconciliation are built and verified (FLT-02.2 to FLT-02.5). A variance is listed with both figures for a person to explain; a recorded, approved investigation of a variance is FLT-02.6 and is not built.",
+          criteria=[
+            c("Each dispense is a stock issue linked to machine, operator and meter", V, "TestFuel_DispenseIsAStockIssue"),
+            c("A variance is investigated in a recorded document with findings, reviewed and approved by someone other than the investigator", N),
+            c("Tank dip readings are reconciled to the stock ledger and the difference is explained or adjusted through an approved count", N)]),
         r("Fuel is ordinary stock: a dispense is a stock issue of a designated fuel item, prepared with the machine, meter reading and operator, and takes effect (tank quantity, value, journal, project cost) only when a second person approves the issue; there is no second fuel ledger", V,
           "TestFuel_DispenseIsAStockIssue", "TestAPIFuel"),
         r("A dispense is refused for an item not designated as fuel, a machine not at the project, a meter reading behind the last approved one, or more than the tank holds; an offline retry records once; a tenant database login cannot write or alter a dispense around the kernel", V,
@@ -223,7 +252,12 @@ D = {
     ]),
     "FLT-03": ("M6", "Construction lead", [
         r("Maintenance plans, work orders, parts and downtime", I,
-          note="Work orders, parts, plans and out-of-service hours are built and verified (FLT-03.2 to FLT-03.6). Labour cost, workshop cost centres and maintenance schedules across a fleet calendar are not (FLT-03.7)."),
+          note="Work orders, parts, plans and out-of-service hours are built and verified (FLT-03.2 to FLT-03.6). Labour cost, workshop cost centres and maintenance schedules across a fleet calendar are not (FLT-03.7).",
+          criteria=[
+            c("Plans, work orders, parts as stock issues and downtime", V, "TestMaintenance_WorkOrderAndReturnToService", "TestMaintenance_PlansAndDue"),
+            c("Labour hours on a work order priced by an approved labour-rate policy", N),
+            c("Workshop cost centres for machines not at a project", N),
+            c("Fleet maintenance calendar of due and scheduled work", N)]),
         r("A work order is prepared (plant staff; site staff for a breakdown of a machine at their project), authorised by fleet.approve with a fresh second factor, reported complete by plant staff and closed or sent back by a certifier who did not report it; a decided work order never changes; none of these decisions can be taken by an AI or service principal", V,
           "TestMaintenance_WorkOrderAndReturnToService", "TestAPIMaintenance", "TestConsoleBrowserFleet"),
         r("A machine that has been under maintenance returns to service only after a work order for it was closed after it entered maintenance, never while a work order is open, and not by passing through inspection; an earlier work order does not release a later spell", V,
@@ -249,7 +283,12 @@ D = {
     "PPL-02": ("M6", "Construction lead", [r("Attendance and timesheets with approval, duplicate and overlap detection", N,
                                              note="Labour hours on site diaries exist; they are not attendance records.")]),
     "PPL-03": ("M6", "Finance controller", [r("Payroll preview → approval → locked run → posting → payment, on effective-dated reviewed rules", B,
-                                              note="No statutory payroll rules may be shipped without professional approval (MASTER_PROMPT 4.8).")]),
+                                              note="No statutory payroll rules may be shipped without professional approval (MASTER_PROMPT 4.8).",
+          criteria=[
+            c("Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated", N),
+            c("Preview, independent approval, locked run, journal and payment record with synthetic test rules", N),
+            c("Reversal and reconciliation of a payroll run", N),
+            c("Statutory rules supplied and approved by a named professional", B)])]),
     "PPL-04": ("M6", "Construction lead", [r("Crew output and labour cost by work package", N)]),
     "PPL-05": ("M6", "Construction lead", [r("Certifications and safety training with expiry", N)]),
     # ----------------------------------------------------------- CONTRACT
@@ -274,7 +313,11 @@ D = {
         r("Retention release, credit notes and price adjustment are separate approved documents", V,
           "TestJourneyB_RetentionRelease", "TestJourneyB_CreditNote", "TestBonds_PriceAdjustment"),
         r("Certification, invoice, revenue recognition and collection are distinct states", I,
-          note="Certificate, invoice and receipt are distinct; IFRS 15 revenue recognition is not implemented and needs accounting policy approval."),
+          note="Certificate, invoice and receipt are distinct; IFRS 15 revenue recognition is not implemented and needs accounting policy approval.",
+          criteria=[
+            c("Certification, invoicing and collection are distinct, separately evidenced states", N),
+            c("Revenue recognition follows a contract-specific, approved policy and is not triggered by invoicing alone", N),
+            c("A recognition change is reviewed by someone other than its preparer", N)]),
     ]),
     # ------------------------------------------------------------ CAPITAL
     "CAP-01": ("M3", "Finance controller", [
@@ -306,16 +349,25 @@ D = {
           "TestJourneyA_PaymentControls", "TestR3_09_FabricatedStatementSettlesPayment", "TestR4_04_ReconcilerSeparation"),
         r("FX rates are policy-bound, maker/checker approved and re-checked at posting", V,
           "TestSC02_DatabaseRejectsIneligibleFXAndRechecksAtPost", "TestSC03_FXMakerChecker", "TestConvertIsExactAndBoundToSnapshot"),
-        r("Bank transfers through a bank API", B, note="No authorised bank sandbox; payments are instructions released by people."),
+        r("Bank transfers through a bank API", B, note="No authorised bank sandbox; payments are instructions released by people.",
+          criteria=[
+            c("Bank adapter interface with validation, idempotency, status and reconciliation, verified against a sandbox double", N),
+            c("Live bank integration under explicit authorisation and banking credentials", B)]),
     ]),
     "CAP-06": ("M11", "Finance controller", [
         r("Tax rules are effective-dated data with review status; ambiguity is an error", V,
           "TestRulesValidate", "TestEffectiveDatingAndReviewStatus", "TestAmbiguityIsAnError"),
-        r("Real jurisdiction tax and withholding rules", B, note="Needs professional approval per jurisdiction; no real rates are shipped."),
+        r("Real jurisdiction tax and withholding rules", B, note="Needs professional approval per jurisdiction; no real rates are shipped.",
+          criteria=[
+            c("Configurable tax engine: effective dates, bases, exemptions, withholding, rounding, source and approval", N),
+            c("Real rates and rules from a named tax professional with sources", B)]),
     ]),
     "CAP-07": ("M10", "Finance controller", [r("Intercompany matching, translation and elimination for consolidated statements", N)]),
     "CAP-08": ("M6", "Finance controller", [r("Cash forecast scenarios including payroll, tax and supplier schedules", I,
-                                              note="See CMD-05.")]),
+                                              note="See CMD-05.",
+          criteria=[
+            c("Scenarios are versioned with stated assumptions", N),
+            c("Each scenario uses the supplier, payroll, tax and collection schedules of CMD-05.2", N)])]),
     "CAP-09": ("M1", "Security lead", [
         r("Every command writes a hash-chained audit entry and its outbox event in the same transaction", V,
           "TestAuditChainLinearUnderConcurrency", "TestSC07_FXCommandsEmitAtomicOutboxEvents", "TestOutboxAndPeriodsCannotBeTamperedByAppRole"),
@@ -340,7 +392,10 @@ D = {
           note="Fail closed: unscanned, failed-scan and infected files cannot be submitted, published or downloaded while scanning is required (the default). "
                "Verified against a real ClamAV daemon: locally with a database holding only the EICAR test hash, and in GitHub Actions from run 22 with the public signature database. Detection coverage beyond the standard test file is not measured (ADR 0019)."),
         r("Object storage with pre-signed, short-lived URLs and resumable upload", I,
-          note="Object storage and short-lived links are done (CNX-01.7, CNX-01.9). Links are issued by the API, not pre-signed by the store, because objects are encrypted by the service. Resumable upload from the client is CNX-01.13."),
+          note="Object storage and short-lived links are done (CNX-01.7, CNX-01.9). Links are issued by the API, not pre-signed by the store, because objects are encrypted by the service. Resumable upload from the client is CNX-01.13.",
+          criteria=[
+            c("Object storage with encryption and short-lived authorised download", N),
+            c("Resumable upload: an interrupted upload continues without re-sending completed parts and is scanned before acceptance", N)]),
         r("Transmittals, QR verification of a revision, retention policy and legal hold", N),
         r("Files over the PostgreSQL cap are stored encrypted in an S3-compatible store under a tenant-scoped, immutable key fixed by the database; a tampered, swapped or cross-tenant object is not served", V,
           "TestDocSecurity_ObjectStorageAndMigration", "TestS3AgainstARealServer", "TestSealedRoundTripAndTamperDetection", "TestObjectKeyIsTenantScopedAndStrict", "TestDocumentStorageConfig"),
@@ -397,7 +452,10 @@ D = {
     "CNX-10": ("M7", "Product owner", [r("Client portal limited to the client's own contracts, certificates and documents", N)]),
     "CNX-11": ("M7", "Product owner", [r("Supplier portal limited to the supplier's own RFQs, orders and invoices", N)]),
     "CNX-12": ("M7", "Product owner", [r("Consultant portal for scoped review and certification", N)]),
-    "CNX-13": ("M11", "Product owner", [r("Government/regulator portal", B, note="No authorised interface or requirement owner identified.")]),
+    "CNX-13": ("M11", "Product owner", [r("Government/regulator portal", B, note="No authorised interface or requirement owner identified.",
+          criteria=[
+            c("Export formats, connector boundary, validation, retry and audit with contract tests", N),
+            c("Official specification and authorised interface", B)])]),
     # ------------------------------------------------------------- ESTATE
     "RES-01": ("M7", "Product owner", [r("Unit inventory, atomic reservation, sale agreements and instalments", N)]),
     "RES-02": ("M7", "Product owner", [r("Service requests, preventive maintenance, leases and utilities", N)]),
@@ -410,7 +468,10 @@ D = {
           "TestGovernedAI_DraftOnly", "TestR6_11_HumanRuleAndDraftParity", "TestR8_HumanDecisionsAndScope"),
         r("The assistant answers only from permission-filtered computed facts and shows sources", V, "TestPlatform_IntelligenceAndAssistant", "TestAIPhraserAdapter"),
         r("Model-independent gateway, agent registry and evaluation sets", N),
-        r("A live model provider", B, note="No model endpoint is reachable or authorised from the build environment."),
+        r("A live model provider", B, note="No model endpoint is reachable or authorised from the build environment.",
+          criteria=[
+            c("Provider-neutral gateway with policy controls, data filtering, cost limits and safe fallback, verified with a local provider", N),
+            c("Approved provider credentials and data-sharing authorisation", B)]),
     ]),
     "BRS-03": ("M1", "Security lead", [
         r("Sessions can be revoked across replicas, including in-flight approvals", V,
@@ -420,7 +481,12 @@ D = {
         r("Pre-authentication abuse limits shared across replicas", V, "TestSharedAbuse_LockoutAndBudgetsSpanReplicas", "TestAPIPreAuthFloodProtection"),
         r("Production configuration fails closed on any demo default", V, "TestProductionRefusesTheOldDemoDefaults", "TestProductionManifestHasNoDemoDefaults"),
         r("Independent penetration test; a real identity provider with step-up; HSM/KMS custody of the signer key", B,
-          note="Needs named people and infrastructure (docs/release/GO_NO_GO.md)."),
+          note="Needs named people and infrastructure (docs/release/GO_NO_GO.md).",
+          criteria=[
+            c("Real identity provider integration with step-up and revocation", B),
+            c("KMS/HSM custody of the approval-signer key", B),
+            c("KMS/HSM custody of document keys", B),
+            c("External penetration test by an independent tester", B)]),
     ]),
     "BRS-04": ("M1", "Security lead", [
         r("Directory of people, custom roles and grants; identity administrators hold no financial permission", V,
@@ -451,23 +517,61 @@ X = {
           drill="docs/engineering/evidence/2026-11-15-pitr-drill-0054.txt",
           note="Local disposable clusters, a few hundred rows: all 54 migrations replayed, restore verified in 1.15 s, 5 s of committed writes lost with archive_timeout=10s. Not a production-scale measurement."),
         r("Encrypted, signed offsite PITR backup restores exactly; forged or colliding archives are refused", U,
-          note="Drill script and an earlier recorded run exist (docs/operations/BACKUP_PITR_RESTORE_PROOF.md); not re-run in this session."),
+          note="Drill script and an earlier recorded run exist (docs/operations/BACKUP_PITR_RESTORE_PROOF.md); not re-run in this session.",
+          criteria=[
+            c("Restore is exact at the current commit (fresh evidence)", N),
+            c("A forged or colliding archive is refused", N),
+            c("An interrupted restore can be resumed or restarted safely", N),
+            c("Object storage, document keys and approval verification material restore with the database", N)]),
         r("Request telemetry, trace context and alert rules fire on induced failures", V,
           "TestAlertDrill_InducedFailuresFireTheRightAlerts", "TestRequestTelemetryAndTraceContext"),
         r("Outbox relay delivers in order, retries, dead-letters and replays; consumers dedupe", V,
           "TestRelayDeliversInOrderExactlyOnceWhenHealthy", "TestRelayCrashAfterPublishRedeliversAndConsumerDedupes", "TestRelayRetryDeadLetterHeadOfLineAndReplay"),
-        r("Operated staging and production environments", B, note="Deployment needs the owner's authorisation and infrastructure."),
+        r("Operated staging and production environments", B, note="Deployment needs the owner's authorisation and infrastructure.",
+          criteria=[
+            c("Reproducible deployment profiles for internal test and staging", N),
+            c("An operated environment deployed under explicit authorisation", B)]),
     ]),
     "XCT-LOC": ("M11", "Localisation", [
         r("Exact decimal money per ISO 4217 minor units; ETB supported", V, "TestParseQuantisesToMinorUnits", "TestAllocateConservesEveryMinorUnit"),
         r("Ethiopic text renders in PDF exports", V, "TestPDFEthiopicFontOnlyWhenNeeded"),
         r("Ethiopian calendar display and input with round-trip tests", N),
         r("Translated interface (Amharic, Tigrinya, Afan Oromo)", N),
-        r("Ethiopian statutory tax, payroll and forms", B, note="Needs local legal and accounting approval."),
+        r("Ethiopian statutory tax, payroll and forms", B, note="Needs local legal and accounting approval.",
+          criteria=[
+            c("Localisation architecture for statutory forms and reporting formats", N),
+            c("Current professional legal and accounting review", B)]),
     ]),
     "XCT-API": ("M1", "API and events", [
         r("The OpenAPI contract matches the routes served", V, "TestOpenAPIMatchesRoutes"),
-        r("Problem details per RFC 9457 and cursor pagination on every list", I, note="Errors use a consistent {code,message} body; lists are bounded by LIMIT, not cursors."),
+        r("Problem details per RFC 9457 and cursor pagination on every list", I, note="Errors use a consistent {code,message} body; lists are bounded by LIMIT, not cursors.",
+          criteria=[
+            c("Every error response is application/problem+json with type, title, status and detail", N),
+            c("Document lists page by an opaque cursor with stable ordering", N),
+            c("A cursor cannot cross tenants or change the filters it was issued for", N),
+            c("Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page", N)]),
+    ]),
+    # Added by the final-completion directive (sections 7 and 9). Appended; no earlier ID moves.
+    "XCT-FORM": ("M6", "Console form reliability", [
+        r("A dependent form applies only the newest answer for each list it loads; an older answer or error never replaces a newer one", I,
+          "TestConsoleBrowserDocuments", "TestConsoleBrowserJourneyA", "TestConsoleBrowserPlanning",
+          note="latestOnly/refill in all eleven reloading forms; three forms have their own race reproduction."),
+        r("Form state (lines, amounts, descriptions) lives in a state object with stable line identities, independent of the DOM", N),
+        r("Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently", N),
+        r("Submission is blocked while dependent data is loading and cannot be sent twice", N),
+        r("Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests", N),
+        r("Every reloading form has a barrier-driven regression that fails without the fix", N),
+    ]),
+    "XCT-UI": ("M6", "SERK AURA experience", [
+        r("AURA light and dark token sets meet their contrast targets and the console stylesheet matches them", V,
+          "TestAURATokensMatchStylesheet", note="Runs tools/design/aura_contrast.py --check-css."),
+        r("AURA warm and high-contrast themes, selectable per user", N),
+        r("Sign-in page: accessible labels, password-manager friendly, MFA and SSO when configured, no unsupported claims", N),
+        r("Personal workspace: tasks, approvals, deadlines, recent records; layout preferences saved per user and tenant", N),
+        r("Application shell: project switcher, command palette, notification centre, permission-aware search", N),
+        r("Role workspaces for the roles in the directive, each with its own working queue", N),
+        r("Every screen family reviewed by screenshot at the listed widths, with defects recorded and fixed", N),
+        r("Automated accessibility checks on every screen family; manual review recorded separately", N),
     ]),
 }
 
@@ -512,10 +616,12 @@ def main():
         sys.exit(f"expected 80 domains, got {len(domains)}")
     cross = [build(k, "PLATFORM", title, ms, "Chief architect", reqs, passed, downgraded) for k, (ms, title, reqs) in X.items()]
 
-    counts = {}
+    counts, ccounts = {}, {}
     for d in domains + cross:
         for q in d["requirements"]:
             counts[q["status"]] = counts.get(q["status"], 0) + 1
+            for k in q["criteria"]:
+                ccounts[k["status"]] = ccounts.get(k["status"], 0) + 1
     dcounts = {}
     for d in domains:
         dcounts[d["status"]] = dcounts.get(d["status"], 0) + 1
@@ -526,6 +632,7 @@ def main():
         "status_vocabulary": [N, I, U, V, B],
         "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
         "requirement_counts": counts,
+        "criteria_counts": ccounts,
         "domain_counts": dcounts,
         "domains": domains,
         "cross_cutting": cross,
@@ -542,6 +649,14 @@ def main():
 def build(did, product, name, milestone, owner, reqs, passed, downgraded):
     items = []
     for i, q in enumerate(reqs, 1):
+        crit = []
+        for j, k in enumerate(q.get("criteria", [])):
+            cid = f"{did}.{i}.{chr(ord('a') + j)}"
+            cst = k["status"]
+            if cst == V and (not k["tests"] or any(t not in passed for t in k["tests"])):
+                cst = U
+                downgraded.append(f"{cid}: " + ", ".join(t for t in k["tests"] if t not in passed))
+            crit.append({"id": cid, "text": k["text"], "status": cst, "evidence_tests": k["tests"], "note": k["note"]})
         status = q["status"]
         drill_ok = bool(q["drill"]) and (ROOT / q["drill"]).is_file() and "DRILL VERDICT: PASS" in (ROOT / q["drill"]).read_text()
         if status == V and q["drill"] and not drill_ok:
@@ -550,7 +665,12 @@ def build(did, product, name, milestone, owner, reqs, passed, downgraded):
         elif status == V and not q["drill"] and (not q["tests"] or any(t not in passed for t in q["tests"])):
             status = U
             downgraded.append(f"{did}.{i}: " + ", ".join(t for t in q["tests"] if t not in passed))
-        items.append({"id": f"{did}.{i}", "text": q["text"], "status": status, "evidence_tests": q["tests"], "evidence_file": q["drill"], "note": q["note"]})
+        if status == V and any(k["status"] != V for k in crit):
+            # A parent is verified only when every acceptance criterion under it is.
+            status = U if all(k["status"] in (V, U) for k in crit) else I
+            downgraded.append(f"{did}.{i}: acceptance criteria not all verified")
+        items.append({"id": f"{did}.{i}", "text": q["text"], "status": status, "evidence_tests": q["tests"], "evidence_file": q["drill"],
+                      "note": q["note"], "criteria": crit})
     st = {x["status"] for x in items}
     all_listed = st == {V}
     if all_listed and did in DECOMPOSITION_REVIEWED:
@@ -583,6 +703,8 @@ def markdown(out):
          "verified and awaits that review. A domain that is partly built is IMPLEMENTING.",
          "",
          "Requirement counts: " + ", ".join(f"{k} {v}" for k, v in sorted(out["requirement_counts"].items())) + ".", "",
+         "Acceptance-criteria counts (children that decompose large requirements; counted separately): "
+         + (", ".join(f"{k} {v}" for k, v in sorted(out["criteria_counts"].items())) or "none yet") + ".", "",
          "Domain counts (80): " + ", ".join(f"{k} {v}" for k, v in sorted(out["domain_counts"].items())) + ".", ""]
     by = {}
     for d in out["domains"]:
@@ -601,6 +723,11 @@ def markdown(out):
                 if q["note"]:
                     ev = (ev + " — " if ev else "") + q["note"]
                 L.append(f"| {q['id']} | {q['text']} | {q['status']} | {ev} |")
+                for k in q["criteria"]:
+                    kev = ", ".join(f"`{t}`" for t in k["evidence_tests"])
+                    if k["note"]:
+                        kev = (kev + " — " if kev else "") + k["note"]
+                    L.append(f"| {k['id']} | ↳ {k['text']} | {k['status']} | {kev} |")
             L.append("")
     return "\n".join(L)
 
