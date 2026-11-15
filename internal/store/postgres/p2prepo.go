@@ -146,6 +146,8 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	// Transmittals and submittals (0077).
 	"transmittal": {"transmittals", "created_by", ""},
 	"submittal":   {"submittals", "created_by", ""},
+	// Correspondence register (0085).
+	"correspondence": {"correspondence", "created_by", ""},
 	// Timesheets (0076).
 	"timesheet": {"timesheets", "created_by", ""},
 }
@@ -440,6 +442,7 @@ var listSQL = map[string]string{
 	"timesheet":               `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, COALESCE((SELECT sum(hours_normal + hours_ot) FROM timesheet_lines l WHERE l.timesheet_id = t.id), 0), t.work_date || ' — ' || (SELECT count(*) FROM timesheet_lines l WHERE l.timesheet_id = t.id) || ' people' FROM timesheets t`,
 	"transmittal":             `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, (SELECT count(*) FROM transmittal_items i WHERE i.transmittal_id = t.id)::numeric, t.subject || ' — to ' || t.to_party || ' (' || lower(replace(t.purpose, '_', ' ')) || ')' FROM transmittals t`,
 	"submittal":               `SELECT x.id::text, x.number, x.status || COALESCE('/' || x.review_code, ''), x.created_by, x.created_at, x.project_id::text, 0::numeric, x.spec_section || ' — ' || x.title FROM submittals x`,
+	"correspondence":          `SELECT c.id::text, c.number, c.status, c.created_by, c.created_at, c.project_id::text, 0::numeric, c.direction || ' ' || c.dated_on || ' — ' || c.counterparty || ': ' || c.subject || COALESCE(' (due ' || c.reply_due_on || ')', '') FROM correspondence c`,
 	"itp":                     `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, 0::numeric, t.title || COALESCE(' — activity ' || t.activity_code, '') FROM itps t`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,

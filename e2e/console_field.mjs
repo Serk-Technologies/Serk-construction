@@ -55,6 +55,24 @@ try {
   await snap(hse, 'permit-issued');
   log('permit requested and issued');
 
+  // ---- certifications (0086): the engineer records a training, the HSE officer verifies it -------------
+  await nav(eng, '#/hse/certs', 'Health, safety and environment');
+  await eng.getByLabel('Person').locator('option').first().waitFor({ state: 'attached' });
+  await eng.getByLabel('Kind').fill('WORKING_AT_HEIGHT');
+  await eng.getByLabel('Title').fill('Working at height, level 2');
+  await eng.getByLabel('Issuer').fill('ECWC training centre');
+  await eng.getByLabel('Issued on').fill(new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
+  await eng.getByLabel('Expires on (optional)').fill(new Date(Date.now() + 700 * 864e5).toISOString().slice(0, 10));
+  await audit(eng, 'certifications');
+  await act(eng, 'Record certification', 'Certification recorded');
+  await eng.getByRole('table').filter({ hasText: 'Working at height, level 2' }).filter({ hasText: 'PENDING' }).waitFor();
+  if (await eng.getByRole('button', { name: 'Verify' }).count()) fail('the recorder is offered to verify their own certification');
+  await nav(hse, '#/hse/certs', 'Health, safety and environment');
+  await hse.getByRole('button', { name: 'Verify' }).first().click();
+  await hse.locator('p.notice').filter({ hasText: 'verified' }).first().waitFor();
+  await hse.getByRole('table').filter({ hasText: 'Working at height, level 2' }).filter({ hasText: 'VALID' }).waitFor();
+  log('certification recorded and verified');
+
   const phone = await as('engPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   await nav(phone, '#/timesheets/record', 'Timesheets');
   await audit(phone, 'timesheets at 390px (dark)');

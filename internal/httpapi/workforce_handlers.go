@@ -12,6 +12,7 @@ package httpapi
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"github.com/serk-group/serk-construction/internal/kernel"
 	"github.com/serk-group/serk-construction/pkg/auth"
@@ -187,6 +188,41 @@ func (s *Server) registerWorkforceHSE() {
 			return
 		}
 		json(w, map[string]any{"ok": true}, k.RecordSafetyInspection(r.Context(), principalFrom(r.Context()), b.Project, b.On, b.Area, b.Score, b.Findings))
+	}))
+	// Certifications and safety training with expiry (0086).
+	m.Handle("GET /v1/certifications", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		days, _ := strconv.Atoi(r.URL.Query().Get("warn_days"))
+		out, err := k.CertificationRegister(r.Context(), principalFrom(r.Context()), days)
+		json(w, map[string]any{"items": out}, err)
+	}))
+	m.Handle("POST /v1/certifications", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.CertificationIn
+		if !decode(w, r, &b) || !validIDs(w, b.EmployeeID) {
+			return
+		}
+		id, err := k.RecordCertification(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/certifications/{id}/verify", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		var b struct {
+			Accept bool   `json:"accept"`
+			Note   string `json:"note"`
+		}
+		if !validIDs(w, id) || !decode(w, r, &b) {
+			return
+		}
+		json(w, map[string]any{"id": id, "accepted": b.Accept}, k.VerifyCertification(r.Context(), principalFrom(r.Context()), id, b.Accept, b.Note))
+	}))
+	m.Handle("POST /v1/certifications/{id}/revoke", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		var b struct {
+			Reason string `json:"reason"`
+		}
+		if !validIDs(w, id) || !decode(w, r, &b) {
+			return
+		}
+		json(w, map[string]any{"id": id, "status": "REVOKED"}, k.RevokeCertification(r.Context(), principalFrom(r.Context()), id, b.Reason))
 	}))
 	m.Handle("POST /v1/hse/induction-gate", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		var b struct {

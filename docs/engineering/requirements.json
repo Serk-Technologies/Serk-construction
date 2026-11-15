@@ -12,10 +12,10 @@
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
   "VERIFIED": 107,
-  "NOT_STARTED": 70,
+  "NOT_STARTED": 68,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 1
+  "IMPLEMENTED_UNVERIFIED": 3
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
@@ -25,8 +25,9 @@
  },
  "domain_counts": {
   "IMPLEMENTING": 49,
-  "NOT_STARTED": 29,
-  "BLOCKED": 2
+  "NOT_STARTED": 27,
+  "BLOCKED": 2,
+  "IMPLEMENTED_UNVERIFIED": 2
  },
  "domains": [
   {
@@ -1786,16 +1787,19 @@
    "domain": "Competency",
    "milestone": "M6",
    "owner": "Construction lead",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTED_UNVERIFIED",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "PPL-05.1",
      "text": "Certifications and safety training with expiry",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "IMPLEMENTED_UNVERIFIED",
+     "evidence_tests": [
+      "TestCertifications_VerifyExpireRevoke",
+      "TestConsoleBrowserField"
+     ],
      "evidence_file": "",
-     "note": "",
+     "note": "0086: recorded from the document issued; counts only once verified by someone else holding hse.manage (attested); certification_valid is the one rule for validity on a day; expiring and expired shown; revocation with a reason; nothing deleted.",
      "criteria": []
     }
    ]
@@ -2835,16 +2839,20 @@
    "domain": "Correspondence",
    "milestone": "M7",
    "owner": "Product owner",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTED_UNVERIFIED",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "CNX-05.1",
      "text": "Correspondence register (in/out) linked to contracts",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "IMPLEMENTED_UNVERIFIED",
+     "evidence_tests": [
+      "TestCorrespondence_RegisterRepliesAndOverdue",
+      "TestAPICorrespondence",
+      "TestConsoleBrowserDocuments"
+     ],
      "evidence_file": "",
-     "note": "Contract notices exist under CON-03.",
+     "note": "0085: items recorded once against the project and optionally a contract; an answer date makes an item await its reply, recorded in the other direction, which marks it answered; overdue shown. Contract notices remain under CON-03.",
      "criteria": []
     }
    ]

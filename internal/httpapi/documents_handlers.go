@@ -96,6 +96,32 @@ func (s *Server) registerDocuments() {
 		id, err := k.SendTransmittal(r.Context(), principalFrom(r.Context()), b)
 		s.created(w, id, err)
 	}))
+	// Correspondence register (0085); list and detail also through /v1/p2p/correspondence.
+	m.Handle("POST /v1/correspondence", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.CorrespondenceInput
+		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) {
+			return
+		}
+		for _, opt := range []string{b.ContractID, b.InReplyTo} {
+			if opt != "" && !validIDs(w, opt) {
+				return
+			}
+		}
+		id, err := k.RecordCorrespondence(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("GET /v1/projects/{id}/correspondence", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		out, err := k.CorrespondenceRegister(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": out})
+	}))
 	m.Handle("POST /v1/submittals", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		var b kernel.SubmittalInput
 		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) {

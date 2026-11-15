@@ -303,7 +303,8 @@ D = {
             c("Reversal and reconciliation of a payroll run", N),
             c("Statutory rules supplied and approved by a named professional", B)])]),
     "PPL-04": ("M6", "Construction lead", [r("Crew output and labour cost by work package", N)]),
-    "PPL-05": ("M6", "Construction lead", [r("Certifications and safety training with expiry", N)]),
+    "PPL-05": ("M6", "Construction lead", [r("Certifications and safety training with expiry", V, "TestCertifications_VerifyExpireRevoke", "TestConsoleBrowserField",
+                                              note="0086: recorded from the document issued; counts only once verified by someone else holding hse.manage (attested); certification_valid is the one rule for validity on a day; expiring and expired shown; revocation with a reason; nothing deleted.")]),
     # ----------------------------------------------------------- CONTRACT
     "CON-01": ("M4", "Finance controller", [
         r("Contracts with approved lines, advance, retention and policy; the signed version is never overwritten", V,
@@ -462,8 +463,9 @@ D = {
             c("A submittal is reviewed once, with a code A-D, by someone other than the submitter; attested; C and D need a note", V, "TestDocflow_TransmittalsAndSubmittals", "TestConsoleBrowserDocuments"),
             c("A resubmission is linked to the submittal it answers, forming a review cycle", N),
             c("Consultant responses through the consultant portal", N, note="Depends on CNX-12.")])]),
-    "CNX-05": ("M7", "Product owner", [r("Correspondence register (in/out) linked to contracts", N,
-                                         note="Contract notices exist under CON-03.")]),
+    "CNX-05": ("M7", "Product owner", [r("Correspondence register (in/out) linked to contracts", V,
+                                         "TestCorrespondence_RegisterRepliesAndOverdue", "TestAPICorrespondence", "TestConsoleBrowserDocuments",
+                                         note="0085: items recorded once against the project and optionally a contract; an answer date makes an item await its reply, recorded in the other direction, which marks it answered; overdue shown. Contract notices remain under CON-03.")]),
     "CNX-06": ("M1", "Chief architect", [
         r("Versioned workflow definitions; thresholds, quorum, maker excluded; the database refuses a forged approval trail", V,
           "TestWorkflow_MandatoryJournalWorkflowReplacesDirectPath", "TestWorkflow_HighValueNeedsQuorumOfDistinctExecutivesWithMFA",

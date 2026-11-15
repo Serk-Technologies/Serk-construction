@@ -269,6 +269,7 @@ const DOCS = {
     actions: { DRAFT: [['submit', 'document.manage']], SUBMITTED: [['approve', 'document.approve', 'opt'], ['reject', 'document.approve', 'req']] } },
   transmittal: { title: 'Transmittals', one: 'Transmittal', base: '/v1/transmittals', create: 'document.manage', form: 'transmittal', statuses: ['SENT'], actions: {} },
   submittal: { title: 'Submittals', one: 'Submittal', base: '/v1/submittals', create: 'document.manage', form: 'submittal', statuses: ['SUBMITTED', 'REVIEWED'], actions: {} },
+  correspondence: { title: 'Correspondence', one: 'Correspondence item', base: '/v1/correspondence', create: 'document.manage', form: 'correspondence', statuses: ['AWAITING_REPLY', 'ANSWERED', 'RECORDED'], actions: {} },
   rfi: { title: 'Requests for information', one: 'Request for information', base: '/v1/rfis', create: 'document.manage', form: 'rfi', statuses: ['OPEN', 'ANSWERED', 'CLOSED'], actions: {} },
   equipment_reservation: { title: 'Equipment reservations', one: 'Equipment reservation', base: '/v1/equipment-reservations', create: 'fleet.reserve', form: 'equipment_reservation',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
@@ -438,7 +439,7 @@ const NAV = [
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
   ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
     ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read'], ['#/list/fleet_policy', 'Fleet policies', 'p2p.read'], ['#/list/equipment_charge_rate', 'Charge-out rates', 'p2p.read'], ['#/list/equipment_charge_run', 'Charge runs', 'journal.create|journal.approve|journal.post']]],
-  ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read'], ['#/list/transmittal', 'Transmittals', 'p2p.read'], ['#/list/submittal', 'Submittals', 'p2p.read']]],
+  ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read'], ['#/list/transmittal', 'Transmittals', 'p2p.read'], ['#/list/submittal', 'Submittals', 'p2p.read'], ['#/list/correspondence', 'Correspondence', 'p2p.read']]],
   ['Site workforce, safety & quality', [['#/timesheets', 'Timesheets', 'timesheet.record|timesheet.approve'], ['#/hse', 'Health and safety', 'hse.report|hse.manage'], ['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct'], ['#/credit', 'Progress credit', 'credit.manage|credit.approve|credit.record']]],
   ['Subcontracts', [['#/list/subcontract', 'Subcontracts', 'p2p.read'], ['#/list/subcontract_application', 'Applications and certificates', 'p2p.read'], ['#/list/subcontract_backcharge', 'Back-charges', 'p2p.read'], ['#/list/subcontract_payment', 'Subcontract payments', 'p2p.read|payment.prepare|payment.approve|payment.release'], ['#/subpolicy', 'Subcontract accounts', 'contract.policy.manage|contract.policy.approve']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
@@ -1988,6 +1989,26 @@ const FORMS = {
       [h('div', { class: 'grid' }, field('Project', proj), field('Specification section', section), field('Title', title))], 'Submit for review', async () => {
         const res = await api('POST', '/v1/submittals', { project_id: proj.value, spec_section: section.value.trim(), title: title.value.trim() });
         created('submittal', res, 'Submittal');
+      });
+  },
+
+  // CNX-05.1 (0085): one letter, notice or e-mail in or out; a reply marks the item it answers ANSWERED.
+  async correspondence() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const dir = select('direction', [{ value: 'IN', label: 'Incoming' }, { value: 'OUT', label: 'Outgoing' }], { required: true });
+    const party = input('counterparty', { type: 'text', required: true, minlength: '2', maxlength: '200', placeholder: 'Who wrote it, or to whom it went' });
+    const subject = input('subject', { type: 'text', required: true, minlength: '3', maxlength: '300' });
+    const ref = input('reference', { type: 'text', maxlength: '120', placeholder: 'Their or our letter reference' });
+    const dated = input('dated_on', { type: 'date', required: true, value: today(), max: today() });
+    const due = input('reply_due_on', { type: 'date' });
+    const ctr = select('contract_id', [{ value: '', label: 'No particular contract' }, ...(await docOpts('contract', 'ACTIVE'))]);
+    const answers = select('in_reply_to', [{ value: '', label: 'Not a reply' }, ...(await docOpts('correspondence', 'AWAITING_REPLY'))]);
+    formPage('Record correspondence', 'Records a letter, notice or e-mail once; it never changes. Set an answer date when a reply is needed: the item waits until its reply is recorded here, and shows as overdue after that date.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Direction', dir), field('Counterparty', party), field('Subject', subject), field('Reference', ref),
+        field('Dated', dated), field('Answer due (optional)', due), field('Contract (optional)', ctr), field('Reply to (optional)', answers))], 'Record', async () => {
+        const res = await api('POST', '/v1/correspondence', { project_id: proj.value, direction: dir.value, counterparty: party.value.trim(), subject: subject.value.trim(),
+          reference: ref.value.trim(), dated_on: dated.value, reply_due_on: due.value, contract_id: ctr.value, in_reply_to: answers.value });
+        created('correspondence', res, 'Correspondence');
       });
   },
 
@@ -6307,7 +6328,7 @@ async function renderHSE(tab) {
   const k = v.kpi || {};
   const mgr = S.can.has('hse.manage');
   const projOpts = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
-  const TABS = [['incidents', 'Incidents'], ['permits', 'Permits to work'], ['people', 'Inductions and talks'], ['inspections', 'Inspections']];
+  const TABS = [['incidents', 'Incidents'], ['permits', 'Permits to work'], ['people', 'Inductions and talks'], ['certs', 'Certifications'], ['inspections', 'Inspections']];
   const head = h('div', { class: 'kpis' }, fkpi(k.ltifr == null ? '—' : Number(k.ltifr).toLocaleString(), 'LTIFR (12 months)'), fkpi(k.lost_time_injuries_12m || 0, 'Lost-time injuries', (k.lost_time_injuries_12m || 0) > 0),
     fkpi((v.incidents || []).filter((i) => i.status !== 'CLOSED').length, 'Open incidents', (v.incidents || []).some((i) => i.status !== 'CLOSED')), fkpi((v.actions || []).filter((a) => a.overdue).length, 'Overdue actions', (v.actions || []).some((a) => a.overdue)),
     fkpi((v.permits || []).filter((p) => p.in_force).length, 'Permits in force'));
@@ -6389,6 +6410,39 @@ async function renderHSE(tab) {
       out.append(table('Inductions', [{ label: 'Person', cell: (i) => `${i.number} ${i.name}` }, { label: 'Project', cell: (i) => i.project }, { label: 'Inducted', cell: (i) => i.inducted_on }, { label: 'Valid to', cell: (i) => i.valid_to },
         { label: 'Valid', cell: (i) => chip(i.valid ? 'VALID' : 'EXPIRED') }], v.inductions || [], 'No induction recorded.'),
       table('Toolbox talks', [{ label: 'Project', cell: (i) => i.project }, { label: 'Held on', cell: (i) => i.held_on }, { label: 'Topic', cell: (i) => i.topic }, { label: 'Attendees', num: true, cell: (i) => String(i.attendees) }], v.talks || [], 'No toolbox talk recorded.'));
+    } else if (t === 'certs') {
+      // PPL-05.1 (0086): recorded from the document issued; counts once someone else verified it; expiry shown.
+      const list = (await api('GET', '/v1/certifications')).items || [];
+      if (S.can.has('hse.report') && projOpts.length) {
+        const pr = select('project_id', projOpts); const emp = select('employee_id', []);
+        const roster = async () => { emp.textContent = ''; for (const e of ((await api('GET', `/v1/roster?project=${pr.value}`)).employees || [])) emp.append(h('option', { value: e.id }, `${e.number} ${e.name}`)); };
+        pr.addEventListener('change', () => roster().catch(showError)); await roster();
+        const cat = select('category', [{ value: 'TRAINING', label: 'Safety training' }, { value: 'CERTIFICATE', label: 'Certificate' }]);
+        const kind = input('kind', { type: 'text', maxlength: '40', placeholder: 'e.g. WORKING_AT_HEIGHT', list: 'cert-kinds' });
+        const kinds = h('datalist', { id: 'cert-kinds' }, ...['WORKING_AT_HEIGHT', 'CONFINED_SPACE', 'FIRST_AID', 'FIRE_WARDEN', 'CRANE_OPERATOR', 'RIGGER', 'ELECTRICIAN', 'SCAFFOLDER', 'HOT_WORK'].map((x) => h('option', { value: x })));
+        const title = input('title', { type: 'text', maxlength: '200' }); const issuer = input('issuer', { type: 'text', maxlength: '200' }); const no = input('certificate_no', { type: 'text', maxlength: '80' });
+        const iss = input('issued_on', { type: 'date', max: today() }); const exp = input('expires_on', { type: 'date' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record certification');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/certifications', { employee_id: emp.value, category: cat.value, kind: kind.value.trim(), title: title.value.trim(), issuer: issuer.value.trim(), certificate_no: no.value.trim(), issued_on: iss.value, expires_on: exp.value }); flash('Certification recorded; it counts once someone else verifies it.'); renderHSE('certs'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a certification or training'), kinds,
+          h('div', { class: 'grid' }, field('Project (for the people list)', pr), field('Person', emp), field('Category', cat), field('Kind', kind), field('Title', title), field('Issuer', issuer), field('Certificate number', no), field('Issued on', iss), field('Expires on (optional)', exp)), h('div', { class: 'actions' }, b)));
+      }
+      const act = (c) => {
+        if (!mgr || c.created_by === S.me?.user_id || !['RECORDED', 'VERIFIED'].includes(c.status)) return '';
+        const go = async (path, body, msg) => { try { clearError(); await api('POST', `/v1/certifications/${c.id}/${path}`, body); flash(msg); renderHSE('certs'); } catch (e) { showError(e); } };
+        if (c.status === 'VERIFIED') {
+          const rv = h('button', { type: 'button', 'data-revoke': c.number }, 'Revoke');
+          rv.addEventListener('click', () => { const why = prompt('Why is it revoked?'); if (why) go('revoke', { reason: why }, `${c.number} revoked.`); });
+          return rv;
+        }
+        const ok = h('button', { type: 'button', 'data-verify': c.number }, 'Verify'); const no2 = h('button', { type: 'button' }, 'Reject');
+        ok.addEventListener('click', () => go('verify', { accept: true }, `${c.number} verified.`));
+        no2.addEventListener('click', () => { const why = prompt('Why is it rejected?'); if (why) go('verify', { accept: false, note: why }, `${c.number} rejected.`); });
+        return h('span', { class: 'row-actions' }, ok, no2);
+      };
+      out.append(table('Certifications and training', [{ label: 'Number', cell: (c) => c.number }, { label: 'Person', cell: (c) => `${c.employee_number} ${c.employee}` }, { label: 'Kind', cell: (c) => words(c.kind.toLowerCase()) },
+        { label: 'Title', cell: (c) => c.title }, { label: 'Issuer', cell: (c) => c.issuer }, { label: 'Issued', cell: (c) => c.issued_on }, { label: 'Expires', cell: (c) => c.expires_on || 'No expiry' },
+        { label: 'Standing', cell: (c) => chip(c.standing) }, { label: '', cell: act }], list, 'No certification recorded.'));
     } else {
       if (mgr) {
         const pr = select('project_id', projOpts); const on = input('inspected_on', { type: 'date', value: today(), max: today() }); const ar = input('area', { type: 'text', maxlength: '200' }); const sc = input('score', { inputmode: 'numeric', value: '80' }); const fi = input('findings', { type: 'text', maxlength: '1000' });

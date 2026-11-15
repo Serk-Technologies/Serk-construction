@@ -6,11 +6,11 @@ Test results used: `docs/engineering/evidence/2026-11-15-cancellations-f518c83.t
 
 **VERIFIED** on a requirement means every test named as evidence passed in that executed run. It is not a human acceptance. A domain is VERIFIED only when every listed requirement is verified **and** its owner has reviewed the list as complete against the Bible; no domain has had that review, so no domain is VERIFIED. A domain marked † has every listed requirement verified and awaits that review. A domain that is partly built is IMPLEMENTING.
 
-Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 25, NOT_STARTED 70, VERIFIED 107.
+Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 3, IMPLEMENTING 25, NOT_STARTED 68, VERIFIED 107.
 
 Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTING 7, NOT_STARTED 45, VERIFIED 22.
 
-Domain counts (80): BLOCKED 2, IMPLEMENTING 49, NOT_STARTED 29.
+Domain counts (80): BLOCKED 2, IMPLEMENTED_UNVERIFIED 2, IMPLEMENTING 49, NOT_STARTED 27.
 
 ## Domain status
 
@@ -57,7 +57,7 @@ Domain counts (80): BLOCKED 2, IMPLEMENTING 49, NOT_STARTED 29.
 | PPL-02 | PEOPLE | Attendance | M6 | IMPLEMENTING |
 | PPL-03 | PEOPLE | Payroll | M6 | BLOCKED |
 | PPL-04 | PEOPLE | Productivity | M6 | NOT_STARTED |
-| PPL-05 | PEOPLE | Competency | M6 | NOT_STARTED |
+| PPL-05 | PEOPLE | Competency | M6 | IMPLEMENTED_UNVERIFIED |
 | CON-01 | CONTRACT | Contract | M4 | IMPLEMENTING † |
 | CON-02 | CONTRACT | Variation | M7 | IMPLEMENTING † |
 | CON-03 | CONTRACT | Claims | M7 | IMPLEMENTING † |
@@ -79,7 +79,7 @@ Domain counts (80): BLOCKED 2, IMPLEMENTING 49, NOT_STARTED 29.
 | CNX-02 | CONNECT | Drawings | M7 | IMPLEMENTING |
 | CNX-03 | CONNECT | RFI | M7 | IMPLEMENTING |
 | CNX-04 | CONNECT | Submittals | M7 | IMPLEMENTING |
-| CNX-05 | CONNECT | Correspondence | M7 | NOT_STARTED |
+| CNX-05 | CONNECT | Correspondence | M7 | IMPLEMENTED_UNVERIFIED |
 | CNX-06 | CONNECT | Workflow | M1 | IMPLEMENTING † |
 | CNX-07 | CONNECT | Tasks | M4 | IMPLEMENTING |
 | CNX-08 | CONNECT | Meetings | M7 | IMPLEMENTING |
@@ -517,13 +517,13 @@ Product PEOPLE · milestone M6 · owner Construction lead
 |---|---|---|---|
 | PPL-04.1 | Crew output and labour cost by work package | NOT_STARTED |  |
 
-### PPL-05 Competency — NOT_STARTED
+### PPL-05 Competency — IMPLEMENTED_UNVERIFIED
 
 Product PEOPLE · milestone M6 · owner Construction lead
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| PPL-05.1 | Certifications and safety training with expiry | NOT_STARTED |  |
+| PPL-05.1 | Certifications and safety training with expiry | IMPLEMENTED_UNVERIFIED | `TestCertifications_VerifyExpireRevoke`, `TestConsoleBrowserField` — 0086: recorded from the document issued; counts only once verified by someone else holding hse.manage (attested); certification_valid is the one rule for validity on a day; expiring and expired shown; revocation with a reason; nothing deleted. |
 
 ### CON-01 Contract — IMPLEMENTING
 
@@ -750,13 +750,13 @@ Product CONNECT · milestone M7 · owner Construction lead
 | CNX-04.1.b | ↳ A resubmission is linked to the submittal it answers, forming a review cycle | NOT_STARTED |  |
 | CNX-04.1.c | ↳ Consultant responses through the consultant portal | NOT_STARTED | Depends on CNX-12. |
 
-### CNX-05 Correspondence — NOT_STARTED
+### CNX-05 Correspondence — IMPLEMENTED_UNVERIFIED
 
 Product CONNECT · milestone M7 · owner Product owner
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| CNX-05.1 | Correspondence register (in/out) linked to contracts | NOT_STARTED | Contract notices exist under CON-03. |
+| CNX-05.1 | Correspondence register (in/out) linked to contracts | IMPLEMENTED_UNVERIFIED | `TestCorrespondence_RegisterRepliesAndOverdue`, `TestAPICorrespondence`, `TestConsoleBrowserDocuments` — 0085: items recorded once against the project and optionally a contract; an answer date makes an item await its reply, recorded in the other direction, which marks it answered; overdue shown. Contract notices remain under CON-03. |
 
 ### CNX-06 Workflow — IMPLEMENTING
 

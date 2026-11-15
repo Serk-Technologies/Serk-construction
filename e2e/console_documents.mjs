@@ -166,6 +166,32 @@ try {
   await pm.locator('main').filter({ hasText: 'REVIEWED' }).first().waitFor();
   log('submittal reviewed (C)');
 
+  // ---- 5c. Correspondence: an incoming letter needing an answer, then its reply (0085) ---------
+  const inWeek = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  await nav(eng, '#/new/correspondence', 'Record correspondence');
+  await selectByText(eng.getByLabel('Project', { exact: true }), 'P-API');
+  await eng.getByLabel('Counterparty').fill('Ethiopian Roads Administration');
+  await eng.getByLabel('Subject').fill('Notice of delayed access to the site');
+  await eng.getByLabel('Reference').fill('ERA/RE/2026/233');
+  await eng.getByLabel('Answer due (optional)').fill(inWeek);
+  await audit(eng, 'correspondence form');
+  await eng.getByRole('button', { name: 'Record', exact: true }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Correspondence item COR-/ }).waitFor();
+  const cor = await idFromHash(eng);
+  await eng.locator('main').filter({ hasText: 'AWAITING_REPLY' }).first().waitFor();
+  await nav(eng, '#/new/correspondence', 'Record correspondence');
+  await selectByText(eng.getByLabel('Project', { exact: true }), 'P-API');
+  await selectByText(eng.getByLabel('Direction'), 'Outgoing');
+  await eng.getByLabel('Counterparty').fill('Ethiopian Roads Administration');
+  await eng.getByLabel('Subject').fill('Re: delayed access — revised sequence enclosed');
+  await selectByText(eng.getByLabel('Reply to (optional)'), 'Notice of delayed access');
+  await eng.getByRole('button', { name: 'Record', exact: true }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Correspondence item COR-/ }).waitFor();
+  await nav(eng, `#/doc/correspondence/${cor}`, /^Correspondence item COR-/);
+  await eng.locator('main').filter({ hasText: 'ANSWERED' }).first().waitFor();
+  await snap(eng, 'correspondence-answered');
+  log('correspondence recorded and answered');
+
   // ---- 6. Phone width, dark theme ------------------------------------------------------------
   const phone = await as('pmPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   await nav(phone, `#/documents/${docID}`, /^A-101/);
