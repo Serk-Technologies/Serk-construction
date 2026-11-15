@@ -420,7 +420,7 @@ const ACTION_LABEL = { submit: 'Submit for approval', approve: 'Approve', reject
 const NAV = [
   ['Overview', [['#/home', 'My work', null], ['#/me', 'My profile', null], ['#/setup', 'Company setup', 'p2p.read|tenant.settings.manage|org.manage'], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
   ['Projects & planning', [['#/projects', 'Projects', 'p2p.read|project.create|project.update|project.gate.decide'], ['#/list/project_stage_gate', 'Stage gates', 'p2p.read|project.gate.submit|project.gate.decide'], ['#/budget', 'Budget overview', 'p2p.read'], ['#/list/forecast_cycle', 'Cost forecasts', 'p2p.read'], ['#/list/change_event', 'Change events', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/cost', 'Cost report', 'p2p.read'],
-    ['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read']]],
+    ['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read'], ['#/riskreg', 'Risk register', 'p2p.read']]],
   ['Procurement', [['#/list/purchase_requisition', 'Requisitions', 'p2p.read'], ['#/list/rfq', 'RFQs', 'p2p.read'], ['#/list/rfq_quote', 'Quotes', 'p2p.read'],
     ['#/list/purchase_order', 'Purchase orders', 'p2p.read'], ['#/list/supplier', 'Suppliers', 'p2p.read']]],
   ['Site', [['#/list/site_diary', 'Site diaries', 'p2p.read'], ['#/list/grn', 'Goods receipts', 'p2p.read'],
@@ -722,6 +722,7 @@ async function route() {
       case 'reports': return await renderReports();
       case 'tb': return await renderTB();
       case 'statements': return await renderStatements();
+      case 'riskreg': return await renderRiskRegister(a);
       case 'aging': return await renderAging(a === 'ar' ? 'ar' : 'ap');
       case 'ask': return await renderAsk();
       case 'risk': return await renderRisk(a);
@@ -3519,6 +3520,51 @@ async function renderTB() {
   for (const el of [ent, at]) el.addEventListener('change', () => load().catch(showError));
   page('Trial balance', 'Posted journal lines summed by account up to the date chosen. Only posted entries count.',
     entityToolbar(ent, at, exportBar(src, () => `Trial balance at ${at.value}`, { entity: () => ent.value })), out);
+  await load();
+}
+
+// Project risk register (PLB-04.1): open exposure against the contingency left in the budget.
+async function renderRiskRegister(project) {
+  const proj = select('project_id', projectOpts(), { required: true });
+  if (project) proj.value = project;
+  const out = h('div');
+  const latest = latestOnly();
+  const load = () => latest(async (signal) => (proj.value ? api('GET', `/v1/projects/${proj.value}/risks`, undefined, undefined, signal) : null), (r) => {
+    out.textContent = '';
+    if (!r) return;
+    const manage = S.can.has('change.manage');
+    out.append(h('p', { class: r.shortfall ? 'alert' : 'notice', role: 'status' }, r.shortfall
+      ? `Open exposure ${money(r.open_exposure)} exceeds the contingency left (${money(r.contingency_remaining)}) by ${money(-Number(r.cover))}.`
+      : `Open exposure ${money(r.open_exposure)} is covered by the contingency left (${money(r.contingency_remaining)}); ${money(r.cover)} spare.`),
+    table('Risks', [{ label: 'Number', cell: (x) => x.number }, { label: 'Risk', cell: (x) => x.title }, { label: 'Category', cell: (x) => words(x.category.toLowerCase()) },
+      { label: 'Owner', cell: (x) => x.owner }, { label: 'Probability', num: true, cell: (x) => `${(Number(x.probability) * 100).toFixed(0)}%` },
+      { label: 'Cost impact', num: true, cell: (x) => money(x.cost_impact) }, { label: 'Days', num: true, cell: (x) => String(x.schedule_days) },
+      { label: 'Exposure', num: true, cell: (x) => money(x.exposure) }, { label: 'Status', cell: (x) => chip(x.status) },
+      { label: '', cell: (x) => (manage && x.status === 'OPEN' ? h('button', { type: 'button', class: 'ghost', on: { click: async () => {
+        const note = (prompt(`Why is ${x.number} closed?`) || '').trim(); if (!note) return;
+        try { await api('POST', `/v1/project-risks/${x.id}/close`, { reason: note }); say('Risk closed.'); load(); } catch (e) { showError(e); } } } }, 'Close…') : '') }], r.risks, 'No risk recorded.'));
+    if (manage) {
+      const f = { title: input('title', { type: 'text', required: true, minlength: '3' }), category: select('category', ['COST', 'SCHEDULE', 'SAFETY', 'QUALITY', 'COMMERCIAL', 'DESIGN', 'OTHER'].map((v) => ({ value: v, label: words(v.toLowerCase()) }))),
+        cause: input('cause', { type: 'text', required: true }), effect: input('effect', { type: 'text', required: true }), owner: input('owner', { type: 'text', required: true }),
+        response: input('response', { type: 'text', required: true }), probability: input('probability', { inputmode: 'decimal', required: true, placeholder: '0.25' }),
+        cost_impact: input('cost_impact', { inputmode: 'decimal', required: true }), schedule_days: input('schedule_days', { type: 'number', value: '0', min: '0' }) };
+      const btn = h('button', { type: 'button', class: 'primary' }, 'Record risk');
+      btn.addEventListener('click', async () => {
+        clearError();
+        try {
+          await api('POST', '/v1/project-risks', { project_id: proj.value, title: f.title.value.trim(), category: f.category.value, cause: f.cause.value.trim(), effect: f.effect.value.trim(),
+            owner: f.owner.value.trim(), response: f.response.value.trim(), probability: f.probability.value.trim(), cost_impact: f.cost_impact.value.trim(), schedule_days: Number(f.schedule_days.value || 0) });
+          say('Risk recorded.'); load();
+        } catch (e) { showError(e); }
+      });
+      out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a risk'), h('div', { class: 'grid' }, field('Risk', f.title), field('Category', f.category), field('Cause', f.cause),
+        field('Effect', f.effect), field('Owner', f.owner), field('Response', f.response), field('Probability (0 to 1)', f.probability), field('Cost impact', f.cost_impact), field('Schedule impact (days)', f.schedule_days)),
+      h('div', { class: 'actions' }, btn)));
+    }
+  });
+  proj.addEventListener('change', () => load().catch(showError));
+  page('Project risk register', 'Each risk at its latest assessment; exposure is probability times cost impact. Open exposure is compared with the contingency still in the approved budget.',
+    h('div', { class: 'toolbar' }, field('Project', proj)), out);
   await load();
 }
 

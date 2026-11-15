@@ -127,8 +127,11 @@ D = {
         r("Look-ahead and Last Planner constraint tracking", N),
     ]),
     "PLB-03": ("M6", "Construction lead", [r("Resource- and cost-loaded schedules; levelling proposals never alter an approved schedule silently", N)]),
-    "PLB-04": ("M6", "Product owner", [r("Project risk register with quantified exposure feeding contingency", N,
-                                         note="Rule-based risk snapshots exist (CMD-04); a managed register does not.")]),
+    "PLB-04": ("M6", "Product owner", [r("Project risk register with quantified exposure feeding contingency", I,
+                                         note="Managed register (0080) beside the rule-based snapshots of CMD-04.", criteria=[
+            c("Risks with owner, cause, effect and response; assessments kept as history; exposure = probability x cost impact", V, "TestRisks_RegisterAgainstContingency"),
+            c("Open exposure compared with the contingency left in the approved budget; a shortfall is shown", V, "TestRisks_RegisterAgainstContingency"),
+            c("A contingency revision drafted from the exposure for a person to approve", N)])]),
     "PLB-05": ("M4", "Construction lead", [r("Work packages released only with approved drawings, permits, ITP, resources and predecessor acceptance", N)]),
     "PLB-06": ("M4", "Construction lead", [
         r("Daily site diaries (labour, equipment, notes) are versioned, approved by a project manager and corrected, never overwritten", V,

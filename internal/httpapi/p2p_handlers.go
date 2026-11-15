@@ -90,6 +90,7 @@ func (s *Server) registerP2P() {
 	s.registerConsolidation() // consolidation and intercompany (0068); new-version 0062
 	s.registerTax()           // tax returns and e-invoicing (0069); new-version 0063
 	s.registerWorkforceHSE()  // timesheets and health and safety (0076; new-version 0064 without its equipment)
+	s.registerRisks()         // project risk register (0080)
 	s.registerQuality()       // quality and site records (0070); new-version 0065
 	s.registerCredit()        // rules of credit and installed quantities (0071); new-version 0067
 	s.registerImports()       // staged imports and the setup checklist (0043)

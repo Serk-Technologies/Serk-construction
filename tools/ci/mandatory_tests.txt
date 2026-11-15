@@ -65,3 +65,4 @@ internal/kernel TestDocflow_TransmittalsAndSubmittals
 pkg/ethcal TestEthiopianCalendarRoundTrip
 internal/kernel TestFleet_ChargeOut
 internal/httpapi TestAPIFinancialStatements
+internal/kernel TestRisks_RegisterAgainstContingency
