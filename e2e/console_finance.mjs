@@ -75,6 +75,29 @@ try {
   await ctrl.getByRole('table').filter({ hasText: code }).waitFor();
   log(`statement line ${code} opened its journal lines`);
 
+  // CAP-01.5.b (0091): the controller proposes account 1000 as cash; a finance manager approves; the statement reconciles.
+  await nav(ctrl, '#/statements', 'Financial statements');
+  await ctrl.getByLabel('Company').selectOption(FX.entity);
+  await ctrl.getByLabel('From').fill('2020-01-01');
+  await ctrl.getByLabel('From').dispatchEvent('change');
+  await ctrl.getByText('No account is approved as cash yet').waitFor();
+  await ctrl.getByText('Cash-flow classes of the accounts').click();
+  await ctrl.getByLabel('Class for 1000').selectOption('CASH');
+  const classRow = ctrl.getByRole('row').filter({ has: ctrl.getByLabel('Class for 1000') });
+  await classRow.getByRole('button', { name: 'Propose' }).click();
+  await ctrl.locator('#status').filter({ hasText: 'Class proposed for 1000' }).waitFor();
+  const fm = await as('finMgr');
+  await nav(fm, '#/statements', 'Financial statements');
+  await fm.getByLabel('Company').selectOption(FX.entity);
+  await fm.getByLabel('From').fill('2020-01-01');
+  await fm.getByLabel('From').dispatchEvent('change');
+  await fm.getByText('Cash-flow classes of the accounts').click();
+  await fm.getByRole('button', { name: 'Approve cash' }).click();
+  await fm.locator('p.notice').filter({ hasText: /Opening cash .* closing cash/ }).waitFor();
+  await fm.getByRole('table').filter({ hasText: 'Net cash from operating activities' }).waitFor();
+  await audit(fm, 'cash-flow statement');
+  log('account 1000 approved as cash; the cash-flow statement reconciles');
+
   const phone = await as('ctrlPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   await nav(phone, '#/tax/returns', 'Tax');
   await audit(phone, 'tax at 390px (dark)');

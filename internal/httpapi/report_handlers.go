@@ -18,6 +18,42 @@ import (
 func (s *Server) registerReports() {
 	s.mux.Handle("GET /v1/reports/trial-balance", s.authed(s.reportTB))
 	s.mux.Handle("GET /v1/reports/financial-statements", s.authed(s.reportStatements))
+	// Cash-flow statement and the account classes it is computed from (0091).
+	s.mux.Handle("GET /v1/reports/cash-flow", s.authed(s.reportCashFlow))
+	s.mux.Handle("GET /v1/entities/{id}/cash-flow-classes", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		out, err := s.cfg.Kernel.CashFlowClasses(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"accounts": out})
+	}))
+	s.mux.Handle("POST /v1/cash-flow-classes", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			AccountID string `json:"account_id"`
+			Class     string `json:"class"`
+		}
+		if !decode(w, r, &b) || !validIDs(w, b.AccountID) {
+			return
+		}
+		id, err := s.cfg.Kernel.ProposeCashFlowClass(r.Context(), principalFrom(r.Context()), b.AccountID, b.Class)
+		s.created(w, id, err)
+	}))
+	s.mux.Handle("POST /v1/cash-flow-classes/{id}/approve", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		if err := s.cfg.Kernel.ApproveCashFlowClass(r.Context(), principalFrom(r.Context()), id); err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "status": "APPROVED"})
+	}))
 	s.mux.Handle("GET /v1/reports/ap-aging", s.authed(s.reportAging(false)))
 	s.mux.Handle("GET /v1/reports/ar-aging", s.authed(s.reportAging(true)))
 	// Report catalogue (WP-1.5): one registry, one runner (internal/kernel/reportcat.go).
@@ -105,6 +141,26 @@ func (s *Server) reportStatements(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out, err := s.cfg.Kernel.Statements(r.Context(), principalFrom(r.Context()), entity, from, to)
+	if err != nil {
+		s.fail(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) reportCashFlow(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	entity := q.Get("entity")
+	if !validIDs(w, entity) {
+		return
+	}
+	from, err1 := time.Parse("2006-01-02", q.Get("from"))
+	to, err2 := time.Parse("2006-01-02", q.Get("to"))
+	if err1 != nil || err2 != nil {
+		writeErr(w, http.StatusUnprocessableEntity, "validation", "from and to are dates (YYYY-MM-DD)")
+		return
+	}
+	out, err := s.cfg.Kernel.CashFlow(r.Context(), principalFrom(r.Context()), entity, from, to)
 	if err != nil {
 		s.fail(w, err)
 		return

@@ -13,20 +13,22 @@
  "requirement_counts": {
   "VERIFIED": 112,
   "NOT_STARTED": 65,
-  "IMPLEMENTING": 25,
+  "IMPLEMENTING": 24,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 1
+  "IMPLEMENTED_UNVERIFIED": 2
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 43,
+  "NOT_STARTED": 42,
   "BLOCKED": 12,
-  "VERIFIED": 27
+  "VERIFIED": 27,
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "domain_counts": {
-  "IMPLEMENTING": 51,
+  "IMPLEMENTING": 50,
   "NOT_STARTED": 27,
-  "BLOCKED": 2
+  "BLOCKED": 2,
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "domains": [
   {
@@ -2006,7 +2008,7 @@
    "domain": "GL",
    "milestone": "M3",
    "owner": "Finance controller",
-   "status": "IMPLEMENTING",
+   "status": "IMPLEMENTED_UNVERIFIED",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
@@ -2063,10 +2065,14 @@
     {
      "id": "CAP-01.5",
      "text": "Balance sheet, income statement and cash-flow statement",
-     "status": "IMPLEMENTING",
-     "evidence_tests": [],
+     "status": "IMPLEMENTED_UNVERIFIED",
+     "evidence_tests": [
+      "TestAPIFinancialStatements",
+      "TestCashFlow_DirectMethodReference",
+      "TestConsoleBrowserFinance"
+     ],
      "evidence_file": "",
-     "note": "Trial balance, GL detail and journal register exist.",
+     "note": "Income statement, balance sheet (CAP-01.5.a), cash-flow statement by the direct method (0091), drill-down to journal lines.",
      "criteria": [
       {
        "id": "CAP-01.5.a",
@@ -2080,9 +2086,12 @@
       {
        "id": "CAP-01.5.b",
        "text": "Cash-flow statement (needs operating/investing/financing classification of accounts)",
-       "status": "NOT_STARTED",
-       "evidence_tests": [],
-       "note": ""
+       "status": "IMPLEMENTED_UNVERIFIED",
+       "evidence_tests": [
+        "TestCashFlow_DirectMethodReference",
+        "TestConsoleBrowserFinance"
+       ],
+       "note": "0091: account classes proposed and approved by different people (attested); direct method; opening + movement = closing, against a hand-computed reference."
       },
       {
        "id": "CAP-01.5.c",

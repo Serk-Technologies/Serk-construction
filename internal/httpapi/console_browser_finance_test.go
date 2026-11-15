@@ -81,7 +81,8 @@ func TestConsoleBrowserFinance(t *testing.T) {
 	a.call(200, "POST", "/v1/journals/"+jid+"/post", a.token("u-fs-ctrl", "controller"), nil)
 
 	tokens := map[string]string{"accountant": a.tok("u-accountant", nil, false, "accountant"), "cfo": a.tok("u-cfo", nil, true, "cfo"), "ctrl": a.tok("u-controller-ui", nil, true, "controller"),
-		"ctrlPhone": a.tok("u-accountant", nil, false, "accountant")}
+		"ctrlPhone": a.tok("u-accountant", nil, false, "accountant"),
+		"finMgr":    a.tok("u-finance-manager-ui", nil, true, "finance_manager")}
 	dir := t.TempDir()
 	fx, _ := json.Marshal(map[string]any{"tokens": tokens, "entity": a.entity, "project": a.project})
 	fixture := filepath.Join(dir, "fixture.json")

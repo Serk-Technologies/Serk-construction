@@ -3688,9 +3688,13 @@ async function renderStatements() {
   };
   const lines = (title, rows, total, label, period) => table(title, [{ label: 'Code', cell: (a) => drill(a, period) }, { label: 'Account', cell: (a) => a.account_name },
     { label: 'Amount', num: true, cell: (a) => money(a.amount) }], [...(rows || []), { _class: 'total', account_code: '', account_name: label, amount: total }], 'Nothing in this section.');
-  const load = () => latest(async (signal) => (ent.value && from.value && to.value ? api('GET', `/v1/reports/financial-statements?entity=${ent.value}&from=${from.value}&to=${to.value}`, undefined, undefined, signal) : null), (r) => {
+  const load = () => latest(async (signal) => (ent.value && from.value && to.value ? Promise.all([
+    api('GET', `/v1/reports/financial-statements?entity=${ent.value}&from=${from.value}&to=${to.value}`, undefined, undefined, signal),
+    api('GET', `/v1/reports/cash-flow?entity=${ent.value}&from=${from.value}&to=${to.value}`, undefined, undefined, signal),
+    api('GET', `/v1/entities/${ent.value}/cash-flow-classes`, undefined, undefined, signal)]) : null), (all) => {
     out.textContent = '';
-    if (!r) return;
+    if (!all) return;
+    const [r, cf, classes] = all;
     out.append(h('h2', { class: 'section' }, `Income statement, ${r.from} to ${r.to}`),
       lines('Revenue', r.revenue, r.total_revenue, 'Total revenue', true), lines('Expenses', r.expenses, r.total_expenses, 'Total expenses', true),
       h('p', { class: 'kpi-line' }, h('strong', {}, `Profit for the period: ${money(r.net_profit)}`)),
@@ -3699,9 +3703,44 @@ async function renderStatements() {
       lines('Assets', r.assets, r.total_assets, 'Total assets'), lines('Liabilities', r.liabilities, r.total_liabilities, 'Total liabilities'),
       lines('Equity', r.equity, r.total_equity, 'Total equity'),
       h('p', {}, `Earnings not yet closed to equity: ${money(r.unclosed_earnings)}`));
+    out.append(cashFlowSection(cf, classes.accounts || []));
   });
+  // CAP-01.5.b (0091): direct method, from movements of accounts approved as CASH.
+  const cashFlowSection = (cf, accts) => {
+    const box = h('div', {}, h('h2', { class: 'section' }, `Cash-flow statement, ${cf.from} to ${cf.to}`));
+    if (!cf.cash_accounts) box.append(h('p', { class: 'alert', role: 'status' }, 'No account is approved as cash yet: classify the cash and bank accounts below.'));
+    else box.append(h('p', { class: cf.reconciles ? 'notice' : 'alert', role: 'status' }, cf.reconciles
+      ? `Opening cash ${money(cf.opening_cash)} + net movement ${money(cf.net_change)} = closing cash ${money(cf.closing_cash)}.`
+      : `Opening plus movement differs from closing cash by ${money(cf.difference)}.`),
+      lines('Operating activities', cf.operating, cf.total_operating, 'Net cash from operating activities', true),
+      lines('Investing activities', cf.investing, cf.total_investing, 'Net cash from investing activities', true),
+      lines('Financing activities', cf.financing, cf.total_financing, 'Net cash from financing activities', true));
+    box.append(cashFlowClassesPanel(accts));
+    return box;
+  };
+  const cashFlowClassesPanel = (accts) => {
+    const propose = (a) => {
+      if (!S.can.has('account.manage') || a.pending) return '';
+      const sel = select('class', ['CASH', 'OPERATING', 'INVESTING', 'FINANCING'].map((v) => ({ value: v, label: words(v.toLowerCase()) })), { 'aria-label': `Class for ${a.code}` });
+      sel.value = a.class;
+      const b = h('button', { type: 'button', class: 'ghost' }, 'Propose');
+      b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/cash-flow-classes', { account_id: a.account_id, class: sel.value }); say(`Class proposed for ${a.code}.`); load(); } catch (e) { showError(e); } });
+      return h('span', { class: 'row-actions' }, sel, b);
+    };
+    const approve = (a) => {
+      if (!a.pending) return a.approved ? 'Approved' : 'Default by type';
+      if (!S.can.has('journal.approve') || a.pending.created_by === S.me.user_id) return `${words(a.pending.class.toLowerCase())} proposed by ${a.pending.created_by}`;
+      const b = h('button', { type: 'button', 'data-approve-class': a.code }, `Approve ${words(a.pending.class.toLowerCase())}`);
+      b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/cash-flow-classes/${a.pending.id}/approve`); say(`Class approved for ${a.code}.`); load(); } catch (e) { showError(e); } });
+      return b;
+    };
+    return h('details', { class: 'panel' }, h('summary', {}, 'Cash-flow classes of the accounts'),
+      h('p', { class: 'hint' }, 'Someone proposes a class; someone else approves it. Without an approved class an account counts by its type, and is never cash.'),
+      table('Cash-flow classes', [{ label: 'Code', cell: (a) => a.code }, { label: 'Account', cell: (a) => a.name }, { label: 'Class', cell: (a) => chip(a.class) },
+        { label: 'Change', cell: propose }, { label: 'Approval', cell: approve }], accts, 'No account.'));
+  };
   for (const el of [ent, from, to]) el.addEventListener('change', () => load().catch(showError));
-  page('Financial statements', 'From posted journals only. Each line is an account: its code opens the journal lines of that account (for the period, or up to the date for the balance sheet). The cash-flow statement is not available yet.',
+  page('Financial statements', 'From posted journals only. Each line is an account: its code opens the journal lines of that account (for the period, or up to the date for the balance sheet). The cash-flow statement follows, from the accounts approved as cash.',
     h('div', { class: 'toolbar' }, field('Company', ent), field('From', from), field('To', to)), out);
   await load();
 }
