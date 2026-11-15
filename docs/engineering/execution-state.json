@@ -153,10 +153,13 @@
       "19": "failed (pull_request)",
       "20": "failed (main, merge of PR #3)",
       "21": "passed, NOT acceptable evidence (7 browser journeys skipped)",
-      "22": "passed: all six jobs, 457 tests, 0 skipped, commit be030f7, run id 43712828637"
+      "22": "passed: all six jobs, 457 tests, 0 skipped, commit be030f7, run id 43712828637",
+      "23": "passed: all six jobs, commit a3bc292",
+      "24": "failed: secrets job, one Gitleaks finding (synthetic test fixture in bf3c05d); other five jobs passed",
+      "25": "failed: same finding, commit d2e2c68"
     },
     "release_candidate": {
-      "revision": "to be recorded",
+      "revision": "the commit that adds .gitleaksignore (recorded after its three runs)",
       "runs": []
     }
   },

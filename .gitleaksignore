@@ -1,0 +1,10 @@
+# Findings reviewed and accepted, one fingerprint per line (commit:file:rule:line).
+# A fingerprint matches exactly one finding; no rule, path or pattern is relaxed.
+#
+# generic-api-key, internal/config/documents_test.go line 61, commit bf3c05d (2026-11-15).
+# A made-up constant in a unit test of the configuration validator, typed in that commit
+# as the "previous document key" input. It was never set in any environment, service,
+# CI secret or object store; it encrypts nothing. Removed from the tree in the commit
+# that added this file (the test now derives the value at run time). It stays in history
+# because history is not rewritten. Evidence: docs/engineering/AUDIT_REMEDIATION_2026-11-15.md, section 9.
+bf3c05d7b6d80e6d77995c59e23632afe37dd8a6:internal/config/documents_test.go:generic-api-key:61

@@ -68,6 +68,9 @@ GitHub runs on this branch and `main`:
 | 20 | `1096bf2` (`main`, merge of PR #3) | failed | missing bucket |
 | 21 | `0636d1b` | passed | **not acceptable evidence**: 7 browser journeys skipped, log-grep check |
 | 22 | `be030f7` | **passed** | new gate, no skips, journeys ran |
+| 23 | `a3bc292` | **passed** | this report's first version |
+| 24 | `bf3c05d` | failed | `secrets` job only: one Gitleaks finding (section 9); the other five jobs passed |
+| 25 | `d2e2c68` | failed | same finding (the scan covers history) |
 
 The three consecutive runs of the release-candidate revision are recorded in `execution-state.json` (`ci.release_candidate`) once they have run; this file is part of that revision and cannot contain its own run numbers.
 
@@ -107,3 +110,27 @@ The three consecutive runs of the release-candidate revision are recorded in `ex
 ## 8. Release readiness
 
 **NO-GO.** P0 is met on the development branch except for the items only an administrator can do (4.1, 4.2). Feature work (fleet, payroll, AI, BIM) stays suspended until those are done. Production deployment and live financial operation remain prohibited pending independent human authorisation.
+
+## 9. Secret-scan finding in runs 24 and 25
+
+| | |
+|---|---|
+| Scanner | Gitleaks 8.21.2, default rules, whole history, `--redact` |
+| Rule | `generic-api-key` (entropy 5.16) |
+| File and line | `internal/config/documents_test.go`, line 61 |
+| Commit | `bf3c05d7b6d80e6d77995c59e23632afe37dd8a6` (2026-11-15T12:31:47Z) |
+| Fingerprint | `bf3c05d7b6d80e6d77995c59e23632afe37dd8a6:internal/config/documents_test.go:generic-api-key:61` |
+| Match (redacted) | `prevKey = "REDACTED"` |
+
+Reproduced in the build environment with the same Gitleaks version built from source (the CI log prints only the count).
+
+**Assessment: synthetic test fixture, not a credential.** The value was typed by the engineering agent in commit `bf3c05d` as the "previous document key" input of `TestDocumentKeyRotationConfig`, a unit test that passes an in-memory map to the configuration validator. `git log --all -S` shows the string in exactly one commit that adds it and the one that removes it; a search of the tree finds it nowhere else. It was never placed in an environment, a CI secret, a deployment or an object store, and no data was ever encrypted with it. There is nothing to revoke or rotate, and no history rewrite is warranted (nor authorised on this branch).
+
+**Remediation.**
+- The literal is removed: the test derives the value at run time.
+- `.gitleaksignore` lists that **one fingerprint** (commit, file, rule and line), with the reasoning. No rule, path or pattern was relaxed; `.gitleaks.toml` is unchanged; the scan still covers the whole history and fails on any other finding.
+- Verified: Gitleaks 8.21.2 over the history reports the finding without the ignore entry and "no leaks found" with it.
+
+**Why it reached GitHub.** The repository's own pre-push check (`scripts/supply_chain_local.sh`) uses a different, narrower pattern set and passed. The agent pushed before running Gitleaks. Gitleaks is now run in the build environment before a push; making that a scripted pre-push step is recorded as open work. The gate did its job: the revision was rejected.
+
+The release candidate is therefore a new revision after this fix; `d2e2c68` is not a candidate.
