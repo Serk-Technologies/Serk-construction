@@ -95,6 +95,8 @@ const (
 	PermChangeApprove      Permission = "change.approve"      // approve or reject a change event (fresh MFA)
 	PermClaimManage        Permission = "claim.manage"        // raise notices; prepare claims; record the client's answer (0046)
 	PermClaimApprove       Permission = "claim.approve"       // approve or reject a claim for sending (fresh MFA)
+	PermDocumentManage     Permission = "document.manage"     // register documents, upload and submit revisions; raise, answer and close RFIs (0052)
+	PermDocumentApprove    Permission = "document.approve"    // publish or reject a document revision (fresh MFA)
 	PermBondManage         Permission = "bond.manage"         // register guarantees; reduce or extend them (0050)
 	PermBondApprove        Permission = "bond.approve"        // release a guarantee to the bank or record its call (fresh MFA)
 	PermEscalationManage   Permission = "escalation.manage"   // indices, index values, formulas, price adjustments (0050)
@@ -203,7 +205,7 @@ var DefaultRoles = map[string]Role{
 		PermPeriodReopen, PermAuditRead, PermScopeTenantWide, PermWorkflowRead, PermWorkflowPublish, PermApprovalHighValue,
 		PermPaymentApprove, PermP2PPolicyApprove, PermBudgetOverride, PermBudgetApprove, PermAuthorityApprove, PermDelegationCreate, PermBankAcctApprove, PermBankDetailsReveal, PermContractApprove, PermContractPolicyApprove, PermP2PRead}},
 	"auditor":            {Name: "auditor", Permissions: []Permission{PermIntelligenceRead, PermJournalRead, PermAuditRead, PermFXRead, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
-	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermProjectUpdate, PermProjectGateSubmit, PermForecastPrepare, PermChangeManage, PermClaimManage, PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead}},
+	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermDocumentApprove, PermProjectUpdate, PermProjectGateSubmit, PermForecastPrepare, PermChangeManage, PermClaimManage, PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead}},
 	"project_accountant": {Name: "project_accountant", Permissions: []Permission{PermJournalCreate, PermJournalRead, PermFXRead, PermWorkflowRead}},
 	"process_owner":      {Name: "process_owner", Permissions: []Permission{PermAuthorityManage, PermWorkflowDefine, PermWorkflowRead, PermAutomationManage, PermIntelligenceRead, PermScopeTenantWide}},
 	"workflow_admin":     {Name: "workflow_admin", Permissions: []Permission{PermWorkflowAdmin, PermWorkflowRead, PermAutomationActivate, PermIntelligenceRead, PermScopeTenantWide}},
@@ -212,14 +214,14 @@ var DefaultRoles = map[string]Role{
 	// Journey A operational roles.
 	"estimator":           {Name: "estimator", Permissions: []Permission{PermBOQManage, PermP2PRead}},
 	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermProjectCreate, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBondApprove, PermEscalationApprove, PermDelegationCreate, PermIntelligenceRead, PermBOQApprove, PermBudgetApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead}},
-	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead}},
+	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermDocumentManage, PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead}},
 	"storekeeper":         {Name: "storekeeper", Permissions: []Permission{PermStockReserve, PermGRNCreate, PermStockReceive, PermStockIssue, PermStockCount, PermStockTransfer, PermP2PRead}},
 	"procurement_officer": {Name: "procurement_officer", Permissions: []Permission{PermSupplierManage, PermRFQManage, PermPOManage, PermStockItemManage, PermP2PRead}},
 	"procurement_manager": {Name: "procurement_manager", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermSupplierApprove, PermRFQAward, PermPOApprove, PermWarehouseManage, PermP2PRead}},
 	"ap_clerk":            {Name: "ap_clerk", Permissions: []Permission{PermAPEnter, PermP2PRead}},
 	"ap_supervisor":       {Name: "ap_supervisor", Permissions: []Permission{PermAPApprove, PermP2PRead}},
 	// Journey B operational roles.
-	"quantity_surveyor": {Name: "quantity_surveyor", Permissions: []Permission{PermChangeManage, PermClaimManage, PermEscalationManage, PermIntelligenceRead, PermMeasureCreate, PermIPCPrepare, PermP2PRead}},
+	"quantity_surveyor": {Name: "quantity_surveyor", Permissions: []Permission{PermDocumentManage, PermChangeManage, PermClaimManage, PermEscalationManage, PermIntelligenceRead, PermMeasureCreate, PermIPCPrepare, PermP2PRead}},
 	"ar_clerk": {Name: "ar_clerk", Permissions: []Permission{PermCustomerManage, PermARInvoiceCreate, PermARReceiptCreate, PermARCreditCreate, PermARRetentionCreate, PermScopeTenantWide,
 		PermP2PRead}},
 	// Approves stock count adjustments. Separate from the journal chain: the
@@ -227,7 +229,7 @@ var DefaultRoles = map[string]Role{
 	// controller, and its preparer may do neither.
 	"inventory_controller": {Name: "inventory_controller", Permissions: []Permission{PermStockAdjustApprove, PermStockTransferApprove, PermScopeTenantWide, PermP2PRead}},
 	// Plans and reports progress; a project manager approves (GATED-02).
-	"planner":       {Name: "planner", Permissions: []Permission{PermIntelligenceRead, PermScheduleManage, PermP2PRead}},
+	"planner":       {Name: "planner", Permissions: []Permission{PermDocumentManage, PermIntelligenceRead, PermScheduleManage, PermP2PRead}},
 	"ar_supervisor": {Name: "ar_supervisor", Permissions: []Permission{PermARInvoiceApprove, PermARReceiptConfirm, PermScopeTenantWide, PermP2PRead}},
 }
 
@@ -632,6 +634,7 @@ var DefaultSoDConflicts = []SoDConflict{
 	{"Cost forecasts", []Permission{PermForecastPrepare, PermForecastApprove}},
 	{"Change events", []Permission{PermChangeManage, PermChangeApprove}},
 	{"Claims", []Permission{PermClaimManage, PermClaimApprove}},
+	{"Controlled documents", []Permission{PermDocumentManage, PermDocumentApprove}},
 	{"Guarantees", []Permission{PermBondManage, PermBondApprove}},
 	{"Price adjustment", []Permission{PermEscalationManage, PermEscalationApprove}},
 }

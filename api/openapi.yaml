@@ -1746,3 +1746,57 @@ paths:
       x-generated: true  # stub: replace with a hand-written description
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/document-revisions/{id}/content:
+    get:
+      summary: "Download a revision's file as an attachment. Headers carry the revision status (X-Serk-Revision-Status), number and SHA-256; a status other than APPROVED is not the current revision. Counts against the caller's daily export budget."
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: the file }, '401': { description: bearer token required }, '404': { description: not found or outside your scope }, '429': { description: export budget spent } }
+  /v1/documents:
+    get:
+      summary: "The document register of the caller's projects (?project=), each with its current (published) revision or null"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    post:
+      summary: "Register a controlled document {project_id, reference, doc_type, title, discipline?}; needs document.manage on the project"
+      responses: { '201': { description: created }, '401': { description: bearer token required }, '403': { description: forbidden }, '422': { description: validation } }
+  /v1/documents/{id}:
+    get:
+      summary: "One document with every revision, newest first"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/rfis:
+    get:
+      summary: "Requests for information of the caller's projects (?project=&status=OPEN|ANSWERED|CLOSED) with their standing"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    post:
+      summary: "Raise an RFI {project_id, subject, question, revision_id?, assigned_to, due_on}; needs document.manage on the project"
+      responses: { '201': { description: created }, '401': { description: bearer token required }, '403': { description: forbidden }, '422': { description: validation } }
+  /v1/document-revisions/{id}/approve:
+    post:
+      summary: "Publish a submitted revision: a different person, fresh MFA, human only. Supersedes the document's previous current revision in the same transaction"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/document-revisions/{id}/reject:
+    post:
+      summary: "Reject a submitted revision with a reason (a human decision by a different person)"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/document-revisions/{id}/submit:
+    post:
+      summary: "Submit a draft revision for publication (its author only)"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/documents/{id}/revisions:
+    post:
+      summary: "Upload a DRAFT revision {revision, file_name, media_type, change_note, content (base64, at most 10 MiB)}. Allow-listed media types only; the content must match its type; the database hashes the stored file"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '201': { description: created }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope }, '413': { description: file too large }, '422': { description: validation } }
+  /v1/rfis/{id}/answer:
+    post:
+      summary: "Answer an open RFI {answer}: once, by a person other than its author (attested human decision)"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/rfis/{id}/close:
+    post:
+      summary: "Close an answered RFI, or withdraw an unanswered one with {note}; its author only"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }

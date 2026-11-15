@@ -110,6 +110,9 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"price_adjustment":   {"price_adjustments", "created_by", ""},
 	// Liquidated damages terms (0051).
 	"ld_terms": {"contract_ld_terms", "created_by", ""},
+	// Controlled documents and RFIs (0052).
+	"document_revision": {"document_revisions", "created_by", ""},
+	"rfi":               {"rfis", "created_by", ""},
 }
 
 // DocTypes reports whether a document type is known (for callers that must
@@ -374,6 +377,8 @@ var listSQL = map[string]string{
 	"escalation_formula":    `SELECT f.id::text, f.number, f.status, f.created_by, f.created_at, c.project_id::text, f.fixed_portion, c.number || ' — fixed ' || f.fixed_portion || ', base ' || to_char(f.base_period, 'YYYY-MM') || ' (' || (SELECT string_agg(t.index_code || ' ' || t.weight, ', ' ORDER BY t.index_code) FROM escalation_terms t WHERE t.formula_id = f.id) || ')' FROM escalation_formulas f JOIN contracts c ON c.id = f.contract_id`,
 	"price_adjustment":      `SELECT a.id::text, a.number, a.status, a.created_by, a.created_at, c.project_id::text, a.amount, i.number || ' — factor ' || a.factor || ' on ' || a.base_value || ' (indices ' || to_char(a.current_period, 'YYYY-MM') || ')' FROM price_adjustments a JOIN contracts c ON c.id = a.contract_id JOIN ipcs i ON i.id = a.ipc_id`,
 	"ld_terms":              `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, c.project_id::text, t.rate_per_day, c.number || ' — complete by ' || t.completion_date || ', ' || t.rate_per_day || ' a day, cap ' || t.cap_amount || ' (clause ' || t.clause_ref || ')' FROM contract_ld_terms t JOIN contracts c ON c.id = t.contract_id`,
+	"document_revision":     `SELECT v.id::text, v.number, v.status, v.created_by, v.created_at, d.project_id::text, 0::numeric, d.reference || ' rev ' || v.revision || ' — ' || d.title || ' (' || v.file_name || ')' FROM document_revisions v JOIN documents d ON d.id = v.document_id`,
+	"rfi":                   `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, r.project_id::text, 0::numeric, r.subject || ' (answer due ' || r.due_on || ', to ' || r.assigned_to || ')' FROM rfis r`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,
 	       s.imported_by, s.imported_at, '', l.amount, l.reference || ' — ' || l.counterparty FROM bank_statement_lines l JOIN bank_statements s ON s.id = l.statement_id WHERE l.amount > 0`,

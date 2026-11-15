@@ -62,7 +62,7 @@ the conflict catalogue below is tested against every role.
 
 ### planner
 
-`intelligence.read`, `p2p.read`, `schedule.manage`
+`document.manage`, `intelligence.read`, `p2p.read`, `schedule.manage`
 
 ### process_owner
 
@@ -82,11 +82,11 @@ the conflict catalogue below is tested against every role.
 
 ### project_manager
 
-`budget.revise`, `budget.transfer`, `change.manage`, `claim.manage`, `delegation.create`, `forecast.prepare`, `fx.read`, `intelligence.read`, `journal.read`, `p2p.read`, `pr.approve`, `project.gate.submit`, `project.update`, `schedule.approve`, `site.diary.approve`, `stock.issue.approve`, `stock.reserve`, `wbs.manage`, `workflow.read`
+`budget.revise`, `budget.transfer`, `change.manage`, `claim.manage`, `delegation.create`, `document.approve`, `forecast.prepare`, `fx.read`, `intelligence.read`, `journal.read`, `p2p.read`, `pr.approve`, `project.gate.submit`, `project.update`, `schedule.approve`, `site.diary.approve`, `stock.issue.approve`, `stock.reserve`, `wbs.manage`, `workflow.read`
 
 ### quantity_surveyor
 
-`change.manage`, `claim.manage`, `escalation.manage`, `intelligence.read`, `ipc.prepare`, `measure.create`, `p2p.read`
+`change.manage`, `claim.manage`, `document.manage`, `escalation.manage`, `intelligence.read`, `ipc.prepare`, `measure.create`, `p2p.read`
 
 ### security_admin
 
@@ -94,7 +94,7 @@ the conflict catalogue below is tested against every role.
 
 ### site_engineer
 
-`grn.confirm`, `measure.verify`, `p2p.read`, `pr.create`, `rfq.evaluate`, `site.device.register`, `site.diary.manage`, `stock.issue.approve`, `stock.reserve`
+`document.manage`, `grn.confirm`, `measure.verify`, `p2p.read`, `pr.create`, `rfq.evaluate`, `site.device.register`, `site.diary.manage`, `stock.issue.approve`, `stock.reserve`
 
 ### storekeeper
 
@@ -155,6 +155,8 @@ the conflict catalogue below is tested against every role.
 | `customer.manage` | ar_clerk |
 | `delegation.approve` | security_admin |
 | `delegation.create` | cfo, commercial_manager, controller, finance_manager, procurement_manager, project_manager |
+| `document.approve` | project_manager |
+| `document.manage` | planner, quantity_surveyor, site_engineer |
 | `escalation.approve` | commercial_manager |
 | `escalation.manage` | quantity_surveyor |
 | `forecast.approve` | cfo, commercial_manager |
@@ -284,6 +286,7 @@ the conflict catalogue below is tested against every role.
 | Cost forecasts | `forecast.prepare` + `forecast.approve` |
 | Change events | `change.manage` + `change.approve` |
 | Claims | `claim.manage` + `claim.approve` |
+| Controlled documents | `document.manage` + `document.approve` |
 | Guarantees | `bond.manage` + `bond.approve` |
 | Price adjustment | `escalation.manage` + `escalation.approve` |
 

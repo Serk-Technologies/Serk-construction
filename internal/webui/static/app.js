@@ -165,6 +165,10 @@ const DOCS = {
     actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
   ld_terms: { title: 'Damages terms', one: 'Damages terms', base: '/v1/ld-terms', create: 'claim.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
+  document_revision: { title: 'Document revisions', one: 'Document revision', base: '/v1/document-revisions', create: 'document.manage', form: 'document',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
+    actions: { DRAFT: [['submit', 'document.manage']], SUBMITTED: [['approve', 'document.approve', 'opt'], ['reject', 'document.approve', 'req']] } },
+  rfi: { title: 'Requests for information', one: 'Request for information', base: '/v1/rfis', create: 'document.manage', form: 'rfi', statuses: ['OPEN', 'ANSWERED', 'CLOSED'], actions: {} },
   guarantee: { title: 'Guarantees', one: 'Guarantee', base: '/v1/guarantees', create: 'bond.manage', form: null, statuses: ['ACTIVE', 'RELEASED', 'CALLED'], actions: {} },
   price_index_value: { title: 'Index values', one: 'Index value', base: '/v1/price-index-values', create: 'escalation.manage', form: null,
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
@@ -312,6 +316,7 @@ const NAV = [
     ['#/list/customer_invoice', 'Customer invoices', 'p2p.read'], ['#/list/customer_credit_note', 'Credit notes', 'p2p.read'],
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
+  ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
   ['Treasury & banking', [['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
@@ -336,6 +341,7 @@ const QUEUES = [
   ['change.approve', 'change_event', 'SUBMITTED', 'Change events to decide'],
   ['claim.approve', 'contract_claim', 'SUBMITTED', 'Claims to approve for sending'],
   ['claim.approve', 'ld_terms', 'SUBMITTED', 'Damages terms to approve'],
+  ['document.approve', 'document_revision', 'SUBMITTED', 'Document revisions to publish'],
   ['escalation.approve', 'price_index_value', 'SUBMITTED', 'Index values to approve'],
   ['escalation.approve', 'escalation_formula', 'SUBMITTED', 'Price adjustment formulas to approve'],
   ['escalation.approve', 'price_adjustment', 'SUBMITTED', 'Price adjustments to approve'],
@@ -569,6 +575,7 @@ async function route() {
       case 'me': return await renderMe();
       case 'bonds': return await renderBonds(a);
       case 'obligations': return await renderObligations();
+      case 'documents': return await renderDocuments(a);
       default: return await renderHome();
     }
   } catch (e) {
@@ -813,6 +820,8 @@ async function renderDoc(type, id) {
       ce.budget_version_id ? h('p', {}, 'A budget revision for the cost lines was drafted. The budget moves only when it is submitted and approved: ', h('a', { href: `#/doc/budget_version/${ce.budget_version_id}` }, 'open the drafted revision'), '.')
         : h('p', { class: 'hint' }, 'This change event has no cost lines, so no budget revision was drafted.')));
   }
+  if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
+  if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); }
   if (type === 'contract_notice' && d.status === 'OPEN' && S.can.has('claim.manage')) {
     const on = input('sent_on', { type: 'date', required: true, value: new Date().toISOString().slice(0, 10) });
     const btn = h('button', { type: 'button', class: 'primary' }, 'Record as sent');
@@ -1323,6 +1332,54 @@ const FORMS = {
         created('change_event', res, 'Change event');
       });
     await load();
+  },
+
+  // Register a document with its first revision, or (with a document id) upload its next revision.
+  async document(docId) {
+    const existing = docId ? await api('GET', `/v1/documents/${docId}`) : null;
+    const proj = select('project_id', projectOpts(), { required: true });
+    const ref = input('reference', { type: 'text', required: true, maxlength: '60', pattern: '[A-Za-z0-9][A-Za-z0-9._/-]*', placeholder: 'e.g. A-101' });
+    const kind = select('doc_type', DOC_TYPES.map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
+    const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '200' });
+    const disc = input('discipline', { type: 'text', maxlength: '60', placeholder: 'e.g. Structure' });
+    const rev = input('revision', { type: 'text', required: true, maxlength: '12', pattern: '[A-Za-z0-9][A-Za-z0-9.-]*', placeholder: 'e.g. A or P01' });
+    const file = input('file', { type: 'file', required: true, accept: Object.keys(DOC_MEDIA).map((x) => '.' + x).join(',') });
+    const note = input('change_note', { type: 'text', required: true, minlength: '3', maxlength: '500', placeholder: 'What this revision is or what changed' });
+    const head = existing ? [h('p', {}, `${existing.number} · ${existing.reference} — ${existing.title}`,
+      existing.current ? ` · current revision ${existing.current.revision}` : ' · no revision published yet')]
+      : [h('div', { class: 'grid' }, field('Project', proj), field('Reference', ref, 'The project\'s own number for this document. It never changes.'), field('Type', kind), field('Title', title), field('Discipline', disc))];
+    formPage(existing ? 'Upload a new revision' : 'Register a document',
+      'The file is stored with its SHA-256, computed by the database. A revision is a draft until you submit it; a different person publishes it with a fresh multi-factor sign-in, and publishing replaces the current revision. PDF, PNG, JPEG, text, CSV, Word, Excel, DWG, DXF and IFC files up to 10 MiB.',
+      [...head, h('div', { class: 'grid' }, field('Revision', rev), field('File', file), field('Change note', note))], existing ? 'Upload revision' : 'Register and upload', async () => {
+        const f = file.files[0];
+        const media = DOC_MEDIA[(f.name.split('.').pop() || '').toLowerCase()];
+        if (!media) throw new Error('That kind of file is not accepted.');
+        if (f.size > 10 * 1024 * 1024) throw new Error('The file is larger than 10 MiB.');
+        const content = await fileBase64(f);
+        const id = existing ? existing.id : (await api('POST', '/v1/documents', { project_id: proj.value, reference: ref.value.trim(), doc_type: kind.value, title: title.value.trim(), discipline: disc.value.trim() })).id;
+        const res = await api('POST', `/v1/documents/${id}/revisions`, { revision: rev.value.trim(), file_name: f.name.replace(/[^A-Za-z0-9 ._()-]/g, '_').slice(0, 150), media_type: media, change_note: note.value.trim(), content });
+        created('document_revision', res, 'Revision');
+      });
+  },
+
+  async rfi() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const about = select('revision_id', [{ value: '', label: 'No particular document' }]);
+    const subject = input('subject', { type: 'text', required: true, minlength: '3', maxlength: '200' });
+    const question = h('textarea', { name: 'question', required: true, minlength: '10', maxlength: '4000', rows: '5' });
+    const to = input('assigned_to', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the person expected to answer' });
+    const due = input('due_on', { type: 'date', required: true, value: plusDays(7), min: today() });
+    const loadDocs = async () => {
+      const list = proj.value ? (await api('GET', `/v1/documents?project=${proj.value}`)).documents : [];
+      about.replaceChildren(h('option', { value: '' }, 'No particular document'), ...list.filter((x) => x.current).map((x) => h('option', { value: x.current.id }, `${x.reference} rev ${x.current.revision} — ${x.title}`)));
+    };
+    proj.addEventListener('change', loadDocs);
+    formPage('Raise a request for information', 'Ask a question about the works, optionally about the current revision of a document. Someone other than you answers it, once; then you close it. An answer that changes cost or time is followed by a change event.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('About', about), field('Subject', subject), field('Expected to answer', to), field('Answer due', due)), field('Question', question)], 'Raise the RFI', async () => {
+        const res = await api('POST', '/v1/rfis', { project_id: proj.value, subject: subject.value.trim(), question: question.value.trim(), revision_id: about.value, assigned_to: to.value.trim(), due_on: due.value });
+        created('rfi', res, 'RFI');
+      });
+    await loadDocs();
   },
 
   async notice() {
@@ -4147,6 +4204,111 @@ function addObligationSheet(contracts, after) {
       closeSheet(); say('Obligation added.'); after();
     } catch (e) { sheetError(sheet, e); }
   });
+}
+
+// ---------- controlled documents (0052) ----------
+const DOC_TYPES = ['DRAWING', 'SPECIFICATION', 'METHOD_STATEMENT', 'REPORT', 'CORRESPONDENCE', 'CONTRACT', 'CERTIFICATE', 'OTHER'];
+const DOC_MEDIA = { pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', txt: 'text/plain', csv: 'text/csv',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  dwg: 'image/vnd.dwg', dxf: 'image/vnd.dxf', ifc: 'application/x-step' };
+const REVISION_STATE = { DRAFT: 'Work in progress', SUBMITTED: 'Shared for review', APPROVED: 'Published (current)', REJECTED: 'Rejected', SUPERSEDED: 'Superseded (not current)' };
+const fileSize = (n) => (n >= 1048576 ? (n / 1048576).toFixed(1) + ' MiB' : n >= 1024 ? Math.round(n / 1024) + ' KiB' : n + ' B');
+function fileBase64(f) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).slice(String(r.result).indexOf(',') + 1));
+    r.onerror = () => reject(new Error('The file could not be read.'));
+    r.readAsDataURL(f);
+  });
+}
+async function downloadRevision(id, btn) {
+  clearError();
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch(`/v1/document-revisions/${id}/content`, { headers: { Authorization: 'Bearer ' + S.token } });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      const e = d.error || {};
+      throw new ApiError(r.status, e.code || 'error', e.message || r.statusText, r.headers.get('WWW-Authenticate'));
+    }
+    const blob = await r.blob();
+    const name = (/filename="([^"]+)"/.exec(r.headers.get('Content-Disposition') || '') || [])[1] || 'document';
+    const state = r.headers.get('X-Serk-Revision-Status');
+    const url = URL.createObjectURL(blob);
+    const a = h('a', { href: url, download: name, hidden: true });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    say(`${name} downloaded${state && state !== 'APPROVED' ? ' — ' + (REVISION_STATE[state] || state).toLowerCase() + ', not the current revision' : ''}.`);
+  } catch (e) { showError(e); } finally { if (btn) btn.disabled = false; }
+}
+function revisionPanel(d, head, doc) {
+  const dl = h('button', { type: 'button', class: 'primary' }, 'Download the file');
+  dl.addEventListener('click', () => downloadRevision(d.id, dl));
+  const warn = d.status === 'APPROVED' ? null : h('p', { class: 'hint' }, d.status === 'SUPERSEDED' ? 'This revision has been superseded. It is kept as history and must not be built from.'
+    : d.status === 'REJECTED' ? 'This revision was rejected and was never published.' : 'This revision is not published yet. The published revision, if any, remains the current one.');
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${doc.reference || ''} — ${doc.title || ''}`.trim()),
+    h('p', {}, `${REVISION_STATE[d.status] || d.status} · revision ${head.revision} · ${head.file_name} · ${fileSize(Number(head.size_bytes))}`),
+    h('p', { class: 'hint' }, `SHA-256 ${head.sha256}`), warn,
+    h('div', { class: 'actions' }, dl, doc.id ? h('a', { href: `#/documents/${doc.id}` }, 'All revisions of this document') : null));
+}
+function rfiPanel(d, head) {
+  const manage = S.can.has('document.manage');
+  const mine = d.created_by === S.me.user_id;
+  if (d.status === 'OPEN' && manage && !mine) {
+    const answer = h('textarea', { name: 'answer', required: true, minlength: '3', maxlength: '4000', rows: '4' });
+    const btn = h('button', { type: 'button', class: 'primary' }, 'Record the answer');
+    btn.addEventListener('click', async () => {
+      clearError();
+      try { await api('POST', `/v1/rfis/${d.id}/answer`, { answer: answer.value.trim() }); say('Answer recorded.'); route(); } catch (e) { showError(e); }
+    });
+    return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Answer'), h('p', { class: 'hint' }, 'An answer is recorded once and cannot be edited afterwards.'), field('Answer', answer), h('div', { class: 'actions' }, btn));
+  }
+  if (d.status !== 'CLOSED' && manage && mine) {
+    const note = input('note', { type: 'text', maxlength: '500', placeholder: d.status === 'OPEN' ? 'Why the question is withdrawn (required)' : 'Optional closing note' });
+    const btn = h('button', { type: 'button', class: 'primary' }, d.status === 'OPEN' ? 'Withdraw the RFI' : 'Close the RFI');
+    btn.addEventListener('click', async () => {
+      clearError();
+      try { await api('POST', `/v1/rfis/${d.id}/close`, { note: note.value.trim() }); say('RFI closed.'); route(); } catch (e) { showError(e); }
+    });
+    return h('div', { class: 'panel' }, h('h2', { class: 'section' }, d.status === 'OPEN' ? 'Waiting for an answer' : 'Close'),
+      h('p', { class: 'hint' }, d.status === 'OPEN' ? 'Someone other than you records the answer. You can withdraw the question with a reason.' : 'The question has been answered. Close it when the answer is sufficient.'),
+      h('div', { class: 'actions' }, field('Note', note), btn));
+  }
+  return null;
+}
+async function renderDocuments(id) {
+  closeSheet();
+  if (id) {
+    const d = await api('GET', `/v1/documents/${id}`);
+    const up = S.can.has('document.manage') && !d.revisions_in_review ? h('a', { class: 'btn', href: `#/new/document/${d.id}` }, 'Upload a new revision') : null;
+    return page(`${d.reference} — ${d.title}`, `${d.number} · ${words(d.doc_type.toLowerCase())}${d.discipline ? ' · ' + d.discipline : ''} · registered by ${d.created_by}. ${d.current ? 'Revision ' + d.current.revision + ' is the current revision.' : 'No revision is published yet.'}`,
+      h('div', { class: 'toolbar' }, up, h('a', { href: '#/documents' }, 'Back to the register')),
+      table('Revisions, newest first', [
+        { label: 'Revision', cell: (v) => h('a', { href: `#/doc/document_revision/${v.id}` }, v.revision) },
+        { label: 'State', cell: (v) => REVISION_STATE[v.status] || v.status },
+        { label: 'File', cell: (v) => `${v.file_name} (${fileSize(v.size_bytes)})` },
+        { label: 'Change note', cell: (v) => v.change_note },
+        { label: 'Uploaded by', cell: (v) => v.created_by },
+        { label: 'Published by', cell: (v) => v.approved_by && v.status !== 'REJECTED' ? v.approved_by : '' },
+        { label: '', cell: (v) => h('button', { type: 'button', class: 'ghost', 'aria-label': `Download revision ${v.revision}`, on: { click: (ev) => downloadRevision(v.id, ev.currentTarget) } }, 'Download') },
+      ], d.revisions, 'No revision has been uploaded.'));
+  }
+  const list = (await api('GET', '/v1/documents')).documents;
+  const add = S.can.has('document.manage') ? h('a', { class: 'btn', href: '#/new/document' }, 'Register a document') : null;
+  const proj = (pid) => { const p = (S.ref.projects || []).find((x) => x.id === pid); return p ? p.code : ''; };
+  page('Document register', 'The controlled documents of your projects. Each shows its current revision: the one published by a second person. Earlier revisions are kept as history and marked superseded.',
+    h('div', { class: 'toolbar' }, add),
+    table('Documents', [
+      { label: 'Reference', cell: (d) => h('a', { href: `#/documents/${d.id}` }, d.reference) },
+      { label: 'Title', cell: (d) => d.title },
+      { label: 'Type', cell: (d) => words(d.doc_type.toLowerCase()) },
+      { label: 'Project', cell: (d) => proj(d.project_id) },
+      { label: 'Current revision', cell: (d) => (d.current ? h('a', { href: `#/doc/document_revision/${d.current.id}` }, d.current.revision) : 'None published') },
+      { label: 'In review', cell: (d) => (d.revisions_in_review ? 'Yes' : '') },
+      { label: '', cell: (d) => (d.current ? h('button', { type: 'button', class: 'ghost', 'aria-label': `Download ${d.reference}`, on: { click: (ev) => downloadRevision(d.current.id, ev.currentTarget) } }, 'Download') : '') },
+    ], list, 'No documents are registered for your projects.'));
 }
 
 async function renderObligations() {

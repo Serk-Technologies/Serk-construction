@@ -200,7 +200,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		traceID = obs.NewTraceID()
 	}
 	h.Set("traceparent", obs.Traceparent(traceID, obs.NewSpanID()))
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, bodyLimit(r))
 	holder := &principalHolder{}
 	ctx, cancel := context.WithTimeout(kernel.WithRequestID(context.WithValue(r.Context(), holderKey, holder), rid), requestTimeout)
 	defer cancel()

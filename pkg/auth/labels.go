@@ -120,6 +120,8 @@ var permissionLabels = map[Permission]pl{
 	PermGRNConfirm:            {"Site", "Confirm goods received", StageApprove},
 	PermSiteDiaryManage:       {"Site", "Write site diaries", StagePrepare},
 	PermSiteDiaryApprove:      {"Site", "Approve site diaries", StageApprove},
+	PermDocumentManage:        {"Site", "Upload documents; raise and answer RFIs", StagePrepare},
+	PermDocumentApprove:       {"Site", "Publish document revisions", StageApprove},
 	PermSiteDeviceRegister:    {"Site", "Register field devices", StagePrepare},
 	PermSiteDeviceManage:      {"Site", "Approve and retire field devices", StageApprove},
 	PermOrgManage:             {"Governance & access", "Maintain entities, units and the calendar", StageGovern},

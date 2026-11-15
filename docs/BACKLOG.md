@@ -1,6 +1,6 @@
 # Engineering backlog and gap register
 
-Against the Master Engineering Directive (docs/audit, 2026-10-26). States:
+Against the Master Engineering Directive (docs/audit, 2026-10-26). The register of the 80 domains of the Construction OS 3.0 Bible, with executed evidence per requirement, is `docs/engineering/REQUIREMENTS.md`. States:
 **1** verified · **2** implemented, insufficiently tested · **3** partial ·
 **4** UI-only/placeholder · **5** disconnected · **6** incorrect · **7** missing ·
 **8** blocked by an external dependency.
@@ -25,7 +25,7 @@ Nothing below is a human sign-off.
 | Progress measurement (4.4) | 3 | Approved progress reports and measurements; **missing**: weighted milestones, installed-quantity methods |
 | Project lifecycle, phases, stage gates (4.1) | 7 | Projects exist as references only |
 | WBS (4.2) | 3 | Versions, nodes, cost codes; **missing**: multi-level roll-up validation, responsibility |
-| Document control, RFIs, transmittals (8, 8.1) | 7 | — |
+| Document control, RFIs, transmittals (8, 8.1) | 3 | Register, immutable revisions with database-hashed files, maker/checker publication, supersession, scoped and recorded downloads, RFIs (0052, ADR 0018; `TestDocuments_*`, `TestAPIDocumentsAndRFIs`, `TestConsoleBrowserDocuments`); **missing**: malware scanning, object storage, transmittals, submittals, mark-ups, retention and legal hold |
 | BIM / IFC (8.2) | 7 | — |
 | Field capture, offline sync (9) | 1 | Site diaries, devices, idempotent sync with conflict detection (0037) |
 | Workforce / payroll (10.1) | 7 | — |
@@ -51,7 +51,7 @@ Nothing below is a human sign-off.
 |---|---|---|---|
 | 1 | Budget revisions and transfers with approval; original vs current approved budget | High (financial) | Cost report shows both; revision needs attestation; tests |
 | 2 | Financial control dashboard with documented KPI formulas and drill-down | High | Every KPI traces to a report row and then to documents |
-| 3 | Document control: numbered documents, revisions, supersession, RFIs | High (missing module) | Superseded never shown as current; tests |
+| 3 | ~~Document control: numbered documents, revisions, supersession, RFIs~~ done 2026-11-15 (0052). Next for this area: malware scanning in the upload path, transmittals and submittals | High | Superseded never shown as current; tests |
 | 4 | Equipment and job cost (GATED-03), QHSE (GATED-04) | Medium | Modules with maker/checker and ledger links |
 | 5 | Cash forecast: payroll/tax/supplier schedules; confirmed vs forecast | Medium | Outlook distinguishes confirmed from forecast |
 | 6 | Interface translation (am, ti) with canonical data untouched | Medium | Language switch without data loss |
