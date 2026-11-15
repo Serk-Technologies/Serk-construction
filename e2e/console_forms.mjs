@@ -108,6 +108,26 @@ for (const F of FORMS) {
   log(F.name, 'form state checks done');
 }
 
+// CNX-07.2 (0087): the project manager asks the site engineer to do something; only the engineer marks it done.
+{
+  const accept = (role, p) => { if (!dialogs[role]) { dialogs[role] = []; p.on('dialog', (d) => { dialogs[role].push(d.message()); d.accept(); }); } };
+  const pm = await as('pm'); accept('pm', pm);
+  const se = await as('siteEng'); accept('siteEng', se);
+  await nav(se, '#/home', 'My work');
+  await nav(pm, '#/tasks', 'Tasks');
+  await pm.getByLabel('Task', { exact: true }).fill('Book the crane for the bridge beams');
+  await pm.getByLabel('Assigned to', { exact: true }).fill('u-se');
+  await pm.getByRole('button', { name: 'Assign task' }).click();
+  await pm.getByRole('table').filter({ hasText: 'Book the crane for the bridge beams' }).filter({ hasText: 'u-se' }).waitFor();
+  if (await pm.getByRole('button', { name: 'Mark done' }).count()) fail('the person who asked is offered to complete the task');
+  await nav(se, '#/home', 'My work');
+  await se.getByRole('link', { name: /Tasks assigned to you/ }).filter({ hasText: '1' }).waitFor();
+  await nav(se, '#/tasks', 'Tasks');
+  await se.getByRole('button', { name: 'Mark done' }).first().click();
+  await se.getByRole('table').filter({ hasText: 'Book the crane for the bridge beams' }).filter({ hasText: 'DONE' }).waitFor();
+  log('task assigned by the project manager and done by the site engineer');
+}
+
 await browser.close();
 if (failures.length) { console.log(`${failures.length} failure(s)`); process.exit(1); }
 console.log('forms: all checks passed');

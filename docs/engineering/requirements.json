@@ -11,11 +11,11 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 109,
-  "NOT_STARTED": 68,
+  "VERIFIED": 108,
+  "NOT_STARTED": 67,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 1
+  "IMPLEMENTED_UNVERIFIED": 3
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
@@ -24,9 +24,10 @@
   "VERIFIED": 22
  },
  "domain_counts": {
-  "IMPLEMENTING": 51,
+  "IMPLEMENTING": 49,
   "NOT_STARTED": 27,
-  "BLOCKED": 2
+  "BLOCKED": 2,
+  "IMPLEMENTED_UNVERIFIED": 2
  },
  "domains": [
   {
@@ -2128,8 +2129,8 @@
    "domain": "Project accounting",
    "milestone": "M4",
    "owner": "Finance controller",
-   "status": "IMPLEMENTING",
-   "all_listed_requirements_verified": true,
+   "status": "IMPLEMENTED_UNVERIFIED",
+   "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "CAP-04.1",
@@ -2145,11 +2146,12 @@
     {
      "id": "CAP-04.2",
      "text": "Monthly cost forecast (EAC/ETC), WIP schedule and budget-vs-actual tie to their sources",
-     "status": "VERIFIED",
+     "status": "IMPLEMENTED_UNVERIFIED",
      "evidence_tests": [
       "TestForecast_MethodsAndGuards",
       "TestForecast_WIPScheduleAndSummary",
-      "TestReportCatalogue_EveryReportRunsAndTiesOut"
+      "TestReportCatalogue_EveryReportRunsAndTiesOut",
+      "TestForecast_ChangeRuleNeedsExplanation"
      ],
      "evidence_file": "",
      "note": "",
@@ -2912,7 +2914,7 @@
    "domain": "Tasks",
    "milestone": "M4",
    "owner": "Product owner",
-   "status": "IMPLEMENTING",
+   "status": "IMPLEMENTED_UNVERIFIED",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
@@ -2929,10 +2931,13 @@
     {
      "id": "CNX-07.2",
      "text": "Assignable tasks with due dates outside document approvals",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "IMPLEMENTED_UNVERIFIED",
+     "evidence_tests": [
+      "TestTasks_AssignCompleteCancel",
+      "TestConsoleBrowserForms"
+     ],
      "evidence_file": "",
-     "note": "",
+     "note": "0087: assigned to an active directory person with a due date and a notification; only the assignee completes, only the creator cancels or reassigns, enforced by the database; overdue shown; on My work.",
      "criteria": []
     }
    ]

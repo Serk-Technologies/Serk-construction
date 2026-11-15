@@ -419,7 +419,7 @@ const ACTION_LABEL = { submit: 'Submit for approval', approve: 'Approve', reject
 // Sidebar: categories in the order work flows through a construction company.
 // Each category folds; the folded set is remembered per browser (NAV_KEY).
 const NAV = [
-  ['Overview', [['#/home', 'My work', null], ['#/me', 'My profile', null], ['#/setup', 'Company setup', 'p2p.read|tenant.settings.manage|org.manage'], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
+  ['Overview', [['#/home', 'My work', null], ['#/tasks', 'Tasks', null], ['#/me', 'My profile', null], ['#/setup', 'Company setup', 'p2p.read|tenant.settings.manage|org.manage'], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
   ['Projects & planning', [['#/projects', 'Projects', 'p2p.read|project.create|project.update|project.gate.decide'], ['#/list/project_stage_gate', 'Stage gates', 'p2p.read|project.gate.submit|project.gate.decide'], ['#/budget', 'Budget overview', 'p2p.read'], ['#/list/forecast_cycle', 'Cost forecasts', 'p2p.read'], ['#/list/change_event', 'Change events', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/cost', 'Cost report', 'p2p.read'],
     ['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read'], ['#/riskreg', 'Risk register', 'p2p.read']]],
   ['Procurement', [['#/list/purchase_requisition', 'Requisitions', 'p2p.read'], ['#/list/rfq', 'RFQs', 'p2p.read'], ['#/list/rfq_quote', 'Quotes', 'p2p.read'],
@@ -724,6 +724,7 @@ async function route() {
       case 'tb': return await renderTB();
       case 'statements': return await renderStatements();
       case 'riskreg': return await renderRiskRegister(a);
+      case 'tasks': return await renderTasks();
       case 'aging': return await renderAging(a === 'ar' ? 'ar' : 'ap');
       case 'ask': return await renderAsk();
       case 'risk': return await renderRisk(a);
@@ -855,11 +856,13 @@ async function workQueues() {
   if (S.can.has('journal.approve')) jobs.push(Promise.all(['P2P_', 'AR_', 'STK_'].map((p) => api('GET', `/v1/journals?status=DRAFT&source_prefix=${p}`)))
     .then((rs) => rs.reduce((n, r) => n + r.journals.length, 0)).catch(() => null));
   if (S.can.has('journal.post')) jobs.push(api('GET', '/v1/journals?status=APPROVED').then((r) => r.journals.length).catch(() => null));
+  jobs.push(api('GET', '/v1/tasks?view=mine').then((r) => r.items.filter((x) => x.status === 'OPEN').length).catch(() => null));
   const counts = await Promise.all(jobs);
   const all = qs.map(([, type, status, label], i) => ({ label, href: `#/list/${type}/${status}`, n: counts[i] }));
   let k = qs.length;
   if (S.can.has('journal.approve')) all.push({ label: 'Subledger journals to approve', href: '#/journals', n: counts[k++] });
   if (S.can.has('journal.post')) all.push({ label: 'Approved journals to post', href: '#/journals', n: counts[k++] });
+  all.push({ label: 'Tasks assigned to you', href: '#/tasks', n: counts[k++] });
   return all;
 }
 function greeting() {
@@ -3545,6 +3548,31 @@ async function renderTB() {
 }
 
 // Project risk register (PLB-04.1): open exposure against the contingency left in the budget.
+// CNX-07.2 (0087): tasks assigned to me and tasks I asked of others. Only the assignee completes; only the creator cancels.
+async function renderTasks() {
+  const [mine, created] = await Promise.all([api('GET', '/v1/tasks?view=mine'), api('GET', '/v1/tasks?view=created')]);
+  const run = async (path, id, body, msg) => { try { clearError(); await api('POST', `/v1/tasks/${id}/${path}`, body); say(msg); renderTasks(); } catch (e) { showError(e); } };
+  const cols = (who, act) => [{ label: 'Number', cell: (x) => x.number }, { label: 'Task', cell: (x) => x.title }, { label: who[0], cell: (x) => x[who[1]] },
+    { label: 'Project', cell: (x) => x.project || '' }, { label: 'Due', cell: (x) => x.due_on }, { label: 'Priority', cell: (x) => words(x.priority.toLowerCase()) },
+    { label: 'Status', cell: (x) => chip(x.overdue ? 'OVERDUE' : x.status) }, { label: '', cell: act }];
+  const done = (x) => (x.status !== 'OPEN' ? (x.note || '') : h('button', { type: 'button', 'data-done': x.number, on: { click: () => run('done', x.id, { note: (prompt('Note (optional)') || '').trim() }, `${x.number} done.`) } }, 'Mark done'));
+  const cancel = (x) => (x.status !== 'OPEN' || x.assigned_to === S.me.user_id ? (x.status !== 'OPEN' ? x.note || '' : '') : h('button', { type: 'button', class: 'ghost', on: { click: () => {
+    const why = (prompt(`Why is ${x.number} cancelled?`) || '').trim(); if (why) run('cancel', x.id, { reason: why }, `${x.number} cancelled.`); } } }, 'Cancel…'));
+  const f = { project: select('project_id', [{ value: '', label: 'No project' }, ...projectOpts()]), title: input('title', { type: 'text', required: true, minlength: '3', maxlength: '200' }),
+    to: input('assigned_to', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the person', value: S.me.user_id }),
+    due: input('due_on', { type: 'date', required: true, value: plusDays(3), min: today() }),
+    prio: select('priority', [{ value: 'NORMAL', label: 'Normal' }, { value: 'HIGH', label: 'High' }, { value: 'LOW', label: 'Low' }]), detail: input('detail', { type: 'text', maxlength: '4000' }) };
+  const b = h('button', { type: 'button', class: 'primary' }, 'Assign task');
+  b.addEventListener('click', async () => {
+    try { clearError(); await api('POST', '/v1/tasks', { project_id: f.project.value, title: f.title.value.trim(), assigned_to: f.to.value.trim(), due_on: f.due.value, priority: f.prio.value, detail: f.detail.value.trim() }); say('Task assigned.'); renderTasks(); } catch (e) { showError(e); }
+  });
+  page('Tasks', 'Things people asked each other to do by a date. The person a task is assigned to marks it done; the person who asked can cancel it. Tasks are not approvals.',
+    table('Assigned to you', cols(['From', 'created_by'], done), mine.items, 'Nothing assigned to you.'),
+    h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Ask someone to do something'), h('div', { class: 'grid' }, field('Project', f.project), field('Task', f.title), field('Assigned to', f.to),
+      field('Due', f.due), field('Priority', f.prio), field('Detail', f.detail)), h('div', { class: 'actions' }, b)),
+    table('Asked by you', cols(['Assigned to', 'assigned_to'], cancel), created.items, 'You have not assigned a task.'));
+}
+
 async function renderRiskRegister(project) {
   const proj = select('project_id', projectOpts(), { required: true });
   if (project) proj.value = project;

@@ -362,7 +362,8 @@ D = {
     "CAP-04": ("M4", "Finance controller", [
         r("Cost codes are validated against the approved WBS", V, "TestSC10_CostCodesAreValidatedAgainstApprovedWBS"),
         r("Monthly cost forecast (EAC/ETC), WIP schedule and budget-vs-actual tie to their sources", V,
-          "TestForecast_MethodsAndGuards", "TestForecast_WIPScheduleAndSummary", "TestReportCatalogue_EveryReportRunsAndTiesOut"),
+          "TestForecast_MethodsAndGuards", "TestForecast_WIPScheduleAndSummary", "TestReportCatalogue_EveryReportRunsAndTiesOut",
+          "TestForecast_ChangeRuleNeedsExplanation"),
     ]),
     "CAP-05": ("M3", "Finance controller", [
         r("Payments are prepared, approved and released by different people and settled only by an independent bank statement", V,
@@ -477,7 +478,8 @@ D = {
     ]),
     "CNX-07": ("M4", "Product owner", [
         r("Alert rules notify the right people; a rule is activated by someone other than its author", V, "TestPlatform_RulesLifecycleAndWorker"),
-        r("Assignable tasks with due dates outside document approvals", N),
+        r("Assignable tasks with due dates outside document approvals", V, "TestTasks_AssignCompleteCancel", "TestConsoleBrowserForms",
+          note="0087: assigned to an active directory person with a due date and a notification; only the assignee completes, only the creator cancels or reassigns, enforced by the database; overdue shown; on My work."),
     ]),
     "CNX-08": ("M7", "Product owner", [r("Meeting minutes with actions and decisions", I, note="Integrated from new-version (ADR 0025): meetings with actions; no decisions recorded.")]),
     "CNX-09": ("M4", "Product owner", [
