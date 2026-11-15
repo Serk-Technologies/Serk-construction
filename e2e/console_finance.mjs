@@ -15,6 +15,16 @@ try {
   await selectByText(acc.locator('select[name=kind]'), 'Input VAT');
   await act(acc, 'Designate', 'Account designated');
   await acc.getByRole('cell', { name: /1310/ }).first().waitFor();
+  // A designation is used only after someone other than its author approves it (0081).
+  if (await acc.getByRole('button', { name: 'Approve', exact: true }).count()) fail('the accountant is offered to approve their own designation');
+  const cfoTax = await as('cfo');
+  for (let i = 0; i < 2; i++) {
+    await nav(cfoTax, '#/tax/accounts', 'Tax');
+    await cfoTax.getByRole('button', { name: 'Approve', exact: true }).first().click();
+    await cfoTax.locator('p.notice').filter({ hasText: 'Designation approved' }).first().waitFor();
+  }
+  if (await cfoTax.getByRole('button', { name: 'Approve', exact: true }).count()) fail('a designation is still offered for approval after both were approved');
+  log('tax designations approved by the CFO');
   await nav(acc, '#/tax/returns', 'Tax');
   await acc.getByRole('button', { name: 'Prepare return' }).waitFor();
   await selectByText(acc.locator('select[name=legal_entity_id]'), 'SERK ET');
@@ -24,7 +34,7 @@ try {
   await acc.getByRole('button', { name: 'Close' }).click();
   log('VAT return prepared');
 
-  const cfo = await as('cfo');
+  const cfo = cfoTax;
   await nav(cfo, '#/tax/returns', 'Tax');
   if (await cfo.getByRole('button', { name: 'Prepare return' }).count()) fail('the CFO is offered "Prepare return"');
   await cfo.getByRole('link', { name: /^TAX-/ }).click();

@@ -260,7 +260,7 @@ func (s *Service) TaxView(ctx context.Context, p auth.Principal, returnID string
 		if err := q("accounts", `SELECT a.id, a.code, a.name, a.type, e.name AS entity FROM accounts a JOIN legal_entities e ON e.id = a.legal_entity_id WHERE a.active ORDER BY e.name, a.code`); err != nil {
 			return err
 		}
-		if err := q("tax_accounts", `SELECT t.id, t.kind, a.code, a.name, e.name AS entity FROM tax_accounts t JOIN accounts a ON a.id = t.account_id JOIN legal_entities e ON e.id = a.legal_entity_id ORDER BY e.name, t.kind, a.code`); err != nil {
+		if err := q("tax_accounts", `SELECT t.id, t.kind, a.code, a.name, e.name AS entity, t.status, t.created_by, t.approved_by FROM tax_accounts t JOIN accounts a ON a.id = t.account_id JOIN legal_entities e ON e.id = a.legal_entity_id ORDER BY e.name, t.kind, a.code`); err != nil {
 			return err
 		}
 		if err := q("returns", `SELECT r.id, r.number, r.kind, r.period_start, r.period_end, r.status, r.created_by, r.approved_by, r.filing_ref, r.filed_by, (SELECT name FROM legal_entities WHERE id = r.legal_entity_id) AS entity,

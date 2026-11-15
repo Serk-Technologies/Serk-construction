@@ -28,6 +28,18 @@ func (s *Server) registerTax() {
 		}
 		writeJSON(w, http.StatusOK, out)
 	}))
+	// DEF-015 (0081): a designation is approved by someone other than the person who recorded it.
+	m.Handle("POST /v1/tax-accounts/{id}/approve", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		if err := s.cfg.Kernel.ApproveTaxAccount(r.Context(), principalFrom(r.Context()), id); err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "status": "APPROVED"})
+	}))
 	m.Handle("POST /v1/tax-accounts", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		var b struct {
 			Account string `json:"account_id"`

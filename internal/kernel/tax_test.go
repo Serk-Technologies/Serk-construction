@@ -8,6 +8,7 @@ package kernel
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,9 +59,25 @@ func TestTax_VATReturnAndEInvoice(t *testing.T) {
 	if _, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "VAT", start, end); err == nil {
 		t.Fatal("a return before any tax account is designated")
 	}
+	var designations []string
 	for _, d := range [][2]string{{"2300", "OUTPUT_VAT"}, {"1300", "INPUT_VAT"}, {"2330", "WHT_PAYABLE"}} {
-		_, err := f.svc.DesignateTaxAccount(f.ctx, acc, w.acct[d[0]], d[1])
+		id, err := f.svc.DesignateTaxAccount(f.ctx, acc, w.acct[d[0]], d[1])
 		must(t, "designate "+d[0], err)
+		designations = append(designations, id)
+	}
+	// DEF-015 (0081): a return is computed only from designations a second person approved.
+	if _, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "VAT", start, end); err == nil || !strings.Contains(err.Error(), "pending approval") {
+		t.Fatalf("a return was prepared from unapproved designations: %v", err)
+	}
+	accAsApprover := cfo
+	accAsApprover.UserID = acc.UserID
+	if err := f.svc.ApproveTaxAccount(f.ctx, accAsApprover, designations[0]); !errors.Is(err, auth.ErrSoD) {
+		t.Fatalf("the person who recorded a designation approved it: %v", err)
+	}
+	rawRefusedWith(t, f, "approve a designation under a forged identity", "approval attestation",
+		`UPDATE tax_accounts SET status = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, designations[0], cfo.UserID)
+	for _, id := range designations {
+		must(t, "approve designation", f.svc.ApproveTaxAccount(f.ctx, cfo, id))
 	}
 
 	ret, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "VAT", start, end)

@@ -294,7 +294,7 @@ func (s *Service) ConsolidationView(ctx context.Context, p auth.Principal) (map[
 			FROM consolidation_groups g ORDER BY g.code, g.version DESC`); err != nil {
 			return err
 		}
-		if err := q("intercompany", `SELECT ic.id, ic.role, a.code, a.name, e.name AS entity, c.name AS counterparty FROM intercompany_accounts ic JOIN accounts a ON a.id = ic.account_id
+		if err := q("intercompany", `SELECT ic.id, ic.role, a.code, a.name, e.name AS entity, c.name AS counterparty, ic.status, ic.created_by, ic.approved_by FROM intercompany_accounts ic JOIN accounts a ON a.id = ic.account_id
 			JOIN legal_entities e ON e.id = a.legal_entity_id JOIN legal_entities c ON c.id = ic.counterparty_entity_id ORDER BY e.name, a.code`); err != nil {
 			return err
 		}

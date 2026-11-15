@@ -6123,7 +6123,10 @@ function conGroups(v) {
 
 function conIC(v) {
   const out = h('div', {}, table('Intercompany accounts', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Account', cell: (x) => `${x.code} ${x.name}` }, { label: 'Role', cell: (x) => words(x.role) },
-    { label: 'Counterparty', cell: (x) => x.counterparty }], v.intercompany || [], 'No intercompany account designated.'));
+    { label: 'Counterparty', cell: (x) => x.counterparty }, { label: 'Status', cell: (x) => chip(x.status || 'PENDING') },
+    { label: '', cell: (x) => (x.status === 'PENDING' && S.can.has('consolidation.approve') && x.created_by !== S.me.user_id ? h('button', { type: 'button', class: 'ghost', on: { click: async () => {
+      try { clearError(); await api('POST', `/v1/intercompany-accounts/${x.id}/approve`); say('Designation approved.'); renderConsolidation('intercompany'); } catch (e) { showError(e); } } } }, 'Approve') : '') }],
+    v.intercompany || [], 'No intercompany account designated.'));
   if (S.can.has('consolidation.manage')) {
     const acc = select('account_id', (v.accounts || []).map((a) => ({ value: a.id, label: `${a.entity} · ${a.code} ${a.name} (${words(a.type)})` })));
     const cp = select('counterparty_entity_id', (v.entities || []).map((e) => ({ value: e.id, label: e.name })));
@@ -6210,7 +6213,11 @@ function taxEInvoices(v) {
 }
 
 function taxAccounts(v) {
-  const out = h('div', {}, table('Designated tax accounts', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Account', cell: (x) => `${x.code} ${x.name}` }, { label: 'Kind', cell: (x) => TAX_KIND[x.kind] || x.kind }], v.tax_accounts || [], 'None designated.'));
+  // A designation is used only once someone other than its author approved it (0081).
+  const approveTA = async (x) => { try { clearError(); await api('POST', `/v1/tax-accounts/${x.id}/approve`); taxDone('Designation approved.'); renderTax('accounts'); } catch (e) { showError(e); } };
+  const out = h('div', {}, table('Designated tax accounts', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Account', cell: (x) => `${x.code} ${x.name}` }, { label: 'Kind', cell: (x) => TAX_KIND[x.kind] || x.kind },
+    { label: 'Status', cell: (x) => chip(x.status || 'PENDING') },
+    { label: '', cell: (x) => (x.status === 'PENDING' && S.can.has('tax.approve') && x.created_by !== S.me.user_id ? h('button', { type: 'button', class: 'ghost', on: { click: () => approveTA(x) } }, 'Approve') : '') }], v.tax_accounts || [], 'None designated.'));
   if (S.can.has('tax.prepare')) {
     const acc = select('account_id', (v.accounts || []).map((a) => ({ value: a.id, label: `${a.entity} · ${a.code} ${a.name} (${words(a.type)})` })));
     const kind = select('kind', Object.entries(TAX_KIND).map(([value, label]) => ({ value, label })));

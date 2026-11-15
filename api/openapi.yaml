@@ -3033,3 +3033,15 @@ paths:
       x-generated: true  # stub: replace with a hand-written description
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/intercompany-accounts/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): intercompany accounts"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/tax-accounts/{id}/approve:
+    post:
+      summary: "Approve (a human decision by a different person; maker/checker): tax accounts"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }

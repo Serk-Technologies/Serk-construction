@@ -57,6 +57,18 @@ func (s *Server) registerConsolidation() {
 	m.Handle("POST /v1/consolidation-groups/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
 		return nil, k.DecideGroup(ctx, p, id, false, b.Reason)
 	})))
+	// DEF-015 (0081): a designation is approved by someone other than the person who recorded it.
+	m.Handle("POST /v1/intercompany-accounts/{id}/approve", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		if err := s.cfg.Kernel.ApproveIntercompany(r.Context(), principalFrom(r.Context()), id); err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "status": "APPROVED"})
+	}))
 	m.Handle("POST /v1/intercompany-accounts", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		var b struct {
 			Account      string `json:"account_id"`
