@@ -2,6 +2,9 @@
 
 > **Final-completion programme (latest):** start at `docs/final-completion/00_PROGRAM_CHARTER.md`, `docs/completion/22_FINAL_SCOPE_AND_GAP_REGISTER.md` and ADR 0025 (integration of the unmerged `new-version` line). Open defects: `docs/final-completion/06_DEFECT_REGISTER.json`; next action: `execution-state.json` → `final_completion.exact_next_action`.
 >
+> **Latest cycle (2026-11-15, after 4e893b2), each slice with a full fresh-database run, evidence under `evidence/`:**
+> DEF-014 role adjustments attested (0082, 26b7a29) · DEF-013 overhead and recurring journals bound to their computation, recurring templates approved (0083, 1d9c9a0) · DEF-017 cancellations attested, disposal by its approval (0084, f518c83) · CNX-05.1 correspondence and PPL-05.1 certifications (0085, 0086, e412014) · CNX-07.2 tasks and DEF-019 (0087, 995dbe1) · DEF-018 `rawFails` refuses vacuous statements and labels the control that held (`evidence/2026-11-15-rawfails-controls.txt`). Every new database rule was shown to fail its test when removed. Not done: SUP-05.4 returns/scrap/quarantine, DEF-004, DEF-005; owner decisions (branch protection DEF-002, PR, ADR 0025 questions) remain open. Production: NO-GO.
+>
 > Earlier state is in `execution-state.json` and `docs/completion/21_AURA_CYCLE_REPORT.md`. Fuel (0055), maintenance (0056) and the review corrections (0057) are built; this file's detailed sections below describe the earlier audit remediation and are kept for history.
 
 For the next engineer or session. Machine-readable state: `execution-state.json`. Earlier history: `CHANGELOG.md`.

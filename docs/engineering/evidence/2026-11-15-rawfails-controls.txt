@@ -1,0 +1,99 @@
+# DEF-018: which control held each rawFails refusal (go test -v ./internal/kernel, 2026-11-15, tree after 00ec73c)
+# privilege = the tenant login holds no grant for the statement; guard = a trigger or constraint saw the change and refused it.
+# A statement that matches no row now fails the test (one such call, change_test.go, removed).
+held (guard): a revision without a file: a revision is stored together with its file
+held (guard): add a line after submission: change event lines are written only while the event is DRAFT
+held (guard): add an index to an approved formula: the indices of a formula are set while it is a draft
+held (guard): answer without an attestation: privilege: rfi.answer of rfi f0380a60-0e03-4f49-9080-f727669ce076 requires a verified approval attestation for u-forger
+held (guard): approve a gate without an attestation: privilege: project.gate.decide of project_stage_gate 303c7822-f8bb-491e-a7d5-2c311f75ecde requires a verified approval attestation for u-forger
+held (guard): approve a log by SQL: privilege: fleet.log.decide of equipment_log 8f4f4fbc-928d-4e65-acb7-b4cc1e0377a8 requires a verified approval attestation for u-forger
+held (guard): approve a meter reset by SQL: privilege: fleet.meter.decide of equipment_meter_reset 8694265f-957c-4ec2-bf6c-d19e575e3f8e requires a verified approval attestation for u-forger
+held (guard): approve a reservation by SQL: privilege: fleet.reservation.decide of equipment_reservation 680c9b6f-fc4e-4cb8-ae6b-3ac33585d933 requires a verified approval attestation for u-forger
+held (guard): approve without an attestation: privilege: change.decide of change_event 130bfa1e-9438-4dbf-abc7-82dd95cd29fa requires a verified approval attestation for u-forger
+held (guard): approve without an attestation: privilege: claim.decide of contract_claim c9c23380-3017-4416-9631-8067ad52043d requires a verified approval attestation for u-forger
+held (guard): approve without an attestation: privilege: forecast.decide of forecast_cycle d3e730cc-1bfe-49da-b4b1-c5c9278010f1 requires a verified approval attestation for u-forger
+held (guard): change an approved index value: a decided index value never changes
+held (guard): change approved terms: decided damages terms never change
+held (guard): clear an infected verdict: a scan verdict is final
+held (guard): commission by SQL: privilege: equipment.transition of equipment cc4f0b48-2160-485d-afde-b6bf9c942b74 requires a verified approval attestation for u-forger
+held (guard): dispose without approval: an asset is disposed only by approving its disposal
+held (guard): edit a filed return: a filed tax return never changes
+held (guard): edit a planned item: a planned cash item changes only by being cancelled with a reason
+held (guard): edit a submitted line: forecast lines change only while the cycle is DRAFT
+held (guard): edit an approved forecast: a decided forecast is immutable; prepare a new cycle
+held (guard): edit an approved line: forecast lines change only while the cycle is DRAFT
+held (guard): edit an approved log: a decided log never changes
+held (guard): forge a consolidation line: consolidation lines are written once, when the run is prepared
+held (guard): forge a depreciation line: depreciation lines are written when the run is prepared
+held (guard): forge a pay line: the pay line of employee 8a43d6cc-9bd5-4a1c-8629-068a639ef641 is not the database's computation
+held (guard): forge a return line: tax return lines are written once, when the return is prepared
+held (guard): forge a revenue line: revenue lines are written when the run is prepared
+held (guard): forge an overhead share: the overhead share of project f0edb160-457b-40ec-b040-675580870783 is not the database's computation
+held (guard): insert a cycle already approved: forecast cycles are created DRAFT
+held (guard): insert a project without an attestation: privilege: project.create of project ced50e59-a315-49be-b9a2-d8e7de547a5d requires a verified approval attestation for x
+held (guard): insert an ACTIVE project: a project created by a person starts PLANNED in phase BID and moves through stage gates
+held (guard): link a budget draft out of band: the linked budget must be a DRAFT revision of the same project
+held (guard): move a machine to another project by SQL: privilege: equipment column current_project_id cannot be changed in this transition
+held (guard): move a template back: an ended recurring journal never changes
+held (guard): move the meter by SQL: privilege: a meter reading changes only through an approved log or an approved meter reset
+held (guard): move the phase by hand: privilege: a project changes phase only through an approved stage gate
+held (guard): overturn a verdict: a scan verdict is final
+held (guard): publish without an attestation: privilege: document.decide of document_revision f2fc2494-9945-4493-95b3-f16aab18f91a requires a verified approval attestation for u-forger
+held (guard): pull an object back into the row: privilege: a stored file never changes
+held (guard): raise a guarantee's value: a guarantee's value can only be reduced (register a new guarantee for more cover)
+held (guard): record a copy that was not verified: privilege: an object reference is fixed by tenant, revision and content hash
+held (guard): register as AVAILABLE: equipment is entered as REGISTERED by the person who registers it
+held (guard): release a hold by SQL: privilege: equipment.transition of equipment cc4f0b48-2160-485d-afde-b6bf9c942b74 requires a verified approval attestation for u-forger
+held (guard): release without an attestation: privilege: bond.close of guarantee e3f1febf-5644-48b1-a121-45ab17b0a184 requires a verified approval attestation for u-commercial
+held (guard): reopen a called guarantee: a released or called guarantee never changes
+held (guard): reopen a closed RFI: a closed RFI never changes
+held (guard): reopen an obligation: a closed obligation never changes
+held (guard): repoint an object reference: privilege: an object reference is fixed by tenant, revision and content hash
+held (guard): restore a superseded revision: a rejected or superseded revision never changes
+held (guard): revive a cancelled forecast: a decided forecast is immutable; prepare a new cycle
+held (guard): revive a discarded revision: a rejected or superseded revision never changes
+held (guard): revive a rejected revision: a rejected or superseded revision never changes
+held (guard): rewrite an answer: illegal RFI transition ANSWERED -> ANSWERED
+held (guard): shorten a guarantee: a guarantee's expiry can only be extended
+held (guard): submit an infected revision by SQL: privilege: this revision is quarantined: the scanner found Test.EICAR
+held (guard): submit an unscanned revision by SQL: privilege: this revision has not been scanned clean (scan status NOT_SCANNED); scanning is required
+held (guard): supersede with no successor: privilege: a revision is superseded only by the attested publication of its successor
+held (guard): turn scanning off by SQL: privilege: document.policy.decide of document_policy f83150df-e784-49b4-a1d1-bed5e7a7dfd4 requires a verified approval attestation for u-forger
+held (privilege): add history: privilege: permission denied for table equipment_events
+held (privilege): change a file's hash while recording a scan: privilege: permission denied for table document_revisions
+held (privilege): change a project code: privilege: permission denied for table projects
+held (privilege): change a revision's hash: privilege: permission denied for table document_revisions
+held (privilege): change a serial number: privilege: permission denied for table equipment
+held (privilege): change a submitted event's revenue: privilege: permission denied for table change_events
+held (privilege): change the issuer: privilege: permission denied for table guarantees
+held (privilege): delete a certification: privilege: permission denied for table certifications
+held (privilege): delete a register entry: privilege: permission denied for table documents
+held (privilege): delete a stored file: privilege: permission denied for table document_contents
+held (privilege): delete a task: privilege: permission denied for table work_tasks
+held (privilege): delete an item: privilege: permission denied for table correspondence
+held (privilege): delete history: privilege: permission denied for table equipment_events
+held (privilege): edit a certificate: privilege: permission denied for table subcontract_applications
+held (privilege): edit a claim after the client answered: privilege: permission denied for table contract_claims
+held (privilege): edit a closed non-conformance: privilege: permission denied for table ncrs
+held (privilege): edit a decided gate: privilege: permission denied for table project_stage_gates
+held (privilege): edit a published revision: privilege: permission denied for table document_revisions
+held (privilege): edit a rejected claim: privilege: permission denied for table contract_claims
+held (privilege): edit a run journal's line: privilege: permission denied for table journal_lines
+held (privilege): edit a sent notice: privilege: permission denied for table contract_notices
+held (privilege): edit a sent transmittal: privilege: permission denied for table transmittals
+held (privilege): edit an approved event: privilege: permission denied for table change_events
+held (privilege): edit an approved timesheet line: privilege: permission denied for table timesheet_lines
+held (privilege): edit an installed quantity: privilege: permission denied for table installed_quantities
+held (privilege): edit issued minutes: privilege: permission denied for table meetings
+held (privilege): edit the computed amount: privilege: permission denied for table price_adjustments
+held (privilege): forge a forecast figure: privilege: permission denied for table forecast_lines
+held (privilege): move a line to another cycle: privilege: permission denied for table forecast_lines
+held (privilege): move a notice's event: privilege: permission denied for table contract_notices
+held (privilege): plain account number: privilege: permission denied for table employees
+held (privilege): release a migrated file as the tenant: privilege: permission denied for table document_contents
+held (privilege): remove a link: privilege: permission denied for table change_event_variations
+held (privilege): rename a revision's file: privilege: permission denied for table document_revisions
+held (privilege): replace a stored file: privilege: permission denied for table document_contents
+held (privilege): retitle a register entry: privilege: permission denied for table documents
+held (privilege): rewrite a question: privilege: permission denied for table rfis
+held (privilege): rewrite history: privilege: permission denied for table equipment_events
