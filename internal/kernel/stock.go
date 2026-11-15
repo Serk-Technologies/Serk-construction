@@ -77,6 +77,10 @@ func (s *Service) ApproveStockItem(ctx context.Context, p auth.Principal, id str
 
 // CreateWarehouse records a warehouse: central (no project) or a project store.
 func (s *Service) CreateWarehouse(ctx context.Context, p auth.Principal, entity, projectID, code, name string) (string, error) {
+	return s.createWarehouse(ctx, p, entity, projectID, code, name, false)
+}
+
+func (s *Service) createWarehouse(ctx context.Context, p auth.Principal, entity, projectID, code, name string, quarantine bool) (string, error) {
 	if projectID != "" {
 		if err := s.authz.RequireProject(p, auth.PermWarehouseManage, p.TenantID, projectID); err != nil {
 			return "", err
@@ -91,8 +95,8 @@ func (s *Service) CreateWarehouse(ctx context.Context, p auth.Principal, entity,
 			proj = &projectID
 		}
 		var err error
-		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO warehouses(legal_entity_id, project_id, code, name, created_by) VALUES ($1::uuid, $2::uuid, $3, $4, $5) RETURNING id::text`,
-			entity, proj, strings.ToUpper(strings.TrimSpace(code)), strings.TrimSpace(name), p.UserID)
+		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO warehouses(legal_entity_id, project_id, code, name, created_by, quarantine) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6) RETURNING id::text`,
+			entity, proj, strings.ToUpper(strings.TrimSpace(code)), strings.TrimSpace(name), p.UserID, quarantine)
 		if err != nil {
 			return err
 		}
@@ -390,7 +394,7 @@ func (s *Service) stockJournal(ctx context.Context, tx pgx.Tx, p auth.Principal,
 	if !amount.IsPositive() {
 		return "", nil // nothing to post (a count difference worth less than the currency's minor unit)
 	}
-	jid, err := s.subledgerJournal(ctx, tx, p, doc, id, entity, ccy, map[string]string{"STK_ISSUE": "Stock issue ", "STK_ADJUST": "Stock count adjustment "}[doc]+num, date)
+	jid, err := s.subledgerJournal(ctx, tx, p, doc, id, entity, ccy, map[string]string{"STK_ISSUE": "Stock issue ", "STK_ADJUST": "Stock count adjustment ", "STK_SCRAP": "Stock write-off "}[doc]+num, date)
 	if err != nil {
 		return "", err
 	}

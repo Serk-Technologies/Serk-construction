@@ -6,9 +6,9 @@ Test results used: `docs/engineering/evidence/2026-11-15-rawfails-37f5100.tests.
 
 **VERIFIED** on a requirement means every test named as evidence passed in that executed run. It is not a human acceptance. A domain is VERIFIED only when every listed requirement is verified **and** its owner has reviewed the list as complete against the Bible; no domain has had that review, so no domain is VERIFIED. A domain marked † has every listed requirement verified and awaits that review. A domain that is partly built is IMPLEMENTING.
 
-Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 25, NOT_STARTED 67, VERIFIED 110.
+Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 26, NOT_STARTED 66, VERIFIED 110.
 
-Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTING 7, NOT_STARTED 45, VERIFIED 22.
+Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTED_UNVERIFIED 2, IMPLEMENTING 7, NOT_STARTED 46, VERIFIED 22.
 
 Domain counts (80): BLOCKED 2, IMPLEMENTING 51, NOT_STARTED 27.
 
@@ -368,7 +368,10 @@ Product SUPPLY / STOCK · milestone M3 · owner Finance controller
 | SUP-05.1 | Stock quantity and value move together (FIFO or weighted average) and reconcile to the inventory account | VERIFIED | `TestJourneyC_StockValuationToGL`, `TestR7_FIFOManyLayersSmallIssues`, `TestR7_WACFractionalToZero`, `TestAPIJourneyC_StockValuation` |
 | SUP-05.2 | Stock cannot go negative, including by raw SQL and under concurrent movements | VERIFIED | `TestJourneyC_Controls`, `TestR8_RawSQL_Stock`, `TestR7_ConcurrentPutAwayAndCount`, `TestR10_StockStateTenantWrites` |
 | SUP-05.3 | Reservations reduce what can be issued | VERIFIED | `TestStockPlus_ReservationsIssuesAndReorder` |
-| SUP-05.4 | Returns, scrap and quarantine | NOT_STARTED |  |
+| SUP-05.4 | Returns, scrap and quarantine | IMPLEMENTING | 0088: quarantine stores and scrap write-offs; site returns not yet built. |
+| SUP-05.4.a | ↳ Quarantine stores: filled and emptied by approved transfers; nothing is issued or reserved from them; the flag is fixed at creation | IMPLEMENTED_UNVERIFIED | `TestStock_QuarantineAndWriteoff`, `TestConsoleBrowserJourneyC` |
+| SUP-05.4.b | ↳ Scrap write-offs at FIFO or average cost with a reason, approved by another person (attested), with a bound STK_SCRAP journal; the inventory reconciliation counts them | IMPLEMENTED_UNVERIFIED | `TestStock_QuarantineAndWriteoff`, `TestConsoleBrowserJourneyC` |
+| SUP-05.4.c | ↳ Site returns: material returned from a project to a store at the issue's cost, crediting the project | NOT_STARTED |  |
 
 ### SUP-06 Warehouse — IMPLEMENTING
 

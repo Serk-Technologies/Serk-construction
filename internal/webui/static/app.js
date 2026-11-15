@@ -395,6 +395,9 @@ const DOCS = {
     actions: { DRAFT: [['approve', 'stock.issue.approve'], ['reject', 'stock.issue.approve', 'req'], ['cancel', 'stock.issue', 'req']] } },
   stock_count: { title: 'Stock counts', one: 'Stock count', base: '/v1/stock-counts', create: 'stock.count', form: 'stockcount',
     statuses: ['DRAFT', 'APPROVED', 'REJECTED'], actions: { DRAFT: [['approve', 'stock.adjust.approve'], ['reject', 'stock.adjust.approve', 'req']] } },
+  stock_writeoff: { title: 'Stock write-offs', one: 'Stock write-off', base: '/v1/stock-writeoffs', create: 'stock.count', form: 'stockwriteoff',
+    statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['approve', 'stock.adjust.approve'], ['reject', 'stock.adjust.approve', 'req'], ['cancel', 'stock.count', 'req']] } },
   stock_transfer: { title: 'Stock transfers', one: 'Stock transfer', base: '/v1/stock-transfers', create: 'stock.transfer', form: 'stocktransfer',
     statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'CANCELLED'],
     actions: { DRAFT: [['approve', 'stock.transfer.approve'], ['reject', 'stock.transfer.approve', 'req'], ['cancel', 'stock.transfer', 'req']] } },
@@ -427,7 +430,7 @@ const NAV = [
   ['Site', [['#/list/site_diary', 'Site diaries', 'p2p.read'], ['#/list/grn', 'Goods receipts', 'p2p.read'],
     ['#/site/devices', 'Field devices', 'site.device.register|site.device.manage']]],
   ['Stores', [['#/stock', 'Stock on hand', 'p2p.read'], ['#/list/stock_issue', 'Stock issues', 'p2p.read'], ['#/list/stock_receipt', 'Put-aways', 'p2p.read'],
-    ['#/list/stock_transfer', 'Transfers', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'],
+    ['#/list/stock_transfer', 'Transfers', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'], ['#/list/stock_writeoff', 'Write-offs', 'p2p.read'],
     ['#/reservations', 'Reservations', 'p2p.read'], ['#/report/low-stock', 'Low stock', 'p2p.read'], ['#/list/uom_conversion', 'Unit conversions', 'p2p.read'],
     ['#/list/stock_item', 'Stock items', 'p2p.read'], ['#/list/warehouse', 'Warehouses', 'p2p.read']]],
   ['Commercial & revenue', [['#/list/contract', 'Contracts', 'p2p.read'], ['#/list/contract_variation', 'Variations', 'p2p.read'], ['#/list/contract_notice', 'Contract notices', 'p2p.read'], ['#/list/contract_claim', 'Claims', 'p2p.read'],
@@ -2745,9 +2748,11 @@ const FORMS = {
     const proj = select('project_id', [{ value: '', label: 'Central (no project)' }, ...projectOpts()]);
     const code = input('code', { type: 'text', required: true });
     const name = input('name', { type: 'text', required: true });
-    formPage('New warehouse', 'A project store holds stock for one project; a central warehouse serves the whole entity.', [
-      h('div', { class: 'grid' }, field('Legal entity', ent), field('Project', proj), field('Code', code), field('Name', name))], 'Create warehouse', async () => {
-      const res = await api('POST', '/v1/warehouses', { legal_entity_id: ent.value, project_id: proj.value || undefined, code: code.value.trim(), name: name.value.trim() });
+    const quar = h('input', { type: 'checkbox', name: 'quarantine', id: nextId('wq') });
+    formPage('New warehouse', 'A project store holds stock for one project; a central warehouse serves the whole entity. A quarantine store holds stock that may not be used: it is filled and emptied by approved transfers, and nothing is issued or reserved from it.', [
+      h('div', { class: 'grid' }, field('Legal entity', ent), field('Project', proj), field('Code', code), field('Name', name)),
+      h('div', { class: 'check' }, quar, h('label', { for: quar.id }, 'Quarantine store (cannot be changed later)'))], 'Create warehouse', async () => {
+      const res = await api('POST', '/v1/warehouses', { legal_entity_id: ent.value, project_id: proj.value || undefined, code: code.value.trim(), name: name.value.trim(), quarantine: quar.checked });
       created('warehouse', res, 'Warehouse');
     });
   },
@@ -2824,6 +2829,23 @@ const FORMS = {
       const res = await api('POST', '/v1/stock-counts', { warehouse_id: wh.value, stock_item_id: item.value, counted_qty: qty.value.trim(),
         variance_account_id: acct.value, count_date: date.value });
       created('stock_count', res, 'Stock count');
+    });
+  },
+
+  // SUP-05.4 (0088): scrap at cost with a reason; someone else approves and the STK_SCRAP journal follows.
+  async stockwriteoff() {
+    const wh = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const item = select('stock_item_id', await docOpts('stock_item', 'ACTIVE'), { required: true });
+    const qty = input('quantity', { inputmode: 'decimal', required: true });
+    const date = input('writeoff_date', { type: 'date', value: today(), max: today(), required: true });
+    const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
+    const reason = input('reason', { type: 'text', required: true, minlength: '5', maxlength: '1000', placeholder: 'Damaged, expired or lost: say what happened' });
+    formPage('Write off stock', 'Removes stock at its cost (the oldest layers first, or the moving average). Someone other than you approves it; the journal (Dr the expense account, Cr inventory) is then generated for finance.', [
+      h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty), field('Date', date), field('Write-off account', acct), field('Reason', reason))],
+    'Prepare write-off', async () => {
+      const res = await api('POST', '/v1/stock-writeoffs', { warehouse_id: wh.value, stock_item_id: item.value, quantity: qty.value.trim(), writeoff_date: date.value,
+        expense_account_id: acct.value, reason: reason.value.trim() });
+      created('stock_writeoff', res, 'Stock write-off');
     });
   },
 

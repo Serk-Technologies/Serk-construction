@@ -183,7 +183,13 @@ D = {
         r("Stock cannot go negative, including by raw SQL and under concurrent movements", V,
           "TestJourneyC_Controls", "TestR8_RawSQL_Stock", "TestR7_ConcurrentPutAwayAndCount", "TestR10_StockStateTenantWrites"),
         r("Reservations reduce what can be issued", V, "TestStockPlus_ReservationsIssuesAndReorder"),
-        r("Returns, scrap and quarantine", N),
+        r("Returns, scrap and quarantine", I, note="0088: quarantine stores and scrap write-offs; site returns not yet built.",
+          criteria=[
+            c("Quarantine stores: filled and emptied by approved transfers; nothing is issued or reserved from them; the flag is fixed at creation", V,
+              "TestStock_QuarantineAndWriteoff", "TestConsoleBrowserJourneyC"),
+            c("Scrap write-offs at FIFO or average cost with a reason, approved by another person (attested), with a bound STK_SCRAP journal; the inventory reconciliation counts them", V,
+              "TestStock_QuarantineAndWriteoff", "TestConsoleBrowserJourneyC"),
+            c("Site returns: material returned from a project to a store at the issue's cost, crediting the project", N)]),
     ]),
     "SUP-06": ("M3", "Construction lead", [
         r("Transfers between warehouses pass through in-transit and leave no value residue", V,

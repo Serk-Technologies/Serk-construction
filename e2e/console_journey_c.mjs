@@ -107,6 +107,7 @@ try {
   await selectByText(pmgr.getByLabel('Project'), 'P-API');
   await pmgr.getByLabel('Code').fill('P-STORE-B');
   await pmgr.getByLabel('Name').fill('Second site store');
+  await pmgr.getByLabel('Quarantine store (cannot be changed later)').check(); // 0088: a quarantine bay
   await pmgr.getByRole('button', { name: 'Create warehouse' }).click();
   await pmgr.getByRole('heading', { level: 1, name: /^Warehouse P-STORE-B/ }).waitFor();
   await nav(store, '#/new/stocktransfer', 'Transfer stock');
@@ -127,21 +128,37 @@ try {
   await snap(ic, 'stock-transfer-approved');
   log('1 t transferred to the second store at 84,500 (no journal)');
 
+  // ---- 5c. Write-off (0088): half a tonne in quarantine is scrapped at FIFO cost 42,250 ------
+  await nav(store, '#/new/stockwriteoff', 'Write off stock');
+  await selectByText(store.getByLabel('Warehouse'), 'P-STORE-B');
+  await selectByText(store.getByLabel('Stock item'), 'STEEL-G60');
+  await store.getByLabel('Quantity').fill('0.5');
+  await store.getByLabel('Reason').fill('Bent bars from the quarantine bay, sold as scrap');
+  await audit(store, 'stock write-off form');
+  await store.getByRole('button', { name: 'Prepare write-off' }).click();
+  await store.getByRole('heading', { level: 1, name: /^Stock write-off SWO-/ }).waitFor();
+  if (await store.getByRole('button', { name: 'Approve', exact: true }).count()) fail('the storekeeper who prepared a write-off is offered "Approve"');
+  const woID = await idFromHash(store);
+  await nav(ic, `#/doc/stock_writeoff/${woID}`, /^Stock write-off/);
+  await act(ic, 'Approve', 'Approve: done');
+  if (!(await ic.locator('main').textContent()).includes('42,250.00')) fail('the approved write-off does not show its FIFO cost 42,250.00');
+  log('0.5 t written off from quarantine at 42,250');
+
   // ---- 6. Finance approves and posts; reconciliation -------------------------------------
   const ctl = await as('controller');
   await nav(fin, '#/journals', 'Journals');
   await fin.getByLabel('Select all draft journals').check();
   await fin.getByRole('button', { name: 'Approve selected' }).click();
-  await fin.locator('p.notice').filter({ hasText: '2 of 2 journals done' }).waitFor();
+  await fin.locator('p.notice').filter({ hasText: '3 of 3 journals done' }).waitFor();
   await nav(ctl, '#/journals', 'Journals');
   await ctl.getByLabel('Select all approved journals').check();
   await ctl.getByRole('button', { name: 'Post selected' }).click();
-  await ctl.locator('p.notice').filter({ hasText: '2 of 2 journals done' }).waitFor();
+  await ctl.locator('p.notice').filter({ hasText: '3 of 3 journals done' }).waitFor();
   await nav(ctl, '#/recon', 'Reconciliation');
   await ctl.getByRole('table', { name: /Inventory to general ledger/ }).waitFor();
   if (await ctl.locator('tr.diff').count()) fail('reconciliation shows differences');
   if (await ctl.locator('p.alert').count()) fail(`reconciliation alert: ${await ctl.locator('p.alert').first().textContent()}`);
-  await ctl.getByRole('row').filter({ hasText: 'Inventory: 1200' }).filter({ hasText: '831,250.00' }).waitFor();
+  await ctl.getByRole('row').filter({ hasText: 'Inventory: 1200' }).filter({ hasText: '789,000.00' }).waitFor();
   await audit(ctl, 'reconciliation with inventory');
   await snap(ctl, 'reconciliation-inventory');
 

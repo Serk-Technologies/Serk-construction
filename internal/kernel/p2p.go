@@ -140,6 +140,8 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT COALESCE(w.project_id::text, '') FROM stock_receipts r JOIN warehouses w ON w.id = r.warehouse_id WHERE r.id = $1::uuid`
 	case "stock_issue":
 		q = `SELECT project_id::text FROM stock_issues WHERE id = $1::uuid`
+	case "stock_writeoff":
+		q = `SELECT COALESCE(w.project_id::text, '') FROM stock_writeoffs o JOIN warehouses w ON w.id = o.warehouse_id WHERE o.id = $1::uuid`
 	case "stock_count":
 		q = `SELECT COALESCE(project_id::text, '') FROM stock_counts WHERE id = $1::uuid`
 	case "stock_transfer":

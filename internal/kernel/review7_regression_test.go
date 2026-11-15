@@ -55,7 +55,8 @@ func (w *stockWorld) invariants(t *testing.T) (bal, layers, docs decimal.Decimal
 		+ COALESCE((SELECT sum(b.value) FROM stock_balances b JOIN stock_items i ON i.id=b.stock_item_id WHERE i.valuation_method='WAC'),0)`)
 	docs = w.stockValue(t, `SELECT COALESCE((SELECT sum(amount) FROM stock_receipts),0)
 		+ COALESCE((SELECT sum(CASE WHEN difference>0 THEN amount ELSE -amount END) FROM stock_counts WHERE status='APPROVED'),0)
-		- COALESCE((SELECT sum(amount) FROM stock_issues WHERE status='APPROVED'),0)`)
+		- COALESCE((SELECT sum(amount) FROM stock_issues WHERE status='APPROVED'),0)
+		- COALESCE((SELECT sum(amount) FROM stock_writeoffs WHERE status='APPROVED'),0)`)
 	return
 }
 
