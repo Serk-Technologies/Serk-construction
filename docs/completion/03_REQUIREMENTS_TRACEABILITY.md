@@ -250,7 +250,12 @@ Status vocabulary in the register today: NOT_STARTED, IMPLEMENTING, IMPLEMENTED_
 
 | Requirement | Status | Evidence (tests) | Limitation or note |
 |---|---|---|---|
-| FLT-02.1 Fuel issues linked to asset, operator, meter and stock movement; variance review | NOT_STARTED |  |  |
+| FLT-02.1 Fuel issues linked to asset, operator, meter and stock movement; variance review | IMPLEMENTING |  | The link and the reconciliation are built and verified (FLT-02.2 to FLT-02.5). A variance is listed with both figures for a person to explain; a recorded, approved investigation of a variance is FLT-02.6 and is not built. |
+| FLT-02.2 Fuel is ordinary stock: a dispense is a stock issue of a designated fuel item, prepared with the machine, meter reading and operator, and takes effect (tank quantity, value, journal, project cost) only when a second person approves the issue; there is no second fuel ledger | VERIFIED | `TestFuel_DispenseIsAStockIssue`, `TestAPIFuel` |  |
+| FLT-02.3 A dispense is refused for an item not designated as fuel, a machine not at the project, a meter reading behind the last approved one, or more than the tank holds; an offline retry records once; a tenant database login cannot write or alter a dispense around the kernel | VERIFIED | `TestFuel_DispenseIsAStockIssue` |  |
+| FLT-02.4 Fuel items and fuel standards (litres per metered unit, effective-dated, append-only) are set only by a person with fleet.approve, attested | VERIFIED | `TestFuel_DispenseIsAStockIssue`, `TestFuel_StandardsAndReconciliation`, `TestAPIFuel` | One person sets a standard; it is a reporting benchmark, not a financial figure. Old standards are kept. |
+| FLT-02.5 Per machine and period, dispensed, logged and expected fuel are compared and differences beyond a stated threshold are listed with both figures, in the API and the console, limited to the reader's projects | VERIFIED | `TestFuel_StandardsAndReconciliation`, `TestFuelFlags`, `TestAPIFuel`, `TestConsoleBrowserFleet` | The 10% threshold is an engineering default stated in the report, not an approved policy. The standard applied is the one in force at the end of the period. |
+| FLT-02.6 Recorded investigation and approved closure of a fuel variance; tank dip readings reconciled to the stock ledger; fuel sensors (telematics) | NOT_STARTED |  | A tank count today is the existing stock count. |
 
 ## FLT-03 FLEET — Maintenance
 

@@ -13,6 +13,15 @@ package httpapi
 //	POST /v1/equipment-logs                                        a daily log; /{id}/submit|approve|reject
 //	POST /v1/equipment-meter-resets                                {equipment_id, kind, new_reading, reason}; /{id}/submit|approve|reject
 //	GET  /v1/fleet/summary?from=&to=&project=                      counts by state and usage from approved logs
+//
+// Part 2, fuel (0055; ADR 0022). A dispense is a stock issue; it is approved through POST /v1/stock-issues/{id}/approve.
+//
+//	GET  /v1/fleet/fuel-items                                      stock items designated as fuel
+//	POST /v1/fleet/fuel-items                                      {stock_item_id}
+//	POST /v1/fleet/fuel-standards                                  {equipment_id, litres_per_unit, effective_from, basis}
+//	GET  /v1/fleet/fuel-dispenses?equipment=                       latest fillings
+//	POST /v1/fleet/fuel-dispenses                                  {equipment_id, warehouse_id, stock_item_id, cost_code_id, expense_account_id, litres, meter_reading?, operator, dispensed_on, client_ref?}
+//	GET  /v1/fleet/fuel-reconciliation?from=&to=&project=          dispensed, logged and expected fuel per machine, with differences to explain
 
 import (
 	"context"
@@ -172,4 +181,61 @@ func (s *Server) registerFleet() {
 	m.Handle("POST /v1/equipment-reservations/{id}/cancel", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
 		return nil, k.CancelEquipmentReservation(ctx, p, id, b.Reason)
 	})))
+	m.Handle("GET /v1/fleet/fuel-items", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		out, err := k.ListFuelItems(r.Context(), principalFrom(r.Context()))
+		reply(w, map[string]any{"items": out}, err)
+	}))
+	m.Handle("POST /v1/fleet/fuel-items", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			StockItemID string `json:"stock_item_id"`
+		}
+		if !decode(w, r, &b) || !validIDs(w, b.StockItemID) {
+			return
+		}
+		reply(w, map[string]any{"stock_item_id": b.StockItemID, "fuel": true}, k.DesignateFuelItem(r.Context(), principalFrom(r.Context()), b.StockItemID))
+	}))
+	m.Handle("POST /v1/fleet/fuel-standards", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.FuelStandardInput
+		if !decode(w, r, &b) || !validIDs(w, b.EquipmentID) {
+			return
+		}
+		id, err := k.SetFuelStandard(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("GET /v1/fleet/fuel-dispenses", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		eq := r.URL.Query().Get("equipment")
+		if eq != "" && !validIDs(w, eq) {
+			return
+		}
+		out, err := k.ListFuelDispenses(r.Context(), principalFrom(r.Context()), eq)
+		reply(w, map[string]any{"items": out}, err)
+	}))
+	m.Handle("POST /v1/fleet/fuel-dispenses", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			kernel.FuelDispenseInput
+			DispensedOn day `json:"dispensed_on"`
+		}
+		if !decode(w, r, &b) || !validIDs(w, b.EquipmentID, b.WarehouseID, b.StockItemID, b.CostCodeID, b.ExpenseAccountID) {
+			return
+		}
+		b.FuelDispenseInput.DispensedOn = b.DispensedOn.Time
+		out, err := k.DispenseFuel(r.Context(), principalFrom(r.Context()), b.FuelDispenseInput)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		status := http.StatusCreated
+		if out.AlreadyExists {
+			status = http.StatusOK
+		}
+		writeJSON(w, status, out)
+	}))
+	m.Handle("GET /v1/fleet/fuel-reconciliation", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if p := q.Get("project"); p != "" && !validIDs(w, p) {
+			return
+		}
+		out, err := k.FuelReconciliationOf(r.Context(), principalFrom(r.Context()), q.Get("from"), q.Get("to"), q.Get("project"))
+		reply(w, out, err)
+	}))
 }

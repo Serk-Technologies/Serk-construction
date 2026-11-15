@@ -491,3 +491,7 @@ span.rolecard { cursor: default; }
 .adjsum .neg { border-left: 4px solid var(--ok); }
 @media (max-width: 560px) { .termrow { grid-template-columns: 1fr 1fr; } .termrow button { grid-column: 1 / -1; } }
 .kpi.datek .v { font-size: 19px; white-space: nowrap; padding-top: 6px; }
+
+/* Fuel reconciliation: the questions a line raises, as a compact list inside a table cell. */
+ul.flags { margin: 0; padding-left: 1.1rem; font-size: 0.85rem; max-width: 44ch; }
+ul.flags li + li { margin-top: 0.25rem; }

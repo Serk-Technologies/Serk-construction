@@ -37,3 +37,9 @@ internal/kernel TestR11_PostureThroughHealthLogin
 pkg/blob TestKeyVersionsRotationAndRecovery
 internal/kernel TestDocSecurity_KeyRotation
 internal/config TestDocumentKeyRotationConfig
+
+# Fleet fuel on the stock ledger (ADR 0022)
+internal/kernel TestFuel_DispenseIsAStockIssue
+internal/kernel TestFuel_StandardsAndReconciliation
+internal/httpapi TestAPIFuel
+pkg/fleet TestFuelFlags

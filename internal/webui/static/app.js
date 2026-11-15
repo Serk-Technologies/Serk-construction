@@ -1430,6 +1430,42 @@ const FORMS = {
       });
   },
 
+  async fuel_dispense(eqId) {
+    const [all, fuels] = await Promise.all([api('GET', '/v1/equipment?limit=200'), api('GET', '/v1/fleet/fuel-items')]);
+    const machines = all.items.filter((e) => e.current_project_id);
+    const eq = select('equipment_id', machines.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    if (eqId) eq.value = eqId;
+    const tank = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const item = select('stock_item_id', fuels.items.map((f) => ({ value: f.stock_item_id, label: `${f.code} ${f.name} (${f.unit})` })), { required: true });
+    const litres = input('litres', { type: 'number', step: '0.01', min: '0.01', required: true });
+    const meter = input('meter_reading', { type: 'number', step: '0.01', min: '0' });
+    const operator = input('operator', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the operator who took the fuel' });
+    const date = input('dispensed_on', { type: 'date', required: true, value: today(), max: today() });
+    const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
+    const cc = select('cost_code_id', [], { required: true });
+    const note = input('note', { type: 'text', maxlength: '500' });
+    const sync = async () => {
+      const e = machines.find((x) => x.id === eq.value);
+      cc.textContent = '';
+      if (!e) return;
+      meter.disabled = e.meter_kind === 'NONE';
+      meter.required = !meter.disabled;
+      meter.value = meter.disabled ? '' : e.last_meter;
+      for (const c of (await api('GET', `/v1/projects/${e.current_project_id}/cost-codes`)).cost_codes) cc.append(h('option', { value: c.id }, `${c.code} ${c.name}`));
+    };
+    eq.addEventListener('change', () => sync().catch(showError));
+    formPage('Dispense fuel to a machine', 'Fuel is stock: this prepares a stock issue from the tank and records which machine took it and at what meter reading. Nothing leaves the tank and nothing is charged until a different person approves the issue; its cost is then charged to the project the machine is working on.',
+      [fuels.items.length ? null : h('p', { class: 'hint' }, 'No stock item is designated as fuel yet. A plant manager designates fuel items.'),
+        h('div', { class: 'grid' }, field('Equipment', eq, 'Machines at a project.'), field('Tank or bowser', tank), field('Fuel', item), field('Litres', litres), field('Meter reading', meter, 'Not behind the last approved reading.'),
+          field('Operator', operator), field('Date', date), field('Cost code', cc), field('Expense account', acct)), field('Note', note)], 'Prepare issue', async () => {
+        const res = await api('POST', '/v1/fleet/fuel-dispenses', { equipment_id: eq.value, warehouse_id: tank.value, stock_item_id: item.value, cost_code_id: cc.value, expense_account_id: acct.value,
+          litres: litres.value, meter_reading: meter.disabled || !meter.value ? undefined : meter.value, operator: operator.value.trim(), dispensed_on: date.value, note: note.value.trim() || undefined });
+        say(`Stock issue ${res.issue_number} prepared for approval.`);
+        location.hash = `#/doc/stock_issue/${res.stock_issue_id}`;
+      });
+    await sync();
+  },
+
   async equipment_operator() {
     const who = input('operator', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the operator' });
     const cls = select('equipment_class', FLEET_CLASSES.map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
@@ -4332,7 +4368,7 @@ async function renderFleet(id) {
   closeSheet();
   if (id) return renderEquipment(id);
   const from = plusDays(-30);
-  const [sum, first] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50')]);
+  const [sum, first, fuel] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50'), api('GET', `/v1/fleet/fuel-reconciliation?from=${from}&to=${today()}`)]);
   const n = (...st) => st.reduce((a, k) => a + (sum.by_status[k] || 0), 0);
   const kpi = (v, k, warn) => h('div', { class: `kpi${warn && v ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(v)), h('div', { class: 'k' }, k));
   const rows = [...first.items];
@@ -4359,7 +4395,7 @@ async function renderFleet(id) {
   draw();
   const act = (perm, href, label) => (S.can.has(perm) ? h('a', { class: 'btn', href }, label) : null);
   page('Fleet command centre', 'Every machine, plant item and tool: where it is, what state it is in, and what the approved daily logs of the last 30 days say it did. Figures are computed from the register and approved logs in your scope; nothing here is a sample.',
-    h('div', { class: 'toolbar' }, act('fleet.manage', '#/new/equipment', 'Register equipment'), act('fleet.reserve', '#/new/equipment_reservation', 'Reserve equipment'), act('fleet.operate', '#/new/equipment_log', 'Record a log')),
+    h('div', { class: 'toolbar' }, act('fleet.manage', '#/new/equipment', 'Register equipment'), act('fleet.reserve', '#/new/equipment_reservation', 'Reserve equipment'), act('fleet.operate', '#/new/equipment_log', 'Record a log'), act('stock.issue', '#/new/fuel_dispense', 'Dispense fuel')),
     h('div', { class: 'kpis' }, kpi(sum.total, 'In the register'), kpi(n('AVAILABLE', 'RESERVED'), 'In the yard, in service'), kpi(n('MOBILIZING', 'ASSIGNED', 'OPERATING', 'IDLE', 'DEMOBILIZING'), 'At projects'),
       kpi(n('UNDER_INSPECTION', 'UNDER_MAINTENANCE', 'BREAKDOWN'), 'Out of service', true), kpi(n('SAFETY_HOLD'), 'On safety hold', true), kpi(n('REGISTERED'), 'Awaiting commissioning')),
     table(`Usage from approved logs, ${from} to ${today()}`, [
@@ -4373,7 +4409,19 @@ async function renderFleet(id) {
       { label: 'Fuel l/h', num: true, cell: (u) => (u.fuel_litres_per_hour == null ? '' : money(u.fuel_litres_per_hour)) },
       { label: 'Unlogged meter', num: true, cell: (u) => (Number(u.unlogged_meter_units) ? money(u.unlogged_meter_units) : '') },
     ], sum.usage, 'No approved logs in this period.'),
-    h('p', { class: 'hint' }, sum.basis), holder, h('div', { class: 'actions' }, more));
+    h('p', { class: 'hint' }, sum.basis),
+    table(`Fuel: dispensed, logged and expected, ${from} to ${today()}`, [
+      { label: 'Equipment', cell: (l) => h('a', { href: `#/fleet/${l.equipment_id}` }, `${l.number} ${l.name}`) },
+      { label: 'Dispensed L', num: true, cell: (l) => money(l.dispensed_litres) },
+      { label: 'Awaiting approval L', num: true, cell: (l) => (Number(l.pending_litres) ? money(l.pending_litres) : '') },
+      { label: 'Logged L', num: true, cell: (l) => money(l.logged_litres) },
+      { label: 'Meter units', num: true, cell: (l) => money(l.metered_units) },
+      { label: 'Standard L/unit', num: true, cell: (l) => (l.standard_litres_per_unit == null ? '' : money(l.standard_litres_per_unit)) },
+      { label: 'Expected L', num: true, cell: (l) => (l.expected_litres == null ? '' : money(l.expected_litres)) },
+      { label: 'Fuel cost', num: true, cell: (l) => money(l.fuel_cost) },
+      { label: 'To be explained', cell: (l) => (l.flags.length ? h('ul', { class: 'flags' }, ...l.flags.map((f) => h('li', {}, f.reason))) : 'Nothing') },
+    ], fuel.lines, 'No fuel was dispensed or logged in this period.'),
+    h('p', { class: 'hint' }, fuel.basis), holder, h('div', { class: 'actions' }, more));
 }
 async function renderEquipment(id) {
   const e = await api('GET', `/v1/equipment/${id}`);

@@ -2,6 +2,13 @@
 
 Changes made under the SERK Construction OS 3.0 directive (`MASTER_PROMPT.md`). Earlier history: `docs/release/CHECKPOINT_*.md` and `git log`.
 
+## 2026-11-15: fleet part 2, fuel (0055, ADR 0022)
+
+- Fuel is ordinary stock. Filling a machine prepares a stock issue of a designated fuel item together with the record of which machine took it; the existing second-person approval values it, takes it out of the tank and charges the project through the existing issue journal. No second ledger and no new posting.
+- Fuel items and effective-dated fuel standards, set by `fleet.approve`, attested.
+- Reconciliation of dispensed, logged and expected fuel per machine, in the API and on the Fleet page, listing differences for a person to explain.
+- `scripts/prepush.sh` runs the same Gitleaks as CI before a push. Completion plan for all 80 domains generated from the register (`docs/completion/`).
+
 ## 2026-11-15: audit remediation (CI honesty, storage fault classes, mandatory browser journeys)
 
 - CI could not fail on a failing test run (pipe without pipefail). Replaced by a structured gate over `go test -json`: any failure, any skip, a missing mandatory test or a package without a result rejects the run.

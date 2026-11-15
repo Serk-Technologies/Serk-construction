@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-15 (audit remediation)",
+  "updated": "2026-11-15 (completion directive: phase 0 done, fleet fuel done)",
   "repository": "Serk-Technologies/Serk-construction",
   "branch": "claude/new-session-xkd5g3",
   "milestone": {
@@ -22,13 +22,12 @@
     ]
   },
   "next_work_item": {
-    "id": "P0-GOV",
-    "title": "People: branch protection on main and a reviewed pull request bringing the fixes to main",
+    "id": "FLT-03",
+    "title": "Maintenance: work orders, parts through stock, return to service only after a closed work order, preventive plans",
     "then": [
-      "Three consecutive passing CI runs of the release-candidate revision",
-      "Re-encryption of existing document objects; KMS/HSM custody (needs a provider decision)",
-      "Scanner signature freshness alerting; load, soak, fault injection; penetration-test scope",
-      "FLT-02 fuel only after the gate is met"
+      "FLT-04 costing and charge-out",
+      "FLT-05 fixed assets",
+      "then the waves of docs/completion/02_DOMAIN_MAP.md"
     ]
   },
   "requirement_ids_touched": [
@@ -54,13 +53,15 @@
   "migrations_added": [
     "0052_document_control.sql",
     "0053_document_security.sql",
-    "0054_fleet.sql"
+    "0054_fleet.sql",
+    "0055_fleet_fuel.sql"
   ],
   "adrs_added": [
     "0018",
     "0019",
     "0020",
-    "0021"
+    "0021",
+    "0022"
   ],
   "commands": [
     {
@@ -99,6 +100,11 @@
       "command": "go test -race -count=1 -p 1 -shuffle=on -json ./... on bf3c05d (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright), judged by tools/ci/check_test_results.py",
       "outcome": "460 pass, 0 fail, 0 skip; 26 mandatory tests present and passing",
       "evidence": "docs/engineering/evidence/2026-11-15-key-rotation.tests.txt"
+    },
+    {
+      "command": "fresh database; go test -race -count=1 -p 1 -shuffle=on -json ./... (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright); gate; Gitleaks 8.21.2",
+      "outcome": "baseline 711a174: 460 pass, 0 fail, 0 skip. With fuel: 464 pass, 0 fail, 0 skip, 30 mandatory",
+      "evidence": "docs/engineering/evidence/2026-11-15-baseline-711a174-fresh-db.json, 2026-11-15-fleet-fuel.summary.json"
     }
   ],
   "environment": {
@@ -140,7 +146,7 @@
     "push": "authorised by the owner to claude/new-session-xkd5g3 only"
   },
   "release_status": "NO-GO",
-  "resume_command": "Read CLAUDE.md, docs/engineering/execution-state.json and docs/engineering/AUDIT_REMEDIATION_2026-11-15.md; check the latest GitHub Actions runs; take the first open item of 'Next checkpoint' in docs/engineering/HANDOVER.md. No feature work while the stabilisation gate is open.",
+  "resume_command": "Read CLAUDE.md, docs/engineering/execution-state.json and docs/completion/02_DOMAIN_MAP.md; check the latest GitHub Actions run; reproduce the baseline with scripts in docs/engineering/RUNBOOK.md; continue with next_work_item.",
   "session_start_commit": "12c3cec",
   "ci": {
     "note": "Green test jobs before run 17 are not evidence: the step piped into tee without pipefail and could not fail.",
@@ -186,10 +192,26 @@
       "note": "Run one after another, each started after the previous finished. A green test job implies the gate's conditions (no failure, no skip, 26 mandatory tests, at least 458 passed); the count was read from the log for run 28 only. Commits after 45f4b5c on the branch change documentation only."
     }
   },
-  "feature_development": "SUSPENDED by the audit remediation directive until the P0 stabilisation gate is met",
+  "feature_development": "Resumed by the completion directive of 2026-11-15 (fleet slices in order). Governance blockers on main remain open and are the administrator's.",
   "governance": {
     "main_branch_protection": "reported disabled by the independent audit; the agent has no administrative access",
     "pr_3": "merged into main (1096bf2) while CI was failing; not opened or merged by the agent",
     "main_ci": "failing (run 20)"
-  }
+  },
+  "current_phase": "Phase 3, wave W1 (fleet completion)",
+  "current_work_package": "FLT-03 maintenance",
+  "completed_work_packages": [
+    "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
+    "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
+    "Phase 1 (partial): pre-push checks with CI's Gitleaks; bytecode untracked; unsigned authorisation record",
+    "FLT-02 fuel on the stock ledger (0055, ADR 0022)"
+  ],
+  "external_blockers": [
+    "Branch protection on main and reviewed merge (repository administrator)",
+    "No authorisation to open a pull request has been given",
+    "Real identity provider, KMS/HSM, bank, messaging, AI provider: owner must authorise and supply",
+    "Statutory payroll, tax and labour rules: professional must supply",
+    "Penetration test and all human sign-offs"
+  ],
+  "release_decision": "NO-GO"
 }

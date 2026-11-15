@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-key-rotation.tests.txt",
- "commit": "bf3c05d",
+ "results_file": "docs/engineering/evidence/2026-11-15-fleet-fuel.tests.txt",
+ "commit": "7fdaaf9+fuel",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,15 +11,15 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 88,
+  "VERIFIED": 92,
   "NOT_STARTED": 75,
-  "IMPLEMENTING": 7,
+  "IMPLEMENTING": 8,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "domain_counts": {
-  "IMPLEMENTING": 38,
-  "NOT_STARTED": 40,
+  "IMPLEMENTING": 39,
+  "NOT_STARTED": 39,
   "BLOCKED": 2
  },
  "domains": [
@@ -1091,16 +1091,70 @@
    "domain": "Fuel",
    "milestone": "M6",
    "owner": "Construction lead",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "FLT-02.1",
      "text": "Fuel issues linked to asset, operator, meter and stock movement; variance review",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": "The link and the reconciliation are built and verified (FLT-02.2 to FLT-02.5). A variance is listed with both figures for a person to explain; a recorded, approved investigation of a variance is FLT-02.6 and is not built."
+    },
+    {
+     "id": "FLT-02.2",
+     "text": "Fuel is ordinary stock: a dispense is a stock issue of a designated fuel item, prepared with the machine, meter reading and operator, and takes effect (tank quantity, value, journal, project cost) only when a second person approves the issue; there is no second fuel ledger",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFuel_DispenseIsAStockIssue",
+      "TestAPIFuel"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-02.3",
+     "text": "A dispense is refused for an item not designated as fuel, a machine not at the project, a meter reading behind the last approved one, or more than the tank holds; an offline retry records once; a tenant database login cannot write or alter a dispense around the kernel",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFuel_DispenseIsAStockIssue"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-02.4",
+     "text": "Fuel items and fuel standards (litres per metered unit, effective-dated, append-only) are set only by a person with fleet.approve, attested",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFuel_DispenseIsAStockIssue",
+      "TestFuel_StandardsAndReconciliation",
+      "TestAPIFuel"
+     ],
+     "evidence_file": "",
+     "note": "One person sets a standard; it is a reporting benchmark, not a financial figure. Old standards are kept."
+    },
+    {
+     "id": "FLT-02.5",
+     "text": "Per machine and period, dispensed, logged and expected fuel are compared and differences beyond a stated threshold are listed with both figures, in the API and the console, limited to the reader's projects",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFuel_StandardsAndReconciliation",
+      "TestFuelFlags",
+      "TestAPIFuel",
+      "TestConsoleBrowserFleet"
+     ],
+     "evidence_file": "",
+     "note": "The 10% threshold is an engineering default stated in the report, not an approved policy. The standard applied is the one in force at the end of the period."
+    },
+    {
+     "id": "FLT-02.6",
+     "text": "Recorded investigation and approved closure of a fuel variance; tank dip readings reconciled to the stock ledger; fuel sensors (telematics)",
      "status": "NOT_STARTED",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": ""
+     "note": "A tank count today is the existing stock count."
     }
    ]
   },
