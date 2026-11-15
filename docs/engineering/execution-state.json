@@ -287,7 +287,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "CAP-01.5 financial statements (income statement and balance sheet from posted journals, balanced, with account drill-down; cash-flow classification needs account metadata) ; then DEF-013, DEF-014, DEF-015, DEF-017; then PLB-04.1 risk register, CNX-05.1 correspondence, CNX-07.2 tasks, SUP-05.4 returns/scrap/quarantine, PPL-05.1 certifications.",
+  "exact_next_action": "PLB-04.1 project risk register (draft 0080 in session notes: risks with insert-only assessments, exposure = probability x cost impact, compared with remaining contingency from project_budget_current); then DEF-013, DEF-014, DEF-015, DEF-017; CNX-05.1, CNX-07.2, SUP-05.4, PPL-05.1.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -300,8 +300,9 @@
    "DEF-001 part: transmittals and submittals (4fedeca)",
    "DEF-011 (bf31d1b)",
    "XCT-LOC.3 Ethiopian calendar conversion and display (bf31d1b)",
-   "FLT-01.14 charge-out; DEF-001 closed (560bfdd)"
+   "FLT-01.14 charge-out; DEF-001 closed (560bfdd)",
+   "CAP-01.5 income statement and balance sheet (87bb3ec)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-chargeout-560bfdd.summary.json (498/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-statements-87bb3ec.summary.json (499/0/0)"
 }

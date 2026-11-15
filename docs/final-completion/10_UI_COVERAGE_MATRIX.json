@@ -616,6 +616,12 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/statements",
+   "label": "Financial statements",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
    "route": "#/payroll",
    "label": "Payroll",
    "browser_journeys": [

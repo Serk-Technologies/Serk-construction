@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-chargeout-560bfdd.tests.txt",
- "commit": "560bfdd",
+ "results_file": "docs/engineering/evidence/2026-11-15-statements-87bb3ec.tests.txt",
+ "commit": "87bb3ec",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -12,16 +12,16 @@
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
   "VERIFIED": 105,
-  "NOT_STARTED": 72,
-  "IMPLEMENTING": 23,
+  "NOT_STARTED": 71,
+  "IMPLEMENTING": 24,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 42,
+  "NOT_STARTED": 44,
   "BLOCKED": 12,
-  "VERIFIED": 19
+  "VERIFIED": 20
  },
  "domain_counts": {
   "IMPLEMENTING": 48,
@@ -1999,11 +1999,35 @@
     {
      "id": "CAP-01.5",
      "text": "Balance sheet, income statement and cash-flow statement",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
      "note": "Trial balance, GL detail and journal register exist.",
-     "criteria": []
+     "criteria": [
+      {
+       "id": "CAP-01.5.a",
+       "text": "Income statement for a period and balance sheet at its end, from posted journals only, balancing against equity and unclosed earnings, checked against a hand-computed reference",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestAPIFinancialStatements"
+       ],
+       "note": ""
+      },
+      {
+       "id": "CAP-01.5.b",
+       "text": "Cash-flow statement (needs operating/investing/financing classification of accounts)",
+       "status": "NOT_STARTED",
+       "evidence_tests": [],
+       "note": ""
+      },
+      {
+       "id": "CAP-01.5.c",
+       "text": "One-step drill-down from a statement line to its journal lines",
+       "status": "NOT_STARTED",
+       "evidence_tests": [],
+       "note": ""
+      }
+     ]
     }
    ]
   },

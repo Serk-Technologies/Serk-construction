@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "560bfdd",
+ "register_commit": "87bb3ec",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -1073,7 +1073,7 @@
     {
      "id": "CAP-01.5",
      "text": "Balance sheet, income statement and cash-flow statement",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "CAP-05.3",
@@ -1098,6 +1098,16 @@
     {
      "id": "CAP-09.3",
      "text": "Audit chain anchored to separately protected storage",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "CAP-01.5.b",
+     "text": "Cash-flow statement (needs operating/investing/financing classification of accounts)",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "CAP-01.5.c",
+     "text": "One-step drill-down from a statement line to its journal lines",
      "status": "NOT_STARTED"
     },
     {
@@ -1132,6 +1142,7 @@
     }
    ],
    "tests": [
+    "TestAPIFinancialStatements",
     "TestAmbiguityIsAnError",
     "TestAuditChainLinearUnderConcurrency",
     "TestClosedPeriodBlocksPosting",
