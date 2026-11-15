@@ -286,7 +286,7 @@ D = {
                                               note="No statutory payroll rules may be shipped without professional approval (MASTER_PROMPT 4.8).",
           criteria=[
             c("Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated", I, note="new-version payroll (TestPayroll_RunApprovePay); activation of an unapproved set is not tested"),
-            c("Preview, independent approval, locked run, journal and payment record with synthetic test rules", I, note="new-version payroll; the locked run is not tested; employee bank details unapproved (DEF-010)"),
+            c("Preview, independent approval, locked run, journal and payment record with synthetic test rules", I, note="new-version payroll; the locked run is not tested; employee records approved by a second person since 0074"),
             c("Reversal and reconciliation of a payroll run", N),
             c("Statutory rules supplied and approved by a named professional", B)])]),
     "PPL-04": ("M6", "Construction lead", [r("Crew output and labour cost by work package", N)]),

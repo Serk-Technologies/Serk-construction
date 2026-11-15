@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-hardening-9bce5f0.tests.txt",
- "register_commit": "9bce5f0",
+ "results_file": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.tests.txt",
+ "register_commit": "dbe049a",
  "requirement_counts": {
   "VERIFIED": 105,
   "NOT_STARTED": 78,
@@ -1378,7 +1378,7 @@
      "text": "Preview, independent approval, locked run, journal and payment record with synthetic test rules",
      "status": "IMPLEMENTING",
      "evidence_tests": [],
-     "note": "new-version payroll; the locked run is not tested; employee bank details unapproved (DEF-010)"
+     "note": "new-version payroll; the locked run is not tested; employee records approved by a second person since 0074"
     },
     {
      "id": "PPL-03.1.c",

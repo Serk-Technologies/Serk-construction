@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-hardening-9bce5f0.tests.txt",
- "commit": "9bce5f0",
+ "results_file": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.tests.txt",
+ "commit": "dbe049a",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -1643,7 +1643,7 @@
        "text": "Preview, independent approval, locked run, journal and payment record with synthetic test rules",
        "status": "IMPLEMENTING",
        "evidence_tests": [],
-       "note": "new-version payroll; the locked run is not tested; employee bank details unapproved (DEF-010)"
+       "note": "new-version payroll; the locked run is not tested; employee records approved by a second person since 0074"
       },
       {
        "id": "PPL-03.1.c",

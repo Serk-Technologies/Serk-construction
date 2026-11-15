@@ -54,7 +54,9 @@
   "0056_fleet_maintenance.sql",
   "0057_fleet_corrections.sql",
   "0058-0071 (carried from new-version, renumbered)",
-  "0072_integration_subjects.sql"
+  "0072_integration_subjects.sql",
+  "0073_carried_module_hardening.sql",
+  "0074_employee_approval.sql"
  ],
  "adrs_added": [
   "0018",
@@ -222,7 +224,7 @@
   "main_ci": "failing (run 20)"
  },
  "current_phase": "Final-completion directive: WP-000, integration of new-version (ADR 0025), WP-001 form state and WP-002 problem details/cursors done; hardening of the carried modules (WP-024) next",
- "current_work_package": "WP-024: harden carried modules (DEF-008, DEF-009 High), then DEF-010",
+ "current_work_package": "WP-024 part 2 (DEF-016, DEF-011..015, DEF-017)",
  "completed_work_packages": [
   "Phase 0: repository reinspected against 45f4b5c, baseline reproduced on a fresh database (460/0/0)",
   "Phase 0: engineering inventory, 80-domain plan in 13 waves, traceability (generated)",
@@ -268,26 +270,24 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-forms-api-5a8c052.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
-   "DEF-001 colliding new-version parts not yet rebuilt",
-   "DEF-002 main unprotected",
-   "DEF-008 unattested inspection results/NCR closure",
-   "DEF-009 no DB maker-checker on tax returns, consolidation, ITPs",
-   "DEF-010 unapproved employee bank details"
+   "DEF-001 colliding new-version parts (timesheets, HSE, internal hire, transmittals, submittals) not yet rebuilt",
+   "DEF-002 main unprotected (administrator)"
   ],
   "external_blockers": "docs/final-completion/08_EXTERNAL_BLOCKERS.json",
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "WP-024: add 0073_carried_module_hardening.sql (draft in the session scratchpad is not durable; rebuild from DEF-008/009 text): attest inspection results and NCR closure (subject types + approval_use triggers; kernel authorize in DecideInspection and CloseNCR) and database maker-checker on tax_returns, consolidation_groups/runs, itps; raw-SQL regressions that assert the refusal reason. Then DEF-010, then rebuild timesheets and HSE (attested) on this branch's tables.",
+  "exact_next_action": "WP-024 part 2: DEF-016 (fake e-invoice adapter is the production default: make the default 'no adapter' and refuse submission with a 503 until an authorised adapter is configured; tests set FakeEInvoice explicitly), then the Medium items DEF-011..015 and DEF-017. Then rebuild timesheets and HSE (0064 of new-version) on this branch's tables with attested closures/verifications/permit steps.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
    "WP-001 form state (partial: four forms without own regression)",
-   "WP-002 problem details and document-list cursors (other lists open)"
+   "WP-002 problem details and document-list cursors (other lists open)",
+   "WP-024 part 1: DEF-008, DEF-009 (9bce5f0), DEF-010 (dbe049a)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-forms-api-5a8c052.summary.json (492/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.summary.json (492/0/0)"
 }

@@ -107,12 +107,13 @@
    "id": "DEF-010",
    "severity": "High",
    "area": "Payroll",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Employees' bank details and base rates are set without approval (0067_payroll.sql:94-135) while pay runs release payment to them",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Payment diversion by editing master data",
    "next_action": "Employee bank details through the same approval as supplier bank accounts",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0074 and commit dbe049a; TestPayroll_RunApprovePay fails on a fresh database without the fix"
   },
   {
    "id": "DEF-011",

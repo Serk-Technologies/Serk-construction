@@ -1,0 +1,22 @@
+{
+  "verdict": "PASS",
+  "top_level_tests": {
+    "passed": 492,
+    "failed": 0,
+    "skipped": 0
+  },
+  "packages": {
+    "passed": 22,
+    "failed": 0,
+    "no_result": 0,
+    "no_tests": 12
+  },
+  "mandatory_tests": 40,
+  "non_json_lines": 0,
+  "problems": [],
+  "commit": "",
+  "ref": "",
+  "workflow_run_id": "",
+  "workflow_run_attempt": "",
+  "generated_at": "2026-11-15T17:40:04Z"
+}
