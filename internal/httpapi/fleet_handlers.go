@@ -37,6 +37,8 @@ package httpapi
 //
 // Corrections (0057; ADR 0024): approved fleet policy; plan revision and retirement.
 //
+//	POST /v1/equipment-charge-rates {equipment_id, effective_from, productive_rate, idle_rate, basis}; /{id}/submit|approve|reject
+//	GET  /v1/fleet/charge-preview?project=&month=; POST /v1/equipment-charge-runs {project_id, month, cost_account_id, recovery_account_id}; /{id}/cancel
 //	POST /v1/fleet-policies                                        {effective_from, fuel_variance_tolerance, fuel_variance_min_litres, due_soon_fraction, due_soon_days, basis}; /{id}/submit|approve|reject
 //	GET  /v1/fleet/policy?on=                                      the thresholds in force on a date and where they come from
 //	POST /v1/maintenance-plans/{id}/revise                         {title, every_units?, every_days?}: a new version; the old plan is retired and kept
@@ -365,6 +367,43 @@ func (s *Server) registerFleet() {
 	})))
 	m.Handle("POST /v1/fleet-policies/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
 		return nil, k.DecideFleetPolicy(ctx, p, id, false, b.Reason)
+	})))
+	// Equipment charge-out (0079): rates are approved documents; a run charges a project's month.
+	m.Handle("POST /v1/equipment-charge-rates", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.ChargeRateInput
+		if !decode(w, r, &b) || !validIDs(w, b.EquipmentID) {
+			return
+		}
+		id, err := k.CreateChargeRate(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/equipment-charge-rates/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, k.SubmitChargeRate(ctx, p, id)
+	})))
+	m.Handle("POST /v1/equipment-charge-rates/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideChargeRate(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/equipment-charge-rates/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideChargeRate(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("GET /v1/fleet/charge-preview", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if !validIDs(w, q.Get("project")) {
+			return
+		}
+		out, err := k.PreviewChargeRun(r.Context(), principalFrom(r.Context()), q.Get("project"), q.Get("month"))
+		reply(w, out, err)
+	}))
+	m.Handle("POST /v1/equipment-charge-runs", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.ChargeRunInput
+		if !decode(w, r, &b) || !validIDs(w, b.ProjectID, b.CostAccountID, b.RecoveryAccountID) {
+			return
+		}
+		id, err := k.PrepareChargeRun(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/equipment-charge-runs/{id}/cancel", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.CancelChargeRun(ctx, p, id, b.Reason)
 	})))
 	m.Handle("GET /v1/fleet/policy", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		out, err := k.FleetPolicyInForce(r.Context(), principalFrom(r.Context()), r.URL.Query().Get("on"))

@@ -82,6 +82,8 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT project_id::text FROM customer_credit_notes WHERE id = $1::uuid`
 	case "site_diary":
 		q = `SELECT project_id::text FROM site_diaries WHERE id = $1::uuid`
+	case "equipment_charge_run":
+		q = `SELECT project_id::text FROM equipment_charge_runs WHERE id = $1::uuid`
 	case "transmittal":
 		q = `SELECT project_id::text FROM transmittals WHERE id = $1::uuid`
 	case "submittal":
@@ -108,9 +110,9 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 	case "guarantee", "escalation_formula", "price_adjustment", "ld_terms":
 		q = map[string]string{"guarantee": "guarantees", "escalation_formula": "escalation_formulas", "price_adjustment": "price_adjustments", "ld_terms": "contract_ld_terms"}[docType]
 		q = `SELECT c.project_id::text FROM ` + q + ` x JOIN contracts c ON c.id = x.contract_id WHERE x.id = $1::uuid`
-	case "equipment", "equipment_operator_auth", "fleet_policy":
+	case "equipment", "equipment_operator_auth", "fleet_policy", "equipment_charge_rate":
 		// The register is company-wide: anyone who reads documents sees the fleet and its policy.
-		q = `SELECT '' FROM ` + map[string]string{"equipment": "equipment", "equipment_operator_auth": "equipment_operator_auths", "fleet_policy": "fleet_policies"}[docType] + ` WHERE id = $1::uuid`
+		q = `SELECT '' FROM ` + map[string]string{"equipment": "equipment", "equipment_operator_auth": "equipment_operator_auths", "fleet_policy": "fleet_policies", "equipment_charge_rate": "equipment_charge_rates"}[docType] + ` WHERE id = $1::uuid`
 	case "equipment_reservation", "equipment_log":
 		q = `SELECT project_id::text FROM ` + map[string]string{"equipment_reservation": "equipment_reservations", "equipment_log": "equipment_logs"}[docType] + ` WHERE id = $1::uuid`
 	case "equipment_meter_reset":

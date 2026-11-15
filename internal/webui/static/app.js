@@ -281,6 +281,10 @@ const DOCS = {
     actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
   fleet_policy: { title: 'Fleet policies', one: 'Fleet policy', base: '/v1/fleet-policies', create: 'fleet.manage', form: 'fleet_policy', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']] } },
+  equipment_charge_rate: { title: 'Charge-out rates', one: 'Charge-out rate', base: '/v1/equipment-charge-rates', create: 'fleet.manage', form: 'charge_rate', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']] } },
+  equipment_charge_run: { title: 'Equipment charge runs', one: 'Equipment charge run', base: '/v1/equipment-charge-runs', create: 'journal.create', form: 'charge_run', statuses: ['PREPARED', 'CANCELLED'],
+    actions: { PREPARED: [['cancel', 'journal.approve|journal.post', 'req']] } },
   maintenance_work_order: { title: 'Work orders', one: 'Work order', base: '/v1/maintenance-work-orders', create: 'fleet.manage|fleet.operate', form: 'work_order', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'COMPLETED', 'CLOSED', 'REJECTED', 'CANCELLED'],
     actions: { DRAFT: [['submit', 'fleet.manage|fleet.operate'], ['cancel', 'fleet.manage|fleet.operate', 'req']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']],
       COMPLETED: [['close', 'fleet.release'], ['send-back', 'fleet.release', 'req']] } },
@@ -433,7 +437,7 @@ const NAV = [
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
   ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
-    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read'], ['#/list/fleet_policy', 'Fleet policies', 'p2p.read']]],
+    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read'], ['#/list/fleet_policy', 'Fleet policies', 'p2p.read'], ['#/list/equipment_charge_rate', 'Charge-out rates', 'p2p.read'], ['#/list/equipment_charge_run', 'Charge runs', 'journal.create|journal.approve|journal.post']]],
   ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read'], ['#/list/transmittal', 'Transmittals', 'p2p.read'], ['#/list/submittal', 'Submittals', 'p2p.read']]],
   ['Site workforce, safety & quality', [['#/timesheets', 'Timesheets', 'timesheet.record|timesheet.approve'], ['#/hse', 'Health and safety', 'hse.report|hse.manage'], ['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct'], ['#/credit', 'Progress credit', 'credit.manage|credit.approve|credit.record']]],
   ['Subcontracts', [['#/list/subcontract', 'Subcontracts', 'p2p.read'], ['#/list/subcontract_application', 'Applications and certificates', 'p2p.read'], ['#/list/subcontract_backcharge', 'Back-charges', 'p2p.read'], ['#/list/subcontract_payment', 'Subcontract payments', 'p2p.read|payment.prepare|payment.approve|payment.release'], ['#/subpolicy', 'Subcontract accounts', 'contract.policy.manage|contract.policy.approve']]],
@@ -470,6 +474,7 @@ const QUEUES = [
   ['fleet.release', 'equipment_meter_reset', 'SUBMITTED', 'Meter resets to approve'],
   ['fleet.approve', 'maintenance_work_order', 'SUBMITTED', 'Work orders to authorise'],
   ['fleet.approve', 'fleet_policy', 'SUBMITTED', 'Fleet policies to approve'],
+  ['fleet.approve', 'equipment_charge_rate', 'SUBMITTED', 'Charge-out rates to approve'],
   ['document.approve', 'submittal', 'SUBMITTED', 'Submittals to review'],
   ['fleet.release', 'maintenance_work_order', 'COMPLETED', 'Completed work to certify'],
   ['subcontract.approve', 'subcontract', 'SUBMITTED', 'Subcontracts to approve'],
@@ -1848,6 +1853,45 @@ const FORMS = {
         say('Plan saved.');
         location.hash = '#/fleet';
       });
+  },
+
+  async charge_rate() {
+    const eqs = (await api('GET', '/v1/equipment?limit=200')).items || [];
+    const eq = select('equipment_id', eqs.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    const from = input('effective_from', { type: 'date', required: true, value: today() });
+    const prod = input('productive_rate', { inputmode: 'decimal', required: true, autocomplete: 'off' });
+    const idle = input('idle_rate', { inputmode: 'decimal', value: '0', autocomplete: 'off' });
+    const basis = input('basis', { type: 'text', required: true, minlength: '5', maxlength: '500', placeholder: 'Where the rate comes from (policy, hire market, cost build-up)' });
+    formPage('New charge-out rate', 'The rate a project is charged for a machine, per working hour and per idle hour, from a date. A person with fleet approval who did not prepare it approves it with a fresh sign-in; a decided rate never changes.',
+      [h('div', { class: 'grid' }, field('Machine', eq), field('Effective from', from), field('Per working hour', prod), field('Per idle hour', idle), field('Basis', basis))], 'Prepare rate', async () => {
+        const res = await api('POST', '/v1/equipment-charge-rates', { equipment_id: eq.value, effective_from: from.value, productive_rate: prod.value.trim(), idle_rate: idle.value.trim() || '0', basis: basis.value.trim() });
+        created('equipment_charge_rate', res, 'Charge-out rate');
+      });
+  },
+
+  async charge_run() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const month = input('month', { type: 'month', required: true, value: today().slice(0, 7) });
+    const cost = select('cost_account_id', accountOpts(['EXPENSE']), { required: true });
+    const rec = select('recovery_account_id', accountOpts(['EXPENSE', 'REVENUE']), { required: true });
+    const prev = h('div');
+    const latestPrev = latestOnly();
+    const show = () => latestPrev(async (signal) => (proj.value && month.value ? api('GET', `/v1/fleet/charge-preview?project=${proj.value}&month=${month.value}`, undefined, undefined, signal) : null), (pv) => {
+      if (!pv) { prev.replaceChildren(); return; }
+      prev.replaceChildren(table('Logs to charge', [{ label: 'Log', cell: (l) => l.log_number }, { label: 'Day', cell: (l) => l.log_date }, { label: 'Machine', cell: (l) => l.equipment },
+        { label: 'Working h', num: true, cell: (l) => String(Number(l.productive_hours)) }, { label: 'Idle h', num: true, cell: (l) => String(Number(l.idle_hours)) },
+        { label: 'Charge', num: true, cell: (l) => money(l.amount) }], pv.lines || [], 'No approved log left to charge.'),
+      (pv.unpriced || []).length ? h('p', { class: 'callout' }, `No approved rate for: ${pv.unpriced.map((u) => `${u.log_number} (${u.equipment})`).join(', ')}. The run is refused until a rate is approved.`) : null,
+      h('p', {}, `Total ${money(pv.total)}`));
+    });
+    proj.addEventListener('change', () => show().catch(showError));
+    month.addEventListener('change', () => show().catch(showError));
+    formPage('Charge equipment to a project', 'Prices the project\'s approved equipment logs of the month at the approved rates in force on each day and creates a draft journal (Dr equipment cost / Cr recovery) for finance to approve and post. Each log is charged once.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Month', month), field('Equipment cost account', cost), field('Recovery account', rec)), prev], 'Prepare charge run', async () => {
+        const res = await api('POST', '/v1/equipment-charge-runs', { project_id: proj.value, month: month.value, cost_account_id: cost.value, recovery_account_id: rec.value });
+        created('equipment_charge_run', res, 'Equipment charge run');
+      });
+    await show();
   },
 
   async fleet_policy() {

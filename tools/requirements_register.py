@@ -222,8 +222,13 @@ D = {
             c("A duplicate or replayed command applies once; a conflict is returned, never merged", N)]),
         r("Telematics ingestion (GPS, engine hours, fuel level) with authenticated devices and replay protection, stored apart from accounting data", N),
         r("Deterministic allocation and transfer recommendations with explainable constraints", N),
-        r("Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy", N,
-          note="Mapping: earlier handovers called this 'FLT-04 costing' and fixed assets 'FLT-05'. The register's FLT-04 is and remains Fixed assets (capitalisation, depreciation, disposal); there is no FLT-05. Costing lives here because the original register has no separate costing domain. Blocked in part on the financial controller's charge-out and allocation policy; synthetic policies may be used in test environments."),
+        r("Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy", I,
+          note="Charge-out built in 0079 (rates and runs); operating cost per machine (fuel, parts, labour, workshop) as one report is not built.",
+          criteria=[
+            c("Internal charge-out rates per machine are effective-dated documents approved by another person with a fresh second factor, attested; none is shipped", V, "TestFleet_ChargeOut"),
+            c("A charge run prices a project's approved logs of a month at the rate in force on each day; a log without a rate stops the run; each log is charged once", V, "TestFleet_ChargeOut"),
+            c("The run's EQP_CHG journal (Dr project equipment cost per cost code, Cr recovery) equals the run when approved or posted, and is cancelled only with the run while a draft", V, "TestFleet_ChargeOut"),
+            c("Operating cost per machine (fuel, parts, labour, workshop) reported against its charge-out recovery", N)]),
     ]),
     "FLT-02": ("M6", "Construction lead", [
         r("Fuel issues linked to asset, operator, meter and stock movement; variance review", I,

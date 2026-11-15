@@ -41,7 +41,7 @@ func (s *Service) canSee(p auth.Principal, docType, project string) bool {
 		return true
 	}
 	switch docType {
-	case "supplier", "customer", "stock_item", "uom_conversion", "price_index_value", "equipment", "equipment_operator_auth", "fleet_policy":
+	case "supplier", "customer", "stock_item", "uom_conversion", "price_index_value", "equipment", "equipment_operator_auth", "fleet_policy", "equipment_charge_rate":
 		return true
 	case "supplier_bank_account":
 		return s.authz.Has(p, auth.PermSupplierManage)

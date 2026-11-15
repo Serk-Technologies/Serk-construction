@@ -122,6 +122,8 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"equipment_meter_reset":   {"equipment_meter_resets", "created_by", ""},
 	"maintenance_work_order":  {"maintenance_work_orders", "created_by", ""},
 	"fleet_policy":            {"fleet_policies", "created_by", ""},
+	"equipment_charge_rate":   {"equipment_charge_rates", "created_by", ""},
+	"equipment_charge_run":    {"equipment_charge_runs", "created_by", ""},
 	// Revenue policies (0053).
 	"revenue_policy": {"revenue_policies", "created_by", ""},
 	// Subcontracts (0055).
@@ -418,6 +420,8 @@ var listSQL = map[string]string{
 	"equipment_log":           `SELECT l.id::text, l.number, l.status, l.created_by, l.created_at, l.project_id::text, l.productive_hours, e.number || ' ' || e.name || ' — ' || l.log_date || ' shift ' || l.shift || ', operator ' || l.operator FROM equipment_logs l JOIN equipment e ON e.id = l.equipment_id`,
 	"equipment_meter_reset":   `SELECT m.id::text, m.number, m.status, m.created_by, m.created_at, COALESCE(e.current_project_id::text, ''), m.new_reading, e.number || ' ' || e.name || ' — ' || lower(m.kind) || ': ' || m.old_reading || ' to ' || m.new_reading FROM equipment_meter_resets m JOIN equipment e ON e.id = m.equipment_id`,
 	"maintenance_work_order":  `SELECT m.id::text, m.number, m.status, m.created_by, m.created_at, COALESCE(e.current_project_id::text, ''), COALESCE(m.labour_hours, 0), e.number || ' ' || e.name || ' — ' || lower(m.kind) || ': ' || left(m.description, 80) FROM maintenance_work_orders m JOIN equipment e ON e.id = m.equipment_id`,
+	"equipment_charge_rate":   `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, '', x.productive_rate, e.number || ' ' || e.name || ' — from ' || x.effective_from || ': ' || x.productive_rate || ' an hour working, ' || x.idle_rate || ' idle' FROM equipment_charge_rates x JOIN equipment e ON e.id = x.equipment_id`,
+	"equipment_charge_run":    `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, r.project_id::text, COALESCE((SELECT sum(amount) FROM equipment_charge_lines l WHERE l.run_id = r.id), 0), to_char(r.month, 'Month YYYY') || ' — ' || (SELECT count(*) FROM equipment_charge_lines l WHERE l.run_id = r.id) || ' log(s)' FROM equipment_charge_runs r`,
 	"fleet_policy":            `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, '', x.fuel_variance_tolerance, 'Fleet policy effective ' || x.effective_from::text FROM fleet_policies x`,
 	"revenue_policy":          `SELECT r.id::text, 'REV-v' || r.version, r.status, r.created_by, r.created_at, '', 0::numeric, (SELECT name FROM legal_entities WHERE id = r.legal_entity_id) || ': ' || CASE r.method WHEN 'INPUT_COST' THEN 'cost to cost' ELSE 'measured output' END FROM revenue_policies r`,
 	"subcontract_policy":      `SELECT p.id::text, 'SUBPOL-v' || p.version, p.status, p.created_by, p.created_at, '', 0::numeric, (SELECT name FROM legal_entities WHERE id = p.legal_entity_id) FROM subcontract_policies p`,
