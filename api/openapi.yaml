@@ -1836,3 +1836,118 @@ paths:
       summary: "Upload a DRAFT revision as a stream: the body is the file, Content-Type its media type, ?file_name= and ?change_note= its description. The file is spooled to disk, hashed, inspected (type signature, archive bomb, path traversal, active content) and scanned before it is stored. 201 even when the scanner finds malware: the revision is then recorded as quarantined"
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }, { name: revision, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment:
+    get:
+      summary: "The equipment register, a page at a time in number order (?status=&class=&project=&q=&limit=; pass the returned next as ?cursor=). Company-wide: anyone who reads documents sees the whole fleet. Each item lists the moves open to the caller"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    post:
+      summary: "Register equipment (REGISTERED). The same manufacturer and serial number, or the same registration, cannot be registered twice. Needs fleet.manage; a different person commissions it"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment/{id}:
+    get:
+      summary: "One machine with the moves open to the caller, its latest 100 lifecycle events and its reservations that have not ended"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment/{id}/calendar:
+    get:
+      summary: "Submitted and approved reservations of a machine that overlap ?from=&to="
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/fleet/summary:
+    get:
+      summary: "Fleet Command Centre data for ?from=&to= (at most 366 days) and optional ?project=: counts by state now, and per machine the productive, idle and down hours, fuel, utilization and availability of approved logs in the caller's scope. Ratios are null when nothing was logged"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-logs:
+    post:
+      summary: "Enter a daily equipment log (DRAFT). One per machine, day and shift; the operator must be authorised; hours must fit the meter and the day; the machine must be at the project. With client_ref the call is idempotent"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-meter-resets:
+    post:
+      summary: "Prepare a meter reset {equipment_id, kind REPLACEMENT|ROLLOVER|CORRECTION, new_reading, reason}; the reading it replaces is recorded by the database"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-operators:
+    post:
+      summary: "Prepare an authorisation of a person to operate a class of equipment (DRAFT); never one's own"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-reservations:
+    post:
+      summary: "Request equipment for a project and a period (DRAFT); needs fleet.reserve on the project"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-reservations/{id}/cancel:
+    post:
+      summary: "Cancel an approved reservation with a reason (its requester or an approver). Refused while the machine is at the project under it"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment/{id}/move:
+    post:
+      summary: "Move a machine to another lifecycle state {to, reason, project_id?}. to may be IN_SERVICE (ASSIGNED at its project, else RESERVED or AVAILABLE). Every move is an attested human decision; returning from a hold, maintenance or inspection needs fleet.release with fresh MFA; mobilising needs the project's approved reservation"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-logs/{id}/approve:
+    post:
+      summary: "Approve a log (a different person, fleet.log.approve). The opening reading must not be below the machine's last approved reading; approval advances the meter"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-logs/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): equipment logs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-logs/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): equipment logs"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-meter-resets/{id}/approve:
+    post:
+      summary: "Approve a meter reset: fleet.release, fresh MFA, a different person. Starts a new meter for the machine"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-meter-resets/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): equipment meter resets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-meter-resets/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): equipment meter resets"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-operators/{id}/approve:
+    post:
+      summary: "Approve an operator authorisation: fleet.release, fresh MFA, a different person"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-operators/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): equipment operators"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-operators/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): equipment operators"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-reservations/{id}/approve:
+    post:
+      summary: "Approve a reservation: a different person, fleet.approve, fresh MFA. 409 double_booked if it would overlap another approved reservation of the machine (enforced by an exclusion constraint)"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-reservations/{id}/reject:
+    post:
+      summary: "Reject with a reason (a human decision): equipment reservations"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/equipment-reservations/{id}/submit:
+    post:
+      summary: "Submit the draft for approval (its author): equipment reservations"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }

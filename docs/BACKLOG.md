@@ -29,7 +29,7 @@ Nothing below is a human sign-off.
 | BIM / IFC (8.2) | 7 | — |
 | Field capture, offline sync (9) | 1 | Site diaries, devices, idempotent sync with conflict detection (0037) |
 | Workforce / payroll (10.1) | 7 | — |
-| Equipment (10.2) | 7 | (diary equipment hours only) |
+| Equipment (10.2) | 3 | Register, 14-state lifecycle, reservations without double-booking, operator authorisations, daily logs, meter control, command centre (0054, ADR 0020; `TestFleet_*`, `TestAPIFleet`, `TestConsoleBrowserFleet`); **missing**: fuel, maintenance, costing and charge-out, telematics, optimisation |
 | Quality (10.3), Safety (10.4) | 7 | — |
 | Assistant (11.1) | 2 | Deterministic intent router over computed facts with sources, freshness, assumptions, missing data; optional model phrasing guarded against invented numbers. **Unverified:** no live model endpoint reachable from the build environment |
 | Predictive intelligence (11.2) | 3 | Rule-based assessments (SPI/CPI/EAC, budget consumption, overdue POs, cash, controls) recorded as snapshots so a model can later be compared to this baseline. No ML (no outcome history yet) |

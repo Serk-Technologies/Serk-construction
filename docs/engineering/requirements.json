@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-document-security.tests.txt",
- "commit": "12c3cec+",
+ "results_file": "docs/engineering/evidence/2026-11-15-fleet-part1.tests.txt",
+ "commit": "1ae8f5b+fleet",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,15 +11,15 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 78,
-  "NOT_STARTED": 72,
-  "IMPLEMENTING": 6,
+  "VERIFIED": 86,
+  "NOT_STARTED": 75,
+  "IMPLEMENTING": 7,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "domain_counts": {
-  "IMPLEMENTING": 37,
-  "NOT_STARTED": 41,
+  "IMPLEMENTING": 38,
+  "NOT_STARTED": 40,
   "BLOCKED": 2
  },
  "domains": [
@@ -946,16 +946,142 @@
    "domain": "Equipment",
    "milestone": "M6",
    "owner": "Construction lead",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "FLT-01.1",
      "text": "Asset register, assignment, utilisation and monotonic meter readings",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_RegisterAndLifecycle",
+      "TestFleet_DailyLogsAndMeter",
+      "TestAPIFleet"
+     ],
+     "evidence_file": "",
+     "note": "Identity never changes; the same maker and serial number, or registration, is registered once."
+    },
+    {
+     "id": "FLT-01.2",
+     "text": "A fourteen-state lifecycle enforced identically in Go and in the database; every move is an attested human decision with a reason; history is written by the database and cannot be edited",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_StateMachineGoAndSQLAgree",
+      "TestLifecycleRules",
+      "TestFleet_RegisterAndLifecycle"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-01.3",
+     "text": "Equipment on safety hold, broken down, under maintenance or under inspection cannot be put to work or reserved, and returns to service only through a certifier with fresh MFA",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_RegisterAndLifecycle",
+      "TestLifecycleRules",
+      "TestAPIFleet",
+      "TestConsoleBrowserFleet"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-01.4",
+     "text": "Approved reservations of one machine never overlap, also under concurrent approval; a machine reaches a project only through that project's approved reservation",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_ReservationsNeverDoubleBook",
+      "TestFleet_RegisterAndLifecycle",
+      "TestAPIFleet"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-01.5",
+     "text": "Daily logs: one per machine, day and shift; an authorised operator; hours fit the meter and the day; the machine is at the project; approved by a second person; an offline repeat is recorded once",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_DailyLogsAndMeter",
+      "TestAPIFleet"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-01.6",
+     "text": "A meter never runs backwards and moves only through an approved log or an approved, two-person meter reset; replacement and rollover are recorded",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_DailyLogsAndMeter"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-01.7",
+     "text": "Fleet data is invisible to other tenants; project hours are visible only inside the project scope; the register pages by cursor",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_TenantIsolationAndPaging",
+      "TestFleet_DailyLogsAndMeter",
+      "TestAPIFleet"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-01.8",
+     "text": "Fleet Command Centre figures (counts by state, hours, utilization, availability, fuel per hour) equal the register and the approved logs; a ratio with no data is absent, not zero",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_DailyLogsAndMeter",
+      "TestHoursRatios",
+      "TestConsoleBrowserFleet"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-01.9",
+     "text": "Work-package assignment, capacity planning, cross-project requests, availability forecasting, rental agreements, standby periods",
      "status": "NOT_STARTED",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "Only equipment hours on site diaries exist."
+     "note": ""
+    },
+    {
+     "id": "FLT-01.10",
+     "text": "Attachments, equipment documents and photographs, fixed-asset linkage, warranty and insurance expiry alerts",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": "Warranty and insurance dates are stored; nothing acts on them yet."
+    },
+    {
+     "id": "FLT-01.11",
+     "text": "Daily logs captured offline through the field device command log",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": "The log API is idempotent on a client reference (verified); it is not yet a command kind of /v1/sync, and no field client exists."
+    },
+    {
+     "id": "FLT-01.12",
+     "text": "Telematics ingestion (GPS, engine hours, fuel level) with authenticated devices and replay protection, stored apart from accounting data",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-01.13",
+     "text": "Deterministic allocation and transfer recommendations with explainable constraints",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": ""
     }
    ]
   },
@@ -2421,8 +2547,8 @@
      "text": "Base backup plus WAL archive restores exactly to a named point, every migration included; data loss on losing the primary is measured",
      "status": "VERIFIED",
      "evidence_tests": [],
-     "evidence_file": "docs/engineering/evidence/2026-11-15-pitr-drill.txt",
-     "note": "Local disposable clusters, a few hundred rows: restore verified in 0.64 s, 5 s of committed writes lost with archive_timeout=10s. Not a production-scale measurement."
+     "evidence_file": "docs/engineering/evidence/2026-11-15-pitr-drill-0054.txt",
+     "note": "Local disposable clusters, a few hundred rows: all 54 migrations replayed, restore verified in 1.15 s, 5 s of committed writes lost with archive_timeout=10s. Not a production-scale measurement."
     },
     {
      "id": "XCT-DR.2",

@@ -169,6 +169,15 @@ const DOCS = {
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
     actions: { DRAFT: [['submit', 'document.manage']], SUBMITTED: [['approve', 'document.approve', 'opt'], ['reject', 'document.approve', 'req']] } },
   rfi: { title: 'Requests for information', one: 'Request for information', base: '/v1/rfis', create: 'document.manage', form: 'rfi', statuses: ['OPEN', 'ANSWERED', 'CLOSED'], actions: {} },
+  equipment_reservation: { title: 'Equipment reservations', one: 'Equipment reservation', base: '/v1/equipment-reservations', create: 'fleet.reserve', form: 'equipment_reservation',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'fleet.reserve']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']], APPROVED: [['cancel', 'fleet.reserve|fleet.approve', 'req']] } },
+  equipment_log: { title: 'Equipment logs', one: 'Equipment log', base: '/v1/equipment-logs', create: 'fleet.operate', form: 'equipment_log', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.operate']], SUBMITTED: [['approve', 'fleet.log.approve', 'opt'], ['reject', 'fleet.log.approve', 'req']] } },
+  equipment_operator_auth: { title: 'Operator authorisations', one: 'Operator authorisation', base: '/v1/equipment-operators', create: 'fleet.manage', form: 'equipment_operator', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
+  equipment_meter_reset: { title: 'Meter resets', one: 'Meter reset', base: '/v1/equipment-meter-resets', create: 'fleet.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
   guarantee: { title: 'Guarantees', one: 'Guarantee', base: '/v1/guarantees', create: 'bond.manage', form: null, statuses: ['ACTIVE', 'RELEASED', 'CALLED'], actions: {} },
   price_index_value: { title: 'Index values', one: 'Index value', base: '/v1/price-index-values', create: 'escalation.manage', form: null,
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
@@ -316,6 +325,8 @@ const NAV = [
     ['#/list/customer_invoice', 'Customer invoices', 'p2p.read'], ['#/list/customer_credit_note', 'Credit notes', 'p2p.read'],
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
+  ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
+    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read']]],
   ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
@@ -342,6 +353,10 @@ const QUEUES = [
   ['claim.approve', 'contract_claim', 'SUBMITTED', 'Claims to approve for sending'],
   ['claim.approve', 'ld_terms', 'SUBMITTED', 'Damages terms to approve'],
   ['document.approve', 'document_revision', 'SUBMITTED', 'Document revisions to publish'],
+  ['fleet.approve', 'equipment_reservation', 'SUBMITTED', 'Equipment reservations to approve'],
+  ['fleet.log.approve', 'equipment_log', 'SUBMITTED', 'Equipment logs to approve'],
+  ['fleet.release', 'equipment_operator_auth', 'SUBMITTED', 'Operator authorisations to approve'],
+  ['fleet.release', 'equipment_meter_reset', 'SUBMITTED', 'Meter resets to approve'],
   ['escalation.approve', 'price_index_value', 'SUBMITTED', 'Index values to approve'],
   ['escalation.approve', 'escalation_formula', 'SUBMITTED', 'Price adjustment formulas to approve'],
   ['escalation.approve', 'price_adjustment', 'SUBMITTED', 'Price adjustments to approve'],
@@ -576,6 +591,7 @@ async function route() {
       case 'bonds': return await renderBonds(a);
       case 'obligations': return await renderObligations();
       case 'documents': return await renderDocuments(a);
+      case 'fleet': return await renderFleet(a);
       default: return await renderHome();
     }
   } catch (e) {
@@ -1332,6 +1348,99 @@ const FORMS = {
         created('change_event', res, 'Change event');
       });
     await load();
+  },
+
+  async equipment() {
+    const ent = select('legal_entity_id', entityOpts(), { required: true });
+    const name = input('name', { type: 'text', required: true, minlength: '2', maxlength: '120', placeholder: 'e.g. Excavator 07' });
+    const cls = select('class', FLEET_CLASSES.map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
+    const own = select('ownership', ['OWNED', 'RENTED', 'LEASED', 'SUBCONTRACTED'].map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
+    const maker = input('manufacturer', { type: 'text', required: true, maxlength: '80' });
+    const model = input('model', { type: 'text', required: true, maxlength: '80' });
+    const serial = input('serial_number', { type: 'text', required: true, maxlength: '80' });
+    const engine = input('engine_number', { type: 'text', maxlength: '80' });
+    const reg = input('registration', { type: 'text', maxlength: '40' });
+    const cap = input('capacity', { type: 'text', maxlength: '120', placeholder: 'e.g. 0.8 m3 bucket' });
+    const meterKind = select('meter_kind', [['HOURS', 'Engine hours'], ['KM', 'Kilometres'], ['NONE', 'No meter']].map(([value, label]) => ({ value, label })));
+    const meter = input('opening_meter', { type: 'number', step: '0.01', min: '0', value: '0' });
+    const fuel = select('fuel_type', ['DIESEL', 'PETROL', 'ELECTRIC', 'NONE'].map((value) => ({ value, label: words(value.toLowerCase()) })));
+    const home = input('home_location', { type: 'text', maxlength: '120', placeholder: 'Yard or depot' });
+    formPage('Register equipment', 'Enter a machine, plant item or tool in the register. Its identity (class, ownership, maker, serial, engine and registration numbers) never changes afterwards, and the same serial number or registration cannot be registered twice. A different person commissions it before it can be reserved or used.',
+      [h('div', { class: 'grid' }, field('Legal entity', ent), field('Name', name), field('Class', cls), field('Ownership', own), field('Manufacturer', maker), field('Model', model),
+        field('Serial number', serial), field('Engine number', engine), field('Registration', reg), field('Capacity', cap), field('Meter', meterKind), field('Opening meter reading', meter), field('Fuel', fuel), field('Home location', home))],
+      'Register equipment', async () => {
+        const res = await api('POST', '/v1/equipment', { legal_entity_id: ent.value, name: name.value.trim(), class: cls.value, ownership: own.value, manufacturer: maker.value.trim(), model: model.value.trim(),
+          serial_number: serial.value.trim(), engine_number: engine.value.trim(), registration: reg.value.trim(), capacity: cap.value.trim(), meter_kind: meterKind.value,
+          opening_meter: meterKind.value === 'NONE' ? '0' : meter.value || '0', fuel_type: fuel.value, home_location: home.value.trim() });
+        say('Equipment registered.');
+        location.hash = `#/fleet/${res.id}`;
+      });
+  },
+
+  async equipment_reservation(eqId) {
+    const eq = select('equipment_id', await fleetOpts(), { required: true });
+    if (eqId) eq.value = eqId;
+    const proj = select('project_id', projectOpts(), { required: true });
+    const purpose = input('purpose', { type: 'text', required: true, minlength: '3', maxlength: '300', placeholder: 'What the machine is needed for' });
+    const from = input('starts_on', { type: 'date', required: true, value: today(), min: today() });
+    const to = input('ends_on', { type: 'date', required: true, value: plusDays(14), min: today() });
+    const clash = h('div', { 'aria-live': 'polite' });
+    const check = async () => {
+      clash.textContent = '';
+      if (!eq.value || !from.value || !to.value || to.value < from.value) return;
+      const r = (await api('GET', `/v1/equipment/${eq.value}/calendar?from=${from.value}&to=${to.value}`)).reservations;
+      clash.append(r.length ? h('p', { class: 'hint' }, `Already asked for in that period: ${r.map((x) => `${x.number} ${x.starts_on} to ${x.ends_on} (${x.status.toLowerCase()})`).join('; ')}. Two approved reservations of one machine cannot overlap.`)
+        : h('p', { class: 'hint' }, 'No other reservation overlaps that period.'));
+    };
+    for (const el of [eq, from, to]) el.addEventListener('change', check);
+    formPage('Reserve equipment', 'Ask for a machine for a project and a period. A different person approves it with a fresh multi-factor sign-in. The machine is sent to the project only against an approved reservation.',
+      [h('div', { class: 'grid' }, field('Equipment', eq), field('Project', proj), field('Purpose', purpose), field('From', from), field('To', to)), clash], 'Request reservation', async () => {
+        const res = await api('POST', '/v1/equipment-reservations', { equipment_id: eq.value, project_id: proj.value, purpose: purpose.value.trim(), starts_on: from.value, ends_on: to.value });
+        created('equipment_reservation', res, 'Reservation');
+      });
+    await check();
+  },
+
+  async equipment_log(eqId) {
+    const all = (await api('GET', '/v1/equipment?limit=200')).items.filter((e) => e.current_project_id);
+    const eq = select('equipment_id', all.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    if (eqId) eq.value = eqId;
+    const date = input('log_date', { type: 'date', required: true, value: today(), max: today() });
+    const shift = select('shift', [['1', 'Shift 1'], ['2', 'Shift 2'], ['3', 'Shift 3']].map(([value, label]) => ({ value, label })));
+    const operator = input('operator', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the authorised operator' });
+    const open = input('meter_open', { type: 'number', step: '0.01', min: '0', required: true });
+    const close = input('meter_close', { type: 'number', step: '0.01', min: '0', required: true });
+    const prod = input('productive_hours', { type: 'number', step: '0.25', min: '0', max: '24', required: true, value: '0' });
+    const idle = input('idle_hours', { type: 'number', step: '0.25', min: '0', max: '24', value: '0' });
+    const down = input('down_hours', { type: 'number', step: '0.25', min: '0', max: '24', value: '0' });
+    const fuel = input('fuel_litres', { type: 'number', step: '0.1', min: '0', value: '0' });
+    const loc = input('location', { type: 'text', maxlength: '200', placeholder: 'e.g. Km 12+300' });
+    const findings = input('findings', { type: 'text', maxlength: '2000', placeholder: 'Defects or observations from the daily check' });
+    const sync = () => { const e = all.find((x) => x.id === eq.value); if (e && !open.value) open.value = e.last_meter; };
+    eq.addEventListener('change', () => { open.value = ''; sync(); });
+    sync();
+    formPage('Record an equipment log', 'One log per machine, day and shift. The opening reading continues from the machine\'s last approved reading and the meter never runs backwards. Productive and idle hours cannot exceed what the hour meter moved. A different person approves the log, which advances the meter.',
+      [h('div', { class: 'grid' }, field('Equipment', eq, 'Machines at a project.'), field('Date', date), field('Shift', shift), field('Operator', operator), field('Opening meter', open), field('Closing meter', close),
+        field('Productive hours', prod), field('Idle hours', idle), field('Down hours', down), field('Fuel (litres)', fuel), field('Location', loc), field('Findings', findings))], 'Save log', async () => {
+        const e = all.find((x) => x.id === eq.value);
+        const res = await api('POST', '/v1/equipment-logs', { equipment_id: eq.value, project_id: e.current_project_id, log_date: date.value, shift: Number(shift.value), operator: operator.value.trim(),
+          meter_open: open.value || '0', meter_close: close.value || '0', productive_hours: prod.value || '0', idle_hours: idle.value || '0', down_hours: down.value || '0', fuel_litres: fuel.value || '0',
+          location: loc.value.trim(), findings: findings.value.trim() });
+        created('equipment_log', res, 'Log');
+      });
+  },
+
+  async equipment_operator() {
+    const who = input('operator', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the operator' });
+    const cls = select('equipment_class', FLEET_CLASSES.map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
+    const cert = input('certificate_ref', { type: 'text', required: true, minlength: '2', maxlength: '120', placeholder: 'Licence or certificate reference' });
+    const from = input('valid_from', { type: 'date', required: true, value: today() });
+    const to = input('valid_until', { type: 'date', required: true, value: plusDays(365) });
+    formPage('Authorise an operator', 'Record that a person is competent to operate a class of equipment, and until when. Nobody prepares or approves their own authorisation. A daily log can name only an operator authorised for the machine\'s class on that day.',
+      [h('div', { class: 'grid' }, field('Operator', who), field('Equipment class', cls), field('Certificate', cert), field('Valid from', from), field('Valid until', to))], 'Prepare authorisation', async () => {
+        const res = await api('POST', '/v1/equipment-operators', { operator: who.value.trim(), equipment_class: cls.value, certificate_ref: cert.value.trim(), valid_from: from.value, valid_until: to.value });
+        created('equipment_operator_auth', res, 'Authorisation');
+      });
   },
 
   // Register a document with its first revision, or (with a document id) upload its next revision.
@@ -4204,6 +4313,111 @@ function addObligationSheet(contracts, after) {
       closeSheet(); say('Obligation added.'); after();
     } catch (e) { sheetError(sheet, e); }
   });
+}
+
+// ---------- SERK FLEET (0054) ----------
+const FLEET_CLASSES = ['EXCAVATOR', 'GRADER', 'LOADER', 'BULLDOZER', 'CRANE', 'GENERATOR', 'TRUCK', 'MIXER', 'BATCHING_PLANT', 'COMPACTOR', 'TOOL', 'OTHER'];
+const FLEET_STATE = { REGISTERED: 'Registered', AVAILABLE: 'Available', RESERVED: 'Reserved', MOBILIZING: 'Mobilising', ASSIGNED: 'Assigned', OPERATING: 'Operating', IDLE: 'Idle',
+  UNDER_INSPECTION: 'Under inspection', UNDER_MAINTENANCE: 'Under maintenance', BREAKDOWN: 'Breakdown', SAFETY_HOLD: 'Safety hold', DEMOBILIZING: 'Demobilising', RETIRED: 'Retired', DISPOSED: 'Disposed' };
+const FLEET_MOVE = { AVAILABLE: 'Put into service', MOBILIZING: 'Mobilise to a project', ASSIGNED: 'Confirm at the project', OPERATING: 'Start operating', IDLE: 'Mark idle', DEMOBILIZING: 'Demobilise',
+  UNDER_INSPECTION: 'Send for inspection', UNDER_MAINTENANCE: 'Send for maintenance', BREAKDOWN: 'Report a breakdown', SAFETY_HOLD: 'Place on safety hold', RETIRED: 'Retire', DISPOSED: 'Record disposal', RESERVED: 'Return to the yard' };
+const OUT_OF_SERVICE = ['UNDER_INSPECTION', 'UNDER_MAINTENANCE', 'BREAKDOWN', 'SAFETY_HOLD'];
+const pct = (v) => (v == null ? 'No logged hours' : (Number(v) * 100).toFixed(1) + '%');
+async function fleetOpts() {
+  const r = await api('GET', '/v1/equipment?limit=200');
+  return r.items.filter((e) => !['REGISTERED', 'SAFETY_HOLD', 'RETIRED', 'DISPOSED'].includes(e.status)).map((e) => ({ value: e.id, label: `${e.number} ${e.name} (${FLEET_STATE[e.status].toLowerCase()})` }));
+}
+const projectCode = (pid) => { const p = (S.ref.projects || []).find((x) => x.id === pid); return p ? p.code : ''; };
+async function renderFleet(id) {
+  closeSheet();
+  if (id) return renderEquipment(id);
+  const from = plusDays(-30);
+  const [sum, first] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50')]);
+  const n = (...st) => st.reduce((a, k) => a + (sum.by_status[k] || 0), 0);
+  const kpi = (v, k, warn) => h('div', { class: `kpi${warn && v ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(v)), h('div', { class: 'k' }, k));
+  const rows = [...first.items];
+  let next = first.next || '';
+  const holder = h('div');
+  const more = h('button', { type: 'button', class: 'ghost' }, 'Load more');
+  const draw = () => {
+    holder.textContent = '';
+    holder.append(table('Equipment register', [
+      { label: 'Number', cell: (e) => h('a', { href: `#/fleet/${e.id}` }, e.number) },
+      { label: 'Name', cell: (e) => e.name },
+      { label: 'Class', cell: (e) => words(e.class.toLowerCase()) },
+      { label: 'Make and model', cell: (e) => `${e.manufacturer} ${e.model}` },
+      { label: 'State', cell: (e) => FLEET_STATE[e.status] || e.status },
+      { label: 'Project', cell: (e) => projectCode(e.current_project_id) },
+      { label: 'Meter', num: true, cell: (e) => (e.meter_kind === 'NONE' ? '' : `${money(e.last_meter)} ${e.meter_kind === 'KM' ? 'km' : 'h'}`) },
+    ], rows, 'No equipment is registered.'));
+    more.hidden = !next;
+  };
+  more.addEventListener('click', async () => {
+    more.disabled = true;
+    try { const p = await api('GET', `/v1/equipment?limit=50&cursor=${encodeURIComponent(next)}`); rows.push(...p.items); next = p.next || ''; draw(); } catch (e) { showError(e); } finally { more.disabled = false; }
+  });
+  draw();
+  const act = (perm, href, label) => (S.can.has(perm) ? h('a', { class: 'btn', href }, label) : null);
+  page('Fleet command centre', 'Every machine, plant item and tool: where it is, what state it is in, and what the approved daily logs of the last 30 days say it did. Figures are computed from the register and approved logs in your scope; nothing here is a sample.',
+    h('div', { class: 'toolbar' }, act('fleet.manage', '#/new/equipment', 'Register equipment'), act('fleet.reserve', '#/new/equipment_reservation', 'Reserve equipment'), act('fleet.operate', '#/new/equipment_log', 'Record a log')),
+    h('div', { class: 'kpis' }, kpi(sum.total, 'In the register'), kpi(n('AVAILABLE', 'RESERVED'), 'In the yard, in service'), kpi(n('MOBILIZING', 'ASSIGNED', 'OPERATING', 'IDLE', 'DEMOBILIZING'), 'At projects'),
+      kpi(n('UNDER_INSPECTION', 'UNDER_MAINTENANCE', 'BREAKDOWN'), 'Out of service', true), kpi(n('SAFETY_HOLD'), 'On safety hold', true), kpi(n('REGISTERED'), 'Awaiting commissioning')),
+    table(`Usage from approved logs, ${from} to ${today()}`, [
+      { label: 'Equipment', cell: (u) => h('a', { href: `#/fleet/${u.equipment_id}` }, `${u.number} ${u.name}`) },
+      { label: 'Logs', num: true, cell: (u) => String(u.logs) },
+      { label: 'Productive h', num: true, cell: (u) => money(u.productive_hours) },
+      { label: 'Idle h', num: true, cell: (u) => money(u.idle_hours) },
+      { label: 'Down h', num: true, cell: (u) => money(u.down_hours) },
+      { label: 'Utilization', num: true, cell: (u) => pct(u.utilization) },
+      { label: 'Availability', num: true, cell: (u) => pct(u.availability) },
+      { label: 'Fuel l/h', num: true, cell: (u) => (u.fuel_litres_per_hour == null ? '' : money(u.fuel_litres_per_hour)) },
+      { label: 'Unlogged meter', num: true, cell: (u) => (Number(u.unlogged_meter_units) ? money(u.unlogged_meter_units) : '') },
+    ], sum.usage, 'No approved logs in this period.'),
+    h('p', { class: 'hint' }, sum.basis), holder, h('div', { class: 'actions' }, more));
+}
+async function renderEquipment(id) {
+  const e = await api('GET', `/v1/equipment/${id}`);
+  const moves = e.moves || [];
+  let panel = null;
+  if (moves.length) {
+    const to = select('to', moves.map((m) => ({ value: OUT_OF_SERVICE.includes(e.status) && ['AVAILABLE', 'RESERVED', 'ASSIGNED'].includes(m) ? 'IN_SERVICE' : m,
+      label: OUT_OF_SERVICE.includes(e.status) && ['AVAILABLE', 'RESERVED', 'ASSIGNED'].includes(m) ? 'Certify fit and return to service' : (FLEET_MOVE[m] || m) }))
+      .filter((o, i, a) => a.findIndex((x) => x.value === o.value) === i));
+    const reason = input('reason', { type: 'text', required: true, minlength: '3', maxlength: '300' });
+    const proj = select('project_id', [{ value: '', label: 'Choose the project' }, ...projectOpts()]);
+    const projField = field('Project', proj, 'The project must hold an approved reservation for this machine.');
+    const toggle = () => { projField.hidden = to.value !== 'MOBILIZING'; };
+    to.addEventListener('change', toggle);
+    toggle();
+    const btn = h('button', { type: 'button', class: 'primary' }, 'Record the move');
+    btn.addEventListener('click', async () => {
+      clearError();
+      btn.disabled = true;
+      try { const r = await api('POST', `/v1/equipment/${id}/move`, { to: to.value, reason: reason.value.trim(), project_id: to.value === 'MOBILIZING' ? proj.value : '' }); say(`Now ${(FLEET_STATE[r.status] || r.status).toLowerCase()}.`); route(); }
+      catch (err) { showError(err); } finally { btn.disabled = false; }
+    });
+    panel = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Move this equipment'),
+      h('p', { class: 'hint' }, 'Every move is recorded with your name and reason and cannot be edited. Returning equipment to service after a hold, a breakdown, maintenance or inspection is reserved to a certifier with a fresh multi-factor sign-in.'),
+      h('div', { class: 'grid' }, field('Move', to), field('Reason', reason), projField), h('div', { class: 'actions' }, btn));
+  }
+  const fact = (k, v) => (v ? h('div', { class: 'kpi' }, h('div', { class: 'v small' }, v), h('div', { class: 'k' }, k)) : null);
+  page(`${e.number} — ${e.name}`, `${words(e.class.toLowerCase())}, ${e.ownership.toLowerCase()} · ${e.manufacturer} ${e.model} · serial ${e.serial_number}${e.registration ? ' · registration ' + e.registration : ''}.`,
+    h('div', { class: 'toolbar' }, S.can.has('fleet.reserve') ? h('a', { class: 'btn', href: `#/new/equipment_reservation/${e.id}` }, 'Reserve this equipment') : null,
+      S.can.has('fleet.operate') && e.current_project_id ? h('a', { class: 'btn', href: `#/new/equipment_log/${e.id}` }, 'Record a log') : null, h('a', { href: '#/fleet' }, 'Back to the fleet')),
+    h('div', { class: 'kpis' }, fact('State', FLEET_STATE[e.status] || e.status), fact('Project', projectCode(e.current_project_id) || 'In the yard'),
+      fact(e.meter_kind === 'KM' ? 'Odometer (km)' : 'Engine hours', e.meter_kind === 'NONE' ? 'No meter' : money(e.last_meter)), fact('Meter number', e.meter_kind === 'NONE' ? '' : String(e.meter_serial)), fact('Capacity', e.capacity)),
+    OUT_OF_SERVICE.includes(e.status) ? h('p', { class: 'hint' }, `Out of service: ${e.status_reason || ''} (${e.status_changed_by}). It cannot be put to work until a certifier returns it to service.`) : null,
+    panel,
+    table('Reservations that have not ended', [
+      { label: 'Number', cell: (r) => h('a', { href: `#/doc/equipment_reservation/${r.id}` }, r.number) },
+      { label: 'Project', cell: (r) => projectCode(r.project_id) }, { label: 'From', cell: (r) => r.starts_on }, { label: 'To', cell: (r) => r.ends_on },
+      { label: 'State', cell: (r) => words(r.status.toLowerCase()) }, { label: 'Purpose', cell: (r) => r.purpose },
+    ], e.reservations || [], 'No reservation is outstanding.'),
+    table('Lifecycle history, newest first', [
+      { label: 'When', cell: (v) => new Date(v.at).toLocaleString() }, { label: 'From', cell: (v) => FLEET_STATE[v.from] || '' }, { label: 'To', cell: (v) => FLEET_STATE[v.to] || v.to },
+      { label: 'Project', cell: (v) => projectCode(v.project_id) }, { label: 'Reason', cell: (v) => v.reason || '' }, { label: 'By', cell: (v) => v.actor },
+      { label: 'Meter', num: true, cell: (v) => money(v.meter) },
+    ], e.history || [], 'No history.'));
 }
 
 // ---------- controlled documents (0052) ----------

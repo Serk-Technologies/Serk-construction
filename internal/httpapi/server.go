@@ -567,6 +567,8 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 		writeErr(w, http.StatusForbidden, "device_refused", "the field device is not registered to you, is revoked, or its key is wrong")
 	case errors.Is(err, kernel.ErrSessionRevoked):
 		writeErr(w, http.StatusUnauthorized, "session_revoked", "session revoked; authenticate again")
+	case errors.Is(err, kernel.ErrDoubleBooked):
+		writeErr(w, http.StatusConflict, "double_booked", "the equipment is already reserved in that period")
 	case errors.Is(err, kernel.ErrQuarantined):
 		writeErr(w, http.StatusConflict, "quarantined", strings.TrimPrefix(err.Error(), "kernel: "))
 	case errors.Is(err, kernel.ErrDownloadToken):

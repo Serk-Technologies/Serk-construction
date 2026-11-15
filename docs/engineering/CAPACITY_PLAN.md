@@ -21,7 +21,30 @@
 
 Document files are stored in PostgreSQL (ADR 0018): `sum(size_bytes)` of `document_revisions` is the measure to watch; move to object storage before it dominates backup time.
 
-## What to measure first (not done)
+## First measurement: fleet queries (2026-11-15)
+
+`tools/capacity/fleet_measure.sh` builds a disposable database, loads one tenant with synthetic rows (guard triggers off for the load only) and times the API's queries through the tenant's own login, so row-level security is in the plan. Result file: `evidence/2026-11-15-fleet-query-measurement.txt`.
+
+Hardware: 4 vCPU, 16 GiB RAM, PostgreSQL 16.15 with default `shared_buffers` (128 MB), one session, no concurrency. Data: 100,000 machines, 1,000,000 approved logs (all dated in the last 10 days, across 100 projects). Sizes: equipment 61 MB, logs 652 MB with indexes.
+
+| Query | Median of 5 |
+|---|---|
+| Register, first page of 50 | 0.09 ms |
+| Register, page of 50 near the end, by keyset | 0.09 ms |
+| The same depth by OFFSET (not used by the product) | 17.5 ms |
+| Register, filtered by state, first page | 0.12 ms |
+| Counts by state (100,000 rows) | 10.5 ms |
+| Usage summary, 30 days, one project (about 10,000 logs) | 36.9 ms |
+| Usage summary, 366 days, one project | 48.3 ms |
+| Usage summary, 30 days, whole company (aggregates all 1,000,000 logs) | 695 ms |
+| One machine's logs for a day | 0.07 ms |
+
+What it showed:
+- The first run, before three indexes were added, took 73 ms for the first register page and 53 ms for the per-machine lookup: the register was sorted on every page. The indexes are now part of migration 0054. Keyset paging costs the same at any depth.
+- A company-wide summary that aggregates a million logs takes about 0.7 s on this machine. That is acceptable for one request but will not hold at tens of millions of logs or many concurrent users: it needs an incremental daily roll-up per machine before then. Recorded as an open item.
+- This is query time on one idle machine. It says nothing about throughput under concurrent load, the API layer, or larger data.
+
+## What to measure next (not done)
 
 1. Bytes per `journal_lines` row and per index, from a seeded tenant.
 2. Posting throughput and p95 latency at 50, 200 and 500 concurrent users on stated hardware.

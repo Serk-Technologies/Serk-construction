@@ -13,7 +13,10 @@ psql -h /tmp -U postgres -d serk_test -v ON_ERROR_STOP=1 -f deploy/00-roles.sql
 
 export SERK_TEST_ADMIN_DSN='postgres://postgres@/serk_test?host=/tmp&port=5432'
 test -z "$(gofmt -l .)" && go vet ./...
-go test -race -count=1 -p 1 ./...            # about 2.5 minutes on 4 vCPU
+# Optional real services for the document security tests (they SKIP without these, and a skip is not a pass):
+#   export SERK_TEST_CLAMD=127.0.0.1:3310            # a ClamAV daemon
+#   export SERK_TEST_S3_ENDPOINT=http://127.0.0.1:9000 SERK_TEST_S3_ACCESS_KEY=... SERK_TEST_S3_SECRET_KEY=... SERK_TEST_S3_BUCKET=serk-test
+go test -race -count=1 -p 1 ./...            # about 4 minutes on 4 vCPU
 ```
 
 The browser journeys run when `node` and the `playwright` module are found (`SERK_PLAYWRIGHT=<path>`); otherwise they report SKIP, which is not a pass.
@@ -30,7 +33,7 @@ The browser journeys run when `node` and the `playwright` module are found (`SER
 
 ```bash
 go test -race -count=1 -p 1 -json ./... > run.json
-# turn run.json into "PASS|FAIL|SKIP <Test> <package>" lines under docs/engineering/evidence/<date>-<name>.tests.txt
+python3 tools/test_results.py run.json docs/engineering/evidence/<date>-<name>.tests.txt
 python3 tools/requirements_register.py --results docs/engineering/evidence/<file> --commit $(git rev-parse --short HEAD)
 ```
 
