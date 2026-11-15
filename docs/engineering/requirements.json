@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-stabilization.tests.txt",
- "commit": "be030f7",
+ "results_file": "docs/engineering/evidence/2026-11-15-key-rotation.tests.txt",
+ "commit": "bf3c05d",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,7 +11,7 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 86,
+  "VERIFIED": 88,
   "NOT_STARTED": 75,
   "IMPLEMENTING": 7,
   "BLOCKED": 9,
@@ -1797,7 +1797,7 @@
       "TestDocSecurity_RealScannerAndObjectStore"
      ],
      "evidence_file": "",
-     "note": "Fail closed: unscanned, failed-scan and infected files cannot be submitted, published or downloaded while scanning is required (the default). Verified against a real ClamAV daemon; the evidence runs used a signature database holding only the EICAR test hash, so detection coverage with the public feed is not measured (ADR 0019)."
+     "note": "Fail closed: unscanned, failed-scan and infected files cannot be submitted, published or downloaded while scanning is required (the default). Verified against a real ClamAV daemon: locally with a database holding only the EICAR test hash, and in GitHub Actions from run 22 with the public signature database. Detection coverage beyond the standard test file is not measured (ADR 0019)."
     },
     {
      "id": "CNX-01.5",
@@ -1889,6 +1889,31 @@
      "evidence_tests": [],
      "evidence_file": "",
      "note": "The service streams a single request of any size to the store in parts; a client-side resumable protocol does not exist."
+    },
+    {
+     "id": "CNX-01.14",
+     "text": "Storage faults are told apart (missing bucket, missing object, refused credentials, unavailable service); the bucket is provisioned and proven private before use; the API refuses to start without it and never reports a storage fault as a missing file",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestS3ErrorClassification",
+      "TestS3FaultClassesAgainstARealServer",
+      "TestStorageFaultsAreNotReportedAsNotFound",
+      "TestDocSecurity_RealScannerAndObjectStore"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "CNX-01.15",
+     "text": "Document encryption keys are versioned: rotation keeps earlier files readable, a missing key is reported as such and is recoverable, scan verdicts survive a rotation",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestKeyVersionsRotationAndRecovery",
+      "TestDocSecurity_KeyRotation",
+      "TestDocumentKeyRotationConfig"
+     ],
+     "evidence_file": "",
+     "note": "ADR 0021. Existing files are not re-encrypted on rotation, so a compromised key cannot yet be retired; custody is an environment secret, not a KMS or HSM."
     }
    ]
   },

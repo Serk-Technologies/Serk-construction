@@ -53,7 +53,7 @@ Full table and root causes: `AUDIT_REMEDIATION_2026-11-15.md`. In short: runs 14
 
 ## Requirement status
 
-178 requirements: 158 across the 80 domains and 20 cross-cutting (159 at the start of this session; the additions are the itemised document-security and fleet requirements). VERIFIED 86, IMPLEMENTING 7, IMPLEMENTED_UNVERIFIED 1, BLOCKED 9, NOT_STARTED 75. By domain: 38 partly built, 40 not started, 2 blocked; no domain is VERIFIED as a whole because no owner has reviewed any domain's requirement list as complete. Newly verified this session (14): CNX-01.10, CNX-01.11, CNX-01.4, CNX-01.7, CNX-01.8, CNX-01.9, FLT-01.1, FLT-01.2, FLT-01.3, FLT-01.4, FLT-01.5, FLT-01.6, FLT-01.7, FLT-01.8. Nothing was downgraded. VERIFIED means the named tests passed here; it is not an acceptance.
+180 requirements: 160 across the 80 domains and 20 cross-cutting (159 at the start of this session; the additions are the itemised document-security and fleet requirements). VERIFIED 88, IMPLEMENTING 7, IMPLEMENTED_UNVERIFIED 1, BLOCKED 9, NOT_STARTED 75. By domain: 38 partly built, 40 not started, 2 blocked; no domain is VERIFIED as a whole because no owner has reviewed any domain's requirement list as complete. Newly verified this session (16): CNX-01.10, CNX-01.11, CNX-01.4, CNX-01.7, CNX-01.8, CNX-01.9, CNX-01.14, CNX-01.15, FLT-01.1, FLT-01.2, FLT-01.3, FLT-01.4, FLT-01.5, FLT-01.6, FLT-01.7, FLT-01.8. Nothing was downgraded. VERIFIED means the named tests passed here; it is not an acceptance.
 
 ## Financial integration
 
@@ -83,5 +83,5 @@ Feature work is suspended by the audit directive. In order:
 ## Resume
 
 ```text
-Read CLAUDE.md and docs/engineering/execution-state.json, check the latest GitHub Actions run for this branch, reproduce the baseline (457 tests, none skipped: `tools/ci/check_test_results.py`) per docs/engineering/RUNBOOK.md, then take the first open item of "Next checkpoint" in docs/engineering/HANDOVER.md. Do not start feature work while the stabilisation gate is open.
+Read CLAUDE.md and docs/engineering/execution-state.json, check the latest GitHub Actions run for this branch, reproduce the baseline (460 tests, none skipped: `tools/ci/check_test_results.py`) per docs/engineering/RUNBOOK.md, then take the first open item of "Next checkpoint" in docs/engineering/HANDOVER.md. Do not start feature work while the stabilisation gate is open.
 ```

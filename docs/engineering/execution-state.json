@@ -32,13 +32,15 @@
     ]
   },
   "requirement_ids_touched": [
+    "CNX-01.10",
+    "CNX-01.11",
+    "CNX-01.14",
+    "CNX-01.15",
     "CNX-01.4",
     "CNX-01.5",
     "CNX-01.7",
     "CNX-01.8",
     "CNX-01.9",
-    "CNX-01.10",
-    "CNX-01.11",
     "FLT-01.1",
     "FLT-01.2",
     "FLT-01.3",
@@ -92,6 +94,11 @@
       "command": "3 x go test -race -count=1 -p 1 -shuffle=on -json ./... (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright)",
       "outcome": "457 pass, 0 fail, 0 skip in each run",
       "evidence": "docs/engineering/evidence/2026-11-15-stability-3x-shuffle.json"
+    },
+    {
+      "command": "go test -race -count=1 -p 1 -shuffle=on -json ./... on bf3c05d (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright), judged by tools/ci/check_test_results.py",
+      "outcome": "460 pass, 0 fail, 0 skip; 26 mandatory tests present and passing",
+      "evidence": "docs/engineering/evidence/2026-11-15-key-rotation.tests.txt"
     }
   ],
   "environment": {
