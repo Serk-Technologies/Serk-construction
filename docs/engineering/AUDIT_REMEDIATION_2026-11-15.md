@@ -85,7 +85,7 @@ The three consecutive runs of the release-candidate revision are recorded in `ex
 
 | Item | State |
 |---|---|
-| 9 Versioned document keys, rotation, recovery, custody | **Not built.** One master key, no rotation. Next engineering item; needs an ADR (per-object data keys wrapped by a versioned master, so rotation re-wraps keys and never rewrites objects) |
+| 9 Versioned document keys, rotation, recovery, custody | **Partly built** (ADR 0021, after the first version of this report): every new object names its key version; rotation adds a key and keeps the previous one for reading; a missing key is reported as that and is recoverable by supplying it; scan verdicts survive a rotation. **Not built:** re-encryption of existing files (so a compromised key cannot yet be retired), more than one previous key by configuration, KMS/HSM custody. Escrow is a written procedure, not enforced |
 | 10 ClamAV with a current production signature database | **Partly verified**: the CI daemon runs the public database (above) and the integration tests pass against it. Detection coverage beyond the standard test file is not measured; update cadence and alerting on stale signatures are not built |
 | 11 Real OIDC identity, MFA step-up, session revocation | Token verification, step-up enforcement and server-side session revocation exist and are tested with locally signed tokens. **No real identity provider has been connected or tested**; blocked on an authorised tenant |
 | 12 KMS/HSM custody for approval-signing keys | **Not built**; the key is an environment secret. Needs a provider decision and credentials |
@@ -98,7 +98,7 @@ The three consecutive runs of the release-candidate revision are recorded in `ex
 ## 7. Remaining risks
 
 - `main` is unprotected and at a failing revision.
-- Document encryption has a single key with no rotation or documented custody; losing it loses every stored file.
+- Document keys can now be rotated (ADR 0021), but existing files are not re-encrypted, custody is an environment secret, and a key lost without its escrow copy loses the files under it.
 - Malware detection coverage is unmeasured beyond the standard test file.
 - No real identity provider, no KMS/HSM, no load or soak evidence, no penetration test.
 - CI uses the runner's preinstalled Node.js (22.x, printed in the log) rather than a pinned installer action; Playwright itself is pinned. MinIO is built from a pinned commit; the ClamAV image is pinned by tag, not digest.

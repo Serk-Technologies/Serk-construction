@@ -22,11 +22,12 @@ func TestStorageFaultsAreNotReportedAsNotFound(t *testing.T) {
 		status int
 		code   string
 	}{
-		"missing bucket":  {fmt.Errorf("kernel: storing the file: %w", fmt.Errorf("%w (S3 put: HTTP 404 NoSuchBucket)", blob.ErrBucketNotFound)), 503, "storage_unavailable"},
-		"access denied":   {fmt.Errorf("kernel: storing the file: %w", fmt.Errorf("%w (S3 put: HTTP 403 AccessDenied)", blob.ErrAccessDenied)), 503, "storage_unavailable"},
-		"store down":      {fmt.Errorf("kernel: reading the file: %w", fmt.Errorf("%w (dial tcp 10.0.0.9:9000: refused)", blob.ErrUnavailable)), 503, "storage_unavailable"},
-		"missing record":  {kernel.ErrNotFound, 404, "not_found"},
-		"missing object?": {fmt.Errorf("kernel: reading the file: %w", blob.ErrNotFound), 500, ""},
+		"missing bucket":   {fmt.Errorf("kernel: storing the file: %w", fmt.Errorf("%w (S3 put: HTTP 404 NoSuchBucket)", blob.ErrBucketNotFound)), 503, "storage_unavailable"},
+		"access denied":    {fmt.Errorf("kernel: storing the file: %w", fmt.Errorf("%w (S3 put: HTTP 403 AccessDenied)", blob.ErrAccessDenied)), 503, "storage_unavailable"},
+		"store down":       {fmt.Errorf("kernel: reading the file: %w", fmt.Errorf("%w (dial tcp 10.0.0.9:9000: refused)", blob.ErrUnavailable)), 503, "storage_unavailable"},
+		"key not supplied": {fmt.Errorf("kernel: reading the file: %w", fmt.Errorf("%w: object needs key %q", blob.ErrKeyUnavailable, "d1")), 503, "storage_unavailable"},
+		"missing record":   {kernel.ErrNotFound, 404, "not_found"},
+		"missing object?":  {fmt.Errorf("kernel: reading the file: %w", blob.ErrNotFound), 500, ""},
 	} {
 		w := httptest.NewRecorder()
 		s.fail(w, c.err)

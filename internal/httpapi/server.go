@@ -558,7 +558,7 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 // caller's own tenant are 403.
 func (s *Server) fail(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, blob.ErrBucketNotFound), errors.Is(err, blob.ErrAccessDenied), errors.Is(err, blob.ErrUnavailable):
+	case errors.Is(err, blob.ErrBucketNotFound), errors.Is(err, blob.ErrAccessDenied), errors.Is(err, blob.ErrUnavailable), errors.Is(err, blob.ErrKeyUnavailable):
 		// File storage is misconfigured or down: an operations fault. It is
 		// logged with its class and answered as a retryable 503, never as
 		// "not found" (which would tell the user their file does not exist).

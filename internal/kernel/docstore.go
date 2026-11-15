@@ -37,8 +37,11 @@ type DocumentStore struct {
 	Scanner  docscan.Scanner // nil: nothing is scanned; revisions stay NOT_SCANNED
 	Key      []byte          // at least 32 bytes: scan proofs and download tokens
 	MaxBytes int64           // largest accepted file with object storage; 0 = 2 GiB
-	TempDir  string          // where an upload is spooled while it is checked; "" = the system's
-	TokenTTL time.Duration   // life of a download token; 0 = 2 minutes
+	// PreviousKeys are earlier document keys (after a rotation): they prove
+	// scan verdicts recorded under them. Download links are signed with Key only.
+	PreviousKeys [][]byte
+	TempDir      string        // where an upload is spooled while it is checked; "" = the system's
+	TokenTTL     time.Duration // life of a download token; 0 = 2 minutes
 }
 
 // UseDocumentStore configures document storage and scanning.
@@ -64,10 +67,14 @@ func (d DocumentStore) maxBytes() int64 {
 }
 
 func (d DocumentStore) mac(label string, parts ...string) (string, error) {
-	if len(d.Key) < 32 {
+	return macWith(d.Key, label, parts...)
+}
+
+func macWith(key []byte, label string, parts ...string) (string, error) {
+	if len(key) < 32 {
 		return "", errors.New("kernel: no document key configured")
 	}
-	k, err := hkdf.Key(sha256.New, d.Key, nil, "serk-doc-v1|"+label, 32)
+	k, err := hkdf.Key(sha256.New, key, nil, "serk-doc-v1|"+label, 32)
 	if err != nil {
 		return "", err
 	}
@@ -89,8 +96,15 @@ func (d DocumentStore) scanProof(tenant string, r DocumentRevision) (string, err
 func (d DocumentStore) releasable(tenant string, required bool, r DocumentRevision) error {
 	proven := false
 	if r.ScanStatus == "CLEAN" || r.ScanStatus == "INFECTED" {
-		want, err := d.scanProof(tenant, r)
-		proven = err == nil && hmac.Equal([]byte(want), []byte(r.scanProof))
+		// A verdict recorded before a key rotation is proven by the key of
+		// its time; the next scan records it under the current key.
+		for _, key := range append([][]byte{d.Key}, d.PreviousKeys...) {
+			want, err := macWith(key, "scan", tenant, r.ID, r.SHA256, r.ScanStatus, r.ScanEngine, r.ScanDetail)
+			if err == nil && hmac.Equal([]byte(want), []byte(r.scanProof)) {
+				proven = true
+				break
+			}
+		}
 	}
 	switch {
 	case r.ScanStatus == "INFECTED":

@@ -32,3 +32,8 @@ internal/kernel TestR8_PostureCheck
 internal/kernel TestR9_PostureFalseNegative
 internal/kernel TestR10_PgTempShadowsApprovalEvidence
 internal/kernel TestR11_PostureThroughHealthLogin
+
+# Document key versions and rotation (ADR 0021)
+pkg/blob TestKeyVersionsRotationAndRecovery
+internal/kernel TestDocSecurity_KeyRotation
+internal/config TestDocumentKeyRotationConfig

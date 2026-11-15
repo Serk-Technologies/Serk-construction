@@ -50,3 +50,19 @@ Then update `execution-state.json` and `HANDOVER.md`.
 ## Do not
 
 Edit a committed migration; deploy, merge to `main` or force-push without the owner's authorisation; load real customer data; put a secret in the repository; mark a requirement VERIFIED by hand.
+
+## Document key rotation (ADR 0021)
+
+Keys: `SERK_DOCUMENT_KEY` (current) with `SERK_DOCUMENT_KEY_ID`, and after a rotation `SERK_DOCUMENT_KEY_PREVIOUS` with `SERK_DOCUMENT_KEY_PREVIOUS_ID`. Each is at least 32 random bytes from the secret store, never from a repository or a ticket.
+
+Before a key is first used: two named people place a sealed offline copy in escrow, with its id and date. Without that copy, losing the secret store loses every file under the key.
+
+Rotate:
+1. Generate the new key in the secret store. Escrow it (above).
+2. Set `SERK_DOCUMENT_KEY_PREVIOUS` and `_PREVIOUS_ID` to the present key and id; set `SERK_DOCUMENT_KEY` and `_ID` to the new key and a new id (for example `d2`). The service refuses to start if the ids are equal or the keys are the same.
+3. Restart every API instance together. At start-up the log says "document key rotation in effect" with both ids.
+4. Check: download one file from before the rotation and upload and download a new one.
+
+Recover ("file storage is temporarily unavailable", log line `encryption key version not available: object needs key "dN"`): the service was started without key `dN`. Supply it as the previous key (from the secret store or escrow) and restart. Nothing has been changed or lost.
+
+Not available yet: re-encrypting existing files under a new key, more than one previous key through configuration, KMS/HSM custody.

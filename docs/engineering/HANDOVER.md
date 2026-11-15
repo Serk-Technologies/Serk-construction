@@ -46,7 +46,7 @@ Full table and root causes: `AUDIT_REMEDIATION_2026-11-15.md`. In short: runs 14
 - **Found, no action needed**: 7 secret-scan hits are validator test fixtures, not credentials.
 - **Open, important**:
   - Scanner detection coverage is unmeasured: the public ClamAV signature feed is unreachable here, so the evidence runs used a database containing only the EICAR test hash.
-  - `SERK_DOCUMENT_KEY` has no rotation and no custody procedure; losing it loses every stored object.
+  - Document keys rotate (ADR 0021) but existing files are not re-encrypted and custody is an environment secret.
   - Download links are reusable for two minutes and appear in request paths.
   - The image vulnerability scan and the ClamAV container have not yet completed on GitHub.
   - Everything listed as open in `docs/release/GO_NO_GO.md` (penetration test, real identity provider, signer key custody) is unchanged.
@@ -76,7 +76,7 @@ Feature work is suspended by the audit directive. In order:
 
 1. **People:** enable branch protection on `main` and bring the fixes to `main` through a reviewed pull request (`AUDIT_REMEDIATION_2026-11-15.md`, section 4).
 2. Confirm three consecutive passing runs of the release-candidate revision (`execution-state.json`, `ci.release_candidate`).
-3. Versioned document encryption keys with rotation and recovery (ADR first: per-object data keys wrapped by a versioned master).
+3. Document keys: versions, rotation and recovery are built (ADR 0021). Still open: re-encryption of existing files, KMS/HSM custody.
 4. Stale-signature alerting for the scanner; load, soak and fault-injection runs; penetration-test scope and environment.
 5. Only then: fleet part 2 (fuel), as described in `CHANGELOG.md`.
 

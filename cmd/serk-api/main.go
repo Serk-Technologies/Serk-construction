@@ -107,9 +107,13 @@ func main() {
 		log.Warn("no SERK_BANK_DATA_KEY: bank account numbers cannot be recorded or revealed (refused in production)")
 	}
 	docs := kernel.DocumentStore{Key: cfg.DocumentKey, MaxBytes: int64(cfg.DocumentMaxMB) << 20}
+	if len(cfg.DocumentKeyPrevious) > 0 {
+		docs.PreviousKeys = [][]byte{cfg.DocumentKeyPrevious}
+		log.Info("document key rotation in effect: the previous key still opens earlier files", "current", cfg.DocumentKeyID, "previous", cfg.DocumentKeyPreviousID)
+	}
 	switch kind, _ := cfg.DocumentStorage(); kind {
 	case "s3":
-		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, Store: &blob.S3{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
+		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, KeyID: cfg.DocumentKeyID, Previous: cfg.DocumentPreviousKeys(), Store: &blob.S3{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
 			AccessKey: cfg.S3AccessKey, SecretKey: string(cfg.S3SecretKey), Client: &http.Client{Timeout: 30 * time.Minute}}}
 		// Fail closed at start-up: a missing bucket or refused credentials is a
 		// deployment fault to fix now, not something to discover on the first upload.
@@ -122,7 +126,7 @@ func main() {
 		}
 		log.Info("document files go to object storage, encrypted by this service", "bucket", cfg.S3Bucket)
 	case "fs":
-		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, Store: blob.FS{Root: cfg.BlobDir}}
+		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, KeyID: cfg.DocumentKeyID, Previous: cfg.DocumentPreviousKeys(), Store: blob.FS{Root: cfg.BlobDir}}
 		log.Warn("document files go to a local directory (development only)", "dir", cfg.BlobDir)
 	default:
 		log.Info("document files are kept in PostgreSQL (10 MiB each): set SERK_S3_ENDPOINT for object storage")

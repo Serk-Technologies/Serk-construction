@@ -295,7 +295,7 @@ D = {
         r("Malware scanning and quarantine before a file can be downloaded", V,
           "TestDocSecurity_FailClosedQuarantine", "TestDocSecurity_InfectedAndMaliciousUploads", "TestClamdAgainstARealDaemon", "TestDocSecurity_RealScannerAndObjectStore",
           note="Fail closed: unscanned, failed-scan and infected files cannot be submitted, published or downloaded while scanning is required (the default). "
-               "Verified against a real ClamAV daemon; the evidence runs used a signature database holding only the EICAR test hash, so detection coverage with the public feed is not measured (ADR 0019)."),
+               "Verified against a real ClamAV daemon: locally with a database holding only the EICAR test hash, and in GitHub Actions from run 22 with the public signature database. Detection coverage beyond the standard test file is not measured (ADR 0019)."),
         r("Object storage with pre-signed, short-lived URLs and resumable upload", I,
           note="Object storage and short-lived links are done (CNX-01.7, CNX-01.9). Links are issued by the API, not pre-signed by the store, because objects are encrypted by the service. Resumable upload from the client is CNX-01.13."),
         r("Transmittals, QR verification of a revision, retention policy and legal hold", N),
@@ -314,7 +314,13 @@ D = {
         r("Safe document preview generation", N),
         r("Resumable multipart upload from the client for very large BIM and engineering files", N,
           note="The service streams a single request of any size to the store in parts; a client-side resumable protocol does not exist."),
+        r("Storage faults are told apart (missing bucket, missing object, refused credentials, unavailable service); the bucket is provisioned and proven private before use; the API refuses to start without it and never reports a storage fault as a missing file", V,
+          "TestS3ErrorClassification", "TestS3FaultClassesAgainstARealServer", "TestStorageFaultsAreNotReportedAsNotFound", "TestDocSecurity_RealScannerAndObjectStore"),
+        r("Document encryption keys are versioned: rotation keeps earlier files readable, a missing key is reported as such and is recoverable, scan verdicts survive a rotation", V,
+          "TestKeyVersionsRotationAndRecovery", "TestDocSecurity_KeyRotation", "TestDocumentKeyRotationConfig",
+          note="ADR 0021. Existing files are not re-encrypted on rotation, so a compromised key cannot yet be retired; custody is an environment secret, not a KMS or HSM."),
     ]),
+
     "CNX-02": ("M7", "Construction lead", [
         r("Drawings are controlled documents: the current revision is the only one offered as current", V, "TestDocuments_RevisionsAndPublication"),
         r("Mark-ups and 2D review", N),

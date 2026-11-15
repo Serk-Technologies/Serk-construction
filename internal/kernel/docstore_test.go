@@ -597,3 +597,54 @@ func TestDocSecurity_RealScannerAndObjectStore(t *testing.T) {
 		t.Fatalf("rescan once the scanner is back: %+v %v", got, err)
 	}
 }
+
+// TestDocSecurity_KeyRotation (ADR 0021): after the document key is rotated,
+// files stored and verdicts recorded under the previous key remain usable
+// while that key is supplied; new files are written under the new key; and a
+// service that is given neither key fails closed (quarantine, key unavailable)
+// without damaging anything, so supplying the key again recovers the file.
+func TestDocSecurity_KeyRotation(t *testing.T) {
+	w := newDocWorld(t)
+	f := w.f
+	store := blob.FS{Root: t.TempDir()}
+	oldKey, newKey := testdb.DocumentKey, bytes.Repeat([]byte{0x5C}, 32)
+	scanner := testdb.FakeScanner{}
+	before := w.svcWith(DocumentStore{Blob: &blob.Sealed{Store: store, Master: oldKey, KeyID: "d1"}, Scanner: scanner, Key: oldKey, MaxBytes: 32 << 20})
+	body := append(pdf("before rotation\n"), bytes.Repeat([]byte("kept. "), 40000)...)
+	doc := w.doc(t, "ROT-1")
+	rev1, err := before.AddRevisionStream(f.ctx, w.eng, doc, RevisionInput{Revision: "A", FileName: "a.pdf", MediaType: "application/pdf", ChangeNote: "Before rotation"}, bytes.NewReader(body))
+	must(t, "upload before rotation", err)
+
+	// Rotated: new current key d2, the old one listed as previous.
+	after := w.svcWith(DocumentStore{Blob: &blob.Sealed{Store: store, Master: newKey, KeyID: "d2", Previous: map[string][]byte{"d1": oldKey}},
+		Scanner: scanner, Key: newKey, PreviousKeys: [][]byte{oldKey}, MaxBytes: 32 << 20})
+	if file, err := after.DownloadRevision(f.ctx, w.eng, rev1); err != nil || !bytes.Equal(file.Content, body) {
+		t.Fatalf("file and verdict from before the rotation: %v", err)
+	}
+	doc2 := w.doc(t, "ROT-2")
+	body2 := append(pdf("after rotation\n"), bytes.Repeat([]byte("new. "), 40000)...)
+	rev2, err := after.AddRevisionStream(f.ctx, w.eng, doc2, RevisionInput{Revision: "A", FileName: "b.pdf", MediaType: "application/pdf", ChangeNote: "After rotation"}, bytes.NewReader(body2))
+	must(t, "upload after rotation", err)
+	if file, err := after.DownloadRevision(f.ctx, w.eng, rev2); err != nil || !bytes.Equal(file.Content, body2) {
+		t.Fatalf("file written under the new key: %v", err)
+	}
+	// The service from before the rotation cannot open the new file, and says why.
+	if _, err := before.DownloadRevision(f.ctx, w.eng, rev2); err == nil || errors.Is(err, blob.ErrCorrupt) {
+		t.Fatalf("a file under the new key was served by a service holding only the old key: %v", err)
+	}
+
+	// The old key is withheld: the old verdict is no longer proven (quarantine), nothing is served...
+	without := w.svcWith(DocumentStore{Blob: &blob.Sealed{Store: store, Master: newKey, KeyID: "d2"}, Scanner: scanner, Key: newKey, MaxBytes: 32 << 20})
+	if _, err := without.DownloadRevision(f.ctx, w.eng, rev1); !errors.Is(err, ErrQuarantined) {
+		t.Fatalf("a verdict from a key the service lacks was accepted: %v", err)
+	}
+	// ...with the proof key but not the file's key, the read reports the missing key rather than a damaged file...
+	noFileKey := w.svcWith(DocumentStore{Blob: &blob.Sealed{Store: store, Master: newKey, KeyID: "d2"}, Scanner: scanner, Key: newKey, PreviousKeys: [][]byte{oldKey}, MaxBytes: 32 << 20})
+	if _, err := noFileKey.DownloadRevision(f.ctx, w.eng, rev1); !errors.Is(err, blob.ErrKeyUnavailable) || errors.Is(err, blob.ErrCorrupt) {
+		t.Fatalf("read without the file's key: %v", err)
+	}
+	// ...and with the key supplied again the file is served unchanged (recovery).
+	if file, err := after.DownloadRevision(f.ctx, w.eng, rev1); err != nil || !bytes.Equal(file.Content, body) {
+		t.Fatalf("recovery after the key was supplied again: %v", err)
+	}
+}

@@ -17,6 +17,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -109,7 +110,12 @@ type Config struct {
 	// only; with neither, files stay in PostgreSQL (10 MiB each). ClamdAddr
 	// ("host:port" or "unix:/path") is the ClamAV daemon; without it nothing is
 	// scanned and, while a company requires scanning, nothing is released.
-	DocumentKey                                 []byte
+	DocumentKey []byte
+	// Document key versions (ADR 0021): DocumentKeyID names the current key
+	// inside every stored object; DocumentKeyPrevious (optional, after a
+	// rotation) still opens objects written under DocumentKeyPreviousID.
+	DocumentKeyPrevious                         []byte
+	DocumentKeyID, DocumentKeyPreviousID        string
 	S3Endpoint, S3Region, S3Bucket, S3AccessKey string
 	S3SecretKey                                 []byte
 	BlobDir, ClamdAddr                          string
@@ -262,6 +268,11 @@ func Load(src Source) (Config, error) {
 	if c.DocumentKey, err = src.secret("SERK_DOCUMENT_KEY"); err != nil {
 		return Config{}, err
 	}
+	if c.DocumentKeyPrevious, err = src.secret("SERK_DOCUMENT_KEY_PREVIOUS"); err != nil {
+		return Config{}, err
+	}
+	c.DocumentKeyID = src.str("SERK_DOCUMENT_KEY_ID", "d1")
+	c.DocumentKeyPreviousID = src.str("SERK_DOCUMENT_KEY_PREVIOUS_ID", "d0")
 	if c.S3SecretKey, err = src.secret("SERK_S3_SECRET_KEY"); err != nil {
 		return Config{}, err
 	}
@@ -455,6 +466,21 @@ func (c Config) Validate() error {
 		} else if string(c.DocumentKey) == string(c.TenantDBSecret) || string(c.DocumentKey) == string(c.AbuseKey) || string(c.DocumentKey) == string(c.BankDataKey) {
 			bad("SERK_DOCUMENT_KEY must differ from every other secret")
 		}
+		if !keyIDRe.MatchString(c.DocumentKeyID) {
+			bad("SERK_DOCUMENT_KEY_ID must be 1 to 32 letters, digits, '-' or '_'")
+		}
+		if len(c.DocumentKeyPrevious) > 0 {
+			if e := checkSecret(c.DocumentKeyPrevious, prod); e != "" {
+				bad("SERK_DOCUMENT_KEY_PREVIOUS %s", e)
+			} else if string(c.DocumentKeyPrevious) == string(c.DocumentKey) {
+				bad("SERK_DOCUMENT_KEY_PREVIOUS must differ from SERK_DOCUMENT_KEY (a rotation changes the key)")
+			}
+			if !keyIDRe.MatchString(c.DocumentKeyPreviousID) || c.DocumentKeyPreviousID == c.DocumentKeyID {
+				bad("SERK_DOCUMENT_KEY_PREVIOUS_ID must be a valid id different from SERK_DOCUMENT_KEY_ID")
+			}
+		}
+	} else if len(c.DocumentKeyPrevious) > 0 {
+		bad("SERK_DOCUMENT_KEY_PREVIOUS is set without SERK_DOCUMENT_KEY")
 	}
 	if c.S3Endpoint != "" {
 		if c.S3Bucket == "" || c.S3AccessKey == "" || len(c.S3SecretKey) == 0 {
@@ -537,6 +563,16 @@ func checkSecret(b []byte, prod bool) string {
 		}
 	}
 	return ""
+}
+
+var keyIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
+
+// DocumentPreviousKeys returns the earlier document keys by version id.
+func (c Config) DocumentPreviousKeys() map[string][]byte {
+	if len(c.DocumentKeyPrevious) == 0 {
+		return nil
+	}
+	return map[string][]byte{c.DocumentKeyPreviousID: c.DocumentKeyPrevious}
 }
 
 func checkDSN(dsn, name string, bad func(string, ...any)) {
