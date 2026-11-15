@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py",
  "directory": "docs/engineering/evidence",
- "register_results_file": "docs/engineering/evidence/2026-11-15-rawfails-37f5100.tests.txt",
+ "register_results_file": "docs/engineering/evidence/2026-11-15-stock-writeoff-67620b4.tests.txt",
  "files": [
   "2026-11-15-baseline-711a174-fresh-db.json",
   "2026-11-15-baseline.tests.txt",
@@ -57,6 +57,8 @@
   "2026-11-15-stabilization.tests.txt",
   "2026-11-15-statements-87bb3ec.summary.json",
   "2026-11-15-statements-87bb3ec.tests.txt",
+  "2026-11-15-stock-writeoff-67620b4.summary.json",
+  "2026-11-15-stock-writeoff-67620b4.tests.txt",
   "2026-11-15-tasks-995dbe1.summary.json",
   "2026-11-15-tasks-995dbe1.tests.txt",
   "2026-11-15-workforce-hse-dd68054.summary.json",

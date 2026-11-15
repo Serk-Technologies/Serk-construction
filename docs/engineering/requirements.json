@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-rawfails-37f5100.tests.txt",
- "commit": "37f5100",
+ "results_file": "docs/engineering/evidence/2026-11-15-stock-writeoff-67620b4.tests.txt",
+ "commit": "67620b4",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -21,8 +21,7 @@
   "IMPLEMENTING": 7,
   "NOT_STARTED": 46,
   "BLOCKED": 12,
-  "VERIFIED": 22,
-  "IMPLEMENTED_UNVERIFIED": 2
+  "VERIFIED": 24
  },
  "domain_counts": {
   "IMPLEMENTING": 51,
@@ -1015,7 +1014,7 @@
       {
        "id": "SUP-05.4.a",
        "text": "Quarantine stores: filled and emptied by approved transfers; nothing is issued or reserved from them; the flag is fixed at creation",
-       "status": "IMPLEMENTED_UNVERIFIED",
+       "status": "VERIFIED",
        "evidence_tests": [
         "TestStock_QuarantineAndWriteoff",
         "TestConsoleBrowserJourneyC"
@@ -1025,7 +1024,7 @@
       {
        "id": "SUP-05.4.b",
        "text": "Scrap write-offs at FIFO or average cost with a reason, approved by another person (attested), with a bound STK_SCRAP journal; the inventory reconciliation counts them",
-       "status": "IMPLEMENTED_UNVERIFIED",
+       "status": "VERIFIED",
        "evidence_tests": [
         "TestStock_QuarantineAndWriteoff",
         "TestConsoleBrowserJourneyC"

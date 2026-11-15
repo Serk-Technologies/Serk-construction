@@ -248,6 +248,12 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/list/stock_writeoff",
+   "label": "Write-offs",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
    "route": "#/reservations",
    "label": "Reservations",
    "browser_journeys": [],
