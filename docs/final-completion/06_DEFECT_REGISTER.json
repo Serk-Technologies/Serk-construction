@@ -215,12 +215,13 @@
    "id": "DEF-019",
    "severity": "Low",
    "area": "Forecast",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "The >10% forecast-change rule sits inside `if moved && !over` and may never run; the cited raw check does not exist (forecast.go)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Rule possibly inert",
    "next_action": "Test the rule directly; fix the condition",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "commit 995dbe1; TestForecast_ChangeRuleNeedsExplanation drives the 0058 rule unconditionally; disabling it fails the test"
   },
   {
    "id": "DEF-020",

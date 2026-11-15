@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-correspondence-certs-e412014.tests.txt",
- "commit": "e412014",
+ "results_file": "docs/engineering/evidence/2026-11-15-tasks-995dbe1.tests.txt",
+ "commit": "995dbe1",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,11 +11,11 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 108,
+  "VERIFIED": 110,
   "NOT_STARTED": 67,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 3
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
@@ -24,10 +24,9 @@
   "VERIFIED": 22
  },
  "domain_counts": {
-  "IMPLEMENTING": 49,
+  "IMPLEMENTING": 51,
   "NOT_STARTED": 27,
-  "BLOCKED": 2,
-  "IMPLEMENTED_UNVERIFIED": 2
+  "BLOCKED": 2
  },
  "domains": [
   {
@@ -2129,8 +2128,8 @@
    "domain": "Project accounting",
    "milestone": "M4",
    "owner": "Finance controller",
-   "status": "IMPLEMENTED_UNVERIFIED",
-   "all_listed_requirements_verified": false,
+   "status": "IMPLEMENTING",
+   "all_listed_requirements_verified": true,
    "requirements": [
     {
      "id": "CAP-04.1",
@@ -2146,7 +2145,7 @@
     {
      "id": "CAP-04.2",
      "text": "Monthly cost forecast (EAC/ETC), WIP schedule and budget-vs-actual tie to their sources",
-     "status": "IMPLEMENTED_UNVERIFIED",
+     "status": "VERIFIED",
      "evidence_tests": [
       "TestForecast_MethodsAndGuards",
       "TestForecast_WIPScheduleAndSummary",
@@ -2914,8 +2913,8 @@
    "domain": "Tasks",
    "milestone": "M4",
    "owner": "Product owner",
-   "status": "IMPLEMENTED_UNVERIFIED",
-   "all_listed_requirements_verified": false,
+   "status": "IMPLEMENTING",
+   "all_listed_requirements_verified": true,
    "requirements": [
     {
      "id": "CNX-07.1",
@@ -2931,7 +2930,7 @@
     {
      "id": "CNX-07.2",
      "text": "Assignable tasks with due dates outside document approvals",
-     "status": "IMPLEMENTED_UNVERIFIED",
+     "status": "VERIFIED",
      "evidence_tests": [
       "TestTasks_AssignCompleteCancel",
       "TestConsoleBrowserForms"

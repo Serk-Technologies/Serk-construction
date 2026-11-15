@@ -1,10 +1,10 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-correspondence-certs-e412014.tests.txt",
- "register_commit": "e412014",
+ "results_file": "docs/engineering/evidence/2026-11-15-tasks-995dbe1.tests.txt",
+ "register_commit": "995dbe1",
  "requirement_counts": {
-  "VERIFIED": 109,
-  "NOT_STARTED": 68,
+  "VERIFIED": 110,
+  "NOT_STARTED": 67,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
@@ -1816,7 +1816,8 @@
    "evidence_tests": [
     "TestForecast_MethodsAndGuards",
     "TestForecast_WIPScheduleAndSummary",
-    "TestReportCatalogue_EveryReportRunsAndTiesOut"
+    "TestReportCatalogue_EveryReportRunsAndTiesOut",
+    "TestForecast_ChangeRuleNeedsExplanation"
    ],
    "criteria": [],
    "work_package": "WP-014",
@@ -2500,8 +2501,11 @@
    "domain": "CNX-07",
    "product": "CONNECT",
    "text": "Assignable tasks with due dates outside document approvals",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestTasks_AssignCompleteCancel",
+    "TestConsoleBrowserForms"
+   ],
    "criteria": [],
    "work_package": "WP-016",
    "human_acceptance": "PENDING"

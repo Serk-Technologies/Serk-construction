@@ -68,7 +68,8 @@
   "0083_period_end_binding.sql",
   "0084_cancellation_attestation.sql",
   "0085_correspondence.sql",
-  "0086_certifications.sql"
+  "0086_certifications.sql",
+  "0087_work_tasks.sql"
  ],
  "adrs_added": [
   "0018",
@@ -285,7 +286,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-correspondence-certs-e412014.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-tasks-995dbe1.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -294,7 +295,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "CNX-07.2 tasks (0087 drafted), DEF-019 forecast change-rule test drafted; then SUP-05.4 returns/scrap/quarantine (new STK document types), DEF-018, DEF-004.",
+  "exact_next_action": "SUP-05.4 returns, scrap and quarantine (new STK document types); DEF-018 (rawFails accepts 'no rows' and privilege errors); DEF-004 (four forms without race regression); HANDOVER update.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -314,8 +315,9 @@
    "DEF-014 role adjustments attested (26b7a29)",
    "DEF-013 period-end journals bound, templates approved (1d9c9a0)",
    "DEF-017 cancellations attested, disposal by approval (f518c83)",
-   "CNX-05.1 correspondence, PPL-05.1 certifications (e412014)"
+   "CNX-05.1 correspondence, PPL-05.1 certifications (e412014)",
+   "CNX-07.2 tasks; DEF-019 (995dbe1)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-correspondence-certs-e412014.summary.json (504/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-tasks-995dbe1.summary.json (506/0/0)"
 }

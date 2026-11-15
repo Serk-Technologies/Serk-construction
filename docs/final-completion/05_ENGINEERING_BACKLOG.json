@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "e412014",
+ "register_commit": "995dbe1",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -1153,6 +1153,7 @@
     "TestConvertIsExactAndBoundToSnapshot",
     "TestEffectiveDatingAndReviewStatus",
     "TestEthiopianFiscalYear",
+    "TestForecast_ChangeRuleNeedsExplanation",
     "TestForecast_MethodsAndGuards",
     "TestForecast_WIPScheduleAndSummary",
     "TestHappyPathPostsAndBalancesAccounts",
@@ -1300,7 +1301,6 @@
     "CNX-02.2",
     "CNX-03.2",
     "CNX-04.1",
-    "CNX-07.2",
     "CNX-08.1",
     "CNX-10.1",
     "CNX-11.1",
@@ -1343,11 +1343,6 @@
      "id": "CNX-04.1",
      "text": "Submittals with review cycles and consultant responses",
      "status": "IMPLEMENTING"
-    },
-    {
-     "id": "CNX-07.2",
-     "text": "Assignable tasks with due dates outside document approvals",
-     "status": "NOT_STARTED"
     },
     {
      "id": "CNX-08.1",
@@ -1432,6 +1427,7 @@
     "TestAuthority_MatrixGovernanceAndLimits",
     "TestClamdAgainstARealDaemon",
     "TestConsoleBrowserDocuments",
+    "TestConsoleBrowserForms",
     "TestCorrespondence_RegisterRepliesAndOverdue",
     "TestDocSecurity_DownloadLinksAndExportBudget",
     "TestDocSecurity_FailClosedQuarantine",
@@ -1458,6 +1454,7 @@
     "TestS3FaultClassesAgainstARealServer",
     "TestSealedRoundTripAndTamperDetection",
     "TestStorageFaultsAreNotReportedAsNotFound",
+    "TestTasks_AssignCompleteCancel",
     "TestValidatorRefusesUnsafeDefinitions",
     "TestWorkflow_DatabaseRefusesForgedTrail",
     "TestWorkflow_HighValueNeedsQuorumOfDistinctExecutivesWithMFA",

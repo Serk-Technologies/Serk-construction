@@ -17,6 +17,14 @@
    "status": "COVERED_BY_BROWSER_JOURNEY"
   },
   {
+   "route": "#/tasks",
+   "label": "Tasks",
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
    "route": "#/me",
    "label": "My profile",
    "browser_journeys": [
