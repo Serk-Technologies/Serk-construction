@@ -234,6 +234,18 @@
    "impact": "Could be mistaken for approved statutory rules",
    "next_action": "Keep labelled; use neutral names in tests",
    "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+  },
+  {
+   "id": "DEF-021",
+   "severity": "Medium",
+   "area": "CI",
+   "status": "CLOSED",
+   "title": "The console syntax gate (node --check on app.js) accepted a syntax error that broke the console in the browser",
+   "evidence": "found by the documents browser journey on 2026-11-15; reproduced: node --check app.js exit 0, node --input-type=module --check < app.js exit 1",
+   "impact": "A broken console could pass the CI console job (the mandatory browser journeys would still fail the test job)",
+   "next_action": "none",
+   "found": "browser journey during CAP-01.5.c, 2026-11-15",
+   "closure": "commit f5e0b8c; CI and scripts/prepush.sh check internal/webui/static/*.js as ES modules"
   }
  ]
 }

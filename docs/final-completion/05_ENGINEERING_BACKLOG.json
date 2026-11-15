@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "4da1b31",
+ "register_commit": "f5e0b8c",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -810,7 +810,6 @@
     "SUP-01.2",
     "SUP-03.3",
     "SUP-04.1",
-    "SUP-05.4",
     "SUP-06.2",
     "SUP-07.1",
     "SUP-08.1",
@@ -832,11 +831,6 @@
      "id": "SUP-04.1",
      "text": "Subcontracts: scope/BOQ, security, measured work, retention, deductions",
      "status": "IMPLEMENTING"
-    },
-    {
-     "id": "SUP-05.4",
-     "text": "Returns, scrap and quarantine",
-     "status": "IMPLEMENTED_UNVERIFIED"
     },
     {
      "id": "SUP-06.2",
@@ -1111,11 +1105,6 @@
      "status": "NOT_STARTED"
     },
     {
-     "id": "CAP-01.5.c",
-     "text": "One-step drill-down from a statement line to its journal lines",
-     "status": "NOT_STARTED"
-    },
-    {
      "id": "CAP-05.3.a",
      "text": "Bank adapter interface with validation, idempotency, status and reconciliation, verified against a sandbox double",
      "status": "NOT_STARTED"
@@ -1153,6 +1142,7 @@
     "TestAuditChainLinearUnderConcurrency",
     "TestClosedPeriodBlocksPosting",
     "TestConcurrentIdenticalCreatesAreIdempotent",
+    "TestConsoleBrowserFinance",
     "TestConvertIsExactAndBoundToSnapshot",
     "TestEffectiveDatingAndReviewStatus",
     "TestEthiopianFiscalYear",
@@ -1302,7 +1292,6 @@
     "CNX-01.12",
     "CNX-01.13",
     "CNX-02.2",
-    "CNX-03.2",
     "CNX-04.1",
     "CNX-08.1",
     "CNX-10.1",
@@ -1335,11 +1324,6 @@
     {
      "id": "CNX-02.2",
      "text": "Mark-ups and 2D review",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "CNX-03.2",
-     "text": "RFI cost/time impact linked to change events",
      "status": "NOT_STARTED"
     },
     {
@@ -1398,11 +1382,6 @@
      "status": "NOT_STARTED"
     },
     {
-     "id": "CNX-04.1.b",
-     "text": "A resubmission is linked to the submittal it answers, forming a review cycle",
-     "status": "NOT_STARTED"
-    },
-    {
      "id": "CNX-04.1.c",
      "text": "Consultant responses through the consultant portal",
      "status": "NOT_STARTED"
@@ -1450,6 +1429,7 @@
     "TestObjectKeyIsTenantScopedAndStrict",
     "TestPlatform_ExportBudget",
     "TestPlatform_RulesLifecycleAndWorker",
+    "TestRFIImpactAndSubmittalCycle",
     "TestReportCatalogue_EveryReportRunsAndTiesOut",
     "TestReportCatalogue_ScopeAndInput",
     "TestS3AgainstARealServer",

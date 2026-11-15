@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-stock-returns-4da1b31.tests.txt",
- "commit": "4da1b31",
+ "results_file": "docs/engineering/evidence/2026-11-15-links-f5e0b8c.tests.txt",
+ "commit": "f5e0b8c",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,24 +11,22 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 111,
+  "VERIFIED": 112,
   "NOT_STARTED": 65,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 2
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
   "NOT_STARTED": 43,
   "BLOCKED": 12,
-  "VERIFIED": 26,
-  "IMPLEMENTED_UNVERIFIED": 1
+  "VERIFIED": 27
  },
  "domain_counts": {
-  "IMPLEMENTING": 50,
+  "IMPLEMENTING": 51,
   "NOT_STARTED": 27,
-  "BLOCKED": 2,
-  "IMPLEMENTED_UNVERIFIED": 1
+  "BLOCKED": 2
  },
  "domains": [
   {
@@ -2802,8 +2800,8 @@
    "domain": "RFI",
    "milestone": "M7",
    "owner": "Construction lead",
-   "status": "IMPLEMENTED_UNVERIFIED",
-   "all_listed_requirements_verified": false,
+   "status": "IMPLEMENTING",
+   "all_listed_requirements_verified": true,
    "requirements": [
     {
      "id": "CNX-03.1",
@@ -2820,7 +2818,7 @@
     {
      "id": "CNX-03.2",
      "text": "RFI cost/time impact linked to change events",
-     "status": "IMPLEMENTED_UNVERIFIED",
+     "status": "VERIFIED",
      "evidence_tests": [
       "TestRFIImpactAndSubmittalCycle",
       "TestConsoleBrowserDocuments"
@@ -2861,7 +2859,7 @@
       {
        "id": "CNX-04.1.b",
        "text": "A resubmission is linked to the submittal it answers, forming a review cycle",
-       "status": "IMPLEMENTED_UNVERIFIED",
+       "status": "VERIFIED",
        "evidence_tests": [
         "TestRFIImpactAndSubmittalCycle",
         "TestConsoleBrowserDocuments"

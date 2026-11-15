@@ -1,19 +1,19 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-stock-returns-4da1b31.tests.txt",
- "register_commit": "4da1b31",
+ "results_file": "docs/engineering/evidence/2026-11-15-links-f5e0b8c.tests.txt",
+ "register_commit": "f5e0b8c",
  "requirement_counts": {
-  "VERIFIED": 110,
-  "NOT_STARTED": 66,
+  "VERIFIED": 112,
+  "NOT_STARTED": 65,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 2
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 45,
+  "NOT_STARTED": 43,
   "BLOCKED": 12,
-  "VERIFIED": 25
+  "VERIFIED": 27
  },
  "requirements": [
   {
@@ -782,8 +782,12 @@
    "domain": "SUP-05",
    "product": "SUPPLY / STOCK",
    "text": "Returns, scrap and quarantine",
-   "status": "IMPLEMENTED_UNVERIFIED",
-   "evidence_tests": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestStock_QuarantineAndWriteoff",
+    "TestStock_SiteReturns",
+    "TestConsoleBrowserJourneyC"
+   ],
    "criteria": [
     {
      "id": "SUP-05.4.a",
@@ -1771,9 +1775,12 @@
     {
      "id": "CAP-01.5.c",
      "text": "One-step drill-down from a statement line to its journal lines",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
-     "note": ""
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestAPIFinancialStatements",
+      "TestConsoleBrowserFinance"
+     ],
+     "note": "Each line carries its account; the general-ledger detail report for that account and period adds up to the line."
     }
    ],
    "work_package": "WP-014",
@@ -2412,8 +2419,11 @@
    "domain": "CNX-03",
    "product": "CONNECT",
    "text": "RFI cost/time impact linked to change events",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestRFIImpactAndSubmittalCycle",
+    "TestConsoleBrowserDocuments"
+   ],
    "criteria": [],
    "work_package": "WP-016",
    "human_acceptance": "PENDING"
@@ -2439,8 +2449,11 @@
     {
      "id": "CNX-04.1.b",
      "text": "A resubmission is linked to the submittal it answers, forming a review cycle",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRFIImpactAndSubmittalCycle",
+      "TestConsoleBrowserDocuments"
+     ],
      "note": ""
     },
     {

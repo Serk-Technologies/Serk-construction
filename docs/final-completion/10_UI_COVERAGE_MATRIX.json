@@ -650,8 +650,10 @@
   {
    "route": "#/statements",
    "label": "Financial statements",
-   "browser_journeys": [],
-   "status": "NOT_COVERED"
+   "browser_journeys": [
+    "console_finance.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
   },
   {
    "route": "#/payroll",
