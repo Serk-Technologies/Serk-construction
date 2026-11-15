@@ -166,6 +166,32 @@ try {
   await pm.locator('main').filter({ hasText: 'REVIEWED' }).first().waitFor();
   log('submittal reviewed (C)');
 
+  // ---- 5b'. Review cycle (0090): the engineer resubmits; the cycle shows both submissions --------
+  await nav(eng, `#/doc/submittal/${sbm}`, /^Submittal SBM-/);
+  await eng.getByRole('link', { name: 'Resubmit' }).click();
+  await eng.getByRole('heading', { level: 1, name: 'Resubmit' }).waitFor();
+  if ((await eng.getByLabel('Specification section').inputValue()) !== '03 30 00') fail('the resubmission did not keep the specification section');
+  await audit(eng, 'resubmission form');
+  await eng.getByRole('button', { name: 'Submit for review' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Submittal SBM-/ }).waitFor();
+  await eng.getByRole('table').filter({ hasText: 'Concrete mix design C30' }).filter({ hasText: '2' }).first().waitFor();
+  if ((await eng.getByRole('table', { name: /Submissions/ }).getByRole('row').count()) < 3) fail('the review cycle does not list both submissions');
+  log('submittal resubmitted: cycle 2');
+
+  // ---- 5b''. A change event raised from the answered RFI shows on the RFI (0090) ---------------
+  await nav(pm, '#/new/change_event', 'Raise a change event');
+  await selectByText(pm.getByLabel('Project', { exact: true }), 'P-API');
+  await pm.getByLabel('Title').fill('Slab thickness per RFI answer');
+  await selectByText(pm.getByLabel('RFI (when raised from one)'), 'RFI-');
+  await pm.getByLabel('Description').fill('250 mm governs, as answered');
+  await pm.getByLabel('Schedule impact (days; signed)').fill('2');
+  await pm.getByRole('button', { name: 'Create change event' }).click();
+  await pm.getByRole('heading', { level: 1, name: /^Change event CE-/ }).waitFor();
+  await nav(pm, `#/doc/rfi/${rfi}`, /^Request for information RFI-/);
+  await pm.getByRole('table').filter({ hasText: 'CE-' }).first().waitFor();
+  await audit(pm, 'rfi with its change events');
+  log('change event raised from the RFI and shown on it');
+
   // ---- 5c. Correspondence: an incoming letter needing an answer, then its reply (0085) ---------
   const inWeek = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
   await nav(eng, '#/new/correspondence', 'Record correspondence');

@@ -714,7 +714,7 @@ async function route() {
       case 'bank': return await renderBank();
       case 'recon': return await renderRecon();
       case 'budget': return await renderBudget();
-      case 'report': return await renderCatalogueReport(a);
+      case 'report': return await renderCatalogueReport(a, b ? decodeURIComponent(b) : '');
       case 'reservations': return await renderReservations();
       case 'projects': return await renderProjects();
       case 'setup': return await renderSetup();
@@ -1044,8 +1044,8 @@ async function renderDoc(type, id) {
   if (type === 'maintenance_work_order') parts.push(await workOrderPanel(d));
   if (type === 'timesheet') parts.push(await timesheetPanel(d));
   if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
-  if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); }
-  if (type === 'submittal') { const p = submittalPanel(d, head); if (p) parts.push(p); }
+  if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); parts.push(await rfiImpactPanel(d)); }
+  if (type === 'submittal') { const p = submittalPanel(d, head); if (p) parts.push(p); parts.push(await submittalCyclePanel(d, head)); }
   if (type === 'subcontract') parts.push(await subcontractPanel(d));
   if (type === 'subcontract_application') parts.push(await applicationPanel(d));
   if (type === 'fixed_asset') parts.push(await disposalPanel(d));
@@ -1655,6 +1655,10 @@ const FORMS = {
     const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '200' });
     const src = select('source', [['RFI', 'Request for information'], ['SITE_INSTRUCTION', 'Site instruction'], ['CLIENT', 'Client request'], ['DESIGN', 'Design change'], ['INTERNAL', 'Internal']].map(([value, label]) => ({ value, label })), { required: true });
     const desc = input('description', { type: 'text', required: true, minlength: '5', maxlength: '2000', placeholder: 'What changed and why' });
+    // CNX-03.2 (0090): a change raised from an RFI names the answered RFI.
+    const rfis = [...(await docOpts('rfi', 'ANSWERED')), ...(await docOpts('rfi', 'CLOSED'))];
+    const rfi = select('rfi_id', [{ value: '', label: 'Not from an RFI' }, ...rfis]);
+    rfi.addEventListener('change', () => { if (rfi.value) src.value = 'RFI'; });
     const rev = input('revenue_impact', { type: 'number', step: '0.01', value: '0' });
     const days = input('schedule_impact_days', { type: 'number', step: '1', value: '0' });
     // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
@@ -1670,9 +1674,9 @@ const FORMS = {
     });
     proj.addEventListener('change', load);
     formPage('Raise a change event', 'Record a change to the money or time of a project before it is agreed. A different person decides it with a fresh multi-factor sign-in; if it has cost lines, approval drafts the budget revision that carries them (a draft only: the budget moves when that revision is approved).',
-      [h('div', { class: 'grid' }, field('Project', proj), field('Title', title), field('Source', src), field('Description', desc), field('Revenue impact (what the client pays; signed)', rev), field('Schedule impact (days; signed)', days)), holder], 'Create change event', async () => {
+      [h('div', { class: 'grid' }, field('Project', proj), field('Title', title), field('Source', src), field('RFI (when raised from one)', rfi), field('Description', desc), field('Revenue impact (what the client pays; signed)', rev), field('Schedule impact (days; signed)', days)), holder], 'Create change event', async () => {
         const lines = grid.rows().filter((r) => r.cost_impact !== '' && Number(r.cost_impact) !== 0);
-        const res = await api('POST', '/v1/change-events', { project_id: proj.value, title: title.value.trim(), source: src.value, description: desc.value.trim(),
+        const res = await api('POST', '/v1/change-events', { project_id: proj.value, title: title.value.trim(), source: src.value, rfi_id: rfi.value || undefined, description: desc.value.trim(),
           revenue_impact: rev.value || '0', schedule_impact_days: Number(days.value || 0), lines });
         created('change_event', res, 'Change event');
       });
@@ -1990,13 +1994,18 @@ const FORMS = {
     await load();
   },
 
-  async submittal() {
+  async submittal(prevID) {
     const proj = select('project_id', projectOpts(), { required: true });
     const section = input('spec_section', { type: 'text', required: true, minlength: '2', maxlength: '60', placeholder: '03 30 00' });
     const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '300' });
-    formPage('New submittal', 'A contractor submittal (shop drawing, sample, product data) for review. Someone other than you records the review code.',
+    if (prevID) { // a resubmission keeps the project and section of the submittal it answers (0090)
+      const doc = (await api('GET', `/v1/p2p/submittal/${prevID}`)).detail || {};
+      proj.value = doc.project_id || ''; section.value = doc.spec_section || ''; title.value = doc.title ? `${doc.title}, resubmitted` : '';
+      proj.disabled = true; section.readOnly = true;
+    }
+    formPage(prevID ? 'Resubmit' : 'New submittal', prevID ? 'Answers the review of the submittal named here; the review cycle is numbered by the system.' : 'A contractor submittal (shop drawing, sample, product data) for review. Someone other than you records the review code.',
       [h('div', { class: 'grid' }, field('Project', proj), field('Specification section', section), field('Title', title))], 'Submit for review', async () => {
-        const res = await api('POST', '/v1/submittals', { project_id: proj.value, spec_section: section.value.trim(), title: title.value.trim() });
+        const res = await api('POST', '/v1/submittals', { project_id: proj.value, spec_section: section.value.trim(), title: title.value.trim(), resubmission_of: prevID || undefined });
         created('submittal', res, 'Submittal');
       });
   },
@@ -3512,7 +3521,8 @@ async function renderReports() {
 // ---------- catalogue report page (#/report/<id>; WP-1.5) ----------
 // One generic page for every catalogue report: filters, the table with totals,
 // the data-as-of time and the filters used, and PDF / Word / Excel export.
-async function renderCatalogueReport(id) {
+// preset: a query string (entity, subject, from, to) that fills the filters, e.g. from a statement line (CAP-01.5.c).
+async function renderCatalogueReport(id, preset) {
   const cat = (await api('GET', '/v1/reports/catalogue')).reports || [];
   const def = cat.find((r) => r.id === id);
   if (!def) { page('Report', 'This report does not exist or is not available to your role.'); return; }
@@ -3525,6 +3535,11 @@ async function renderCatalogueReport(id) {
   if (def.subject === 'supplier') subject = select('subject', [{ value: '', label: 'Choose a supplier' }, ...(await docOpts('supplier', 'ACTIVE'))]);
   if (def.subject === 'customer') subject = select('subject', [{ value: '', label: 'Choose a customer' }, ...(await docOpts('customer', 'ACTIVE'))]);
   if (def.subject === 'account') subject = select('subject', [{ value: '', label: 'All accounts' }, ...S.ref.accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))]);
+  const pre = new URLSearchParams(preset || '');
+  if (pre.get('entity')) ent.value = pre.get('entity');
+  if (subject && pre.get('subject')) subject.value = pre.get('subject');
+  if (pre.get('from')) from.value = pre.get('from');
+  if (pre.get('to')) to.value = pre.get('to');
   const out = h('div');
   const src = () => {
     const q = new URLSearchParams({ entity: ent.value });
@@ -3664,13 +3679,20 @@ async function renderStatements() {
   const to = input('to', { type: 'date', value: today() });
   const out = h('div');
   const latest = latestOnly();
-  const lines = (title, rows, total, label) => table(title, [{ label: 'Code', cell: (a) => h('span', { class: 'ref' }, a.account_code) }, { label: 'Account', cell: (a) => a.account_name },
+  // CAP-01.5.c: a line opens its account's journal lines for the period (income statement) or up to the date (balance sheet).
+  const drill = (a, period) => {
+    if (!a.account_id) return h('span', { class: 'ref' }, a.account_code);
+    const q = new URLSearchParams({ entity: ent.value, subject: a.account_id, to: to.value });
+    if (period) q.set('from', from.value);
+    return h('a', { class: 'ref', href: `#/report/gl-detail/${encodeURIComponent(q.toString())}`, title: `Journal lines of ${a.account_code}` }, a.account_code);
+  };
+  const lines = (title, rows, total, label, period) => table(title, [{ label: 'Code', cell: (a) => drill(a, period) }, { label: 'Account', cell: (a) => a.account_name },
     { label: 'Amount', num: true, cell: (a) => money(a.amount) }], [...(rows || []), { _class: 'total', account_code: '', account_name: label, amount: total }], 'Nothing in this section.');
   const load = () => latest(async (signal) => (ent.value && from.value && to.value ? api('GET', `/v1/reports/financial-statements?entity=${ent.value}&from=${from.value}&to=${to.value}`, undefined, undefined, signal) : null), (r) => {
     out.textContent = '';
     if (!r) return;
     out.append(h('h2', { class: 'section' }, `Income statement, ${r.from} to ${r.to}`),
-      lines('Revenue', r.revenue, r.total_revenue, 'Total revenue'), lines('Expenses', r.expenses, r.total_expenses, 'Total expenses'),
+      lines('Revenue', r.revenue, r.total_revenue, 'Total revenue', true), lines('Expenses', r.expenses, r.total_expenses, 'Total expenses', true),
       h('p', { class: 'kpi-line' }, h('strong', {}, `Profit for the period: ${money(r.net_profit)}`)),
       h('h2', { class: 'section' }, `Balance sheet at ${r.to}`),
       h('p', { class: r.balanced ? 'notice' : 'alert', role: 'status' }, r.balanced ? 'Assets equal liabilities, equity and unclosed earnings.' : `Out of balance by ${money(r.difference)}.`),
@@ -3679,7 +3701,7 @@ async function renderStatements() {
       h('p', {}, `Earnings not yet closed to equity: ${money(r.unclosed_earnings)}`));
   });
   for (const el of [ent, from, to]) el.addEventListener('change', () => load().catch(showError));
-  page('Financial statements', 'From posted journals only. Each line is an account: open the trial balance or the journals for its entries. The cash-flow statement is not available yet.',
+  page('Financial statements', 'From posted journals only. Each line is an account: its code opens the journal lines of that account (for the period, or up to the date for the balance sheet). The cash-flow statement is not available yet.',
     h('div', { class: 'toolbar' }, field('Company', ent), field('From', from), field('To', to)), out);
   await load();
 }
@@ -5396,6 +5418,26 @@ function submittalPanel(d, head) {
   });
   return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Review'), h('p', { class: 'hint' }, 'The review is recorded once and attested in your name.'),
     h('div', { class: 'grid' }, field('Review code', code), field('Note', note)), h('div', { class: 'actions' }, btn));
+}
+// CNX-03.2 (0090): what the RFI cost, through the change events raised from it.
+async function rfiImpactPanel(d) {
+  const r = await api('GET', `/v1/rfis/${d.id}/impact`);
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Cost and time impact'),
+    h('p', { class: 'hint' }, `From the change events raised from this RFI (rejected ones excluded): cost ${money(r.cost_impact)}, revenue ${money(r.revenue_impact)}, ${r.schedule_impact_days} day(s).`),
+    table('Change events from this RFI', [{ label: 'Change event', cell: (x) => h('a', { href: `#/doc/change_event/${x.id}` }, x.number) }, { label: 'Status', cell: (x) => chip(x.status) },
+      { label: 'Cost impact', num: true, cell: (x) => money(x.cost_impact) }, { label: 'Days', num: true, cell: (x) => String(x.schedule_impact_days) }], r.change_events, 'No change event has been raised from this RFI.'));
+}
+// CNX-04.1.b (0090): the review cycle; a submittal reviewed C or D is answered by a resubmission that names it.
+async function submittalCyclePanel(d, head) {
+  const x = head || d;
+  const cyc = await api('GET', `/v1/submittals/${d.id}/cycle`);
+  const items = cyc.items || [];
+  const last = items[items.length - 1];
+  const again = last && last.id === d.id && x.status === 'REVIEWED' && ['C', 'D'].includes(last.review_code) && S.can.has('document.manage')
+    ? h('div', { class: 'actions' }, h('a', { class: 'button', href: `#/new/submittal/${d.id}` }, 'Resubmit')) : null;
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Review cycle'),
+    table('Submissions', [{ label: 'Cycle', num: true, cell: (s) => String(s.cycle) }, { label: 'Submittal', cell: (s) => (s.id === d.id ? s.number : h('a', { href: `#/doc/submittal/${s.id}` }, s.number)) },
+      { label: 'Title', cell: (s) => s.title }, { label: 'Review', cell: (s) => (s.review_code ? chip(s.review_code) : chip(s.status)) }, { label: 'Note', cell: (s) => s.review_note }], items, 'Not yet reviewed.'), again);
 }
 function rfiPanel(d, head) {
   const manage = S.can.has('document.manage');

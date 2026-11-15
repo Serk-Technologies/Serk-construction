@@ -2,10 +2,12 @@ package httpapi
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/shopspring/decimal"
 
 	"github.com/serk-group/serk-construction/internal/store/postgres"
 	"github.com/serk-group/serk-construction/pkg/ledger"
@@ -89,6 +91,41 @@ func TestAPIFinancialStatements(t *testing.T) {
 	assets, _ := fs["assets"].([]any)
 	if len(assets) != 1 || assets[0].(map[string]any)["account_code"] != "1000" || assets[0].(map[string]any)["amount"] != "12300" {
 		t.Errorf("assets: %v", fs["assets"])
+	}
+	// CAP-01.5.c: every line opens its account's journal lines, and they add up
+	// to the line (the period for the income statement, up to the date for the
+	// balance sheet; revenue, liabilities and equity are credit balances).
+	for _, sec := range []struct {
+		key    string
+		period bool
+		sign   int64
+	}{{"revenue", true, -1}, {"expenses", true, 1}, {"assets", false, 1}, {"liabilities", false, -1}, {"equity", false, -1}} {
+		for _, l := range fs[sec.key].([]any) {
+			line := l.(map[string]any)
+			acct, _ := line["account_id"].(string)
+			if acct == "" {
+				t.Fatalf("%s line %v has no account id to open", sec.key, line)
+			}
+			q := "/v1/reports/catalogue/gl-detail?entity=" + e.entity + "&subject=" + acct + "&to=2026-10-31"
+			if sec.period {
+				q += "&from=2026-10-01"
+			}
+			st, rep := e.do("GET", q, appr, nil)
+			if st != 200 {
+				t.Fatalf("drill-down %s: %d %v", line["account_code"], st, rep)
+			}
+			sum := decimal.Zero
+			for _, r := range rep["rows"].([]any) {
+				row := r.(map[string]any)
+				dr, _ := decimal.NewFromString(fmt.Sprint(row["debit"]))
+				cr, _ := decimal.NewFromString(fmt.Sprint(row["credit"]))
+				sum = sum.Add(dr).Sub(cr)
+			}
+			want, _ := decimal.NewFromString(line["amount"].(string))
+			if !sum.Mul(decimal.NewFromInt(sec.sign)).Equal(want) {
+				t.Errorf("%s %s: its journal lines add up to %s, the statement says %s", sec.key, line["account_code"], sum.Mul(decimal.NewFromInt(sec.sign)), want)
+			}
+		}
 	}
 	if st, _ := e.do("GET", "/v1/reports/financial-statements?entity="+e.entity+"&from=2026-10-31&to=2026-10-01", appr, nil); st != 422 {
 		t.Errorf("a period ending before it starts: %d", st)

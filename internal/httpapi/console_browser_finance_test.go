@@ -75,6 +75,11 @@ func TestConsoleBrowserFinance(t *testing.T) {
 	a.id("POST", "/v1/consolidation-runs", ctrl, map[string]any{"group_id": grp, "period_start": "2026-10-01", "period_end": "2026-12-31",
 		"rates": map[string]any{"KES": map[string]any{"closing": "0.45", "average": "0.44"}}, "rate_source": "NBE test rates"})
 
+	// One posted journal, so the financial statements have lines to open (CAP-01.5.c).
+	jid := a.id("POST", "/v1/journals", a.token("u-fs-prep", "accountant"), a.journalBody("fs-browser-1", "250.00"))
+	a.call(200, "POST", "/v1/journals/"+jid+"/approve", a.token("u-fs-appr", "finance_manager"), nil)
+	a.call(200, "POST", "/v1/journals/"+jid+"/post", a.token("u-fs-ctrl", "controller"), nil)
+
 	tokens := map[string]string{"accountant": a.tok("u-accountant", nil, false, "accountant"), "cfo": a.tok("u-cfo", nil, true, "cfo"), "ctrl": a.tok("u-controller-ui", nil, true, "controller"),
 		"ctrlPhone": a.tok("u-accountant", nil, false, "accountant")}
 	dir := t.TempDir()

@@ -166,4 +166,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: The console's scripts parse (the seven browser journeys are mandatory in the test job)
         run: |
-          for f in internal/webui/static/*.js e2e/*.mjs; do node --check "$f"; done
+          # The console's scripts are ES modules: check them as modules. A plain `node --check app.js` accepted a
+          # syntax error in this file (it failed only in the browser journey).
+          for f in internal/webui/static/*.js; do node --input-type=module --check < "$f" || { echo "syntax error in $f"; exit 1; }; done
+          for f in e2e/*.mjs; do node --check "$f"; done

@@ -24,6 +24,10 @@ case "$HAVE" in
 esac
 test -z "$(gofmt -l .)" || { echo "prepush: FAIL: gofmt"; gofmt -l .; exit 1; }
 go vet ./...
+# The console's scripts are ES modules; a plain `node --check` on them can miss a syntax error.
+if command -v node > /dev/null; then
+  for f in internal/webui/static/*.js; do node --input-type=module --check < "$f" || { echo "prepush: FAIL: syntax error in $f"; exit 1; }; done
+fi
 python3 tools/ci/test_check_test_results.py
 python3 tools/design/aura_contrast.py --check-css > /dev/null || { echo "prepush: FAIL: AURA tokens (run tools/design/aura_contrast.py --check-css)"; exit 1; }
 python3 tools/final_completion.py --check > /dev/null || { echo "prepush: FAIL: completion register (run tools/final_completion.py --check)"; exit 1; }

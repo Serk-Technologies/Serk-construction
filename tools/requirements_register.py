@@ -183,7 +183,8 @@ D = {
         r("Stock cannot go negative, including by raw SQL and under concurrent movements", V,
           "TestJourneyC_Controls", "TestR8_RawSQL_Stock", "TestR7_ConcurrentPutAwayAndCount", "TestR10_StockStateTenantWrites"),
         r("Reservations reduce what can be issued", V, "TestStockPlus_ReservationsIssuesAndReorder"),
-        r("Returns, scrap and quarantine", V, note="0088: quarantine stores and scrap write-offs; 0089: site returns at the issue's cost.",
+        r("Returns, scrap and quarantine", V, "TestStock_QuarantineAndWriteoff", "TestStock_SiteReturns", "TestConsoleBrowserJourneyC",
+          note="0088: quarantine stores and scrap write-offs; 0089: site returns at the issue's cost.",
           criteria=[
             c("Quarantine stores: filled and emptied by approved transfers; nothing is issued or reserved from them; the flag is fixed at creation", V,
               "TestStock_QuarantineAndWriteoff", "TestConsoleBrowserJourneyC"),
@@ -354,7 +355,8 @@ D = {
           criteria=[
             c("Income statement for a period and balance sheet at its end, from posted journals only, balancing against equity and unclosed earnings, checked against a hand-computed reference", V, "TestAPIFinancialStatements"),
             c("Cash-flow statement (needs operating/investing/financing classification of accounts)", N),
-            c("One-step drill-down from a statement line to its journal lines", N)]),
+            c("One-step drill-down from a statement line to its journal lines", V, "TestAPIFinancialStatements", "TestConsoleBrowserFinance",
+              note="Each line carries its account; the general-ledger detail report for that account and period adds up to the line.")]),
         r("Period end: fiscal years in the Gregorian or Ethiopian calendar; recurring journals only from templates approved by another person with a fresh second factor; accruals reversed once on their date; overhead spread by posted direct cost; the database refuses an overhead or recurring journal that differs from its computation (DEF-012, DEF-013; 0064, 0075, 0083)", V,
           "TestPeriodEnd_FiscalYearRecurringAccrualOverhead", "TestEthiopianFiscalYear", "TestAPIRecurringJournalApproval"),
     ]),
@@ -465,11 +467,12 @@ D = {
     "CNX-03": ("M7", "Construction lead", [
         r("An RFI is raised against a project (optionally a document revision), answered once by someone other than its author, then closed", V,
           "TestDocuments_RFILifecycle", "TestAPIDocumentsAndRFIs"),
-        r("RFI cost/time impact linked to change events", N),
+        r("RFI cost/time impact linked to change events", V, "TestRFIImpactAndSubmittalCycle", "TestConsoleBrowserDocuments",
+          note="0090: a change event names the answered RFI it arises from (fixed at creation); the RFI's impact is computed from its change events."),
     ]),
     "CNX-04": ("M7", "Construction lead", [r("Submittals with review cycles and consultant responses", I, criteria=[
             c("A submittal is reviewed once, with a code A-D, by someone other than the submitter; attested; C and D need a note", V, "TestDocflow_TransmittalsAndSubmittals", "TestConsoleBrowserDocuments"),
-            c("A resubmission is linked to the submittal it answers, forming a review cycle", N),
+            c("A resubmission is linked to the submittal it answers, forming a review cycle", V, "TestRFIImpactAndSubmittalCycle", "TestConsoleBrowserDocuments"),
             c("Consultant responses through the consultant portal", N, note="Depends on CNX-12.")])]),
     "CNX-05": ("M7", "Product owner", [r("Correspondence register (in/out) linked to contracts", V,
                                          "TestCorrespondence_RegisterRepliesAndOverdue", "TestAPICorrespondence", "TestConsoleBrowserDocuments",

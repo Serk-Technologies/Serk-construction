@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/shopspring/decimal"
 
 	"github.com/serk-group/serk-construction/internal/store/postgres"
 	"github.com/serk-group/serk-construction/pkg/auth"
@@ -63,6 +64,8 @@ type SubmittalInput struct {
 	ProjectID   string `json:"project_id"`
 	SpecSection string `json:"spec_section"`
 	Title       string `json:"title"`
+	// ResubmissionOf names the submittal reviewed C or D that this one answers (0090).
+	ResubmissionOf string `json:"resubmission_of,omitempty"`
 }
 
 // SubmitSubmittal records a submittal for review.
@@ -73,8 +76,8 @@ func (s *Service) SubmitSubmittal(ctx context.Context, p auth.Principal, in Subm
 		if err != nil {
 			return err
 		}
-		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO submittals (project_id, number, spec_section, title, created_by) VALUES ($1::uuid, $2, $3, $4, $5) RETURNING id::text`,
-			in.ProjectID, num, strings.TrimSpace(in.SpecSection), strings.TrimSpace(in.Title), p.UserID)
+		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO submittals (project_id, number, spec_section, title, created_by, resubmission_of) VALUES ($1::uuid, $2, $3, $4, $5, NULLIF($6, '')::uuid) RETURNING id::text`,
+			in.ProjectID, num, strings.TrimSpace(in.SpecSection), strings.TrimSpace(in.Title), p.UserID, in.ResubmissionOf)
 		if err != nil {
 			return err
 		}
@@ -113,4 +116,59 @@ func (s *Service) ReviewSubmittal(ctx context.Context, p auth.Principal, id, cod
 		}
 		return s.record(ctx, tx, p, "submittal.review", "submittal", id, "submittal.reviewed", map[string]any{"id": id, "code": code})
 	})
+}
+
+// SubmittalCycle lists the review cycle a submittal belongs to, first
+// submission first: each entry is answered by the next (0090).
+func (s *Service) SubmittalCycle(ctx context.Context, p auth.Principal, id string) ([]map[string]any, error) {
+	var project string
+	if err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		return mapNoRows(tx.QueryRow(ctx, `SELECT project_id::text FROM submittals WHERE id = $1::uuid`, id).Scan(&project))
+	}); err != nil {
+		return nil, err
+	}
+	var out []map[string]any
+	err := s.documentTx(ctx, p, auth.PermP2PRead, project, func(ctx context.Context, tx pgx.Tx) error {
+		var err error
+		out, err = rowsAsMaps(ctx, tx, `WITH RECURSIVE up AS (
+			  SELECT x.* FROM submittals x WHERE x.id = $1::uuid
+			  UNION ALL SELECT p.* FROM submittals p JOIN up ON up.resubmission_of = p.id),
+			first AS (SELECT id FROM up WHERE resubmission_of IS NULL),
+			down AS (
+			  SELECT x.* FROM submittals x WHERE x.id = (SELECT id FROM first)
+			  UNION ALL SELECT n.* FROM submittals n JOIN down ON n.resubmission_of = down.id)
+			SELECT id::text AS id, number, cycle, status, COALESCE(review_code, '') AS review_code, COALESCE(review_note, '') AS review_note, title, created_by
+			  FROM down ORDER BY cycle`, id)
+		return err
+	})
+	return out, err
+}
+
+// RFIImpact is the cost and time an RFI caused, through the change events
+// raised from it (0090): computed from their lines, never typed.
+func (s *Service) RFIImpact(ctx context.Context, p auth.Principal, id string) (map[string]any, error) {
+	var project string
+	if err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		return mapNoRows(tx.QueryRow(ctx, `SELECT project_id::text FROM rfis WHERE id = $1::uuid`, id).Scan(&project))
+	}); err != nil {
+		return nil, err
+	}
+	out := map[string]any{"rfi_id": id}
+	err := s.documentTx(ctx, p, auth.PermP2PRead, project, func(ctx context.Context, tx pgx.Tx) error {
+		events, err := rowsAsMaps(ctx, tx, `SELECT change_event_id::text AS id, number, status, cost_impact, schedule_impact_days, revenue_impact
+			FROM rfi_impact WHERE rfi_id = $1::uuid ORDER BY number`, id)
+		if err != nil {
+			return err
+		}
+		out["change_events"] = events
+		var cost, revenue decimal.Decimal
+		var days int
+		if err := tx.QueryRow(ctx, `SELECT COALESCE(sum(cost_impact), 0), COALESCE(sum(schedule_impact_days), 0), COALESCE(sum(revenue_impact), 0)
+			FROM rfi_impact WHERE rfi_id = $1::uuid AND status <> 'REJECTED'`, id).Scan(&cost, &days, &revenue); err != nil {
+			return err
+		}
+		out["cost_impact"], out["schedule_impact_days"], out["revenue_impact"] = cost, days, revenue
+		return nil
+	})
+	return out, err
 }

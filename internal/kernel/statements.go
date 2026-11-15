@@ -20,6 +20,8 @@ import (
 // ReportLine is one account on a financial statement; Amount is shown in the
 // account's natural sign (debit for assets and expenses, credit otherwise).
 type ReportLine struct {
+	// AccountID lets a reader open the account's journal lines (CAP-01.5.c).
+	AccountID   string          `json:"account_id"`
 	AccountCode string          `json:"account_code"`
 	AccountName string          `json:"account_name"`
 	Amount      decimal.Decimal `json:"amount"`
@@ -81,29 +83,29 @@ func (s *Service) Statements(ctx context.Context, p auth.Principal, entityID str
 		switch r.AccountType {
 		case "REVENUE":
 			if mv := bal.Sub(prior[r.AccountCode]).Neg(); !mv.IsZero() {
-				out.Revenue = append(out.Revenue, ReportLine{r.AccountCode, r.AccountName, mv})
+				out.Revenue = append(out.Revenue, ReportLine{r.AccountID, r.AccountCode, r.AccountName, mv})
 				out.TotalRevenue = out.TotalRevenue.Add(mv)
 			}
 			out.UnclosedEarnings = out.UnclosedEarnings.Sub(bal)
 		case "EXPENSE":
 			if mv := bal.Sub(prior[r.AccountCode]); !mv.IsZero() {
-				out.Expenses = append(out.Expenses, ReportLine{r.AccountCode, r.AccountName, mv})
+				out.Expenses = append(out.Expenses, ReportLine{r.AccountID, r.AccountCode, r.AccountName, mv})
 				out.TotalExpense = out.TotalExpense.Add(mv)
 			}
 			out.UnclosedEarnings = out.UnclosedEarnings.Sub(bal)
 		case "ASSET":
 			if !bal.IsZero() {
-				out.Assets = append(out.Assets, ReportLine{r.AccountCode, r.AccountName, bal})
+				out.Assets = append(out.Assets, ReportLine{r.AccountID, r.AccountCode, r.AccountName, bal})
 				out.TotalAssets = out.TotalAssets.Add(bal)
 			}
 		case "LIABILITY":
 			if !bal.IsZero() {
-				out.Liabilities = append(out.Liabilities, ReportLine{r.AccountCode, r.AccountName, bal.Neg()})
+				out.Liabilities = append(out.Liabilities, ReportLine{r.AccountID, r.AccountCode, r.AccountName, bal.Neg()})
 				out.TotalLiabilities = out.TotalLiabilities.Add(bal.Neg())
 			}
 		case "EQUITY":
 			if !bal.IsZero() {
-				out.Equity = append(out.Equity, ReportLine{r.AccountCode, r.AccountName, bal.Neg()})
+				out.Equity = append(out.Equity, ReportLine{r.AccountID, r.AccountCode, r.AccountName, bal.Neg()})
 				out.TotalEquity = out.TotalEquity.Add(bal.Neg())
 			}
 		default:

@@ -124,11 +124,36 @@ func (s *Server) registerDocuments() {
 	}))
 	m.Handle("POST /v1/submittals", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		var b kernel.SubmittalInput
-		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) {
+		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) || (b.ResubmissionOf != "" && !validIDs(w, b.ResubmissionOf)) {
 			return
 		}
 		id, err := k.SubmitSubmittal(r.Context(), principalFrom(r.Context()), b)
 		s.created(w, id, err)
+	}))
+	// 0090: the review cycle of a submittal; the cost and time impact of an RFI.
+	m.Handle("GET /v1/submittals/{id}/cycle", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		out, err := k.SubmittalCycle(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": out})
+	}))
+	m.Handle("GET /v1/rfis/{id}/impact", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		out, err := k.RFIImpact(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
 	}))
 	m.Handle("POST /v1/submittals/{id}/review", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")

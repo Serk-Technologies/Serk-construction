@@ -6,9 +6,9 @@ Test results used: `docs/engineering/evidence/2026-11-15-stock-returns-4da1b31.t
 
 **VERIFIED** on a requirement means every test named as evidence passed in that executed run. It is not a human acceptance. A domain is VERIFIED only when every listed requirement is verified **and** its owner has reviewed the list as complete against the Bible; no domain has had that review, so no domain is VERIFIED. A domain marked † has every listed requirement verified and awaits that review. A domain that is partly built is IMPLEMENTING.
 
-Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 2, IMPLEMENTING 25, NOT_STARTED 66, VERIFIED 110.
+Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 2, IMPLEMENTING 25, NOT_STARTED 65, VERIFIED 111.
 
-Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTING 7, NOT_STARTED 45, VERIFIED 25.
+Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 7, NOT_STARTED 43, VERIFIED 26.
 
 Domain counts (80): BLOCKED 2, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 50, NOT_STARTED 27.
 
@@ -44,7 +44,7 @@ Domain counts (80): BLOCKED 2, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 50, NOT_ST
 | SUP-02 | SUPPLY / STOCK | Purchasing | M3 | IMPLEMENTING † |
 | SUP-03 | SUPPLY / STOCK | Supplier | M3 | IMPLEMENTING |
 | SUP-04 | SUPPLY / STOCK | Subcontract | M6 | IMPLEMENTING |
-| SUP-05 | SUPPLY / STOCK | Inventory | M3 | IMPLEMENTED_UNVERIFIED |
+| SUP-05 | SUPPLY / STOCK | Inventory | M3 | IMPLEMENTING † |
 | SUP-06 | SUPPLY / STOCK | Warehouse | M3 | IMPLEMENTING |
 | SUP-07 | SUPPLY / STOCK | Logistics | M6 | NOT_STARTED |
 | SUP-08 | SUPPLY / STOCK | Import | M6 | NOT_STARTED |
@@ -77,7 +77,7 @@ Domain counts (80): BLOCKED 2, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 50, NOT_ST
 | ASR-04 | ASSURE | Sustainability | M6 | NOT_STARTED |
 | CNX-01 | CONNECT | Document | M7 | IMPLEMENTING |
 | CNX-02 | CONNECT | Drawings | M7 | IMPLEMENTING |
-| CNX-03 | CONNECT | RFI | M7 | IMPLEMENTING |
+| CNX-03 | CONNECT | RFI | M7 | IMPLEMENTED_UNVERIFIED |
 | CNX-04 | CONNECT | Submittals | M7 | IMPLEMENTING |
 | CNX-05 | CONNECT | Correspondence | M7 | IMPLEMENTING † |
 | CNX-06 | CONNECT | Workflow | M1 | IMPLEMENTING † |
@@ -359,7 +359,7 @@ Product SUPPLY / STOCK · milestone M6 · owner Construction lead
 |---|---|---|---|
 | SUP-04.1 | Subcontracts: scope/BOQ, security, measured work, retention, deductions | IMPLEMENTING | Integrated from new-version (ADR 0025): certificates with retention, advance recovery, back-charges, withholding and journals (TestSubcontract_CertificatesAndJournal). Independent review: no BOQ link, no security (bond); cancellation attested by the person cancelling since 0084 (DEF-017 closed). |
 
-### SUP-05 Inventory — IMPLEMENTED_UNVERIFIED
+### SUP-05 Inventory — IMPLEMENTING
 
 Product SUPPLY / STOCK · milestone M3 · owner Finance controller
 
@@ -368,7 +368,7 @@ Product SUPPLY / STOCK · milestone M3 · owner Finance controller
 | SUP-05.1 | Stock quantity and value move together (FIFO or weighted average) and reconcile to the inventory account | VERIFIED | `TestJourneyC_StockValuationToGL`, `TestR7_FIFOManyLayersSmallIssues`, `TestR7_WACFractionalToZero`, `TestAPIJourneyC_StockValuation` |
 | SUP-05.2 | Stock cannot go negative, including by raw SQL and under concurrent movements | VERIFIED | `TestJourneyC_Controls`, `TestR8_RawSQL_Stock`, `TestR7_ConcurrentPutAwayAndCount`, `TestR10_StockStateTenantWrites` |
 | SUP-05.3 | Reservations reduce what can be issued | VERIFIED | `TestStockPlus_ReservationsIssuesAndReorder` |
-| SUP-05.4 | Returns, scrap and quarantine | IMPLEMENTED_UNVERIFIED | 0088: quarantine stores and scrap write-offs; 0089: site returns at the issue's cost. |
+| SUP-05.4 | Returns, scrap and quarantine | VERIFIED | `TestStock_QuarantineAndWriteoff`, `TestStock_SiteReturns`, `TestConsoleBrowserJourneyC` — 0088: quarantine stores and scrap write-offs; 0089: site returns at the issue's cost. |
 | SUP-05.4.a | ↳ Quarantine stores: filled and emptied by approved transfers; nothing is issued or reserved from them; the flag is fixed at creation | VERIFIED | `TestStock_QuarantineAndWriteoff`, `TestConsoleBrowserJourneyC` |
 | SUP-05.4.b | ↳ Scrap write-offs at FIFO or average cost with a reason, approved by another person (attested), with a bound STK_SCRAP journal; the inventory reconciliation counts them | VERIFIED | `TestStock_QuarantineAndWriteoff`, `TestConsoleBrowserJourneyC` |
 | SUP-05.4.c | ↳ Site returns: material returned from a project to a store at the issue's cost, crediting the project | VERIFIED | `TestStock_SiteReturns`, `TestConsoleBrowserJourneyC` |
@@ -580,7 +580,7 @@ Product CAPITAL · milestone M3 · owner Finance controller
 | CAP-01.5 | Balance sheet, income statement and cash-flow statement | IMPLEMENTING | Trial balance, GL detail and journal register exist. |
 | CAP-01.5.a | ↳ Income statement for a period and balance sheet at its end, from posted journals only, balancing against equity and unclosed earnings, checked against a hand-computed reference | VERIFIED | `TestAPIFinancialStatements` |
 | CAP-01.5.b | ↳ Cash-flow statement (needs operating/investing/financing classification of accounts) | NOT_STARTED |  |
-| CAP-01.5.c | ↳ One-step drill-down from a statement line to its journal lines | NOT_STARTED |  |
+| CAP-01.5.c | ↳ One-step drill-down from a statement line to its journal lines | VERIFIED | `TestAPIFinancialStatements`, `TestConsoleBrowserFinance` — Each line carries its account; the general-ledger detail report for that account and period adds up to the line. |
 | CAP-01.6 | Period end: fiscal years in the Gregorian or Ethiopian calendar; recurring journals only from templates approved by another person with a fresh second factor; accruals reversed once on their date; overhead spread by posted direct cost; the database refuses an overhead or recurring journal that differs from its computation (DEF-012, DEF-013; 0064, 0075, 0083) | VERIFIED | `TestPeriodEnd_FiscalYearRecurringAccrualOverhead`, `TestEthiopianFiscalYear`, `TestAPIRecurringJournalApproval` |
 
 ### CAP-02 AP — IMPLEMENTING
@@ -733,14 +733,14 @@ Product CONNECT · milestone M7 · owner Construction lead
 | CNX-02.1 | Drawings are controlled documents: the current revision is the only one offered as current | VERIFIED | `TestDocuments_RevisionsAndPublication` |
 | CNX-02.2 | Mark-ups and 2D review | NOT_STARTED |  |
 
-### CNX-03 RFI — IMPLEMENTING
+### CNX-03 RFI — IMPLEMENTED_UNVERIFIED
 
 Product CONNECT · milestone M7 · owner Construction lead
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
 | CNX-03.1 | An RFI is raised against a project (optionally a document revision), answered once by someone other than its author, then closed | VERIFIED | `TestDocuments_RFILifecycle`, `TestAPIDocumentsAndRFIs` |
-| CNX-03.2 | RFI cost/time impact linked to change events | NOT_STARTED |  |
+| CNX-03.2 | RFI cost/time impact linked to change events | IMPLEMENTED_UNVERIFIED | `TestRFIImpactAndSubmittalCycle`, `TestConsoleBrowserDocuments` — 0090: a change event names the answered RFI it arises from (fixed at creation); the RFI's impact is computed from its change events. |
 
 ### CNX-04 Submittals — IMPLEMENTING
 
@@ -750,7 +750,7 @@ Product CONNECT · milestone M7 · owner Construction lead
 |---|---|---|---|
 | CNX-04.1 | Submittals with review cycles and consultant responses | IMPLEMENTING |  |
 | CNX-04.1.a | ↳ A submittal is reviewed once, with a code A-D, by someone other than the submitter; attested; C and D need a note | VERIFIED | `TestDocflow_TransmittalsAndSubmittals`, `TestConsoleBrowserDocuments` |
-| CNX-04.1.b | ↳ A resubmission is linked to the submittal it answers, forming a review cycle | NOT_STARTED |  |
+| CNX-04.1.b | ↳ A resubmission is linked to the submittal it answers, forming a review cycle | IMPLEMENTED_UNVERIFIED | `TestRFIImpactAndSubmittalCycle`, `TestConsoleBrowserDocuments` |
 | CNX-04.1.c | ↳ Consultant responses through the consultant portal | NOT_STARTED | Depends on CNX-12. |
 
 ### CNX-05 Correspondence — IMPLEMENTING

@@ -11,23 +11,24 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 110,
-  "NOT_STARTED": 66,
+  "VERIFIED": 111,
+  "NOT_STARTED": 65,
   "IMPLEMENTING": 25,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 2
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 45,
+  "NOT_STARTED": 43,
   "BLOCKED": 12,
-  "VERIFIED": 25
+  "VERIFIED": 26,
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "domain_counts": {
   "IMPLEMENTING": 50,
   "NOT_STARTED": 27,
-  "IMPLEMENTED_UNVERIFIED": 1,
-  "BLOCKED": 2
+  "BLOCKED": 2,
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "domains": [
   {
@@ -962,8 +963,8 @@
    "domain": "Inventory",
    "milestone": "M3",
    "owner": "Finance controller",
-   "status": "IMPLEMENTED_UNVERIFIED",
-   "all_listed_requirements_verified": false,
+   "status": "IMPLEMENTING",
+   "all_listed_requirements_verified": true,
    "requirements": [
     {
      "id": "SUP-05.1",
@@ -1007,8 +1008,12 @@
     {
      "id": "SUP-05.4",
      "text": "Returns, scrap and quarantine",
-     "status": "IMPLEMENTED_UNVERIFIED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestStock_QuarantineAndWriteoff",
+      "TestStock_SiteReturns",
+      "TestConsoleBrowserJourneyC"
+     ],
      "evidence_file": "",
      "note": "0088: quarantine stores and scrap write-offs; 0089: site returns at the issue's cost.",
      "criteria": [
@@ -2084,9 +2089,12 @@
       {
        "id": "CAP-01.5.c",
        "text": "One-step drill-down from a statement line to its journal lines",
-       "status": "NOT_STARTED",
-       "evidence_tests": [],
-       "note": ""
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestAPIFinancialStatements",
+        "TestConsoleBrowserFinance"
+       ],
+       "note": "Each line carries its account; the general-ledger detail report for that account and period adds up to the line."
       }
      ]
     },
@@ -2794,7 +2802,7 @@
    "domain": "RFI",
    "milestone": "M7",
    "owner": "Construction lead",
-   "status": "IMPLEMENTING",
+   "status": "IMPLEMENTED_UNVERIFIED",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
@@ -2812,10 +2820,13 @@
     {
      "id": "CNX-03.2",
      "text": "RFI cost/time impact linked to change events",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "IMPLEMENTED_UNVERIFIED",
+     "evidence_tests": [
+      "TestRFIImpactAndSubmittalCycle",
+      "TestConsoleBrowserDocuments"
+     ],
      "evidence_file": "",
-     "note": "",
+     "note": "0090: a change event names the answered RFI it arises from (fixed at creation); the RFI's impact is computed from its change events.",
      "criteria": []
     }
    ]
@@ -2850,8 +2861,11 @@
       {
        "id": "CNX-04.1.b",
        "text": "A resubmission is linked to the submittal it answers, forming a review cycle",
-       "status": "NOT_STARTED",
-       "evidence_tests": [],
+       "status": "IMPLEMENTED_UNVERIFIED",
+       "evidence_tests": [
+        "TestRFIImpactAndSubmittalCycle",
+        "TestConsoleBrowserDocuments"
+       ],
        "note": ""
       },
       {

@@ -10,6 +10,7 @@ import (
 
 // TrialBalanceRow is one account's posted debits and credits to a date.
 type TrialBalanceRow struct {
+	AccountID   string          `json:"account_id"`
 	AccountCode string          `json:"account_code"`
 	AccountName string          `json:"account_name"`
 	AccountType string          `json:"account_type"`
@@ -30,7 +31,7 @@ func TrialBalance(ctx context.Context, tx pgx.Tx, entityID string, asOf time.Tim
 		    FROM journal_lines l JOIN journals j ON j.tenant_id = l.tenant_id AND j.id = l.journal_id
 		   WHERE j.legal_entity_id = $1::uuid AND j.status IN ('POSTED', 'REVERSED') AND j.business_event_at < ($2::date + 1)
 		   GROUP BY l.account_id)
-		SELECT a.code, a.name, a.type, COALESCE(t.dr, 0), COALESCE(t.cr, 0)
+		SELECT a.id::text, a.code, a.name, a.type, COALESCE(t.dr, 0), COALESCE(t.cr, 0)
 		  FROM accounts a LEFT JOIN t ON t.account_id = a.id
 		 WHERE a.legal_entity_id = $1::uuid
 		 ORDER BY a.code`, entityID, asOf)
@@ -41,7 +42,7 @@ func TrialBalance(ctx context.Context, tx pgx.Tx, entityID string, asOf time.Tim
 	var out []TrialBalanceRow
 	for rows.Next() {
 		var r TrialBalanceRow
-		if err := rows.Scan(&r.AccountCode, &r.AccountName, &r.AccountType, &r.Debit, &r.Credit); err != nil {
+		if err := rows.Scan(&r.AccountID, &r.AccountCode, &r.AccountName, &r.AccountType, &r.Debit, &r.Credit); err != nil {
 			return nil, err
 		}
 		r.Balance = r.Debit.Sub(r.Credit)

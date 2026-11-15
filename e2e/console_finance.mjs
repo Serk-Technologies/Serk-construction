@@ -2,7 +2,7 @@
 // internal/httpapi/console_browser_finance_test.go. The accountant designates tax accounts and prepares a
 // VAT return; the CFO approves it; the accountant files it. The controller opens the consolidation page and the
 // prepared run. Accessibility audited; phone width and dark theme too.
-import { as, nav, act, selectByText, snap, audit, log, fail, failures, browser, pages } from './console_lib.mjs';
+import { as, nav, act, selectByText, snap, audit, log, fail, failures, browser, pages, FX } from './console_lib.mjs';
 
 try {
   const acc = await as('accountant');
@@ -58,6 +58,22 @@ try {
   await audit(ctrl, 'consolidation groups');
   await nav(ctrl, '#/consolidation/intercompany', 'Consolidation');
   await audit(ctrl, 'intercompany accounts');
+
+  // CAP-01.5.c: a balance-sheet line opens its account's journal lines.
+  await nav(ctrl, '#/statements', 'Financial statements');
+  await ctrl.getByLabel('Company').selectOption(FX.entity);
+  await ctrl.getByLabel('From').fill('2020-01-01');
+  await ctrl.getByLabel('From').dispatchEvent('change');
+  const assets = ctrl.getByRole('table').filter({ hasText: 'Total assets' });
+  await assets.waitFor();
+  await audit(ctrl, 'financial statements');
+  const first = assets.getByRole('link').first();
+  await first.waitFor(); // the two filter changes each reload the page; wait for the newest answer's link
+  const code = (await first.textContent()).trim();
+  await first.click();
+  await ctrl.getByRole('heading', { level: 1, name: 'General ledger detail' }).waitFor();
+  await ctrl.getByRole('table').filter({ hasText: code }).waitFor();
+  log(`statement line ${code} opened its journal lines`);
 
   const phone = await as('ctrlPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   await nav(phone, '#/tax/returns', 'Tax');
