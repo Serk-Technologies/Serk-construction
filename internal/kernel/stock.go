@@ -394,7 +394,7 @@ func (s *Service) stockJournal(ctx context.Context, tx pgx.Tx, p auth.Principal,
 	if !amount.IsPositive() {
 		return "", nil // nothing to post (a count difference worth less than the currency's minor unit)
 	}
-	jid, err := s.subledgerJournal(ctx, tx, p, doc, id, entity, ccy, map[string]string{"STK_ISSUE": "Stock issue ", "STK_ADJUST": "Stock count adjustment ", "STK_SCRAP": "Stock write-off "}[doc]+num, date)
+	jid, err := s.subledgerJournal(ctx, tx, p, doc, id, entity, ccy, map[string]string{"STK_ISSUE": "Stock issue ", "STK_ADJUST": "Stock count adjustment ", "STK_SCRAP": "Stock write-off ", "STK_RETURN": "Stock return "}[doc]+num, date)
 	if err != nil {
 		return "", err
 	}

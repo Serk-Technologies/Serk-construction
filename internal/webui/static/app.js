@@ -395,6 +395,9 @@ const DOCS = {
     actions: { DRAFT: [['approve', 'stock.issue.approve'], ['reject', 'stock.issue.approve', 'req'], ['cancel', 'stock.issue', 'req']] } },
   stock_count: { title: 'Stock counts', one: 'Stock count', base: '/v1/stock-counts', create: 'stock.count', form: 'stockcount',
     statuses: ['DRAFT', 'APPROVED', 'REJECTED'], actions: { DRAFT: [['approve', 'stock.adjust.approve'], ['reject', 'stock.adjust.approve', 'req']] } },
+  stock_return: { title: 'Site returns', one: 'Site return', base: '/v1/stock-returns', create: 'stock.issue', form: 'stockreturn',
+    statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['approve', 'stock.issue.approve'], ['reject', 'stock.issue.approve', 'req'], ['cancel', 'stock.issue', 'req']] } },
   stock_writeoff: { title: 'Stock write-offs', one: 'Stock write-off', base: '/v1/stock-writeoffs', create: 'stock.count', form: 'stockwriteoff',
     statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'CANCELLED'],
     actions: { DRAFT: [['approve', 'stock.adjust.approve'], ['reject', 'stock.adjust.approve', 'req'], ['cancel', 'stock.count', 'req']] } },
@@ -430,7 +433,7 @@ const NAV = [
   ['Site', [['#/list/site_diary', 'Site diaries', 'p2p.read'], ['#/list/grn', 'Goods receipts', 'p2p.read'],
     ['#/site/devices', 'Field devices', 'site.device.register|site.device.manage']]],
   ['Stores', [['#/stock', 'Stock on hand', 'p2p.read'], ['#/list/stock_issue', 'Stock issues', 'p2p.read'], ['#/list/stock_receipt', 'Put-aways', 'p2p.read'],
-    ['#/list/stock_transfer', 'Transfers', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'], ['#/list/stock_writeoff', 'Write-offs', 'p2p.read'],
+    ['#/list/stock_transfer', 'Transfers', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'], ['#/list/stock_writeoff', 'Write-offs', 'p2p.read'], ['#/list/stock_return', 'Site returns', 'p2p.read'],
     ['#/reservations', 'Reservations', 'p2p.read'], ['#/report/low-stock', 'Low stock', 'p2p.read'], ['#/list/uom_conversion', 'Unit conversions', 'p2p.read'],
     ['#/list/stock_item', 'Stock items', 'p2p.read'], ['#/list/warehouse', 'Warehouses', 'p2p.read']]],
   ['Commercial & revenue', [['#/list/contract', 'Contracts', 'p2p.read'], ['#/list/contract_variation', 'Variations', 'p2p.read'], ['#/list/contract_notice', 'Contract notices', 'p2p.read'], ['#/list/contract_claim', 'Claims', 'p2p.read'],
@@ -2829,6 +2832,21 @@ const FORMS = {
       const res = await api('POST', '/v1/stock-counts', { warehouse_id: wh.value, stock_item_id: item.value, counted_qty: qty.value.trim(),
         variance_account_id: acct.value, count_date: date.value });
       created('stock_count', res, 'Stock count');
+    });
+  },
+
+  // SUP-05.4 (0089): unused material back from the project at the issue's cost.
+  async stockreturn() {
+    const iss = select('issue_id', await docOpts('stock_issue', 'APPROVED'), { required: true });
+    const wh = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const qty = input('quantity', { inputmode: 'decimal', required: true });
+    const date = input('return_date', { type: 'date', value: today(), max: today(), required: true });
+    const reason = input('reason', { type: 'text', required: true, minlength: '5', maxlength: '1000', placeholder: 'Why the material comes back' });
+    formPage('Return stock from site', 'Gives back part of an approved issue at that issue\'s cost: the store gets the quantity, the project and cost code are credited. Someone other than you approves it; never more than is still out.', [
+      h('div', { class: 'grid' }, field('Issue', iss), field('Back to warehouse', wh), field('Quantity', qty), field('Date', date), field('Reason', reason))],
+    'Prepare return', async () => {
+      const res = await api('POST', '/v1/stock-returns', { issue_id: iss.value, warehouse_id: wh.value, quantity: qty.value.trim(), return_date: date.value, reason: reason.value.trim() });
+      created('stock_return', res, 'Site return');
     });
   },
 

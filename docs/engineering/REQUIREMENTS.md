@@ -6,11 +6,11 @@ Test results used: `docs/engineering/evidence/2026-11-15-stock-writeoff-67620b4.
 
 **VERIFIED** on a requirement means every test named as evidence passed in that executed run. It is not a human acceptance. A domain is VERIFIED only when every listed requirement is verified **and** its owner has reviewed the list as complete against the Bible; no domain has had that review, so no domain is VERIFIED. A domain marked † has every listed requirement verified and awaits that review. A domain that is partly built is IMPLEMENTING.
 
-Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 26, NOT_STARTED 66, VERIFIED 110.
+Requirement counts: BLOCKED 9, IMPLEMENTED_UNVERIFIED 2, IMPLEMENTING 25, NOT_STARTED 66, VERIFIED 110.
 
-Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTING 7, NOT_STARTED 46, VERIFIED 24.
+Acceptance-criteria counts (children that decompose large requirements; counted separately): BLOCKED 12, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 7, NOT_STARTED 45, VERIFIED 24.
 
-Domain counts (80): BLOCKED 2, IMPLEMENTING 51, NOT_STARTED 27.
+Domain counts (80): BLOCKED 2, IMPLEMENTED_UNVERIFIED 1, IMPLEMENTING 50, NOT_STARTED 27.
 
 ## Domain status
 
@@ -44,7 +44,7 @@ Domain counts (80): BLOCKED 2, IMPLEMENTING 51, NOT_STARTED 27.
 | SUP-02 | SUPPLY / STOCK | Purchasing | M3 | IMPLEMENTING † |
 | SUP-03 | SUPPLY / STOCK | Supplier | M3 | IMPLEMENTING |
 | SUP-04 | SUPPLY / STOCK | Subcontract | M6 | IMPLEMENTING |
-| SUP-05 | SUPPLY / STOCK | Inventory | M3 | IMPLEMENTING |
+| SUP-05 | SUPPLY / STOCK | Inventory | M3 | IMPLEMENTED_UNVERIFIED |
 | SUP-06 | SUPPLY / STOCK | Warehouse | M3 | IMPLEMENTING |
 | SUP-07 | SUPPLY / STOCK | Logistics | M6 | NOT_STARTED |
 | SUP-08 | SUPPLY / STOCK | Import | M6 | NOT_STARTED |
@@ -359,7 +359,7 @@ Product SUPPLY / STOCK · milestone M6 · owner Construction lead
 |---|---|---|---|
 | SUP-04.1 | Subcontracts: scope/BOQ, security, measured work, retention, deductions | IMPLEMENTING | Integrated from new-version (ADR 0025): certificates with retention, advance recovery, back-charges, withholding and journals (TestSubcontract_CertificatesAndJournal). Independent review: no BOQ link, no security (bond); cancellation attested by the person cancelling since 0084 (DEF-017 closed). |
 
-### SUP-05 Inventory — IMPLEMENTING
+### SUP-05 Inventory — IMPLEMENTED_UNVERIFIED
 
 Product SUPPLY / STOCK · milestone M3 · owner Finance controller
 
@@ -368,10 +368,10 @@ Product SUPPLY / STOCK · milestone M3 · owner Finance controller
 | SUP-05.1 | Stock quantity and value move together (FIFO or weighted average) and reconcile to the inventory account | VERIFIED | `TestJourneyC_StockValuationToGL`, `TestR7_FIFOManyLayersSmallIssues`, `TestR7_WACFractionalToZero`, `TestAPIJourneyC_StockValuation` |
 | SUP-05.2 | Stock cannot go negative, including by raw SQL and under concurrent movements | VERIFIED | `TestJourneyC_Controls`, `TestR8_RawSQL_Stock`, `TestR7_ConcurrentPutAwayAndCount`, `TestR10_StockStateTenantWrites` |
 | SUP-05.3 | Reservations reduce what can be issued | VERIFIED | `TestStockPlus_ReservationsIssuesAndReorder` |
-| SUP-05.4 | Returns, scrap and quarantine | IMPLEMENTING | 0088: quarantine stores and scrap write-offs; site returns not yet built. |
+| SUP-05.4 | Returns, scrap and quarantine | IMPLEMENTED_UNVERIFIED | 0088: quarantine stores and scrap write-offs; 0089: site returns at the issue's cost. |
 | SUP-05.4.a | ↳ Quarantine stores: filled and emptied by approved transfers; nothing is issued or reserved from them; the flag is fixed at creation | VERIFIED | `TestStock_QuarantineAndWriteoff`, `TestConsoleBrowserJourneyC` |
 | SUP-05.4.b | ↳ Scrap write-offs at FIFO or average cost with a reason, approved by another person (attested), with a bound STK_SCRAP journal; the inventory reconciliation counts them | VERIFIED | `TestStock_QuarantineAndWriteoff`, `TestConsoleBrowserJourneyC` |
-| SUP-05.4.c | ↳ Site returns: material returned from a project to a store at the issue's cost, crediting the project | NOT_STARTED |  |
+| SUP-05.4.c | ↳ Site returns: material returned from a project to a store at the issue's cost, crediting the project | IMPLEMENTED_UNVERIFIED | `TestStock_SiteReturns`, `TestConsoleBrowserJourneyC` |
 
 ### SUP-06 Warehouse — IMPLEMENTING
 

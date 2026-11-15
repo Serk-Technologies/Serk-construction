@@ -13,19 +13,21 @@
  "requirement_counts": {
   "VERIFIED": 110,
   "NOT_STARTED": 66,
-  "IMPLEMENTING": 26,
+  "IMPLEMENTING": 25,
   "BLOCKED": 9,
-  "IMPLEMENTED_UNVERIFIED": 1
+  "IMPLEMENTED_UNVERIFIED": 2
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 46,
+  "NOT_STARTED": 45,
   "BLOCKED": 12,
-  "VERIFIED": 24
+  "VERIFIED": 24,
+  "IMPLEMENTED_UNVERIFIED": 1
  },
  "domain_counts": {
-  "IMPLEMENTING": 51,
+  "IMPLEMENTING": 50,
   "NOT_STARTED": 27,
+  "IMPLEMENTED_UNVERIFIED": 1,
   "BLOCKED": 2
  },
  "domains": [
@@ -961,7 +963,7 @@
    "domain": "Inventory",
    "milestone": "M3",
    "owner": "Finance controller",
-   "status": "IMPLEMENTING",
+   "status": "IMPLEMENTED_UNVERIFIED",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
@@ -1006,10 +1008,10 @@
     {
      "id": "SUP-05.4",
      "text": "Returns, scrap and quarantine",
-     "status": "IMPLEMENTING",
+     "status": "IMPLEMENTED_UNVERIFIED",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "0088: quarantine stores and scrap write-offs; site returns not yet built.",
+     "note": "0088: quarantine stores and scrap write-offs; 0089: site returns at the issue's cost.",
      "criteria": [
       {
        "id": "SUP-05.4.a",
@@ -1034,8 +1036,11 @@
       {
        "id": "SUP-05.4.c",
        "text": "Site returns: material returned from a project to a store at the issue's cost, crediting the project",
-       "status": "NOT_STARTED",
-       "evidence_tests": [],
+       "status": "IMPLEMENTED_UNVERIFIED",
+       "evidence_tests": [
+        "TestStock_SiteReturns",
+        "TestConsoleBrowserJourneyC"
+       ],
        "note": ""
       }
      ]

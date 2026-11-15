@@ -80,6 +80,7 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"stock_receipt":     {"stock_receipts", "created_by", ""},
 	"stock_issue":       {"stock_issues", "created_by", ""},
 	"stock_writeoff":    {"stock_writeoffs", "created_by", ""}, // 0088
+	"stock_return":      {"stock_returns", "created_by", ""},   // 0089
 	"stock_count":       {"stock_counts", "created_by", ""},
 	"stock_transfer":    {"stock_transfers", "created_by", ""},
 	"schedule_version":  {"schedule_versions", "created_by", ""},
@@ -392,6 +393,7 @@ var listSQL = map[string]string{
 	"stock_item":              `SELECT id::text, code, status, created_by, created_at, '', 0::numeric, name || ' (' || unit || ', ' || valuation_method || ')' FROM stock_items`,
 	"warehouse":               `SELECT id::text, code, status, created_by, created_at, COALESCE(project_id::text, ''), 0::numeric, name FROM warehouses`,
 	"stock_receipt":           `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, COALESCE(w.project_id::text, ''), r.amount, i.code || ' ' || r.quantity || ' ' || i.unit || ' into ' || w.code FROM stock_receipts r JOIN stock_items i ON i.id = r.stock_item_id JOIN warehouses w ON w.id = r.warehouse_id`,
+	"stock_return":            `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, x.project_id::text, COALESCE(x.amount, 0), i.code || ' ' || x.quantity || ' ' || i.unit || ' back to ' || w.code || ' from issue ' || s.number FROM stock_returns x JOIN stock_items i ON i.id = x.stock_item_id JOIN warehouses w ON w.id = x.warehouse_id JOIN stock_issues s ON s.id = x.issue_id`,
 	"stock_writeoff":          `SELECT o.id::text, o.number, o.status, o.created_by, o.created_at, COALESCE(w.project_id::text, ''), COALESCE(o.amount, 0), i.code || ' ' || o.quantity || ' ' || i.unit || ' from ' || w.code || ' — ' || o.reason FROM stock_writeoffs o JOIN stock_items i ON i.id = o.stock_item_id JOIN warehouses w ON w.id = o.warehouse_id`,
 	"stock_issue":             `SELECT s.id::text, s.number, s.status, s.created_by, s.created_at, s.project_id::text, COALESCE(s.amount, 0), i.code || ' ' || s.quantity || ' ' || i.unit || ' from ' || w.code FROM stock_issues s JOIN stock_items i ON i.id = s.stock_item_id JOIN warehouses w ON w.id = s.warehouse_id`,
 	"stock_count":             `SELECT c.id::text, c.number, c.status, c.created_by, c.created_at, COALESCE(c.project_id::text, ''), COALESCE(c.amount, 0), i.code || ' counted ' || c.counted_qty || ' (book ' || c.system_qty || ') in ' || w.code FROM stock_counts c JOIN stock_items i ON i.id = c.stock_item_id JOIN warehouses w ON w.id = c.warehouse_id`,

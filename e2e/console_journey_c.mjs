@@ -144,21 +144,37 @@ try {
   if (!(await ic.locator('main').textContent()).includes('42,250.00')) fail('the approved write-off does not show its FIFO cost 42,250.00');
   log('0.5 t written off from quarantine at 42,250');
 
+  // ---- 5d. Site return (0089): 0.5 t of the issue comes back at the issue's cost (42,250) -----
+  await nav(store, '#/new/stockreturn', 'Return stock from site');
+  await selectByText(store.getByLabel('Issue'), 'SIS-');
+  await selectByText(store.getByLabel('Back to warehouse'), 'P-STORE ');
+  await store.getByLabel('Quantity').fill('0.5');
+  await store.getByLabel('Reason').fill('Level 3 slab finished; offcuts back to store');
+  await audit(store, 'site return form');
+  await store.getByRole('button', { name: 'Prepare return' }).click();
+  await store.getByRole('heading', { level: 1, name: /^Site return SRT-/ }).waitFor();
+  if (await store.getByRole('button', { name: 'Approve', exact: true }).count()) fail('the storekeeper who prepared a return is offered "Approve"');
+  const rtID = await idFromHash(store);
+  await nav(se, `#/doc/stock_return/${rtID}`, /^Site return/);
+  await act(se, 'Approve', 'Approve: done');
+  if (!(await se.locator('main').textContent()).includes('42,250.00')) fail('the approved return does not show the issue cost 42,250.00');
+  log('0.5 t returned from site at 42,250');
+
   // ---- 6. Finance approves and posts; reconciliation -------------------------------------
   const ctl = await as('controller');
   await nav(fin, '#/journals', 'Journals');
   await fin.getByLabel('Select all draft journals').check();
   await fin.getByRole('button', { name: 'Approve selected' }).click();
-  await fin.locator('p.notice').filter({ hasText: '3 of 3 journals done' }).waitFor();
+  await fin.locator('p.notice').filter({ hasText: '4 of 4 journals done' }).waitFor();
   await nav(ctl, '#/journals', 'Journals');
   await ctl.getByLabel('Select all approved journals').check();
   await ctl.getByRole('button', { name: 'Post selected' }).click();
-  await ctl.locator('p.notice').filter({ hasText: '3 of 3 journals done' }).waitFor();
+  await ctl.locator('p.notice').filter({ hasText: '4 of 4 journals done' }).waitFor();
   await nav(ctl, '#/recon', 'Reconciliation');
   await ctl.getByRole('table', { name: /Inventory to general ledger/ }).waitFor();
   if (await ctl.locator('tr.diff').count()) fail('reconciliation shows differences');
   if (await ctl.locator('p.alert').count()) fail(`reconciliation alert: ${await ctl.locator('p.alert').first().textContent()}`);
-  await ctl.getByRole('row').filter({ hasText: 'Inventory: 1200' }).filter({ hasText: '789,000.00' }).waitFor();
+  await ctl.getByRole('row').filter({ hasText: 'Inventory: 1200' }).filter({ hasText: '831,250.00' }).waitFor();
   await audit(ctl, 'reconciliation with inventory');
   await snap(ctl, 'reconciliation-inventory');
 
