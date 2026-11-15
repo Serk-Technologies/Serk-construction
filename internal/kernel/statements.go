@@ -31,15 +31,15 @@ type FinancialStatements struct {
 	From     string `json:"from"`
 	To       string `json:"to"`
 
-	Revenue      []ReportLine `json:"revenue"`
-	Expenses     []ReportLine `json:"expenses"`
+	Revenue      []ReportLine    `json:"revenue"`
+	Expenses     []ReportLine    `json:"expenses"`
 	TotalRevenue decimal.Decimal `json:"total_revenue"`
 	TotalExpense decimal.Decimal `json:"total_expenses"`
 	NetProfit    decimal.Decimal `json:"net_profit"`
 
-	Assets           []ReportLine `json:"assets"`
-	Liabilities      []ReportLine `json:"liabilities"`
-	Equity           []ReportLine `json:"equity"`
+	Assets           []ReportLine    `json:"assets"`
+	Liabilities      []ReportLine    `json:"liabilities"`
+	Equity           []ReportLine    `json:"equity"`
 	TotalAssets      decimal.Decimal `json:"total_assets"`
 	TotalLiabilities decimal.Decimal `json:"total_liabilities"`
 	TotalEquity      decimal.Decimal `json:"total_equity"`
