@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-documents-slice.tests.txt",
- "commit": "389a1b3",
+ "results_file": "docs/engineering/evidence/2026-11-15-document-security.tests.txt",
+ "commit": "12c3cec+",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,10 +11,10 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 72,
-  "NOT_STARTED": 71,
-  "IMPLEMENTING": 5,
-  "BLOCKED": 10,
+  "VERIFIED": 78,
+  "NOT_STARTED": 72,
+  "IMPLEMENTING": 6,
+  "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "domain_counts": {
@@ -1663,18 +1663,23 @@
     {
      "id": "CNX-01.4",
      "text": "Malware scanning and quarantine before a file can be downloaded",
-     "status": "BLOCKED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocSecurity_FailClosedQuarantine",
+      "TestDocSecurity_InfectedAndMaliciousUploads",
+      "TestClamdAgainstARealDaemon",
+      "TestDocSecurity_RealScannerAndObjectStore"
+     ],
      "evidence_file": "",
-     "note": "No scanner is available. Downloads are forced to attachment with nosniff; media types are an allow-list (ADR 0018)."
+     "note": "Fail closed: unscanned, failed-scan and infected files cannot be submitted, published or downloaded while scanning is required (the default). Verified against a real ClamAV daemon; the evidence runs used a signature database holding only the EICAR test hash, so detection coverage with the public feed is not measured (ADR 0019)."
     },
     {
      "id": "CNX-01.5",
      "text": "Object storage with pre-signed, short-lived URLs and resumable upload",
-     "status": "NOT_STARTED",
+     "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "Content is held in PostgreSQL with a per-file size cap (ADR 0018)."
+     "note": "Object storage and short-lived links are done (CNX-01.7, CNX-01.9). Links are issued by the API, not pre-signed by the store, because objects are encrypted by the service. Resumable upload from the client is CNX-01.13."
     },
     {
      "id": "CNX-01.6",
@@ -1683,6 +1688,81 @@
      "evidence_tests": [],
      "evidence_file": "",
      "note": ""
+    },
+    {
+     "id": "CNX-01.7",
+     "text": "Files over the PostgreSQL cap are stored encrypted in an S3-compatible store under a tenant-scoped, immutable key fixed by the database; a tampered, swapped or cross-tenant object is not served",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocSecurity_ObjectStorageAndMigration",
+      "TestS3AgainstARealServer",
+      "TestSealedRoundTripAndTamperDetection",
+      "TestObjectKeyIsTenantScopedAndStrict",
+      "TestDocumentStorageConfig"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "CNX-01.8",
+     "text": "Migration from PostgreSQL to object storage is incremental and repeatable, verifies each copy by reading it back, and removes no byte until the schema owner releases it",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocSecurity_ObjectStorageAndMigration"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "CNX-01.9",
+     "text": "Download links are short-lived, bound to tenant, revision and person, re-checked against quarantine when used and audited; downloads and links count against the export budget",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocSecurity_DownloadLinksAndExportBudget",
+      "TestAPIDocumentSecurity"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "CNX-01.10",
+     "text": "Uploads are streamed with bounded memory and refused when mislabelled, an archive bomb, a path traversal, SVG/HTML, or carrying macros or active PDF content; refusals are audited",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestInspect",
+      "TestDocSecurity_InfectedAndMaliciousUploads",
+      "TestAPIDocumentSecurity"
+     ],
+     "evidence_file": "",
+     "note": "Inspection is a filter, not a malware control: PDF active content can be hidden in compressed streams."
+    },
+    {
+     "id": "CNX-01.11",
+     "text": "The scan requirement and storage quota are a per-tenant policy changed only by a person with tenant.settings.manage and fresh MFA, attested",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocSecurity_FailClosedQuarantine",
+      "TestDocSecurity_ObjectStorageAndMigration",
+      "TestAPIDocumentSecurity"
+     ],
+     "evidence_file": "",
+     "note": "The quota is checked per upload; concurrent uploads can overshoot it by one file."
+    },
+    {
+     "id": "CNX-01.12",
+     "text": "Safe document preview generation",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "CNX-01.13",
+     "text": "Resumable multipart upload from the client for very large BIM and engineering files",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": "The service streams a single request of any size to the store in parts; a client-side resumable protocol does not exist."
     }
    ]
   },

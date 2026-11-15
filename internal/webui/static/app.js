@@ -4243,15 +4243,33 @@ async function downloadRevision(id, btn) {
     say(`${name} downloaded${state && state !== 'APPROVED' ? ' — ' + (REVISION_STATE[state] || state).toLowerCase() + ', not the current revision' : ''}.`);
   } catch (e) { showError(e); } finally { if (btn) btn.disabled = false; }
 }
+const SCAN_STATE = { NOT_SCANNED: 'Not scanned', PENDING: 'Scan pending', CLEAN: 'Scanned clean', INFECTED: 'Quarantined: malware found', ERROR: 'Scan failed' };
 function revisionPanel(d, head, doc) {
+  const scan = head.scan_status || 'NOT_SCANNED';
   const dl = h('button', { type: 'button', class: 'primary' }, 'Download the file');
   dl.addEventListener('click', () => downloadRevision(d.id, dl));
   const warn = d.status === 'APPROVED' ? null : h('p', { class: 'hint' }, d.status === 'SUPERSEDED' ? 'This revision has been superseded. It is kept as history and must not be built from.'
     : d.status === 'REJECTED' ? 'This revision was rejected and was never published.' : 'This revision is not published yet. The published revision, if any, remains the current one.');
+  const post = (path, body, done) => async (ev) => {
+    clearError();
+    ev.currentTarget.disabled = true;
+    try { await api('POST', `/v1/document-revisions/${d.id}/${path}`, body ? body() : undefined); say(done); route(); } catch (e) { showError(e); ev.currentTarget.disabled = false; }
+  };
+  const acts = [];
+  if (scan !== 'INFECTED') acts.push(dl);
+  if (scan !== 'CLEAN' && scan !== 'INFECTED' && S.can.has('document.manage')) acts.push(h('button', { type: 'button', on: { click: post('rescan', null, 'Scan requested.') } }, 'Scan now'));
+  let discard = null;
+  if (scan === 'INFECTED' && d.status === 'DRAFT' && d.created_by === S.me.user_id) {
+    const why = input('reason', { type: 'text', maxlength: '300', value: 'Infected upload' });
+    discard = h('div', { class: 'actions' }, field('Reason', why), h('button', { type: 'button', on: { click: post('discard', () => ({ reason: why.value.trim() }), 'Revision discarded.') } }, 'Discard this revision'));
+  }
+  const scanNote = scan === 'INFECTED' ? `The scanner found ${head.scan_detail || 'malware'}. This file cannot be submitted, published or downloaded.`
+    : scan === 'CLEAN' ? null : 'While your company requires scanning, a file that has not been scanned clean cannot be submitted, published or downloaded.';
   return h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${doc.reference || ''} — ${doc.title || ''}`.trim()),
     h('p', {}, `${REVISION_STATE[d.status] || d.status} · revision ${head.revision} · ${head.file_name} · ${fileSize(Number(head.size_bytes))}`),
+    h('p', {}, `${SCAN_STATE[scan] || scan}${head.scan_engine ? ' — ' + head.scan_engine : ''}`), scanNote ? h('p', { class: 'hint' }, scanNote) : null,
     h('p', { class: 'hint' }, `SHA-256 ${head.sha256}`), warn,
-    h('div', { class: 'actions' }, dl, doc.id ? h('a', { href: `#/documents/${doc.id}` }, 'All revisions of this document') : null));
+    h('div', { class: 'actions' }, acts, doc.id ? h('a', { href: `#/documents/${doc.id}` }, 'All revisions of this document') : null), discard);
 }
 function rfiPanel(d, head) {
   const manage = S.can.has('document.manage');
@@ -4288,11 +4306,12 @@ async function renderDocuments(id) {
       table('Revisions, newest first', [
         { label: 'Revision', cell: (v) => h('a', { href: `#/doc/document_revision/${v.id}` }, v.revision) },
         { label: 'State', cell: (v) => REVISION_STATE[v.status] || v.status },
+        { label: 'Scan', cell: (v) => SCAN_STATE[v.scan_status] || v.scan_status },
         { label: 'File', cell: (v) => `${v.file_name} (${fileSize(v.size_bytes)})` },
         { label: 'Change note', cell: (v) => v.change_note },
         { label: 'Uploaded by', cell: (v) => v.created_by },
         { label: 'Published by', cell: (v) => v.approved_by && v.status !== 'REJECTED' ? v.approved_by : '' },
-        { label: '', cell: (v) => h('button', { type: 'button', class: 'ghost', 'aria-label': `Download revision ${v.revision}`, on: { click: (ev) => downloadRevision(v.id, ev.currentTarget) } }, 'Download') },
+        { label: '', cell: (v) => (v.scan_status === 'INFECTED' ? '' : h('button', { type: 'button', class: 'ghost', 'aria-label': `Download revision ${v.revision}`, on: { click: (ev) => downloadRevision(v.id, ev.currentTarget) } }, 'Download')) },
       ], d.revisions, 'No revision has been uploaded.'));
   }
   const list = (await api('GET', '/v1/documents')).documents;

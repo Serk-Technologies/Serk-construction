@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
-        with: { go-version: "1.26.10" }
+        with: { go-version: "1.26.11" }
       - name: Check formatting (gofmt)
         run: test -z "$(gofmt -l .)"
       - name: Go vet
@@ -20,7 +20,7 @@ jobs:
       # Actions pinned to immutable commits (resolved with git ls-remote 2026-10-21).
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
-        with: { go-version: "1.26.10", cache: false }
+        with: { go-version: "1.26.11", cache: false }
       # SC-12 gate: go.sum was computed from official source mirrors in an
       # environment without access to sum.golang.org. Re-derive it here with
       # the public checksum database and fail on any difference.
@@ -56,18 +56,36 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
-        with: { go-version: "1.26.10" }
+        with: { go-version: "1.26.11" }
       - name: Cluster roles
         run: PGPASSWORD=ci-only-throwaway-password psql -h localhost -U postgres -d serk_ci -v ON_ERROR_STOP=1 -f deploy/00-roles.sql
+      # Real services for the document security tests (ADR 0019). If either
+      # fails to start, the tests that need it SKIP, and the "no skipped
+      # integration" step below fails the job: a skip is never a pass.
+      - name: Start an S3-compatible store (MinIO) and a ClamAV daemon
+        run: |
+          docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=ci-only-access -e MINIO_ROOT_PASSWORD=ci-only-throwaway-secret minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+          docker run -d --name clamav -p 3310:3310 clamav/clamav:1.4
+          for i in $(seq 1 90); do (echo > /dev/tcp/127.0.0.1/3310) 2>/dev/null && break; sleep 2; done
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:9000/minio/health/live && break; sleep 1; done
       - name: Unit + PostgreSQL integration/adversarial/concurrency tests (race detector)
         env:
           SERK_TEST_ADMIN_DSN: postgres://postgres:ci-only-throwaway-password@localhost:5432/serk_ci?sslmode=disable
+          SERK_TEST_CLAMD: 127.0.0.1:3310
+          SERK_TEST_S3_ENDPOINT: http://127.0.0.1:9000
+          SERK_TEST_S3_ACCESS_KEY: ci-only-access
+          SERK_TEST_S3_SECRET_KEY: ci-only-throwaway-secret
+          SERK_TEST_S3_BUCKET: serk-test-e3b0c44298fc
         run: |
           mkdir -p test-logs
           go test -race -count=1 -p 1 -v ./... | tee test-logs/test-run.log
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with: { name: test-logs, path: test-logs/test-run.log }
+      - name: The scanner and object-store integrations really ran
+        run: |
+          ! grep -E -- '--- SKIP: Test(ClamdAgainstARealDaemon|S3AgainstARealServer|DocSecurity_RealScannerAndObjectStore)' test-logs/test-run.log
+          grep -E -- '--- PASS: TestDocSecurity_RealScannerAndObjectStore' test-logs/test-run.log
       - name: Production configuration refuses demo defaults
         run: go test -count=1 -run 'Manifest|Demo|ProductionRules' ./internal/config/
       - name: Build binaries
@@ -77,7 +95,33 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Build Docker images
+      - name: Build Docker images (production, and the development tools from their own file)
         run: |
-          docker build -f deploy/Dockerfile --target devtools -t serk:devtools .
           docker build -f deploy/Dockerfile -t serk:latest .
+          docker build -f deploy/Dockerfile.devtools -t serk:devtools .
+      - name: The production image contains no development tool
+        run: |
+          id=$(docker create serk:latest)
+          docker export "$id" | tar -t > image-files.txt
+          docker rm "$id" > /dev/null
+          ! grep -E '(^|/)serk-(seed|devtoken|import)$' image-files.txt
+      - name: Scan the production image for known vulnerabilities (fails on fixable HIGH or CRITICAL)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.58.1 image \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress serk:latest
+
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with: { fetch-depth: 0 }
+      - name: Secret scan of the whole history (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.21.2 git /repo --redact --no-banner --exit-code 1
+
+  console:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: The console's scripts parse (the browser journeys run in the test job when Playwright is present)
+        run: |
+          for f in internal/webui/static/*.js e2e/*.mjs; do node --check "$f"; done

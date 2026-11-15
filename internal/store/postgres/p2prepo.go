@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/shopspring/decimal"
 )
 
@@ -649,4 +650,20 @@ func ScheduleEVM(ctx context.Context, tx pgx.Tx, projectID string, statusDate ti
 		return r, ErrNotFound
 	}
 	return r, err
+}
+
+// ReleaseMigratedDocumentContents is step 2 of the document storage migration
+// (0053): for files whose verified copy in the object store is recorded, the
+// bytes are dropped from PostgreSQL. It must run on a connection of the schema
+// owner (a maintenance session); the database refuses it from any tenant
+// login. Returns how many files were released.
+func ReleaseMigratedDocumentContents(ctx context.Context, owner interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}, limit int) (int64, error) {
+	if limit <= 0 {
+		limit = 1000
+	}
+	tag, err := owner.Exec(ctx, `UPDATE document_contents SET storage = 'object', content = NULL
+		WHERE revision_id IN (SELECT revision_id FROM document_contents WHERE storage = 'postgres' AND object_key IS NOT NULL ORDER BY revision_id LIMIT $1)`, limit)
+	return tag.RowsAffected(), err
 }

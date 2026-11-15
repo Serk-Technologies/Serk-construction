@@ -33,7 +33,7 @@ with other compose projects' containers, networks or volumes.
 
 ## Offline or restricted network
 
-By default the build uses `golang:1.26.10-alpine` and the database uses
+By default the build uses `golang:1.26.11-alpine` and the database uses
 `postgres:16`. If those cannot be pulled (no route to Docker Hub), point at any
 locally cached equivalents. Go 1.26 or newer is required; `postgres:16-*`:
 
@@ -240,7 +240,7 @@ Verified (Docker 29.1.3, Compose 5.6.0, Postgres 16.x alpine, Go 1.27.1 build im
 
 Not verified:
 
-- the default images (`golang:1.26.10-alpine`, `postgres:16`): not pullable here,
+- the default images (`golang:1.26.11-alpine`, `postgres:16`): not pullable here,
   cached equivalents were used;
 - the approval flows for each role combination in the table (taken from `pkg/auth`);
 - the test suite was not re-run for this document;

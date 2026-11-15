@@ -14,9 +14,8 @@ package kernel
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -26,25 +25,10 @@ import (
 	"github.com/serk-group/serk-construction/pkg/auth"
 )
 
-// MaxDocumentBytes is the largest file a revision may carry (ADR 0018). It is
-// a storage protection of this deployment profile, enforced again by the
-// database, not a limit on how many documents or revisions a project has.
+// MaxDocumentBytes is the largest file kept inside PostgreSQL (ADR 0018),
+// enforced again by the database. With an object store configured the limit
+// is DocumentStore.MaxBytes (ADR 0019).
 const MaxDocumentBytes = 10 << 20
-
-// documentMedia is the allow-list of media types with the leading bytes a
-// file of that type must have ("" = no signature to check).
-var documentMedia = map[string][]string{
-	"application/pdf": {"%PDF-"},
-	"image/png":       {"\x89PNG\r\n\x1a\n"},
-	"image/jpeg":      {"\xff\xd8\xff"},
-	"text/plain":      nil,
-	"text/csv":        nil,
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {"PK\x03\x04"},
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":       {"PK\x03\x04"},
-	"image/vnd.dwg":      {"AC10"},
-	"image/vnd.dxf":      nil,
-	"application/x-step": {"ISO-10303-21"},
-}
 
 var documentTypes = map[string]bool{"DRAWING": true, "SPECIFICATION": true, "METHOD_STATEMENT": true, "REPORT": true,
 	"CORRESPONDENCE": true, "CONTRACT": true, "CERTIFICATE": true, "OTHER": true}
@@ -75,7 +59,7 @@ type DocumentRevision struct {
 	Status         string     `json:"status"`
 	FileName       string     `json:"file_name"`
 	MediaType      string     `json:"media_type"`
-	SizeBytes      int        `json:"size_bytes"`
+	SizeBytes      int64      `json:"size_bytes"`
 	SHA256         string     `json:"sha256"`
 	ChangeNote     string     `json:"change_note"`
 	CreatedBy      string     `json:"created_by"`
@@ -84,6 +68,11 @@ type DocumentRevision struct {
 	ApprovedAt     *time.Time `json:"approved_at,omitempty"`
 	DecisionReason string     `json:"decision_reason,omitempty"`
 	SupersededAt   *time.Time `json:"superseded_at,omitempty"`
+	ScanStatus     string     `json:"scan_status"` // NOT_SCANNED | PENDING | CLEAN | INFECTED | ERROR
+	ScanEngine     string     `json:"scan_engine,omitempty"`
+	ScanDetail     string     `json:"scan_detail,omitempty"`
+	ScannedAt      *time.Time `json:"scanned_at,omitempty"`
+	scanProof      string
 }
 
 // Document is a register entry with its current revision (if one is
@@ -174,90 +163,34 @@ func (s *Service) CreateDocument(ctx context.Context, p auth.Principal, in Docum
 	return id, err
 }
 
-// checkDocumentFile validates a file against the allow-list and its signature.
-func checkDocumentFile(mediaType string, content []byte) error {
-	sigs, ok := documentMedia[mediaType]
-	if !ok {
-		return fmt.Errorf("%w: files of type %q are not accepted", ErrInvalidInput, mediaType)
-	}
-	if len(content) == 0 {
-		return fmt.Errorf("%w: the file is empty", ErrInvalidInput)
-	}
-	if len(content) > MaxDocumentBytes {
-		return fmt.Errorf("%w: the file is larger than %d MiB", ErrInvalidInput, MaxDocumentBytes>>20)
-	}
-	if sigs == nil {
-		// Text formats: refuse bytes that are plainly not text.
-		if bytes.IndexByte(content, 0) >= 0 {
-			return fmt.Errorf("%w: the file is not %s", ErrInvalidInput, mediaType)
-		}
-		return nil
-	}
-	for _, sig := range sigs {
-		if bytes.HasPrefix(content, []byte(sig)) {
-			return nil
-		}
-	}
-	return fmt.Errorf("%w: the file's content is not %s", ErrInvalidInput, mediaType)
-}
-
-// AddRevision uploads a DRAFT revision (with its file) of a document.
+// AddRevision uploads a DRAFT revision from memory (small files; the JSON
+// route). It applies exactly the checks of AddRevisionStream.
 func (s *Service) AddRevision(ctx context.Context, p auth.Principal, documentID string, in RevisionInput) (string, error) {
-	in.Revision, in.FileName, in.MediaType, in.ChangeNote = strings.TrimSpace(in.Revision), strings.TrimSpace(in.FileName), strings.TrimSpace(in.MediaType), strings.TrimSpace(in.ChangeNote)
-	if in.Revision == "" || in.FileName == "" || len(in.ChangeNote) < 3 {
-		return "", fmt.Errorf("%w: a revision needs its revision code, a file name and a note of what changed", ErrInvalidInput)
-	}
-	if err := checkDocumentFile(in.MediaType, in.Content); err != nil {
-		return "", err
-	}
-	project, err := s.projectOfDocument(ctx, p, auth.PermDocumentManage, documentID)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(in.Content)
-	var id string
-	err = s.documentTx(ctx, p, auth.PermDocumentManage, project, func(ctx context.Context, tx pgx.Tx) error {
-		// One revision in preparation at a time: checked here for a clear
-		// message, and held under concurrency by the database's unique indexes.
-		var docNumber string
-		if err := tx.QueryRow(ctx, `SELECT number FROM documents WHERE id = $1::uuid`, documentID).Scan(&docNumber); err != nil {
-			return mapNoRows(err)
-		}
-		var open, taken bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM document_revisions WHERE document_id = $1::uuid AND status IN ('DRAFT', 'SUBMITTED')),
-			EXISTS (SELECT 1 FROM document_revisions WHERE document_id = $1::uuid AND revision = $2)`, documentID, in.Revision).Scan(&open, &taken); err != nil {
-			return err
-		}
-		if taken {
-			return fmt.Errorf("%w: revision %s of this document already exists", ErrInvalidInput, in.Revision)
-		}
-		if open {
-			return fmt.Errorf("%w: this document already has a revision in preparation; publish or reject it first", ErrInvalidInput)
-		}
-		var err error
-		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO document_revisions (document_id, number, revision, file_name, media_type, size_bytes, sha256, change_note, created_by)
-			VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id::text`,
-			documentID, docNumber+"/"+in.Revision, in.Revision, in.FileName, in.MediaType, len(in.Content), hex.EncodeToString(sum[:]), in.ChangeNote, p.UserID)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `INSERT INTO document_contents (revision_id, content) VALUES ($1::uuid, $2)`, id, in.Content); err != nil {
-			return err
-		}
-		return s.record(ctx, tx, p, "document.revision.create", "document_revision", id, "document.revision_uploaded",
-			map[string]any{"revision_id": id, "document_id": documentID, "revision": in.Revision, "sha256": hex.EncodeToString(sum[:]), "size_bytes": len(in.Content)})
-	})
-	return id, err
+	return s.AddRevisionStream(ctx, p, documentID, in, bytes.NewReader(in.Content))
 }
 
 // SubmitRevision submits a draft revision for publication (by its author).
 func (s *Service) SubmitRevision(ctx context.Context, p auth.Principal, id string) error {
+	if err := s.authz.Require(p, auth.PermDocumentManage, p.TenantID); err != nil {
+		return err
+	}
+	if err := s.guardRelease(ctx, p, id); err != nil {
+		return err
+	}
 	return s.submitDoc(ctx, p, auth.PermDocumentManage, "document_revision", "document_revisions", id, "document.submit", "document.revision_submitted")
 }
 
 // DecideRevision publishes a submitted revision (superseding the document's
 // previous current revision) or rejects it. Fresh MFA, not the author.
 func (s *Service) DecideRevision(ctx context.Context, p auth.Principal, id string, approve bool, reason string) error {
+	if approve {
+		if err := s.authz.Require(p, auth.PermDocumentApprove, p.TenantID); err != nil {
+			return err
+		}
+		if err := s.guardRelease(ctx, p, id); err != nil {
+			return err
+		}
+	}
 	return s.decideGovernance(ctx, p, auth.PermDocumentApprove, "document_revision", "document_revisions", id, "document.decide", "document revision", approve, reason,
 		func(ctx context.Context, tx pgx.Tx) error {
 			_, err := tx.Exec(ctx, `UPDATE document_revisions SET status = 'SUPERSEDED' WHERE status = 'APPROVED' AND id <> $1::uuid
@@ -267,11 +200,25 @@ func (s *Service) DecideRevision(ctx context.Context, p auth.Principal, id strin
 }
 
 const revisionCols = `v.id::text, v.number, v.revision, v.status, v.file_name, v.media_type, v.size_bytes, v.sha256, v.change_note, v.created_by, v.created_at,
-	COALESCE(v.approved_by, ''), v.approved_at, COALESCE(v.decision_reason, ''), v.superseded_at`
+	COALESCE(v.approved_by, ''), v.approved_at, COALESCE(v.decision_reason, ''), v.superseded_at,
+	v.scan_status, COALESCE(v.scan_engine, ''), COALESCE(v.scan_detail, ''), COALESCE(v.scan_proof, ''), v.scanned_at`
+
+// guardRelease applies the quarantine rule to a revision the principal can
+// see, before it is submitted or published (the database applies it again).
+func (s *Service) guardRelease(ctx context.Context, p auth.Principal, id string) error {
+	err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		_, err := s.visibleDoc(ctx, tx, p, "document_revision", id, false)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return s.requireReleasable(ctx, p.TenantID, id)
+}
 
 func scanRevision(row pgx.Row, r *DocumentRevision) error {
 	return row.Scan(&r.ID, &r.Number, &r.Revision, &r.Status, &r.FileName, &r.MediaType, &r.SizeBytes, &r.SHA256, &r.ChangeNote, &r.CreatedBy, &r.CreatedAt,
-		&r.ApprovedBy, &r.ApprovedAt, &r.DecisionReason, &r.SupersededAt)
+		&r.ApprovedBy, &r.ApprovedAt, &r.DecisionReason, &r.SupersededAt, &r.ScanStatus, &r.ScanEngine, &r.ScanDetail, &r.scanProof, &r.ScannedAt)
 }
 
 // ListDocuments returns the register of the principal's projects (optionally
@@ -363,35 +310,19 @@ func (s *Service) GetDocument(ctx context.Context, p auth.Principal, id string) 
 	return d, err
 }
 
-// DownloadRevision returns a revision's file to a reader of its project. The
-// download counts against the person's daily export budget and is recorded;
-// the caller must present the revision's status with the file, because a
-// superseded or unpublished revision is not the current one.
+// DownloadRevision returns a revision's whole file in memory (small files and
+// tests); OpenRevision is the streaming form and makes the same checks.
 func (s *Service) DownloadRevision(ctx context.Context, p auth.Principal, id string) (RevisionFile, error) {
-	var f RevisionFile
-	err := s.p2pTx(ctx, p, auth.PermP2PRead, func(ctx context.Context, tx pgx.Tx) error {
-		if _, err := s.visibleDoc(ctx, tx, p, "document_revision", id, false); err != nil {
-			return err
-		}
-		return scanRevision(tx.QueryRow(ctx, `SELECT `+revisionCols+` FROM document_revisions v WHERE v.id = $1::uuid`, id), &f.DocumentRevision)
-	})
+	rev, rc, err := s.OpenRevision(ctx, p, id)
 	if err != nil {
-		return f, mapNoRows(err)
-	}
-	if err := s.RecordExport(ctx, p, "document_revision:"+id, int64(f.SizeBytes)); err != nil {
 		return RevisionFile{}, err
 	}
-	err = s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `SELECT content FROM document_contents WHERE revision_id = $1::uuid`, id).Scan(&f.Content)
-	})
+	defer rc.Close()
+	content, err := io.ReadAll(rc)
 	if err != nil {
-		return RevisionFile{}, mapNoRows(err)
+		return RevisionFile{}, err
 	}
-	// Defence in depth: never hand out bytes that are not what was attested.
-	if sum := sha256.Sum256(f.Content); hex.EncodeToString(sum[:]) != f.SHA256 {
-		return RevisionFile{}, fmt.Errorf("kernel: stored file of revision %s does not match its recorded hash", id)
-	}
-	return f, nil
+	return RevisionFile{DocumentRevision: rev, Content: content}, nil
 }
 
 // ------------------------------------------------------------------ RFIs

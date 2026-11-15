@@ -1800,3 +1800,39 @@ paths:
       summary: "Close an answered RFI, or withdraw an unanswered one with {note}; its author only"
       parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/dl/{token}:
+    get:
+      summary: "Serve the file a download link names. No bearer token; the link is signed by the API, bound to tenant, revision and person, and re-checked against the quarantine rule. 404 for a forged, altered or expired link"
+      parameters: [{ name: token, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/document-policy:
+    get:
+      summary: "The company's document policy (scan required, quota, bytes used) and what this deployment can do (scanner configured, storage, largest file)"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    put:
+      summary: "Set the document policy {scan_required, quota_bytes?, reason}: tenant.settings.manage, fresh MFA, human only, attested"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/document-revisions/{id}/discard:
+    post:
+      summary: "Discard a quarantined (infected) draft with a reason; its author only"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/document-revisions/{id}/download-link:
+    post:
+      summary: "Make every check of a download now (scope, quarantine, export budget) and return {url, expires_at}: a link that serves this one file for about two minutes without the bearer token"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/document-revisions/{id}/rescan:
+    post:
+      summary: "Scan a stored file whose verdict is not final (uploaded before a scanner existed, or the scanner failed)"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/document-storage/migrate:
+    post:
+      summary: "Copy up to {limit} files from PostgreSQL to the object store, verify each by reading it back, and record its key. The bytes stay in PostgreSQL until the schema owner releases them (serk-migrate release-migrated-documents)"
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/documents/{id}/revisions/{revision}/file:
+    put:
+      summary: "Upload a DRAFT revision as a stream: the body is the file, Content-Type its media type, ?file_name= and ?change_note= its description. The file is spooled to disk, hashed, inspected (type signature, archive bomb, path traversal, active content) and scanned before it is stored. 201 even when the scanner finds malware: the revision is then recorded as quarantined"
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }, { name: revision, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }

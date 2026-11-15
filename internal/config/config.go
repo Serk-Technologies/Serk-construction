@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/serk-group/serk-construction/pkg/datakey"
+	"net"
 	"net/netip"
 	"net/url"
 	"os"
@@ -102,7 +103,18 @@ type Config struct {
 	// Optional language model for phrasing assistant answers (never for
 	// deciding anything): an OpenAI-compatible chat-completions endpoint.
 	AIEndpoint, AIModel string
-	AIKey               []byte
+	// Document storage and scanning (ADR 0019). DocumentKey encrypts stored
+	// objects and signs scan verdicts and download links. With an S3 endpoint,
+	// files go to that bucket; BlobDir is a local directory for development
+	// only; with neither, files stay in PostgreSQL (10 MiB each). ClamdAddr
+	// ("host:port" or "unix:/path") is the ClamAV daemon; without it nothing is
+	// scanned and, while a company requires scanning, nothing is released.
+	DocumentKey                                 []byte
+	S3Endpoint, S3Region, S3Bucket, S3AccessKey string
+	S3SecretKey                                 []byte
+	BlobDir, ClamdAddr                          string
+	DocumentMaxMB                               int
+	AIKey                                       []byte
 	// AutomationInterval is how often active rules are evaluated (seconds).
 	AutomationInterval int
 }
@@ -247,6 +259,19 @@ func Load(src Source) (Config, error) {
 		return Config{}, err
 	}
 	c.AIEndpoint, c.AIModel = src.Getenv("SERK_AI_ENDPOINT"), src.str("SERK_AI_MODEL", "")
+	if c.DocumentKey, err = src.secret("SERK_DOCUMENT_KEY"); err != nil {
+		return Config{}, err
+	}
+	if c.S3SecretKey, err = src.secret("SERK_S3_SECRET_KEY"); err != nil {
+		return Config{}, err
+	}
+	c.S3Endpoint, c.S3Region, c.S3Bucket, c.S3AccessKey = src.Getenv("SERK_S3_ENDPOINT"), src.str("SERK_S3_REGION", "us-east-1"), src.Getenv("SERK_S3_BUCKET"), src.Getenv("SERK_S3_ACCESS_KEY")
+	c.BlobDir, c.ClamdAddr = src.Getenv("SERK_BLOB_DIR"), src.Getenv("SERK_CLAMD_ADDR")
+	if v := src.Getenv("SERK_DOCUMENT_MAX_MB"); v != "" {
+		if c.DocumentMaxMB, err = strconv.Atoi(v); err != nil || c.DocumentMaxMB < 1 {
+			return Config{}, fmt.Errorf("%w: SERK_DOCUMENT_MAX_MB must be a positive number of MiB", ErrInvalid)
+		}
+	}
 	if c.AIKey, err = src.secret("SERK_AI_KEY"); err != nil {
 		return Config{}, err
 	}
@@ -422,6 +447,47 @@ func (c Config) Validate() error {
 			bad("SERK_STAGING_TENANT is required with SERK_STAGING_LOGIN_PASSPHRASE")
 		case string(c.StagingLoginPassphrase) == string(c.HS256Secret) || string(c.StagingLoginPassphrase) == string(c.TenantDBSecret):
 			bad("SERK_STAGING_LOGIN_PASSPHRASE must differ from every secret")
+		}
+	}
+	if len(c.DocumentKey) > 0 {
+		if e := checkSecret(c.DocumentKey, prod); e != "" {
+			bad("SERK_DOCUMENT_KEY %s", e)
+		} else if string(c.DocumentKey) == string(c.TenantDBSecret) || string(c.DocumentKey) == string(c.AbuseKey) || string(c.DocumentKey) == string(c.BankDataKey) {
+			bad("SERK_DOCUMENT_KEY must differ from every other secret")
+		}
+	}
+	if c.S3Endpoint != "" {
+		if c.S3Bucket == "" || c.S3AccessKey == "" || len(c.S3SecretKey) == 0 {
+			bad("SERK_S3_ENDPOINT needs SERK_S3_BUCKET, SERK_S3_ACCESS_KEY and SERK_S3_SECRET_KEY")
+		}
+		if len(c.DocumentKey) == 0 {
+			bad("object storage needs SERK_DOCUMENT_KEY (objects are encrypted before they leave the service)")
+		}
+		if prod && !strings.HasPrefix(c.S3Endpoint, "https://") {
+			bad("SERK_S3_ENDPOINT must use https in production")
+		}
+		if c.BlobDir != "" {
+			bad("set SERK_S3_ENDPOINT or SERK_BLOB_DIR, not both")
+		}
+	}
+	if c.BlobDir != "" {
+		if prod {
+			bad("SERK_BLOB_DIR is a development store and is refused in production: use SERK_S3_ENDPOINT")
+		}
+		if len(c.DocumentKey) == 0 {
+			bad("SERK_BLOB_DIR needs SERK_DOCUMENT_KEY")
+		}
+	}
+	if c.ClamdAddr != "" {
+		if len(c.DocumentKey) == 0 {
+			bad("SERK_CLAMD_ADDR needs SERK_DOCUMENT_KEY (a scan verdict is recorded with a keyed proof)")
+		}
+		if rest, ok := strings.CutPrefix(c.ClamdAddr, "unix:"); ok && !strings.HasPrefix(rest, "/") {
+			bad("SERK_CLAMD_ADDR unix: needs an absolute socket path")
+		} else if !ok {
+			if _, _, err := net.SplitHostPort(c.ClamdAddr); err != nil {
+				bad("SERK_CLAMD_ADDR must be host:port or unix:/path")
+			}
 		}
 	}
 	if c.AIEndpoint != "" || len(c.AIKey) > 0 {
@@ -600,4 +666,18 @@ func (c Config) BankDataRing() *datakey.Ring {
 		r.Previous = []datakey.Key{{ID: c.BankDataKeyPreviousID, Master: c.BankDataKeyPrevious}}
 	}
 	return r
+}
+
+// DocumentStorage reports how document files are configured: the store kind
+// ("s3", "fs" or "postgres") and whether a scanner address is set.
+func (c Config) DocumentStorage() (kind string, scanner bool) {
+	switch {
+	case c.S3Endpoint != "":
+		kind = "s3"
+	case c.BlobDir != "":
+		kind = "fs"
+	default:
+		kind = "postgres"
+	}
+	return kind, c.ClamdAddr != ""
 }

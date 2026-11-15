@@ -200,9 +200,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		traceID = obs.NewTraceID()
 	}
 	h.Set("traceparent", obs.Traceparent(traceID, obs.NewSpanID()))
-	r.Body = http.MaxBytesReader(w, r.Body, bodyLimit(r))
+	r.Body = http.MaxBytesReader(w, r.Body, s.bodyLimit(r))
 	holder := &principalHolder{}
-	ctx, cancel := context.WithTimeout(kernel.WithRequestID(context.WithValue(r.Context(), holderKey, holder), rid), requestTimeout)
+	ctx, cancel := context.WithTimeout(kernel.WithRequestID(context.WithValue(r.Context(), holderKey, holder), rid), routeTimeout(r))
 	defer cancel()
 	start := time.Now()
 	rec := &statusRecorder{ResponseWriter: w, status: 200}
@@ -567,6 +567,13 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 		writeErr(w, http.StatusForbidden, "device_refused", "the field device is not registered to you, is revoked, or its key is wrong")
 	case errors.Is(err, kernel.ErrSessionRevoked):
 		writeErr(w, http.StatusUnauthorized, "session_revoked", "session revoked; authenticate again")
+	case errors.Is(err, kernel.ErrQuarantined):
+		writeErr(w, http.StatusConflict, "quarantined", strings.TrimPrefix(err.Error(), "kernel: "))
+	case errors.Is(err, kernel.ErrDownloadToken):
+		writeErr(w, http.StatusNotFound, "not_found", "not found")
+	case errors.Is(err, kernel.ErrExportBudget):
+		w.Header().Set("Retry-After", "3600")
+		writeErr(w, http.StatusTooManyRequests, "export_budget", "daily export limit reached; security has been notified")
 	case errors.Is(err, kernel.ErrBudgetExceeded):
 		writeErr(w, http.StatusConflict, "budget_exceeded", err.Error())
 	case errors.Is(err, postgres.ErrUnknownDocType):

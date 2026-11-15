@@ -17,25 +17,71 @@ package httpapi
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/serk-group/serk-construction/internal/kernel"
 	"github.com/serk-group/serk-construction/pkg/auth"
 )
 
-// maxUploadBodyBytes bounds a revision upload: the file (kernel.MaxDocumentBytes)
-// as base64 plus its JSON envelope.
+// maxUploadBodyBytes bounds a JSON revision upload: the file
+// (kernel.MaxDocumentBytes) as base64 plus its envelope.
 const maxUploadBodyBytes = kernel.MaxDocumentBytes/3*4 + (1 << 20)
 
+// transferTimeout bounds one file transfer (the ordinary request timeout is
+// 15 seconds).
+const transferTimeout = 30 * time.Minute
+
+func isFileUpload(r *http.Request) bool {
+	return r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/v1/documents/") && strings.HasSuffix(r.URL.Path, "/file")
+}
+
+func isFileDownload(r *http.Request) bool {
+	return r.Method == http.MethodGet && (strings.HasPrefix(r.URL.Path, "/v1/dl/") || (strings.HasPrefix(r.URL.Path, "/v1/document-revisions/") && strings.HasSuffix(r.URL.Path, "/content")))
+}
+
 // bodyLimit is the request body limit of a route: 1 MiB everywhere except the
-// one route that carries a file.
-func bodyLimit(r *http.Request) int64 {
-	if r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/documents/") && strings.HasSuffix(r.URL.Path, "/revisions") {
+// two routes that carry a file. The streamed route's limit is the kernel's
+// (the deployment's largest file); the body is spooled to disk, not memory.
+func (s *Server) bodyLimit(r *http.Request) int64 {
+	switch {
+	case isFileUpload(r):
+		return 1 << 40 // the kernel stops reading at the deployment's limit
+	case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/documents/") && strings.HasSuffix(r.URL.Path, "/revisions"):
 		return maxUploadBodyBytes
 	}
 	return maxBodyBytes
+}
+
+func routeTimeout(r *http.Request) time.Duration {
+	if isFileUpload(r) || isFileDownload(r) {
+		return transferTimeout
+	}
+	return requestTimeout
+}
+
+// serveFile streams a revision's file: always a download, never rendered in
+// the console's origin. The file name is restricted by the database to
+// characters that need no quoting. If the stream fails its integrity check the
+// connection is aborted, so a client never sees a complete response.
+func serveFile(w http.ResponseWriter, f kernel.DocumentRevision, rc io.ReadCloser) {
+	defer rc.Close()
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(transferTimeout))
+	h := w.Header()
+	h.Set("Content-Type", f.MediaType)
+	h.Set("Content-Disposition", `attachment; filename="`+f.FileName+`"`)
+	h.Set("Content-Length", strconv.FormatInt(f.SizeBytes, 10))
+	h.Set("X-Serk-Revision-Status", f.Status)
+	h.Set("X-Serk-Revision-Number", f.Number)
+	h.Set("X-Serk-Scan-Status", f.ScanStatus)
+	h.Set("X-Content-SHA256", f.SHA256)
+	w.WriteHeader(http.StatusOK)
+	if _, err := io.Copy(w, rc); err != nil {
+		panic(http.ErrAbortHandler)
+	}
 }
 
 func (s *Server) registerDocuments() {
@@ -99,22 +145,97 @@ func (s *Server) registerDocuments() {
 		if !ok {
 			return
 		}
-		f, err := k.DownloadRevision(r.Context(), principalFrom(r.Context()), id)
+		f, rc, err := k.OpenRevision(r.Context(), principalFrom(r.Context()), id)
 		if err != nil {
 			s.fail(w, err)
 			return
 		}
-		// Always a download, never rendered in the console's origin. The file
-		// name is restricted by the database to characters that need no quoting.
-		h := w.Header()
-		h.Set("Content-Type", f.MediaType)
-		h.Set("Content-Disposition", `attachment; filename="`+f.FileName+`"`)
-		h.Set("Content-Length", strconv.Itoa(len(f.Content)))
-		h.Set("X-Serk-Revision-Status", f.Status)
-		h.Set("X-Serk-Revision-Number", f.Number)
-		h.Set("X-Content-SHA256", f.SHA256)
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(f.Content)
+		serveFile(w, f, rc)
+	}))
+	// Streamed upload: the body is the file; its description is in the query.
+	m.Handle("PUT /v1/documents/{id}/revisions/{revision}/file", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		_ = http.NewResponseController(w).SetReadDeadline(time.Now().Add(transferTimeout))
+		q := r.URL.Query()
+		in := kernel.RevisionInput{Revision: r.PathValue("revision"), FileName: q.Get("file_name"), MediaType: r.Header.Get("Content-Type"), ChangeNote: q.Get("change_note")}
+		rev, err := k.AddRevisionStream(r.Context(), principalFrom(r.Context()), id, in, r.Body)
+		s.created(w, rev, err)
+	}))
+	// A short-lived link to one file, for a browser to stream it without the bearer token.
+	m.Handle("POST /v1/document-revisions/{id}/download-link", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		tok, exp, err := k.IssueDownloadToken(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"url": "/v1/dl/" + tok, "expires_at": exp.UTC().Format(time.RFC3339)})
+	}))
+	m.Handle("GET /v1/dl/{token}", s.limited(func(w http.ResponseWriter, r *http.Request) {
+		f, rc, err := k.RedeemDownloadToken(r.Context(), r.PathValue("token"))
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		serveFile(w, f, rc)
+	}))
+	m.Handle("POST /v1/document-revisions/{id}/rescan", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		out, err := k.RescanRevision(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	}))
+	m.Handle("POST /v1/document-revisions/{id}/discard", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DiscardRevision(ctx, p, id, b.Reason)
+	})))
+	m.Handle("GET /v1/document-policy", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		out, err := k.GetDocumentPolicy(r.Context(), principalFrom(r.Context()))
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	}))
+	m.Handle("PUT /v1/document-policy", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			ScanRequired bool   `json:"scan_required"`
+			QuotaBytes   *int64 `json:"quota_bytes"`
+			Reason       string `json:"reason"`
+		}
+		if !decode(w, r, &b) {
+			return
+		}
+		if err := k.SetDocumentPolicy(r.Context(), principalFrom(r.Context()), b.ScanRequired, b.QuotaBytes, b.Reason); err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	}))
+	m.Handle("POST /v1/document-storage/migrate", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			Limit int `json:"limit"`
+		}
+		if r.ContentLength != 0 && !decode(w, r, &b) {
+			return
+		}
+		out, err := k.MigrateDocumentContents(r.Context(), principalFrom(r.Context()), b.Limit)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
 	}))
 
 	m.Handle("GET /v1/rfis", s.authed(func(w http.ResponseWriter, r *http.Request) {
@@ -174,4 +295,26 @@ func (s *Server) registerDocuments() {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"id": id, "ok": true})
 	}))
+}
+
+// limited applies the pre-authentication abuse limits to a route that carries
+// its own authority (a signed download link) instead of a bearer token.
+func (s *Server) limited(next func(http.ResponseWriter, *http.Request)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := limitKey(clientIP(r, s.cfg.Abuse.TrustedProxies))
+		if s.authFail.blocked(ip) || !s.preauth.hit(ip) {
+			w.Header().Set("Retry-After", "60")
+			writeErr(w, http.StatusTooManyRequests, "rate_limited", "request budget exceeded")
+			return
+		}
+		select {
+		case s.inflight <- struct{}{}:
+			defer func() { <-s.inflight }()
+		default:
+			w.Header().Set("Retry-After", "5")
+			writeErr(w, http.StatusServiceUnavailable, "overloaded", "server busy")
+			return
+		}
+		next(w, r)
+	})
 }
