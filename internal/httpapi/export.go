@@ -116,7 +116,7 @@ func (s *Server) exportDoc(w http.ResponseWriter, r *http.Request) {
 	code, body := s.internalGET(r, u.RequestURI())
 	if code != http.StatusOK {
 		// Pass the read's own refusal through unchanged.
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Content-Type", "application/problem+json; charset=utf-8")
 		w.WriteHeader(code)
 		_, _ = w.Write(body)
 		return

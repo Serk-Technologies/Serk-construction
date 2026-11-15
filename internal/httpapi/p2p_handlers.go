@@ -533,15 +533,24 @@ func (s *Server) listJournals(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) listP2P(w http.ResponseWriter, r *http.Request) {
-	out, err := s.cfg.Kernel.ListP2PDocs(r.Context(), principalFrom(r.Context()), r.PathValue("type"), r.URL.Query().Get("status"), 200)
+	q := r.URL.Query()
+	limit := 0
+	if v := q.Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 500 {
+			writeErr(w, http.StatusUnprocessableEntity, "validation", "limit is a whole number from 1 to 500")
+			return
+		}
+		limit = n
+	}
+	// Cursor pagination (XCT-API.2): pass "next" back as ?cursor= with the
+	// same status filter; the order is newest first and stable.
+	out, err := s.cfg.Kernel.ListP2PDocsPage(r.Context(), principalFrom(r.Context()), r.PathValue("type"), q.Get("status"), q.Get("cursor"), limit)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	if out == nil {
-		out = []postgres.DocSummary{}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": out})
+	writeJSON(w, http.StatusOK, out)
 }
 
 // canonicalUUID accepts a path id only in the canonical lowercase,

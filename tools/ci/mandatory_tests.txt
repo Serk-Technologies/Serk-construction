@@ -54,3 +54,8 @@ pkg/fleet TestDueState
 internal/kernel TestMaintenance_SeparationAsEnforced
 internal/kernel TestFleetPolicy_ApprovedThresholdsApply
 internal/kernel TestMaintenance_PlanRevisionAndRetirement
+
+# Form state and API contract (final-completion WP-001, WP-002)
+internal/httpapi TestConsoleBrowserForms
+internal/httpapi TestProblemDetailsRFC9457
+internal/httpapi TestListCursorPagination

@@ -60,20 +60,79 @@ function select(name, options, attrs = {}) {
   return s;
 }
 
+// ---------- form state (XCT-FORM) ----------
+// A form's state is held in plain objects, not in the DOM: a line grid keeps
+// its rows (with stable identities) in an array that the inputs write into, so
+// re-rendering a list of choices never loses what was typed. FORM tracks the
+// page's dependent loads (submission waits for them), whether anything was
+// typed (leaving asks first) and an AbortController that navigation trips.
+const FORM = { pending: 0, dirty: false, ctl: null, onPending: null };
+function resetForm() {
+  if (FORM.ctl) FORM.ctl.abort();
+  FORM.pending = 0; FORM.dirty = false; FORM.onPending = null;
+  FORM.ctl = typeof AbortController === 'function' ? new AbortController() : null;
+}
+function formPending(delta) {
+  FORM.pending = Math.max(0, FORM.pending + delta);
+  if (FORM.onPending) FORM.onPending(FORM.pending > 0);
+}
 // A form that reloads a list when another field changes can have two requests in
 // flight; the older answer must never overwrite the newer one (or the choice the
-// user has made since). latestOnly() returns a runner that applies only the
-// result of the most recent call.
+// user has made since), and an older failure must not be reported after a newer
+// success. latestOnly() returns a runner that aborts the previous request, applies
+// only the result of the most recent call, drops stale answers and stale errors,
+// and counts as pending so the form cannot be submitted while choices load.
 function latestOnly() {
   let seq = 0;
-  return async (fetchIt, apply) => { const me = ++seq; const res = await fetchIt(); if (me === seq) apply(res); };
+  let ctl = null;
+  return async (fetchIt, apply) => {
+    const me = ++seq;
+    if (ctl) ctl.abort();
+    ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const page = FORM.ctl;
+    const signal = ctl ? ctl.signal : undefined;
+    const pageAbort = () => ctl && ctl.abort();
+    if (page) page.signal.addEventListener('abort', pageAbort, { once: true });
+    formPending(+1);
+    try {
+      const res = await fetchIt(signal);
+      if (me === seq && !(signal && signal.aborted)) apply(res);
+    } catch (e) {
+      // A stale or cancelled request's failure is not the user's concern.
+      if (me === seq && !(e && e.name === 'AbortError') && !(signal && signal.aborted)) throw e;
+    } finally {
+      if (page) page.signal.removeEventListener('abort', pageAbort);
+      formPending(-1);
+    }
+  };
 }
-// Refill a <select> and keep the current choice when it is still on offer.
+// Refill a <select> and keep the current choice when it is still on offer. A
+// choice that is no longer offered is never silently replaced: the select is
+// marked unresolved and must be chosen again before the form can be sent.
 function refill(sel, options) {
-  const keep = sel.value;
+  // Only a choice the person made counts; a browser's default first option does not.
+  const keep = sel.dataset.wanted || (sel.dataset.chosen ? sel.value : '');
+  const before = sel.value;
   sel.replaceChildren(...options);
-  if ([...sel.options].some((o) => o.value === keep)) sel.value = keep;
+  if (!keep && [...sel.options].some((o) => o.value === before)) sel.value = before;
+  const offered = [...sel.options].some((o) => o.value === keep);
+  if (offered) { sel.value = keep; delete sel.dataset.wanted; sel.removeAttribute('aria-invalid'); sel.classList.remove('unresolved'); return; }
+  if (!keep) return;
+  sel.dataset.wanted = keep;
+  sel.prepend(h('option', { value: '', 'data-unresolved': '' }, 'Choose again: the earlier choice is not available here'));
+  sel.value = '';
+  sel.setAttribute('aria-invalid', 'true');
+  sel.classList.add('unresolved');
 }
+// A choice made by hand resolves an unresolved select.
+document.addEventListener('change', (ev) => {
+  const t = ev.target;
+  if (t && t.tagName === 'SELECT') t.dataset.chosen = '1';
+  if (t && t.tagName === 'SELECT' && t.dataset.wanted !== undefined && t.value) {
+    delete t.dataset.wanted; t.removeAttribute('aria-invalid'); t.classList.remove('unresolved');
+    const u = t.querySelector('option[data-unresolved]'); if (u) u.remove();
+  }
+});
 function say(msg) { const s = $('status'); s.textContent = ''; setTimeout(() => { s.textContent = msg; }, 30); }
 function showError(err) {
   const a = $('alert');
@@ -99,16 +158,18 @@ function errorTitle(e) {
 class ApiError extends Error {
   constructor(status, code, message, challenge) { super(message); this.status = status; this.code = code; this.challenge = challenge; }
 }
-async function api(method, path, body, raw) {
+async function api(method, path, body, raw, signal) {
   const init = { method, headers: { Authorization: 'Bearer ' + S.token } };
+  if (signal) init.signal = signal;
   if (raw !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = raw; }
   else if (body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
   const r = await fetch(path, init);
   let data = null;
   try { data = await r.json(); } catch { /* empty body */ }
   if (!r.ok) {
+    // RFC 9457 problem details (code and detail); the older error object is the fallback.
     const e = (data && data.error) || {};
-    throw new ApiError(r.status, e.code || 'error', e.message || r.statusText, r.headers.get('WWW-Authenticate'));
+    throw new ApiError(r.status, (data && data.code) || e.code || 'error', (data && data.detail) || e.message || r.statusText, r.headers.get('WWW-Authenticate'));
   }
   return data;
 }
@@ -614,7 +675,15 @@ function markNav() {
   }
 }
 
+let ROUTED_HASH = location.hash;
 async function route() {
+  // Leaving a form with unsaved input asks first; a refusal restores the form's address.
+  if (FORM.dirty && location.hash !== ROUTED_HASH && !window.confirm('Leave this form? What you typed has not been saved.')) {
+    history.replaceState(null, '', ROUTED_HASH);
+    return;
+  }
+  ROUTED_HASH = location.hash;
+  resetForm();
   clearError();
   closeSheet();
   setAcct(false);
@@ -1195,15 +1264,26 @@ const plusDays = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 
 
 function formPage(title, lede, fields, submitLabel, onSubmit) {
   const btn = h('button', { type: 'submit' }, submitLabel);
-  const form = h('form', { class: 'panel', novalidate: true }, fields, h('div', { class: 'actions' }, btn));
+  const wait = h('span', { class: 'hint', role: 'status', hidden: true }, 'Loading choices…');
+  const form = h('form', { class: 'panel', novalidate: true }, fields, h('div', { class: 'actions' }, btn, wait));
+  let sending = false;
+  // Submission waits for dependent choices: a form sent while its cost codes
+  // were still loading could carry a choice from the previous project.
+  FORM.onPending = (busy) => { btn.disabled = busy || sending; btn.setAttribute('aria-busy', String(busy)); wait.hidden = !busy; };
+  FORM.onPending(FORM.pending > 0);
+  form.addEventListener('input', () => { FORM.dirty = true; });
+  form.addEventListener('change', () => { FORM.dirty = true; });
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    if (sending || FORM.pending > 0) return;
     clearError();
-    for (const el of form.querySelectorAll('[required]')) el.setAttribute('aria-invalid', String(!el.value.trim()));
+    for (const el of form.querySelectorAll('[required]')) el.setAttribute('aria-invalid', String(!el.value.trim() || el.classList.contains('unresolved')));
+    const unresolved = form.querySelectorAll('select.unresolved');
     const bad = form.querySelector('[aria-invalid=true]');
+    if (unresolved.length) { showError(new Error(`${unresolved.length} choice(s) are no longer available after a change and must be chosen again.`)); unresolved[0].focus(); return; }
     if (bad) { showError(new Error('Fill in the highlighted fields.')); bad.focus(); return; }
-    btn.disabled = true;
-    try { await onSubmit(); } catch (e) { showError(e); } finally { btn.disabled = false; }
+    sending = true; btn.disabled = true;
+    try { await onSubmit(); FORM.dirty = false; } catch (e) { showError(e); } finally { sending = false; btn.disabled = FORM.pending > 0; }
   });
   page(title, lede, form);
   return form;
@@ -1213,30 +1293,62 @@ async function created(type, res, what) {
   location.hash = `#/doc/${type}/${res.id}`;
 }
 
-// Editable line grid: cols = [{key,label,make()}].
+// Editable line grid: cols = [{key,label,make()}]. The rows live in state (an
+// array of {id, values}); each input writes into its row, so rows() reads the
+// state, not the DOM. setChoices(key, options) refills one select column in
+// place — typed descriptions, quantities and amounts stay; a choice that the
+// new options do not offer is marked unresolved (never remapped or dropped).
 function lineGrid(legend, cols, initial, allowAdd) {
   const tbody = h('tbody');
+  const state = [];
+  let nextId = 1;
+  const choices = {};
+  const renumber = () => [...tbody.children].forEach((tr, i) => {
+    cols.forEach((c, j) => tr.children[j].firstChild.setAttribute('aria-label', `${c.label}, line ${i + 1}`));
+    const rm = tr.querySelector('button[data-remove]'); if (rm) rm.setAttribute('aria-label', `Remove line ${i + 1}`);
+  });
   const addRow = (vals = {}) => {
-    const tr = h('tr');
-    const n = tbody.children.length + 1;
+    const row = { id: `L${nextId++}`, values: {} };
+    state.push(row);
+    const tr = h('tr', { 'data-line': row.id });
     for (const c of cols) {
-      const el = c.make(vals, n);
-      el.setAttribute('aria-label', `${c.label}, line ${n}`);
+      const el = c.make(vals, state.length);
+      if (el.tagName === 'SELECT' && choices[c.key]) refill(el, choices[c.key].map((o) => h('option', { value: o.value }, o.label)));
       if (vals[c.key] != null && el.tagName !== 'SPAN') el.value = vals[c.key];
+      if (el.name) {
+        row.values[c.key] = el.value;
+        const sync = () => { row.values[c.key] = el.value; };
+        el.addEventListener('input', sync); el.addEventListener('change', sync);
+      }
       tr.append(h('td', {}, el));
     }
-    if (allowAdd) tr.append(h('td', {}, h('button', { type: 'button', class: 'ghost', 'aria-label': `Remove line ${n}`, on: { click: () => tr.remove() } }, 'Remove')));
+    if (allowAdd) tr.append(h('td', {}, h('button', { type: 'button', class: 'ghost', 'data-remove': '', on: { click: () => { state.splice(state.indexOf(row), 1); tr.remove(); renumber(); FORM.dirty = true; } } }, 'Remove')));
     tbody.append(tr);
+    renumber();
   };
   (initial.length ? initial : allowAdd ? [{}] : []).forEach(addRow);
   const fs = h('fieldset', {}, h('legend', {}, legend), h('div', { class: 'tablewrap' }, h('table', { class: 'lines' },
     h('thead', {}, h('tr', {}, cols.map((c) => h('th', { scope: 'col' }, c.label)), allowAdd ? h('th', { scope: 'col' }, h('span', { class: 'sr' }, 'Remove')) : null)), tbody)),
   allowAdd ? h('div', { class: 'actions' }, h('button', { type: 'button', class: 'ghost', on: { click: () => addRow() } }, 'Add line')) : null);
-  fs.rows = () => [...tbody.children].map((tr) => {
+  fs.rows = () => state.map((r) => {
     const o = {};
-    cols.forEach((c, i) => { const el = tr.children[i].firstChild; if (el.name) o[c.key] = el.value.trim(); });
+    for (const [k, v] of Object.entries(r.values)) o[k] = typeof v === 'string' ? v.trim() : v;
     return o;
   });
+  fs.lineIds = () => state.map((r) => r.id);
+  fs.setChoices = (key, options) => {
+    choices[key] = options;
+    const j = cols.findIndex((c) => c.key === key);
+    [...tbody.children].forEach((tr, i) => {
+      const sel = tr.children[j].firstChild;
+      // A line with something typed in it keeps its choice or is marked
+      // unresolved; an untouched line simply takes the new list.
+      const typed = cols.some((c, k) => k !== j && tr.children[k].firstChild.tagName === 'INPUT' && String(state[i].values[c.key] || '').trim() !== '');
+      if (typed && sel.value && sel.dataset.chosen === undefined) sel.dataset.chosen = '1';
+      refill(sel, options.map((o) => h('option', { value: o.value }, o.label)));
+      state[i].values[key] = sel.value;
+    });
+  };
   return fs;
 }
 const num = (key, attrs = {}) => () => input(key, { inputmode: 'decimal', autocomplete: 'off', ...attrs });
@@ -1254,16 +1366,16 @@ const FORMS = {
     const proj = select('project_id', projectOpts(), { required: true });
     const kind = select('kind', [{ value: 'REVISION', label: 'Revision' }, { value: 'ORIGINAL', label: 'Original' }], { required: true });
     const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
-    let grid;
-    const holder = h('div');
-    const latestLoad = latestOnly();
-    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (cc) => {
-      grid = lineGrid('Budget lines', [
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+    // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
+    const grid = lineGrid('Budget lines', [
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
         { key: 'amount', label: 'Amount', make: num('amount') },
         { key: 'contingency_flag', label: 'Contingency?', make: () => select('contingency_flag', [{ value: false, label: 'No' }, { value: true, label: 'Yes' }]) },
       ], [], true);
-      holder.replaceChildren(grid);
+    const holder = h('div', {}, grid);
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
     });
     proj.addEventListener('change', load);
     formPage('New budget revision', 'Prepare the ORIGINAL baseline or a REVISION per cost code. A revision may reduce a code (negative amount). Mark a line as contingency to allow drawdowns from it. A different person approves.',
@@ -1282,7 +1394,7 @@ const FORMS = {
     const amt = input('amount', { type: 'number', step: '0.01', min: '0.01', required: true });
     const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
     const latestLoad = latestOnly();
-    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (ccs) => {
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (ccs) => {
       const opts = opt(ccs, (c) => `${c.code} ${c.name}`);
       refill(fromCC, opts.map((o) => h('option', { value: o.value }, o.label)));
       refill(toCC, opts.map((o) => h('option', { value: o.value }, o.label)));
@@ -1470,19 +1582,19 @@ const FORMS = {
     const pct = (n, v) => input(n, { inputmode: 'decimal', value: v, autocomplete: 'off' });
     const ret = pct('retention_pct', '0.05'); const cap = pct('retention_cap', '0'); const adv = pct('advance_amount', '0'); const rec = pct('advance_recovery_pct', '0'); const wht = pct('wht_rate', '0.02');
     const expense = S.ref.accounts.filter((a) => a.kind === 'EXPENSE');
-    let grid;
-    const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
-      grid = lineGrid('Schedule of values (quantity × rate on a cost code and an expense account)', [
-        { key: 'description', label: 'Description', make: txt('description', { maxlength: '300' }) },
-        { key: 'unit', label: 'Unit', make: txt('unit', { maxlength: '20', size: '5' }) },
-        { key: 'quantity', label: 'Quantity', make: num('quantity') }, { key: 'rate', label: 'Rate', make: num('rate') },
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
-        { key: 'account_id', label: 'Expense account', make: () => select('account_id', expense.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))) },
-      ], [], true);
-      holder.replaceChildren(grid);
-    };
+    // Built once; a project change refills the cost codes in place (XCT-FORM).
+    const grid = lineGrid('Schedule of values (quantity × rate on a cost code and an expense account)', [
+      { key: 'description', label: 'Description', make: txt('description', { maxlength: '300' }) },
+      { key: 'unit', label: 'Unit', make: txt('unit', { maxlength: '20', size: '5' }) },
+      { key: 'quantity', label: 'Quantity', make: num('quantity') }, { key: 'rate', label: 'Rate', make: num('rate') },
+      { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
+      { key: 'account_id', label: 'Expense account', make: () => select('account_id', expense.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))) },
+    ], [], true);
+    const holder = h('div', {}, grid);
+    const latestSov = latestOnly();
+    const load = () => latestSov(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
+    });
     proj.addEventListener('change', load);
     formPage('Prepare a subcontract', 'A subcontractor (an approved supplier), its schedule of values, retention (as a fraction, e.g. 0.05, with an optional cap), the advance and how fast it is recovered, and withholding. Another person approves it; approval commits its value against the budget and is refused if a cost code has no room.',
       [h('div', { class: 'grid' }, field('Project', proj), field('Subcontractor', sup), field('Title', title), field('Retention (fraction)', ret), field('Retention cap (0 = none)', cap),
@@ -1502,16 +1614,16 @@ const FORMS = {
     const desc = input('description', { type: 'text', required: true, minlength: '5', maxlength: '2000', placeholder: 'What changed and why' });
     const rev = input('revenue_impact', { type: 'number', step: '0.01', value: '0' });
     const days = input('schedule_impact_days', { type: 'number', step: '1', value: '0' });
-    let grid;
-    const holder = h('div');
-    const latestLoad = latestOnly();
-    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (cc) => {
-      grid = lineGrid('Expected cost impact by cost code (more cost is positive, a saving is negative)', [
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+    // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
+    const grid = lineGrid('Expected cost impact by cost code (more cost is positive, a saving is negative)', [
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
         { key: 'cost_impact', label: 'Cost impact', make: num('cost_impact') },
         { key: 'note', label: 'Note', make: txt('note', { maxlength: '200' }) },
       ], [], true);
-      holder.replaceChildren(grid);
+    const holder = h('div', {}, grid);
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
     });
     proj.addEventListener('change', load);
     formPage('Raise a change event', 'Record a change to the money or time of a project before it is agreed. A different person decides it with a fresh multi-factor sign-in; if it has cost lines, approval drafts the budget revision that carries them (a draft only: the budget moves when that revision is approved).',
@@ -1856,18 +1968,18 @@ const FORMS = {
     const proj = select('project_id', projectOpts(), { required: true });
     const just = input('justification', { type: 'text', required: true, maxlength: '500' });
     const need = input('needed_by', { type: 'date', value: plusDays(14) });
-    let grid;
-    const holder = h('div');
-    const latestLoad = latestOnly();
-    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (cc) => {
-      grid = lineGrid('Requested lines', [
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+    // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
+    const grid = lineGrid('Requested lines', [
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
         { key: 'description', label: 'Description', make: txt('description') },
         { key: 'unit', label: 'Unit', make: txt('unit', { size: '5' }) },
         { key: 'quantity', label: 'Quantity', make: num('quantity') },
         { key: 'est_unit_price', label: 'Estimated unit price', make: num('est_unit_price') },
       ], [], true);
-      holder.replaceChildren(grid);
+    const holder = h('div', {}, grid);
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
     });
     proj.addEventListener('change', load);
     formPage('New requisition', 'Request materials or services against an approved cost code. Approval checks the project budget.',
@@ -1882,19 +1994,19 @@ const FORMS = {
   async boq() {
     const proj = select('project_id', projectOpts(), { required: true });
     const desc = input('description', { type: 'text', required: true });
-    let grid;
-    const holder = h('div');
-    const latestLoad = latestOnly();
-    const load = () => latestLoad(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (cc) => {
-      grid = lineGrid('BOQ items', [
+    // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
+    const grid = lineGrid('BOQ items', [
         { key: 'item_no', label: 'Item no.', make: txt('item_no', { size: '6' }) },
         { key: 'description', label: 'Description', make: txt('description') },
         { key: 'unit', label: 'Unit', make: txt('unit', { size: '5' }) },
         { key: 'quantity', label: 'Quantity', make: num('quantity') },
         { key: 'rate', label: 'Rate', make: num('rate') },
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
       ], [], true);
-      holder.replaceChildren(grid);
+    const holder = h('div', {}, grid);
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
     });
     proj.addEventListener('change', load);
     formPage('New BOQ version', 'Priced bill of quantities; once approved it is the budget for its cost codes.',
@@ -2368,19 +2480,18 @@ const FORMS = {
       cb.checked = i >= 1 && i <= 6;
       return h('div', { class: 'check' }, cb, h('label', { for: cb.id }, name));
     });
-    let acts;
-    const actHolder = h('div');
+    // Built once; a project change refills the cost codes in place (XCT-FORM).
+    const acts = lineGrid('Activities', [
+      { key: 'code', label: 'Code', make: txt('code', { size: '8' }) },
+      { key: 'name', label: 'Name', make: txt('name') },
+      { key: 'duration', label: 'Duration (working days)', make: num('duration') },
+      { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', [{ value: '', label: '(none)' }]) },
+      { key: 'budget', label: 'Budget', make: num('budget') },
+    ], [], true);
+    const actHolder = h('div', {}, acts);
     const latestLoadacts = latestOnly();
-    const loadActs = () => latestLoadacts(async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []), (ccs) => {
-      const ccOpts = [{ value: '', label: '(none)' }, ...opt(ccs, (c) => `${c.code} ${c.name}`)];
-      acts = lineGrid('Activities', [
-        { key: 'code', label: 'Code', make: txt('code', { size: '8' }) },
-        { key: 'name', label: 'Name', make: txt('name') },
-        { key: 'duration', label: 'Duration (working days)', make: num('duration') },
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', ccOpts) },
-        { key: 'budget', label: 'Budget', make: num('budget') },
-      ], [], true);
-      actHolder.replaceChildren(acts);
+    const loadActs = () => latestLoadacts(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (ccs) => {
+      acts.setChoices('cost_code_id', [{ value: '', label: '(none)' }, ...opt(ccs, (c) => `${c.code} ${c.name}`)]);
     });
     proj.addEventListener('change', () => loadActs().catch(showError));
     await loadActs();

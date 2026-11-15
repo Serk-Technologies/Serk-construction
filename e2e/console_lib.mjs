@@ -162,3 +162,30 @@ export async function stays(locator, read) {
   }, read.toString());
 }
 
+
+// barrier holds the first request matching pattern until the test releases it:
+// an explicit, deterministic ordering of answers (no timers). arrived() resolves
+// when the request has been caught; release() lets it through, release(status)
+// answers it with that HTTP error instead. Later requests pass untouched.
+export async function barrier(page, pattern) {
+  let caught = false;
+  let arrivedResolve; const arrived = new Promise((r) => { arrivedResolve = r; });
+  let openResolve; const open = new Promise((r) => { openResolve = r; });
+  let doneResolve; const done = new Promise((r) => { doneResolve = r; });
+  await page.route(pattern, async (route) => {
+    if (caught) return route.continue();
+    caught = true;
+    arrivedResolve();
+    const status = await open;
+    try {
+      if (status) await route.fulfill({ status, contentType: 'application/problem+json', body: JSON.stringify({ type: 'urn:serk:problem:internal', title: 'Internal error', status, detail: 'held answer failed on purpose', code: 'internal' }) });
+      else await route.continue();
+    } catch { /* the page cancelled the request: that is allowed */ }
+    doneResolve();
+  });
+  return {
+    arrived: () => arrived,
+    release: async (status) => { openResolve(status || 0); await done; },
+    stop: () => page.unroute(pattern),
+  };
+}

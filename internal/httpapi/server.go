@@ -208,7 +208,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	rec := &statusRecorder{ResponseWriter: w, status: 200}
 	req := r.WithContext(ctx)
-	s.mux.ServeHTTP(rec, req)
+	if hd, pattern := s.mux.Handler(req); pattern == "" && strings.HasPrefix(req.URL.Path, "/v1/") {
+		// No route: answer the router's 404 or 405 as a problem document.
+		c := &headerCapture{h: http.Header{}, status: http.StatusOK}
+		hd.ServeHTTP(c, req)
+		if allow := c.h.Get("Allow"); allow != "" {
+			rec.Header().Set("Allow", allow)
+		}
+		switch c.status {
+		case http.StatusMethodNotAllowed:
+			writeErr(rec, c.status, "method_not_allowed", "this path does not accept "+req.Method)
+		case http.StatusNotFound:
+			writeErr(rec, c.status, "not_found", "no such endpoint")
+		default:
+			s.mux.ServeHTTP(rec, req)
+		}
+	} else {
+		s.mux.ServeHTTP(rec, req)
+	}
 	route := req.Pattern // set by ServeMux on match; bounded cardinality
 	if route == "" {
 		route = "unmatched"
@@ -506,12 +523,44 @@ func (s *Server) reverseJournal(w http.ResponseWriter, r *http.Request) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-type apiError struct {
-	Error struct {
+// problem is an RFC 9457 problem details body. type, title, status and
+// detail are the RFC's members; code is a stable machine-readable extension
+// member. error repeats code and detail in the shape clients used before
+// RFC 9457 was adopted (XCT-API.2); it is kept so older clients keep working.
+type problem struct {
+	Type   string `json:"type"`
+	Title  string `json:"title"`
+	Status int    `json:"status"`
+	Detail string `json:"detail"`
+	Code   string `json:"code"`
+	Error  struct {
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
 }
+
+// problemTitles are the short, stable summaries per problem type; an
+// unlisted code falls back to the HTTP status text.
+var problemTitles = map[string]string{
+	"validation":            "The request is not valid",
+	"not_found":             "Not found",
+	"forbidden":             "Not permitted",
+	"unauthenticated":       "Authentication required",
+	"step_up_required":      "Recent multi-factor authentication required",
+	"invariant_violation":   "The database refused the change",
+	"segregation_of_duties": "Segregation of duties",
+	"invalid_state":         "The record is not in a state that allows this",
+	"version_conflict":      "The record changed concurrently",
+	"idempotency_conflict":  "Idempotency key reused with a different command",
+	"storage_unavailable":   "File storage is temporarily unavailable",
+	"malformed_json":        "The body is not valid JSON for this endpoint",
+	"method_not_allowed":    "Method not allowed",
+	"internal":              "Internal error",
+}
+
+// ProblemType is the type URI of a problem code. A URN keeps the type
+// stable without asserting a documentation host that does not exist.
+func ProblemType(code string) string { return "urn:serk:problem:" + code }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -520,10 +569,28 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func writeErr(w http.ResponseWriter, status int, code, msg string) {
-	var e apiError
+	title := problemTitles[code]
+	if title == "" {
+		title = http.StatusText(status)
+	}
+	e := problem{Type: ProblemType(code), Title: title, Status: status, Detail: msg, Code: code}
 	e.Error.Code, e.Error.Message = code, msg
-	writeJSON(w, status, e)
+	w.Header().Set("Content-Type", "application/problem+json; charset=utf-8")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(e)
 }
+
+// headerCapture records what the router's own not-found or
+// method-not-allowed handler would answer, so the answer can be sent as a
+// problem document instead of the router's plain text.
+type headerCapture struct {
+	h      http.Header
+	status int
+}
+
+func (c *headerCapture) Header() http.Header         { return c.h }
+func (c *headerCapture) Write(b []byte) (int, error) { return len(b), nil }
+func (c *headerCapture) WriteHeader(code int)        { c.status = code }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 	if ct := r.Header.Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {

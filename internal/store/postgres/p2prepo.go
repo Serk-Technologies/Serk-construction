@@ -447,17 +447,37 @@ type ListScope struct {
 
 // ListDocs lists documents of a type, newest first, optionally by status.
 func ListDocs(ctx context.Context, tx pgx.Tx, docType, status string, scope ListScope, limit int) ([]DocSummary, error) {
+	return ListDocsAfter(ctx, tx, docType, status, scope, limit, nil)
+}
+
+// ListPosition is a keyset position in a document list: the creation time and
+// id of the last row of the previous page. The order (created_at, id) is total,
+// so a page never repeats or skips a row that existed when the first page was
+// read, whatever is inserted meanwhile (new rows sort before the position).
+type ListPosition struct {
+	CreatedAt time.Time
+	ID        string
+}
+
+// ListDocsAfter is ListDocs from a position (nil: from the newest).
+func ListDocsAfter(ctx context.Context, tx pgx.Tx, docType, status string, scope ListScope, limit int, after *ListPosition) ([]DocSummary, error) {
 	q, ok := listSQL[docType]
 	if !ok {
 		return nil, ErrUnknownDocType
 	}
-	if limit <= 0 || limit > 500 {
+	if limit <= 0 || limit > 501 {
 		limit = 100
+	}
+	var at *time.Time
+	afterID := ""
+	if after != nil {
+		at, afterID = &after.CreatedAt, after.ID
 	}
 	rows, err := tx.Query(ctx, `SELECT * FROM (`+q+`) d(id, number, status, created_by, created_at, project_id, amount, label)
 		WHERE ($1 = '' OR d.status = $1 OR d.status LIKE $1 || '/%')
 		  AND ($3 OR (d.project_id <> '' AND d.project_id = ANY($4::text[])) OR (d.project_id = '' AND $5))
-		ORDER BY created_at DESC LIMIT $2`, status, limit, scope.TenantWide, scope.Projects, scope.EntityLevel)
+		  AND ($6::timestamptz IS NULL OR (d.created_at, d.id) < ($6::timestamptz, $7::text))
+		ORDER BY d.created_at DESC, d.id DESC LIMIT $2`, status, limit, scope.TenantWide, scope.Projects, scope.EntityLevel, at, afterID)
 	if err != nil {
 		return nil, err
 	}
