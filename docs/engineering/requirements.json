@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-fleet-fuel.tests.txt",
- "commit": "7fdaaf9+fuel",
+ "results_file": "docs/engineering/evidence/2026-11-15-fleet-maintenance.tests.txt",
+ "commit": "5c3c2a8",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,15 +11,15 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 92,
+  "VERIFIED": 97,
   "NOT_STARTED": 75,
-  "IMPLEMENTING": 8,
+  "IMPLEMENTING": 9,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "domain_counts": {
-  "IMPLEMENTING": 39,
-  "NOT_STARTED": 39,
+  "IMPLEMENTING": 40,
+  "NOT_STARTED": 38,
   "BLOCKED": 2
  },
  "domains": [
@@ -1164,16 +1164,83 @@
    "domain": "Maintenance",
    "milestone": "M6",
    "owner": "Construction lead",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "all_listed_requirements_verified": false,
    "requirements": [
     {
      "id": "FLT-03.1",
      "text": "Maintenance plans, work orders, parts and downtime",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "evidence_file": "",
+     "note": "Work orders, parts, plans and out-of-service hours are built and verified (FLT-03.2 to FLT-03.6). Labour cost, workshop cost centres and maintenance schedules across a fleet calendar are not (FLT-03.7)."
+    },
+    {
+     "id": "FLT-03.2",
+     "text": "A work order is prepared (plant staff; site staff for a breakdown of a machine at their project), authorised by fleet.approve with a fresh second factor, reported complete by plant staff and closed or sent back by a certifier who did not report it; a decided work order never changes; none of these decisions can be taken by an AI or service principal",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_WorkOrderAndReturnToService",
+      "TestAPIMaintenance",
+      "TestConsoleBrowserFleet"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-03.3",
+     "text": "A machine that has been under maintenance returns to service only after a work order for it was closed after it entered maintenance, never while a work order is open, and not by passing through inspection; an earlier work order does not release a later spell",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_WorkOrderAndReturnToService",
+      "TestFleet_RegisterAndLifecycle",
+      "TestAPIMaintenance"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-03.4",
+     "text": "A part used on a work order is an ordinary stock issue linked to the work order: approved by a second person, valued by the stock ledger, charged to the machine's project; a work order is not reported complete while a part awaits approval",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_WorkOrderAndReturnToService",
+      "TestAPIMaintenance"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-03.5",
+     "text": "Preventive plans by metered units and/or days show what is due; a plan is raised as one work order at a time and moves on only when a certifier closes that work order",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_PlansAndDue",
+      "TestDueState",
+      "TestAPIMaintenance",
+      "TestConsoleBrowserFleet"
+     ],
+     "evidence_file": "",
+     "note": "DUE_SOON is a tenth of the interval or seven days: an engineering default. A plan cannot yet be retired or edited."
+    },
+    {
+     "id": "FLT-03.6",
+     "text": "Maintenance history per machine (work orders, labour hours, parts cost from the stock ledger) and hours out of service by state from the lifecycle history; a tenant database login cannot write work orders, parts or plans around the kernel",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_WorkOrderAndReturnToService",
+      "TestAPIMaintenance"
+     ],
+     "evidence_file": "",
+     "note": ""
+    },
+    {
+     "id": "FLT-03.7",
+     "text": "Labour cost of maintenance, workshop cost centres for machines not at a project, parts reservation per work order, retiring or changing a plan, safety inspection checklists",
      "status": "NOT_STARTED",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": ""
+     "note": "Labour hours are recorded without a rate. Parts for a machine in the yard must name a project to charge until equipment costing (FLT-04) exists."
     }
    ]
   },

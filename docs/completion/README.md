@@ -24,6 +24,6 @@ The completion directive lists 21 numbered documents. This index says where each
 | 17 | Administrator manual | `../operations/ADMIN_RUNBOOK.md` (predates documents, fleet and key versions; not updated) |
 | 18 | Internal testing plan | `../release/UAT_PLAN_R1.md`, `../uat/` (written for release 1; not updated for documents, fleet and fuel) |
 | 19 | Human authorisation | `19_HUMAN_AUTHORIZATION.md` (unsigned) |
-| 20 | Final engineering report | `20_FINAL_ENGINEERING_REPORT.md` |
+| 20 | Final engineering report | `20_FINAL_ENGINEERING_REPORT.md` (a status report: the directive is not complete) |
 
 Regenerate 00, 02 and 03 with `python3 tools/completion_map.py` after the register changes.

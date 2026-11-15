@@ -261,7 +261,13 @@ Status vocabulary in the register today: NOT_STARTED, IMPLEMENTING, IMPLEMENTED_
 
 | Requirement | Status | Evidence (tests) | Limitation or note |
 |---|---|---|---|
-| FLT-03.1 Maintenance plans, work orders, parts and downtime | NOT_STARTED |  |  |
+| FLT-03.1 Maintenance plans, work orders, parts and downtime | IMPLEMENTING |  | Work orders, parts, plans and out-of-service hours are built and verified (FLT-03.2 to FLT-03.6). Labour cost, workshop cost centres and maintenance schedules across a fleet calendar are not (FLT-03.7). |
+| FLT-03.2 A work order is prepared (plant staff; site staff for a breakdown of a machine at their project), authorised by fleet.approve with a fresh second factor, reported complete by plant staff and closed or sent back by a certifier who did not report it; a decided work order never changes; none of these decisions can be taken by an AI or service principal | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestAPIMaintenance`, `TestConsoleBrowserFleet` |  |
+| FLT-03.3 A machine that has been under maintenance returns to service only after a work order for it was closed after it entered maintenance, never while a work order is open, and not by passing through inspection; an earlier work order does not release a later spell | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestFleet_RegisterAndLifecycle`, `TestAPIMaintenance` |  |
+| FLT-03.4 A part used on a work order is an ordinary stock issue linked to the work order: approved by a second person, valued by the stock ledger, charged to the machine's project; a work order is not reported complete while a part awaits approval | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestAPIMaintenance` |  |
+| FLT-03.5 Preventive plans by metered units and/or days show what is due; a plan is raised as one work order at a time and moves on only when a certifier closes that work order | VERIFIED | `TestMaintenance_PlansAndDue`, `TestDueState`, `TestAPIMaintenance`, `TestConsoleBrowserFleet` | DUE_SOON is a tenth of the interval or seven days: an engineering default. A plan cannot yet be retired or edited. |
+| FLT-03.6 Maintenance history per machine (work orders, labour hours, parts cost from the stock ledger) and hours out of service by state from the lifecycle history; a tenant database login cannot write work orders, parts or plans around the kernel | VERIFIED | `TestMaintenance_WorkOrderAndReturnToService`, `TestAPIMaintenance` |  |
+| FLT-03.7 Labour cost of maintenance, workshop cost centres for machines not at a project, parts reservation per work order, retiring or changing a plan, safety inspection checklists | NOT_STARTED |  | Labour hours are recorded without a rate. Parts for a machine in the yard must name a project to charge until equipment costing (FLT-04) exists. |
 
 ## FLT-04 FLEET — Fixed assets
 
