@@ -1,4 +1,4 @@
-# Handover — 2026-11-15, second session
+# Handover — 2026-11-15, second session (updated after the independent audit)
 
 For the next engineer or session. Machine-readable state: `execution-state.json`. Earlier history: `CHANGELOG.md`.
 
@@ -37,13 +37,7 @@ Command for the suite: `go test -race -count=1 -p 1 -json ./...` with `SERK_TEST
 
 ### GitHub Actions, as actually run
 
-| Run | Commit | Result |
-|---|---|---|
-| 14 | `12c3cec` | **failed**: `test` passed and `lint` passed on GitHub's runner; `image` failed (the workflow built a Docker stage that no longer exists); `supply-chain` failed (`govulncheck`: one reachable standard-library vulnerability in Go 1.26.10). Both failures predate this work |
-| 15 | `1ae8f5b` | **failed**: `lint`, `image` and `console` passed and `govulncheck` now passes on Go 1.26.11; `test` failed because the MinIO Docker image could not be pulled; `secrets` failed on 7 findings, all test fixture strings in `internal/config/config_test.go`; `supply-chain` failed on the repository's own secret scan flagging the throwaway credentials I had written in the workflow |
-| next | fleet commit | The workflow now builds MinIO from source at a pinned version, generates its credentials at run time, and allow-lists the one fixture file. **Its result is not known at the time of writing**; check the Actions tab. The ClamAV image has not yet been pulled successfully on GitHub |
-
-No workflow has passed end to end on this branch yet.
+Full table and root causes: `AUDIT_REMEDIATION_2026-11-15.md`. In short: runs 14 to 20 failed (run 20 is `main` after PR #3 was merged while failing); run 21 passed but with the browser journeys skipped; **run 22 (`be030f7`) is the first run with all six jobs passing and no skipped test** (457 tests). An earlier version of this file said the `test` job passed in run 14: that was wrong, the step could not fail.
 
 ## Security findings
 
@@ -78,14 +72,16 @@ ClamAV public signatures and the Go vulnerability database (network); a Docker d
 
 ## Next checkpoint, exactly
 
-1. Open the Actions tab for the latest push. If `test` fails at "Start an S3-compatible store", read the step log: the likely causes are the MinIO build or the `clamav/clamav:1.4` image. If `image` fails at the scan, read the Trivy findings and fix or record them.
-2. **Fleet part 2, fuel** (FLT-02): fuel as a stock item in the existing stock ledger; tanks and bowsers as warehouses; a dispense is a stock issue tied to an equipment log (equipment, operator, meter), so the existing no-negative-stock and valuation controls apply and the cost reaches the job through the existing issue journal. Then reconciliation of dispensed against logged fuel, and explainable variance flags that open an investigation, never an accusation.
-3. **Fleet part 3, maintenance** (FLT-03): work orders with parts reserved and issued through stock; a release from maintenance must reference a closed work order.
-4. **Fleet part 4, costing** (FLT-04, directive B.7): charge-out rates and internal equipment charges as a management allocation kept apart from statutory postings.
-5. Then work packages (directive priority C), quality and HSE (D), estimating (E).
+Feature work is suspended by the audit directive. In order:
+
+1. **People:** enable branch protection on `main` and bring the fixes to `main` through a reviewed pull request (`AUDIT_REMEDIATION_2026-11-15.md`, section 4).
+2. Confirm three consecutive passing runs of the release-candidate revision (`execution-state.json`, `ci.release_candidate`).
+3. Versioned document encryption keys with rotation and recovery (ADR first: per-object data keys wrapped by a versioned master).
+4. Stale-signature alerting for the scanner; load, soak and fault-injection runs; penetration-test scope and environment.
+5. Only then: fleet part 2 (fuel), as described in `CHANGELOG.md`.
 
 ## Resume
 
 ```text
-Read CLAUDE.md and docs/engineering/execution-state.json, check the latest GitHub Actions run for this branch, reproduce the baseline (454 tests) per docs/engineering/RUNBOOK.md, then implement "Fleet part 2, fuel" from docs/engineering/HANDOVER.md as one vertical slice.
+Read CLAUDE.md and docs/engineering/execution-state.json, check the latest GitHub Actions run for this branch, reproduce the baseline (457 tests, none skipped: `tools/ci/check_test_results.py`) per docs/engineering/RUNBOOK.md, then take the first open item of "Next checkpoint" in docs/engineering/HANDOVER.md. Do not start feature work while the stabilisation gate is open.
 ```

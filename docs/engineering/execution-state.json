@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-15 (second session)",
+  "updated": "2026-11-15 (audit remediation)",
   "repository": "Serk-Technologies/Serk-construction",
   "branch": "claude/new-session-xkd5g3",
   "milestone": {
@@ -22,15 +22,13 @@
     ]
   },
   "next_work_item": {
-    "id": "FLT-02",
-    "title": "Fleet part 2: fuel through the existing stock ledger, dispensing tied to equipment logs, reconciliation and explainable variance",
-    "first": "Check the GitHub Actions result of the latest push",
+    "id": "P0-GOV",
+    "title": "People: branch protection on main and a reviewed pull request bringing the fixes to main",
     "then": [
-      "FLT-03 maintenance",
-      "FLT-04 costing and charge-out",
-      "PLB-05 work packages",
-      "ASR-01/03 quality and HSE",
-      "EST-06 estimating"
+      "Three consecutive passing CI runs of the release-candidate revision",
+      "Versioned document keys, rotation, recovery (ADR first)",
+      "Scanner signature freshness alerting; load, soak, fault injection; penetration-test scope",
+      "FLT-02 fuel only after the gate is met"
     ]
   },
   "requirement_ids_touched": [
@@ -88,6 +86,11 @@
       "command": "tools/capacity/fleet_measure.sh (100000 machines, 1000000 logs)",
       "outcome": "register page 0.09 ms; project summary 37 ms; company summary 695 ms",
       "evidence": "docs/engineering/evidence/2026-11-15-fleet-query-measurement.txt"
+    },
+    {
+      "command": "3 x go test -race -count=1 -p 1 -shuffle=on -json ./... (Go 1.26.11, SCRAM TCP, real ClamAV and MinIO, Playwright)",
+      "outcome": "457 pass, 0 fail, 0 skip in each run",
+      "evidence": "docs/engineering/evidence/2026-11-15-stability-3x-shuffle.json"
     }
   ],
   "environment": {
@@ -98,13 +101,13 @@
     "browser": "Chromium via Playwright"
   },
   "not_run": [
-    "A GitHub Actions run that passes end to end",
-    "Image vulnerability scan (no Docker daemon locally)",
     "govulncheck locally (vulnerability database unreachable)",
     "ClamAV with the public signature feed",
     "Offsite encrypted backup drill",
     "Concurrent load test",
-    "Any deployment"
+    "Any deployment",
+    "Load, soak and fault-injection tests",
+    "Any test against a real identity provider or KMS/HSM"
   ],
   "known_blockers": [
     "ClamAV signature feed and Go vulnerability database unreachable from the build environment",
@@ -129,11 +132,30 @@
     "push": "authorised by the owner to claude/new-session-xkd5g3 only"
   },
   "release_status": "NO-GO",
-  "resume_command": "Read CLAUDE.md and docs/engineering/execution-state.json, check the latest GitHub Actions run for this branch, reproduce the baseline (454 tests) per docs/engineering/RUNBOOK.md, then implement 'Fleet part 2, fuel' from docs/engineering/HANDOVER.md as one vertical slice.",
+  "resume_command": "Read CLAUDE.md, docs/engineering/execution-state.json and docs/engineering/AUDIT_REMEDIATION_2026-11-15.md; check the latest GitHub Actions runs; take the first open item of 'Next checkpoint' in docs/engineering/HANDOVER.md. No feature work while the stabilisation gate is open.",
   "session_start_commit": "12c3cec",
   "ci": {
-    "run_14": "failed (image, supply-chain: both pre-existing); test and lint passed",
-    "run_15": "failed (test: MinIO image not pullable; secrets: 7 fixture strings; supply-chain: literal CI credentials); govulncheck passes on Go 1.26.11",
-    "latest": "unknown at the time of writing: check the Actions tab"
+    "note": "Green test jobs before run 17 are not evidence: the step piped into tee without pipefail and could not fail.",
+    "runs": {
+      "14": "failed",
+      "15": "failed",
+      "16": "failed (8 tests failed behind a green step)",
+      "17": "failed (missing bucket)",
+      "18": "failed",
+      "19": "failed (pull_request)",
+      "20": "failed (main, merge of PR #3)",
+      "21": "passed, NOT acceptable evidence (7 browser journeys skipped)",
+      "22": "passed: all six jobs, 457 tests, 0 skipped, commit be030f7, run id 43712828637"
+    },
+    "release_candidate": {
+      "revision": "to be recorded",
+      "runs": []
+    }
+  },
+  "feature_development": "SUSPENDED by the audit remediation directive until the P0 stabilisation gate is met",
+  "governance": {
+    "main_branch_protection": "reported disabled by the independent audit; the agent has no administrative access",
+    "pr_3": "merged into main (1096bf2) while CI was failing; not opened or merged by the agent",
+    "main_ci": "failing (run 20)"
   }
 }

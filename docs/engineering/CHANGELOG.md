@@ -2,6 +2,14 @@
 
 Changes made under the SERK Construction OS 3.0 directive (`MASTER_PROMPT.md`). Earlier history: `docs/release/CHECKPOINT_*.md` and `git log`.
 
+## 2026-11-15: audit remediation (CI honesty, storage fault classes, mandatory browser journeys)
+
+- CI could not fail on a failing test run (pipe without pipefail). Replaced by a structured gate over `go test -json`: any failure, any skip, a missing mandatory test or a package without a result rejects the run.
+- Test logins without passwords failed on the runner's password-authenticated PostgreSQL (8 tests). Fixed in the tests.
+- A kernel test depended on a bucket created by another package's test. Buckets are now provisioned and proven private before the suite; the S3 client distinguishes missing bucket, missing object, refused credentials and unavailable service; the API refuses to start without its bucket and answers storage faults as 503.
+- Playwright and Chromium are installed in CI; the seven browser journeys are mandatory.
+- Report: `AUDIT_REMEDIATION_2026-11-15.md`. Feature work suspended.
+
 ## 2026-11-15 (second session) — document security, CI, SERK FLEET part 1
 
 ### Added

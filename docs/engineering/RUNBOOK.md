@@ -16,7 +16,11 @@ test -z "$(gofmt -l .)" && go vet ./...
 # Optional real services for the document security tests (they SKIP without these, and a skip is not a pass):
 #   export SERK_TEST_CLAMD=127.0.0.1:3310            # a ClamAV daemon
 #   export SERK_TEST_S3_ENDPOINT=http://127.0.0.1:9000 SERK_TEST_S3_ACCESS_KEY=... SERK_TEST_S3_SECRET_KEY=... SERK_TEST_S3_BUCKET=serk-test
-go test -race -count=1 -p 1 ./...            # about 4 minutes on 4 vCPU
+# Bucket for the document tests (creates it, proves it private):
+#   S3_ENDPOINT=... S3_BUCKET=serk-test S3_ACCESS_KEY=... S3_SECRET_KEY=... go run ./tools/ci/s3provision
+# Browser journeys: export SERK_PLAYWRIGHT=<path to node_modules/playwright>   (1.63.0)
+go test -race -count=1 -p 1 -json ./... > run.json   # about 4 minutes on 4 vCPU
+python3 tools/ci/check_test_results.py run.json --mandatory tools/ci/mandatory_tests.txt --min-pass 455   # the same gate CI applies
 ```
 
 The browser journeys run when `node` and the `playwright` module are found (`SERK_PLAYWRIGHT=<path>`); otherwise they report SKIP, which is not a pass.

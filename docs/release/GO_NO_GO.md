@@ -48,10 +48,22 @@ This record is assembled by the engineering agent from evidence in the repositor
 
 | Item | State |
 |---|---|
-| Automated suite (kernel, API, database probes, five browser journeys) | PASS on every work package of this release; evidence in `docs/release/evidence/` |
+| Automated suite (kernel, API, database probes, five browser journeys) | PASS **in the build environment** on every work package of this release; evidence in `docs/release/evidence/`. Correction 2026-11-15: this was never a GitHub Actions result. The CI test step could not fail before run 17 and the browser journeys were skipped on the runner before run 22 |
 | Budget control, authority matrix, delegation, duty-conflict exceptions, dashboard, report catalogue, stock reservations and conversions, project master and stage gates, staged imports | Built and verified in a real browser; known limits in `RELEASE_NOTES_R1.md` |
 | Security finding closed in this release | Company logins could insert active projects directly; now attested, PLANNED and gated |
 | API contract | Every served route is in `api/openapi.yaml`; a test keeps it so |
 | Generated documents | Role matrix, KPI catalogue and report catalogue are generated from code and tested for drift |
 | Still BLOCKED (infrastructure or people) | Identity provider with step-up and revocation; staging with TLS and vault; HSM-held signing key; observability stack; external penetration test; load and soak test; supply-chain checks against the checksum database; finance, tax and legal sign-offs |
 | UAT | Plan written (`UAT_PLAN_R1.md`); not yet run by the area leads |
+
+## Update 2026-11-15: independent audit and remediation
+
+**Decision unchanged: NO-GO.**
+
+| Item | State |
+|---|---|
+| GitHub Actions | First fully passing run with no skipped test: run 22, commit `be030f7` (457 tests, seven browser journeys, real ClamAV and object store). Earlier green test jobs are not evidence |
+| Governance | PR #3 was merged into `main` while its CI was failing; `main` has no branch protection. **Open, needs a repository administrator** |
+| `main` | At a revision whose CI fails (`1096bf2`). The fixes are on the development branch only |
+| Newly open or restated | Document key rotation and custody; KMS/HSM for the approval signer; real identity provider; load, soak and fault-injection tests; penetration test |
+| Report | `docs/engineering/AUDIT_REMEDIATION_2026-11-15.md` |
