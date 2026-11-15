@@ -61,7 +61,8 @@
   "0076_workforce_hse.sql",
   "0077_transmittals_submittals.sql",
   "0078_credit_rule_attestation.sql",
-  "0079_equipment_charge_out.sql"
+  "0079_equipment_charge_out.sql",
+  "0080_project_risks.sql"
  ],
  "adrs_added": [
   "0018",
@@ -287,7 +288,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "PLB-04.1 project risk register (draft 0080 in session notes: risks with insert-only assessments, exposure = probability x cost impact, compared with remaining contingency from project_budget_current); then DEF-013, DEF-014, DEF-015, DEF-017; CNX-05.1, CNX-07.2, SUP-05.4, PPL-05.1.",
+  "exact_next_action": "DEF-015: 0081 (designations PENDING until approved by another person, attested; returns and consolidation runs refused while designations are pending), kernel approvals and carried test updates; then DEF-013, DEF-014, DEF-017; CNX-05.1, CNX-07.2, SUP-05.4, PPL-05.1.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -301,8 +302,9 @@
    "DEF-011 (bf31d1b)",
    "XCT-LOC.3 Ethiopian calendar conversion and display (bf31d1b)",
    "FLT-01.14 charge-out; DEF-001 closed (560bfdd)",
-   "CAP-01.5 income statement and balance sheet (87bb3ec)"
+   "CAP-01.5 income statement and balance sheet (87bb3ec)",
+   "PLB-04.1 risk register (47d2fb2)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-statements-87bb3ec.summary.json (499/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-risks-47d2fb2.summary.json (500/0/0)"
 }

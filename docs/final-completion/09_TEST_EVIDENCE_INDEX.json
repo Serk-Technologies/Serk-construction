@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py",
  "directory": "docs/engineering/evidence",
- "register_results_file": "docs/engineering/evidence/2026-11-15-statements-87bb3ec.tests.txt",
+ "register_results_file": "docs/engineering/evidence/2026-11-15-risks-47d2fb2.tests.txt",
  "files": [
   "2026-11-15-baseline-711a174-fresh-db.json",
   "2026-11-15-baseline.tests.txt",
@@ -38,6 +38,8 @@
   "2026-11-15-overhead-dc0cd61.tests.txt",
   "2026-11-15-pitr-drill-0054.txt",
   "2026-11-15-pitr-drill.txt",
+  "2026-11-15-risks-47d2fb2.summary.json",
+  "2026-11-15-risks-47d2fb2.tests.txt",
   "2026-11-15-stability-3x-shuffle.json",
   "2026-11-15-stabilization.tests.txt",
   "2026-11-15-statements-87bb3ec.summary.json",

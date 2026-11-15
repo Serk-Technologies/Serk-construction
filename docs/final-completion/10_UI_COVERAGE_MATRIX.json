@@ -146,6 +146,12 @@
    "status": "COVERED_BY_BROWSER_JOURNEY"
   },
   {
+   "route": "#/riskreg",
+   "label": "Risk register",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
    "route": "#/list/purchase_requisition",
    "label": "Requisitions",
    "browser_journeys": [],

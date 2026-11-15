@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "87bb3ec",
+ "register_commit": "47d2fb2",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -661,7 +661,7 @@
     {
      "id": "PLB-04.1",
      "text": "Project risk register with quantified exposure feeding contingency",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "PLB-05.1",
@@ -686,6 +686,11 @@
     {
      "id": "PLB-09.1",
      "text": "Engineering deliverables register linked to RFIs and submittals",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "PLB-04.1.c",
+     "text": "A contingency revision drafted from the exposure for a person to approve",
      "status": "NOT_STARTED"
     },
     {
@@ -723,6 +728,7 @@
     "TestR8_BudgetNettingByCount",
     "TestR9_ScheduleEVMHand",
     "TestR9_ScheduleProgressAndRaw",
+    "TestRisks_RegisterAgainstContingency",
     "TestScheduleBaselineProgressEVM",
     "TestSync_APIDeviceDiaryApproval"
    ],
