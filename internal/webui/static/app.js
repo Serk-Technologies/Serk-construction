@@ -5666,7 +5666,7 @@ async function prOpenRun(id, ent, msg) {
   const go = async (path, payload, msg) => { try { await api('POST', `/v1/pay-runs/${id}/${path}`, payload || {}); prDone(msg); closeSheet(); renderPayroll('runs'); } catch (e) { sheetError(sheet, e); } };
   const reason = (what) => { const t = (prompt(`Why ${what}?`) || '').trim(); if (t.length < 5) { sheetError(sheet, new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return t; };
   if (r.status === 'DRAFT' && S.can.has('payroll.prepare')) {
-    const emps = (v.employees || []).filter((e) => e.status === 'ACTIVE').map((e) => ({ value: e.id, label: `${e.number} ${e.name}` }));
+    const emps = (v.employees || []).filter((e) => e.status === 'ACTIVE' && e.approval === 'APPROVED').map((e) => ({ value: e.id, label: `${e.number} ${e.name}` }));
     const projs = [{ value: '', label: 'Head office (no project)' }, ...opt(v.projects || S.ref.projects || [], (p) => `${p.code} — ${p.name}`)];
     const grid = lineGrid('Inputs', [
       { key: 'employee_id', label: 'Employee', make: () => select('employee_id', emps) },
@@ -5744,11 +5744,16 @@ function prEmployees(v, ent) {
     });
     out.append(h('div', { class: 'toolbar' }, b));
   }
+  const approveEmp = async (e) => { try { await api('POST', `/v1/employees/${e.id}/approve`); prDone(`${e.name}'s record approved.`); renderPayroll('employees'); } catch (x) { showError(x); } };
   const leave = async (e) => { try { const d = (prompt(`Last working day of ${e.name} (YYYY-MM-DD)`, today()) || '').trim(); if (!d) return; await api('POST', `/v1/employees/${e.id}/leave`, { ends_on: d }); prDone('Leaving date recorded.'); renderPayroll('employees'); } catch (x) { showError(x); } };
   out.append(table('Employees', [{ label: 'Number', cell: (e) => e.number }, { label: 'Name', cell: (e) => e.name }, { label: 'Pay type', cell: (e) => PAY_KIND[e.kind] || e.kind },
     { label: 'Trade', cell: (e) => e.trade || '' }, { label: 'Base rate', num: true, cell: (e) => money(e.base_rate) }, { label: 'Bank', cell: (e) => [e.bank_name, e.account].filter(Boolean).join(' ') },
     { label: 'Since', cell: (e) => e.starts_on }, { label: 'Status', cell: (e) => chip(e.status) },
-    { label: '', cell: (e) => (e.status === 'ACTIVE' && S.can.has('payroll.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => leave(e) } }, 'Leaves…') : '') }], v.employees || [], 'No employee yet.'));
+    // An employee is paid only after a second person approves the record, pay rate and bank account included (0074).
+    { label: 'Record', cell: (e) => (e.approval === 'APPROVED' ? chip('APPROVED') : chip('PENDING')) },
+    { label: '', cell: (e) => [
+      e.approval === 'PENDING' && S.can.has('payroll.approve') && e.created_by !== S.me.user_id ? h('button', { type: 'button', class: 'ghost', on: { click: () => approveEmp(e) } }, 'Approve record') : '',
+      e.status === 'ACTIVE' && S.can.has('payroll.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => leave(e) } }, 'Leaves…') : ''] }], v.employees || [], 'No employee yet.'));
   return out;
 }
 

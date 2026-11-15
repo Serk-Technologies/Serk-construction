@@ -3,7 +3,7 @@ package httpapi
 // Workforce and payroll (0061).
 //
 //	GET  /v1/payroll[?run=]; POST /v1/payroll-policies; POST /v1/payroll-policies/{id}/approve|reject
-//	POST /v1/employees; POST /v1/employees/{id}/leave {ends_on}
+//	POST /v1/employees; POST /v1/employees/{id}/approve; POST /v1/employees/{id}/leave {ends_on}
 //	POST /v1/payroll-rule-sets; POST /v1/payroll-rule-sets/{id}/submit|approve|reject
 //	POST /v1/pay-runs {legal_entity_id, period_start, period_end, pay_date}; POST /v1/pay-runs/{id}/inputs {inputs}
 //	POST /v1/pay-runs/{id}/calculate|submit|approve|reject|cancel; POST /v1/pay-runs/{id}/release {company_bank_id}
@@ -53,6 +53,17 @@ func (s *Server) registerPayroll() {
 		}
 		id, err := k.RegisterEmployee(r.Context(), principalFrom(r.Context()), b)
 		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/employees/{id}/approve", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		if err := k.ApproveEmployee(r.Context(), principalFrom(r.Context()), id); err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "approval": "APPROVED"})
 	}))
 	m.Handle("POST /v1/employees/{id}/leave", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")

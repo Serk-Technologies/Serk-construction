@@ -108,6 +108,32 @@ func TestPayroll_RunApprovePay(t *testing.T) {
 	// October run.
 	run, err := f.svc.CreatePayRun(f.ctx, officer, f.entity, "2026-10-01", "2026-10-31", "2026-10-31")
 	must(t, "run", err)
+
+	// DEF-010: an employee is paid only once a second person has approved the record (pay rate and bank
+	// account included). Unapproved, the database refuses the pay input.
+	if err := f.svc.AddPayInputs(f.ctx, officer, run, []PayInput{{EmployeeID: emp["E-003"], Units: dec("160")}}); err == nil || !strings.Contains(err.Error(), "not approved cannot be paid") {
+		t.Fatalf("an unapproved employee was put on a pay run: %v", err)
+	}
+	selfHR := hr
+	selfHR.UserID = officer.UserID
+	if err := f.svc.ApproveEmployee(f.ctx, selfHR, emp["E-001"]); !errors.Is(err, auth.ErrSoD) {
+		t.Fatalf("the officer who registered an employee approved the record: %v", err)
+	}
+	attestedWriteRefusedWith(t, f, selfHR, "employee.approve", "employee", emp["E-001"], "APPROVED", "segregation of duties",
+		`UPDATE employees SET approval = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, emp["E-001"], officer.UserID)
+	rawRefusedWith(t, f, "approve an employee under a forged identity", "approval attestation",
+		`UPDATE employees SET approval = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, emp["E-001"], hr.UserID)
+	staleHR := hr
+	staleHR.AuthTime = now.Add(-time.Hour)
+	if err := f.svc.ApproveEmployee(f.ctx, staleHR, emp["E-001"]); err == nil {
+		t.Fatal("an employee was approved without a fresh second factor")
+	}
+	for _, n := range []string{"E-001", "E-002", "E-003"} {
+		must(t, "approve "+n, f.svc.ApproveEmployee(f.ctx, hr, emp[n]))
+	}
+	if err := f.svc.ApproveEmployee(f.ctx, hr, emp["E-001"]); err == nil {
+		t.Fatal("an employee was approved twice")
+	}
 	must(t, "inputs", f.svc.AddPayInputs(f.ctx, officer, run, []PayInput{
 		{EmployeeID: emp["E-001"], Units: dec("1"), OvertimeHours: dec("10"), Allowances: dec("1000"), ProjectID: f.project, CostCodeID: w.costCode},
 		{EmployeeID: emp["E-002"], Units: dec("22"), ProjectID: f.project, CostCodeID: w.costCode},
