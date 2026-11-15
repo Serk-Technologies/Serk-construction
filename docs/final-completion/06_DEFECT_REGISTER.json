@@ -119,12 +119,13 @@
    "id": "DEF-011",
    "severity": "Medium",
    "area": "Progress credit",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Rule-of-credit approval has no approval_use; approved_by is client-supplied text (0071:44-63)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Forged approver identity",
    "next_action": "Attest the approval",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0078 and commit bf31d1b; TestCredit_RulesToProgress fails on a fresh database without the fix"
   },
   {
    "id": "DEF-012",

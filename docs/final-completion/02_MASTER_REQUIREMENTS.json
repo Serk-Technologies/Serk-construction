@@ -1,19 +1,19 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-docflow-4fedeca.tests.txt",
- "register_commit": "4fedeca",
+ "results_file": "docs/engineering/evidence/2026-11-15-credit-calendar-bf31d1b.tests.txt",
+ "register_commit": "bf31d1b",
  "requirement_counts": {
   "VERIFIED": 105,
-  "NOT_STARTED": 74,
-  "IMPLEMENTING": 21,
+  "NOT_STARTED": 73,
+  "IMPLEMENTING": 22,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 40,
+  "NOT_STARTED": 41,
   "BLOCKED": 12,
-  "VERIFIED": 14
+  "VERIFIED": 16
  },
  "requirements": [
   {
@@ -2979,9 +2979,36 @@
    "domain": "XCT-LOC",
    "product": "PLATFORM",
    "text": "Ethiopian calendar display and input with round-trip tests",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
-   "criteria": [],
+   "criteria": [
+    {
+     "id": "XCT-LOC.3.a",
+     "text": "Exact conversion between the Ethiopian and Gregorian calendars; every day 1900-2100 round-trips; published dates and new years agree",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestEthiopianCalendarRoundTrip",
+      "TestEthiopianCalendarKnownDates"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-LOC.3.b",
+     "text": "The console shows the Ethiopian date, computed in agreement with the server's conversion",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestConsoleBrowserForms"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-LOC.3.c",
+     "text": "Dates can be entered in the Ethiopian calendar in forms",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
    "work_package": "WP-022",
    "human_acceptance": "PENDING"
   },

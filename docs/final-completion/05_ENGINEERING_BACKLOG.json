@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "4fedeca",
+ "register_commit": "bf31d1b",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -1788,7 +1788,7 @@
     {
      "id": "XCT-LOC.3",
      "text": "Ethiopian calendar display and input with round-trip tests",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "XCT-LOC.4",
@@ -1799,6 +1799,11 @@
      "id": "XCT-LOC.5",
      "text": "Ethiopian statutory tax, payroll and forms",
      "status": "BLOCKED"
+    },
+    {
+     "id": "XCT-LOC.3.c",
+     "text": "Dates can be entered in the Ethiopian calendar in forms",
+     "status": "NOT_STARTED"
     },
     {
      "id": "XCT-LOC.5.a",
@@ -1813,6 +1818,9 @@
    ],
    "tests": [
     "TestAllocateConservesEveryMinorUnit",
+    "TestConsoleBrowserForms",
+    "TestEthiopianCalendarKnownDates",
+    "TestEthiopianCalendarRoundTrip",
     "TestPDFEthiopicFontOnlyWhenNeeded",
     "TestParseQuantisesToMinorUnits"
    ],

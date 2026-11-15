@@ -1,10 +1,12 @@
 {
  "generated_by": "tools/final_completion.py",
  "directory": "docs/engineering/evidence",
- "register_results_file": "docs/engineering/evidence/2026-11-15-docflow-4fedeca.tests.txt",
+ "register_results_file": "docs/engineering/evidence/2026-11-15-credit-calendar-bf31d1b.tests.txt",
  "files": [
   "2026-11-15-baseline-711a174-fresh-db.json",
   "2026-11-15-baseline.tests.txt",
+  "2026-11-15-credit-calendar-bf31d1b.summary.json",
+  "2026-11-15-credit-calendar-bf31d1b.tests.txt",
   "2026-11-15-docflow-4fedeca.summary.json",
   "2026-11-15-docflow-4fedeca.tests.txt",
   "2026-11-15-document-security.tests.txt",
