@@ -155,12 +155,13 @@
    "id": "DEF-014",
    "severity": "Medium",
    "area": "Access",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "Role adjustments have no attestation or MFA in the database (0066_role_adjustments.sql:52)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Withheld permissions can be restored by the tenant login",
    "next_action": "Design needed: role adjustments are upserted by role code, so there is no subject row to attest before the first adjustment; give adjustments their own versioned rows with ids, attest each version with fresh MFA, and read the latest approved version",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "0082 and commit 26b7a29; TestPeople_AdjustProductRole asserts the refusals (forged update, non-empty creation, attestation for another person); without 0082 the forged update is accepted"
   },
   {
    "id": "DEF-015",

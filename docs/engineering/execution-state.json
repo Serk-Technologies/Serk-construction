@@ -63,7 +63,8 @@
   "0078_credit_rule_attestation.sql",
   "0079_equipment_charge_out.sql",
   "0080_project_risks.sql",
-  "0081_designation_approval.sql"
+  "0081_designation_approval.sql",
+  "0082_role_adjustment_attestation.sql"
  ],
  "adrs_added": [
   "0018",
@@ -280,7 +281,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-employee-approval-dbe049a.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-role-adjust-26b7a29.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -289,7 +290,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "DEF-014: 0082 (role adjustment rows created empty; every change attested with fresh MFA; id column) and AdjustRole change; then DEF-013, DEF-017; then CNX-05.1, CNX-07.2, SUP-05.4, PPL-05.1.",
+  "exact_next_action": "DEF-013: 0083 (overhead and recurring journals bound to their computation at binding and approval; recurring templates approved by another person with fresh MFA, attested; lines by xmin), ApproveRecurring, route, console; then DEF-017; then CNX-05.1, CNX-07.2, SUP-05.4, PPL-05.1.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -305,8 +306,9 @@
    "FLT-01.14 charge-out; DEF-001 closed (560bfdd)",
    "CAP-01.5 income statement and balance sheet (87bb3ec)",
    "PLB-04.1 risk register (47d2fb2)",
-   "DEF-015 designations approved (9eb1445)"
+   "DEF-015 designations approved (9eb1445)",
+   "DEF-014 role adjustments attested (26b7a29)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-designations-9eb1445.summary.json (500/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-role-adjust-26b7a29.summary.json (500/0/0)"
 }
