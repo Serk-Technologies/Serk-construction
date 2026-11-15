@@ -131,6 +131,13 @@ func TestTax_VATReturnAndEInvoice(t *testing.T) {
 	wht, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "WHT", start, end)
 	must(t, "wht", err)
 	must(t, "reject", f.svc.DecideTaxReturn(f.ctx, cfo, wht, false, "Wrong period for this return"))
+	// DEF-017 (0084): a prepared return is cancelled only with an attested
+	// cancellation by the person cancelling.
+	wht2, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "WHT", start, end)
+	must(t, "wht again", err)
+	rawRefusedWith(t, f, "cancel a return without an attested cancellation", "attested cancellation",
+		`UPDATE tax_returns SET status = 'CANCELLED', decision_reason = 'forged cancellation' WHERE id = $1::uuid`, wht2)
+	must(t, "cancel wht", f.svc.CancelTaxReturn(f.ctx, acc, wht2, "Prepared twice by mistake"))
 
 	// E-invoice: with no service connected nothing is sent or recorded (DEF-016)...
 	if _, err := f.svc.SubmitEInvoice(f.ctx, acc, arInv); !errors.Is(err, ErrIntegrationNotConfigured) {

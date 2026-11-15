@@ -118,3 +118,15 @@ func parseTime(field, v string) (time.Time, error) {
 }
 
 // ReportIncident records an incident; a major or critical one notifies the
+
+// cancelAttested records the attested cancellation of a document in the
+// transaction that cancels it (DEF-017, migration 0084): the database refuses
+// the CANCELLED status without this row, written for the person cancelling.
+func (s *Service) cancelAttested(ctx context.Context, tx pgx.Tx, p auth.Principal, action, subjectType, id, reason string) error {
+	if err := s.authorize(ctx, tx, p, action, subjectType, id, "CANCELLED"); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO document_cancellations (subject_type, subject_id, cancelled_by, reason) VALUES ($1, $2::uuid, $3, $4)`,
+		subjectType, id, p.UserID, strings.TrimSpace(reason))
+	return err
+}

@@ -357,7 +357,7 @@ Product SUPPLY / STOCK · milestone M6 · owner Construction lead
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| SUP-04.1 | Subcontracts: scope/BOQ, security, measured work, retention, deductions | IMPLEMENTING | Integrated from new-version (ADR 0025): certificates with retention, advance recovery, back-charges, withholding and journals (TestSubcontract_CertificatesAndJournal). Independent review: no BOQ link, no security (bond); cancellation unattested (DEF-017). |
+| SUP-04.1 | Subcontracts: scope/BOQ, security, measured work, retention, deductions | IMPLEMENTING | Integrated from new-version (ADR 0025): certificates with retention, advance recovery, back-charges, withholding and journals (TestSubcontract_CertificatesAndJournal). Independent review: no BOQ link, no security (bond); cancellation attested by the person cancelling since 0084 (DEF-017 closed). |
 
 ### SUP-05 Inventory — IMPLEMENTING
 
@@ -475,7 +475,7 @@ Product FLEET · milestone M6 · owner Finance controller
 
 | ID | Requirement | Status | Evidence |
 |---|---|---|---|
-| FLT-04.1 | Capitalisation, depreciation and disposal posted through the ledger | IMPLEMENTING | Integrated from new-version (ADR 0025), TestFixedAssets_CapitaliseDepreciateDispose. Independent review: capitalisation journal lines not asserted; no link to the fleet register; disposal relies on trigger depth (DEF-017). |
+| FLT-04.1 | Capitalisation, depreciation and disposal posted through the ledger | IMPLEMENTING | Integrated from new-version (ADR 0025), TestFixedAssets_CapitaliseDepreciateDispose. Independent review: capitalisation journal lines not asserted; no link to the fleet register; the asset is disposed of only by its approved disposal in the same transaction since 0084 (DEF-017 closed). |
 
 ### PPL-01 HR — NOT_STARTED
 

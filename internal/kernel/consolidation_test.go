@@ -172,7 +172,22 @@ func TestConsolidation_TranslateEliminateApprove(t *testing.T) {
 	if _, err := f.svc.ConsolidationView(f.ctx, f.prep); !errors.Is(err, auth.ErrForbidden) {
 		t.Fatalf("an accountant read the consolidation: %v", err)
 	}
+	// DEF-017 (0084): the tenant login cannot cancel a run, and a cancellation
+	// attested for one person cannot be recorded as another's.
+	rawRefusedWith(t, f, "cancel a run without an attested cancellation", "attested cancellation",
+		`UPDATE consolidation_runs SET status = 'CANCELLED', decision_reason = 'forged cancellation' WHERE id = $1::uuid`, run)
+	attestedWriteRefusedWith(t, f, ctrl, "conrun.cancel", "consolidation_run", run, "CANCELLED", "approval attestation",
+		`INSERT INTO document_cancellations (subject_type, subject_id, cancelled_by, reason) VALUES ('consolidation_run', $1::uuid, 'u-someone-else', 'cancelled in another name')`, run)
 	must(t, "cancel", f.svc.CancelConsolidation(f.ctx, ctrl, run, "Rates corrected by treasury"))
+	var by string
+	must(t, "cancellation record", f.app.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT cancelled_by FROM document_cancellations WHERE subject_type = 'consolidation_run' AND subject_id = $1::uuid`, run).Scan(&by)
+	}))
+	if by != ctrl.UserID {
+		t.Fatalf("cancellation recorded for %q", by)
+	}
+	rawRefusedWith(t, f, "rewrite a cancellation record", "permission denied",
+		`UPDATE document_cancellations SET cancelled_by = 'u-someone-else' WHERE subject_id = $1::uuid`, run)
 	in.Rates["KES"] = RatePair{Closing: dec("0.45"), Average: dec("0.45")}
 	run2, err := f.svc.PrepareConsolidation(f.ctx, ctrl, in)
 	must(t, "prepare again", err)

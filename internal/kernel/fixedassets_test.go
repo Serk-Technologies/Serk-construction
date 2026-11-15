@@ -67,7 +67,7 @@ func TestFixedAssets_CapitaliseDepreciateDispose(t *testing.T) {
 		return id
 	}
 	exc := register("Excavator CAT 320", "1200000", "120000", "SL", 60)
-	register("Survey kit", "600000", "0", "DB", 48)
+	kit := register("Survey kit", "600000", "0", "DB", 48)
 	rawFails(t, f, "dispose without approval", `UPDATE fixed_assets SET status = 'DISPOSED' WHERE id = '`+exc+`'`)
 
 	// August.
@@ -120,6 +120,17 @@ func TestFixedAssets_CapitaliseDepreciateDispose(t *testing.T) {
 	must(t, "submit disposal", f.svc.SubmitDisposal(f.ctx, acc, disp))
 	dj, err := f.svc.DecideDisposal(f.ctx, cfo, disp, true, "")
 	must(t, "approve disposal", err)
+	// DEF-017 (0084): approving the disposal marks the asset DISPOSED; nothing
+	// else does, not even in a later transaction for another asset.
+	var est string
+	must(t, "asset status", f.app.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT status FROM fixed_assets WHERE id = $1::uuid`, exc).Scan(&est)
+	}))
+	if est != "DISPOSED" {
+		t.Fatalf("the approved disposal left the asset %s", est)
+	}
+	rawRefusedWith(t, f, "dispose of another asset without its own disposal", "only by approving its disposal",
+		`UPDATE fixed_assets SET status = 'DISPOSED' WHERE id = $1::uuid`, kit)
 	if got := journal(dj); got != "1100 DEBIT 1000000.00, 1500 CREDIT 1200000.00, 1590 DEBIT 36000.00, 4900 DEBIT 164000.00" {
 		t.Fatalf("disposal journal: %s", got)
 	}

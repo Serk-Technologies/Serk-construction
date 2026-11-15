@@ -176,7 +176,7 @@ D = {
         r("Supplier-level exposure triggers dual payment approval", V, "TestSupplierExposureNeedsDualApproval", "TestSupplierExposureWindowAndConcurrency"),
         r("Supplier qualification, conflict disclosure and performance scoring", N),
     ]),
-    "SUP-04": ("M6", "Construction lead", [r("Subcontracts: scope/BOQ, security, measured work, retention, deductions", I, note="Integrated from new-version (ADR 0025): certificates with retention, advance recovery, back-charges, withholding and journals (TestSubcontract_CertificatesAndJournal). Independent review: no BOQ link, no security (bond); cancellation unattested (DEF-017).")]),
+    "SUP-04": ("M6", "Construction lead", [r("Subcontracts: scope/BOQ, security, measured work, retention, deductions", I, note="Integrated from new-version (ADR 0025): certificates with retention, advance recovery, back-charges, withholding and journals (TestSubcontract_CertificatesAndJournal). Independent review: no BOQ link, no security (bond); cancellation attested by the person cancelling since 0084 (DEF-017 closed).")]),
     "SUP-05": ("M3", "Finance controller", [
         r("Stock quantity and value move together (FIFO or weighted average) and reconcile to the inventory account", V,
           "TestJourneyC_StockValuationToGL", "TestR7_FIFOManyLayersSmallIssues", "TestR7_WACFractionalToZero", "TestAPIJourneyC_StockValuation"),
@@ -285,7 +285,7 @@ D = {
         r("A preventive plan is revised by a new version that retires the old one in the same transaction and continues from its last service, or retired with a reason; retired plans are kept, are not due and take no work orders; neither is possible while a work order of the plan is open", V,
           "TestMaintenance_PlanRevisionAndRetirement", "TestAPIMaintenance"),
     ]),
-    "FLT-04": ("M6", "Finance controller", [r("Capitalisation, depreciation and disposal posted through the ledger", I, note="Integrated from new-version (ADR 0025), TestFixedAssets_CapitaliseDepreciateDispose. Independent review: capitalisation journal lines not asserted; no link to the fleet register; disposal relies on trigger depth (DEF-017).")]),
+    "FLT-04": ("M6", "Finance controller", [r("Capitalisation, depreciation and disposal posted through the ledger", I, note="Integrated from new-version (ADR 0025), TestFixedAssets_CapitaliseDepreciateDispose. Independent review: capitalisation journal lines not asserted; no link to the fleet register; the asset is disposed of only by its approved disposal in the same transaction since 0084 (DEF-017 closed).")]),
     # ------------------------------------------------------------- PEOPLE
     "PPL-01": ("M6", "Product owner", [r("Employee and contractor records with protected personal data", N)]),
     "PPL-02": ("M6", "Construction lead", [r("Attendance and timesheets with approval, duplicate and overlap detection", I,

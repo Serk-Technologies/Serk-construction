@@ -181,6 +181,9 @@ func (s *Service) CancelTaxReturn(ctx context.Context, p auth.Principal, id, rea
 		return err
 	}
 	return s.taxTx(ctx, p, auth.PermTaxPrepare, func(ctx context.Context, tx pgx.Tx) error {
+		if err := s.cancelAttested(ctx, tx, p, "taxreturn.cancel", "tax_return", id, reason); err != nil {
+			return err
+		}
 		if err := postgres.Exec1(ctx, tx, `UPDATE tax_returns SET status = 'CANCELLED', decision_reason = $2 WHERE id = $1::uuid AND status = 'PREPARED'`, id, strings.TrimSpace(reason)); err != nil {
 			return err
 		}

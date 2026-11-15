@@ -194,6 +194,9 @@ func (s *Service) CancelSubPayment(ctx context.Context, p auth.Principal, id, re
 		if err := requireStatus(d, "DRAFT", "SUBMITTED", "APPROVED"); err != nil {
 			return err
 		}
+		if err := s.cancelAttested(ctx, tx, p, "subpay.cancel", "subcontract_payment", id, reason); err != nil {
+			return err
+		}
 		if err := postgres.Exec1(ctx, tx, `UPDATE subcontract_payments SET status = 'CANCELLED', cancel_reason = $2 WHERE id = $1::uuid`, id, strings.TrimSpace(reason)); err != nil {
 			return err
 		}

@@ -247,6 +247,9 @@ func (s *Service) CancelConsolidation(ctx context.Context, p auth.Principal, id,
 		return err
 	}
 	return s.consTx(ctx, p, auth.PermConsolidationManage, func(ctx context.Context, tx pgx.Tx) error {
+		if err := s.cancelAttested(ctx, tx, p, "conrun.cancel", "consolidation_run", id, reason); err != nil {
+			return err
+		}
 		if err := postgres.Exec1(ctx, tx, `UPDATE consolidation_runs SET status = 'CANCELLED', decision_reason = $2 WHERE id = $1::uuid AND status = 'PREPARED'`, id, strings.TrimSpace(reason)); err != nil {
 			return err
 		}
