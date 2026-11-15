@@ -286,7 +286,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-15-tasks-995dbe1.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-15-rawfails-37f5100.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -295,7 +295,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "SUP-05.4 returns, scrap and quarantine (new STK document types); DEF-018 (rawFails accepts 'no rows' and privilege errors); DEF-004 (four forms without race regression); HANDOVER update.",
+  "exact_next_action": "SUP-05.4: 0088 quarantine warehouses (no issue or reservation from them; transfers in and out), stock write-offs STK_SCRAP, site returns STK_RETURN at the issue's unit cost; then DEF-004, DEF-005.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -316,8 +316,9 @@
    "DEF-013 period-end journals bound, templates approved (1d9c9a0)",
    "DEF-017 cancellations attested, disposal by approval (f518c83)",
    "CNX-05.1 correspondence, PPL-05.1 certifications (e412014)",
-   "CNX-07.2 tasks; DEF-019 (995dbe1)"
+   "CNX-07.2 tasks; DEF-019 (995dbe1)",
+   "DEF-018 rawFails (37f5100)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-tasks-995dbe1.summary.json (506/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-rawfails-37f5100.summary.json (506/0/0)"
 }

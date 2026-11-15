@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-tasks-995dbe1.tests.txt",
- "commit": "995dbe1",
+ "results_file": "docs/engineering/evidence/2026-11-15-rawfails-37f5100.tests.txt",
+ "commit": "37f5100",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",

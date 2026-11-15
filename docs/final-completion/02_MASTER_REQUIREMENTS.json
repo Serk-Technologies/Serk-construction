@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-tasks-995dbe1.tests.txt",
- "register_commit": "995dbe1",
+ "results_file": "docs/engineering/evidence/2026-11-15-rawfails-37f5100.tests.txt",
+ "register_commit": "37f5100",
  "requirement_counts": {
   "VERIFIED": 110,
   "NOT_STARTED": 67,

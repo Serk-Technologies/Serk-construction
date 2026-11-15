@@ -204,12 +204,13 @@
    "id": "DEF-018",
    "severity": "Low",
    "area": "Tests",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "rawFails passes on any error including a missing column privilege, so several immutability tests never reach the guard they name (org_test.go:26)",
    "evidence": "read in the SQL/Go by the reviewer; to be reproduced by a failing test before the fix",
    "impact": "Tests that cannot fail for the stated reason",
    "next_action": "Assert the guard's message or SQLSTATE",
-   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)"
+   "found": "independent review of the carried new-version modules, 2026-11-15 (agent review, not a human review)",
+   "closure": "commit 37f5100; rawFails fails on statements that match no row and logs privilege versus guard; classification in evidence/2026-11-15-rawfails-controls.txt"
   },
   {
    "id": "DEF-019",
