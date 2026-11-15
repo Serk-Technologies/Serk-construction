@@ -554,7 +554,10 @@ X = {
     "XCT-LOC": ("M11", "Localisation", [
         r("Exact decimal money per ISO 4217 minor units; ETB supported", V, "TestParseQuantisesToMinorUnits", "TestAllocateConservesEveryMinorUnit"),
         r("Ethiopic text renders in PDF exports", V, "TestPDFEthiopicFontOnlyWhenNeeded"),
-        r("Ethiopian calendar display and input with round-trip tests", N),
+        r("Ethiopian calendar display and input with round-trip tests", I, criteria=[
+            c("Exact conversion between the Ethiopian and Gregorian calendars; every day 1900-2100 round-trips; published dates and new years agree", V, "TestEthiopianCalendarRoundTrip", "TestEthiopianCalendarKnownDates"),
+            c("The console shows the Ethiopian date, computed in agreement with the server's conversion", V, "TestConsoleBrowserForms"),
+            c("Dates can be entered in the Ethiopian calendar in forms", N)]),
         r("Translated interface (Amharic, Tigrinya, Afan Oromo)", N),
         r("Ethiopian statutory tax, payroll and forms", B, note="Needs local legal and accounting approval.",
           criteria=[

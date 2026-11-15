@@ -62,3 +62,4 @@ internal/httpapi TestListCursorPagination
 internal/kernel TestWorkforce_TimesheetsAndHSE
 internal/httpapi TestConsoleBrowserField
 internal/kernel TestDocflow_TransmittalsAndSubmittals
+pkg/ethcal TestEthiopianCalendarRoundTrip

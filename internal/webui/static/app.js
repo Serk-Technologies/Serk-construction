@@ -858,6 +858,23 @@ function greeting() {
   const hr = new Date().getHours();
   return hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
 }
+// Ethiopian (Amete Mihret) calendar, by Julian Day Number: the same algorithm as
+// pkg/ethcal, whose Go tests check every day from 1900 to 2100; the forms journey
+// checks that this copy agrees with it (XCT-LOC.3).
+const ETH_MONTHS = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
+function ethiopianDate(d) {
+  const jdn = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000) + 2440588;
+  const mod = (a, b) => ((a % b) + b) % b;
+  const epoch = 1723856;
+  const r = mod(jdn - epoch, 1461);
+  const n = mod(r, 365) + 365 * Math.floor(r / 1460);
+  const year = 4 * Math.floor((jdn - epoch) / 1461) + Math.floor(r / 365) - Math.floor(r / 1460);
+  return { year, month: Math.floor(n / 30) + 1, day: mod(n, 30) + 1 };
+}
+function ethiopianText(d) { const e = ethiopianDate(d); return `${e.day} ${ETH_MONTHS[e.month - 1]} ${e.year}`; }
+// The pure conversion is published read-only so a page or a test can check it; it holds no data and grants nothing.
+window.serkCalendar = Object.freeze({ ethiopianText });
+
 async function renderHome() {
   const cards = h('div', { class: 'cards' });
   const hero = h('section', { class: 'hero', 'aria-label': 'Summary' });
@@ -865,7 +882,9 @@ async function renderHome() {
     h('p', { class: 'foot-note' }, 'Counts include only the projects you can see. Every approval remains a human decision, checked again by the database.'));
   const all = await workQueues();
   const total = all.reduce((n, q) => n + (q.n || 0), 0);
-  hero.append(h('div', {}, h('p', { class: 'eyebrow' }, new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
+  const now = new Date();
+  hero.append(h('div', {}, h('p', { class: 'eyebrow' }, now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), ' · ',
+    h('span', { class: 'ethdate', title: 'Ethiopian calendar' }, `${ethiopianText(now)} (Ethiopian calendar)`)),
     h('h2', { class: 'hello' }, `${greeting()}, ${S.me.user_id}`), h('p', {}, `Signed in as ${S.me.roles.join(', ').replace(/_/g, ' ')}.`)),
   h('div', { class: 'big' }, String(total), h('small', {}, total === 1 ? 'item waiting' : 'items waiting')));
   if (!all.length) cards.append(h('p', { class: 'empty' }, 'No work queues for your roles.'));

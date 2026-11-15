@@ -17,6 +17,7 @@ import (
 
 	"github.com/serk-group/serk-construction/internal/store/postgres"
 	"github.com/serk-group/serk-construction/pkg/auth"
+	"github.com/serk-group/serk-construction/pkg/ethcal"
 )
 
 // TestConsoleBrowserForms (XCT-FORM) drives the cost-code-dependent forms in a
@@ -73,7 +74,13 @@ func TestConsoleBrowserForms(t *testing.T) {
 	tokens := map[string]string{"siteEng": a.tok("u-se", P, false, "site_engineer"), "pm": a.tok("u-pm", P, false, "project_manager"),
 		"estimator": a.tok("u-est", P, false, "estimator"), "planner": a.tok("u-planner", P, false, "planner")}
 	dir := t.TempDir()
-	fx, _ := json.Marshal(map[string]any{"tokens": tokens})
+	// XCT-LOC.3: the console's Ethiopian calendar must agree with pkg/ethcal on
+	// every sampled day (one every 37 days, 1901-2099) and on today.
+	samples := map[string]string{}
+	for d := time.Date(1901, 1, 1, 0, 0, 0, 0, time.UTC); d.Year() < 2100; d = d.AddDate(0, 0, 37) {
+		samples[d.Format("2006-01-02")] = ethcal.FromGregorian(d).String()
+	}
+	fx, _ := json.Marshal(map[string]any{"tokens": tokens, "ethSamples": samples, "ethToday": ethcal.FromGregorian(time.Now()).String()})
 	fixture := filepath.Join(dir, "fixture.json")
 	if err := os.WriteFile(fixture, fx, 0o600); err != nil {
 		t.Fatal(err)

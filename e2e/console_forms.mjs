@@ -7,7 +7,7 @@
 //      choice is made, and choosing resolves it;
 //   3. the submit button is disabled while choices are loading;
 //   4. an older request's failure, arriving after a newer success, is not shown.
-import { as, nav, selectByText, barrier, stays, fail, failures, log, browser } from './console_lib.mjs';
+import { as, nav, selectByText, barrier, stays, fail, failures, log, browser, FX } from './console_lib.mjs';
 
 const CC = /\/v1\/projects\/[^/]+\/cost-codes/;
 const FORMS = [
@@ -21,6 +21,20 @@ const FORMS = [
 
 const options = async (sel) => (await sel.locator('option').allTextContents()).join(' | ');
 const dialogs = {};
+
+// XCT-LOC.3: the Ethiopian date on My work, and the console's conversion on every sample, equal pkg/ethcal's.
+{
+  const p = await as('pm');
+  await nav(p, '#/home', 'My work');
+  const shown = await p.locator('.ethdate').first().textContent();
+  if (!shown.startsWith(FX.ethToday + ' ')) fail(`My work shows ${shown}, pkg/ethcal says today is ${FX.ethToday}`);
+  const wrong = await p.evaluate((samples) => Object.entries(samples).filter(([g, e]) => {
+    const [y, m, d] = g.split('-').map(Number);
+    return window.serkCalendar.ethiopianText(new Date(y, m - 1, d)) !== e;
+  }).slice(0, 5), FX.ethSamples);
+  if (wrong.length) fail(`the console's Ethiopian calendar disagrees with pkg/ethcal: ${JSON.stringify(wrong)}`);
+  log(`Ethiopian calendar: ${Object.keys(FX.ethSamples).length} sampled days agree; today ${FX.ethToday}`);
+}
 
 for (const F of FORMS) {
   const p = await as(F.role);
