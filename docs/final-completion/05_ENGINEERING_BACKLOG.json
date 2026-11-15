@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "dc0cd61",
+ "register_commit": "dd68054",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -908,7 +908,7 @@
     {
      "id": "PPL-02.1",
      "text": "Attendance and timesheets with approval, duplicate and overlap detection",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "PPL-03.1",
@@ -923,6 +923,11 @@
     {
      "id": "PPL-05.1",
      "text": "Certifications and safety training with expiry",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "PPL-02.1.d",
+     "text": "Clock-in/clock-out attendance capture, including offline from the field device",
      "status": "NOT_STARTED"
     },
     {
@@ -946,7 +951,10 @@
      "status": "BLOCKED"
     }
    ],
-   "tests": [],
+   "tests": [
+    "TestConsoleBrowserField",
+    "TestWorkforce_TimesheetsAndHSE"
+   ],
    "external_dependencies": [],
    "technical_status": "IN_PROGRESS",
    "human_acceptance": "PENDING",
@@ -1195,15 +1203,28 @@
     {
      "id": "ASR-03.1",
      "text": "Permits to work, incidents, toolbox talks; stop-work effective offline; no AI release",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "ASR-04.1",
      "text": "Carbon, waste, water and energy records with versioned factors; measured vs estimated",
      "status": "NOT_STARTED"
+    },
+    {
+     "id": "ASR-03.1.d",
+     "text": "Stop-work effective offline on the field device",
+     "status": "NOT_STARTED"
+    },
+    {
+     "id": "ASR-03.1.e",
+     "text": "No AI identity can close, issue or accept (decisions reserved to human principals)",
+     "status": "IMPLEMENTING"
     }
    ],
-   "tests": [],
+   "tests": [
+    "TestConsoleBrowserField",
+    "TestWorkforce_TimesheetsAndHSE"
+   ],
    "external_dependencies": [],
    "technical_status": "IN_PROGRESS",
    "human_acceptance": "PENDING",

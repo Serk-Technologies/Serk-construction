@@ -57,7 +57,8 @@
   "0072_integration_subjects.sql",
   "0073_carried_module_hardening.sql",
   "0074_employee_approval.sql",
-  "0075_overhead_no_overlap.sql"
+  "0075_overhead_no_overlap.sql",
+  "0076_workforce_hse.sql"
  ],
  "adrs_added": [
   "0018",
@@ -284,7 +285,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "WP-024 part 3 continued: DEF-011 (attest rule-of-credit approval), DEF-013 (bind overhead/recurring/accrual journal lines to computed amounts; approve recurring templates), DEF-015 (approve tax and intercompany account designations), DEF-017 (attest cancellations), DEF-014 (versioned, attested role adjustments; see its next_action). Then rebuild new-version 0064 timesheets and HSE on this branch's tables with attested steps (DEF-001).",
+  "exact_next_action": "Rebuild transmittals (bound to the same transaction, not a 5-minute window) and submittals (review attested) from new-version 0066 on this branch's documents (APPROVED revisions); then internal hire charge-out on equipment logs (FLT-01.14); then DEF-011, DEF-013, DEF-014, DEF-015, DEF-017.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -292,8 +293,9 @@
    "WP-002 problem details and document-list cursors (other lists open)",
    "WP-024 part 1: DEF-008, DEF-009 (9bce5f0), DEF-010 (dbe049a)",
    "WP-024 part 2: DEF-016 (47d5d5c)",
-   "WP-024 part 3: DEF-012 (dc0cd61)"
+   "WP-024 part 3: DEF-012 (dc0cd61)",
+   "DEF-001 part: timesheets and HSE rebuilt with attested decisions (dd68054)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-15-overhead-dc0cd61.summary.json (492/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-15-workforce-hse-dd68054.summary.json (494/0/0)"
 }

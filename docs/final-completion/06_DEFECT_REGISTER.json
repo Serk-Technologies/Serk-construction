@@ -6,7 +6,7 @@
    "severity": "High",
    "area": "Repository / integration",
    "status": "OPEN",
-   "title": "Unmerged parallel line on branch new-version (6cbcdac, 7ac2a6c; 2026-11-09) with migrations 0052-0067 that collide with this branch's 0052-0057",
+   "title": "Parts of new-version not yet rebuilt on this branch: internal equipment hire charge-out, transmittals and submittals (timesheets and HSE rebuilt in 0076)",
    "evidence": "git log claude/new-session-xkd5g3..origin/new-version; both lines define documents, document_revisions, rfis and equipment differently; the migration runner refuses duplicate versions",
    "impact": "About 21,000 lines of owner-authored work (revenue recognition, subcontracts, fixed assets, period end, payroll, consolidation, tax, workforce, HSE, quality, documents) are outside the candidate; neither line can be merged into main as it stands",
    "next_action": "Integrate on this branch: renumber the non-colliding migrations after 0057, port transmittals/submittals, timesheets and HSE onto this branch's document and equipment tables, and run both lines' tests (ADR 0025)",

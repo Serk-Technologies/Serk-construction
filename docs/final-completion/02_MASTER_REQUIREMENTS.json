@@ -1,19 +1,19 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-overhead-dc0cd61.tests.txt",
- "register_commit": "dc0cd61",
+ "results_file": "docs/engineering/evidence/2026-11-15-workforce-hse-dd68054.tests.txt",
+ "register_commit": "dd68054",
  "requirement_counts": {
   "VERIFIED": 105,
-  "NOT_STARTED": 78,
-  "IMPLEMENTING": 17,
+  "NOT_STARTED": 76,
+  "IMPLEMENTING": 19,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
-  "IMPLEMENTING": 6,
-  "NOT_STARTED": 33,
+  "IMPLEMENTING": 7,
+  "NOT_STARTED": 35,
   "BLOCKED": 12,
-  "VERIFIED": 6
+  "VERIFIED": 12
  },
  "requirements": [
   {
@@ -1352,9 +1352,45 @@
    "domain": "PPL-02",
    "product": "PEOPLE",
    "text": "Attendance and timesheets with approval, duplicate and overlap detection",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
-   "criteria": [],
+   "criteria": [
+    {
+     "id": "PPL-02.1.a",
+     "text": "Daily timesheets recorded by the site and approved by a different person, attested",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE",
+      "TestConsoleBrowserField"
+     ],
+     "note": ""
+    },
+    {
+     "id": "PPL-02.1.b",
+     "text": "Duplicate and overlapping hours refused (one approved line per person, project and day; at most 16 hours a day across projects)",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE"
+     ],
+     "note": ""
+    },
+    {
+     "id": "PPL-02.1.c",
+     "text": "Approved hours imported into a pay run once",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE"
+     ],
+     "note": ""
+    },
+    {
+     "id": "PPL-02.1.d",
+     "text": "Clock-in/clock-out attendance capture, including offline from the field device",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
    "work_package": "WP-012",
    "human_acceptance": "PENDING"
   },
@@ -1884,9 +1920,53 @@
    "domain": "ASR-03",
    "product": "ASSURE",
    "text": "Permits to work, incidents, toolbox talks; stop-work effective offline; no AI release",
-   "status": "NOT_STARTED",
+   "status": "IMPLEMENTING",
    "evidence_tests": [],
-   "criteria": [],
+   "criteria": [
+    {
+     "id": "ASR-03.1.a",
+     "text": "Incidents investigated and closed by someone other than the reporter; major incidents need a verified corrective action; attested",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE",
+      "TestConsoleBrowserField"
+     ],
+     "note": ""
+    },
+    {
+     "id": "ASR-03.1.b",
+     "text": "Permits to work requested, issued and accepted by three different people, attested, with bounded validity",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE",
+      "TestConsoleBrowserField"
+     ],
+     "note": ""
+    },
+    {
+     "id": "ASR-03.1.c",
+     "text": "Toolbox talks, inductions and safety inspections recorded; LTIFR from approved hours",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE"
+     ],
+     "note": ""
+    },
+    {
+     "id": "ASR-03.1.d",
+     "text": "Stop-work effective offline on the field device",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "ASR-03.1.e",
+     "text": "No AI identity can close, issue or accept (decisions reserved to human principals)",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "note": "authorize() refuses non-human principals for decisions; no HSE-specific test yet"
+    }
+   ],
    "work_package": "WP-015",
    "human_acceptance": "PENDING"
   },

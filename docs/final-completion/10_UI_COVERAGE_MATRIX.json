@@ -420,6 +420,22 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/timesheets",
+   "label": "Timesheets",
+   "browser_journeys": [
+    "console_field.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/hse",
+   "label": "Health and safety",
+   "browser_journeys": [
+    "console_field.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
    "route": "#/quality",
    "label": "Quality",
    "browser_journeys": [],
