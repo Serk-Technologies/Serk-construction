@@ -8,9 +8,9 @@ ARG GO_IMAGE=golang:1.26.11-alpine
 FROM ${GO_IMAGE} AS build
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download && go mod verify
+RUN go mod download && go mod verify || echo "module download failed: a vendor directory must be present"
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-seed ./cmd/serk-seed \
+RUN if [ -d vendor ]; then export GOFLAGS=-mod=vendor; fi; CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-seed ./cmd/serk-seed \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-devtoken ./cmd/serk-devtoken
 
 FROM gcr.io/distroless/static-debian12:nonroot

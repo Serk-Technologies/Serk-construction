@@ -1,5 +1,17 @@
 # Running SERK Construction locally (fully in Docker)
 
+**The short way: one command.**
+
+```bash
+./run.sh            # build, start, load the demo company and demo data, print how to sign in
+./run.sh reset      # ERASE the demo database and start from scratch (asks first)
+./run.sh stop       # stop (data kept)    ./run.sh status    ./run.sh logs
+./run.sh pin cfo    # the one-time e-mail sign-in PIN of a demo position
+```
+
+`run.sh` picks free ports by itself (database 5432, otherwise 5434/55432; console 8080, otherwise 8081/8082),
+so it does not collide with another project's database. Everything below explains what it does step by step.
+
 Everything runs in containers: PostgreSQL, the migrator, the approval signer
 and the API (which also serves the web console). Nothing is installed on the
 host except Docker. **Development only:** published, well-known secrets,

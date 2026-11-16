@@ -6,9 +6,11 @@ ARG GO_IMAGE=golang:1.26.11-alpine
 FROM ${GO_IMAGE} AS build
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download && go mod verify
+# When the build container cannot reach the module proxy (no network, or IPv6-only routes), ./run.sh
+# vendors the modules on the host (go mod vendor) and the build uses them instead.
+RUN go mod download && go mod verify || echo "module download failed: a vendor directory must be present"
 COPY . .
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-api ./cmd/serk-api \
+RUN if [ -d vendor ]; then export GOFLAGS=-mod=vendor; fi; CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-api ./cmd/serk-api \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-migrate ./cmd/serk-migrate \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-relay ./cmd/serk-relay \
  && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/serk-signer ./cmd/serk-signer

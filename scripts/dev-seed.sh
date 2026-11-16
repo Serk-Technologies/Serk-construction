@@ -6,7 +6,7 @@
 # Honours SERK_DB_PORT / SERK_API_PORT / POSTGRES_IMAGE / GO_IMAGE if exported.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-C="docker compose -p serk -f deploy/docker-compose.dev.yml"
+C="docker compose -p ${SERK_PROJECT:-serk} -f deploy/docker-compose.dev.yml"
 OUT=$($C --profile tools run --rm seed 2>/dev/null)
 echo "$OUT"
 TENANT=$(grep -oE 'tenant [0-9a-f-]{36}' <<<"$OUT" | head -1 | cut -d' ' -f2)
