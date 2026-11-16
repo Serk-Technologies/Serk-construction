@@ -74,6 +74,51 @@ func TestConsoleBrowserForms(t *testing.T) {
 	tokens := map[string]string{"siteEng": a.tok("u-se", P, false, "site_engineer"), "pm": a.tok("u-pm", P, false, "project_manager"),
 		"estimator": a.tok("u-est", P, false, "estimator"), "planner": a.tok("u-planner", P, false, "planner"),
 		"store": a.tok("u-store", P, false, "storekeeper")}
+	// DEF-004: a machine working at each project (the fuel form follows the
+	// machine's project) and one in the yard with a work order (its part form
+	// asks which project bears the cost).
+	officer, plantMgr := a.tok("u-plant-officer", nil, false, "plant_officer"), a.tok("u-plant-manager", nil, true, "plant_manager")
+	day := func(n int) string { return time.Now().AddDate(0, 0, n).Format("2006-01-02") }
+	must := func(what string, want, code int, out map[string]any) {
+		t.Helper()
+		if code != want {
+			t.Fatalf("fixture, %s: %d %v", what, code, out)
+		}
+	}
+	machine := func(name, serial, project string) string {
+		code, out := a.do("POST", "/v1/equipment", officer, map[string]any{"legal_entity_id": a.entity, "name": name, "class": "GRADER", "ownership": "OWNED",
+			"manufacturer": "CAT", "model": "140K", "serial_number": serial, "opening_meter": "100"})
+		must("register "+name, 201, code, out)
+		id := out["id"].(string)
+		move := func(tok, to, reason, project string) {
+			code, out := a.do("POST", "/v1/equipment/"+id+"/move", tok, map[string]any{"to": to, "reason": reason, "project_id": project})
+			must(name+" to "+to, 200, code, out)
+		}
+		move(plantMgr, "AVAILABLE", "Commissioned after inspection", "")
+		if project == "" {
+			return id
+		}
+		code, out = a.do("POST", "/v1/equipment-reservations", tokens["siteEng"], map[string]any{"equipment_id": id, "project_id": project, "purpose": "Earthworks", "starts_on": day(0), "ends_on": day(14)})
+		must("reserve "+name, 201, code, out)
+		r := out["id"].(string)
+		code, out = a.do("POST", "/v1/equipment-reservations/"+r+"/submit", tokens["siteEng"], nil)
+		must("submit reservation", 200, code, out)
+		code, out = a.do("POST", "/v1/equipment-reservations/"+r+"/approve", plantMgr, nil)
+		must("approve reservation", 200, code, out)
+		move(officer, "MOBILIZING", "Low-bed dispatched", project)
+		move(tokens["siteEng"], "ASSIGNED", "Arrived on site", "")
+		return id
+	}
+	machine("Grader A", "FORMS-A-001", a.project)
+	machine("Grader B", "FORMS-B-002", p2)
+	yard := machine("Loader Y", "FORMS-Y-003", "")
+	code, wo := a.do("POST", "/v1/maintenance-work-orders", officer, map[string]any{"equipment_id": yard, "kind": "CORRECTIVE", "description": "Hydraulic hose replacement on the boom"})
+	must("work order", 201, code, wo)
+	workOrder := wo["id"].(string)
+	// A yard machine's work order is company-wide: only a session without a
+	// project restriction (here a central store also acting as plant officer)
+	// opens it and chooses the project that bears the part.
+	tokens["storeHQ"] = a.tok("u-store-hq", nil, false, "storekeeper", "plant_officer")
 	dir := t.TempDir()
 	// XCT-LOC.3: the console's Ethiopian calendar must agree with pkg/ethcal on
 	// every sampled day (one every 37 days, 1901-2099) and on today.
@@ -81,7 +126,7 @@ func TestConsoleBrowserForms(t *testing.T) {
 	for d := time.Date(1901, 1, 1, 0, 0, 0, 0, time.UTC); d.Year() < 2100; d = d.AddDate(0, 0, 37) {
 		samples[d.Format("2006-01-02")] = ethcal.FromGregorian(d).String()
 	}
-	fx, _ := json.Marshal(map[string]any{"tokens": tokens, "ethSamples": samples, "ethToday": ethcal.FromGregorian(time.Now()).String()})
+	fx, _ := json.Marshal(map[string]any{"tokens": tokens, "ethSamples": samples, "ethToday": ethcal.FromGregorian(time.Now()).String(), "workOrder": workOrder})
 	fixture := filepath.Join(dir, "fixture.json")
 	if err := os.WriteFile(fixture, fx, 0o600); err != nil {
 		t.Fatal(err)

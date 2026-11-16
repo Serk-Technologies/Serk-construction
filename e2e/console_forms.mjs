@@ -20,6 +20,10 @@ const FORMS = [
   // DEF-004: the remaining project-driven forms.
   { name: 'contingency drawdown', role: 'pm', hash: '#/new/contingency_drawdown', heading: 'Request contingency drawdown', cc: 'To cost code', typed: 'Reason', submit: 'Create drawdown request' },
   { name: 'stock issue', role: 'store', hash: '#/new/stockissue', heading: 'Issue stock to a project', cc: 'Cost code', typed: 'Quantity', submit: 'Request issue' },
+  // The fuel form follows the machine: Grader A works at P-API, Grader B at P-TWO.
+  { name: 'fuel dispense', role: 'store', hash: '#/new/fuel_dispense', heading: 'Dispense fuel to a machine', driver: 'Equipment', a: 'Grader A', b: 'Grader B', cc: 'Cost code', typed: 'Operator', submit: 'Prepare issue' },
+  // A machine in the yard: the part's project is chosen on the form.
+  { name: 'work-order part', role: 'storeHQ', hash: `#/new/work_order_part/${FX.workOrder}`, heading: /^Request a part for /, driver: 'Project charged', cc: 'Cost code', typed: 'Quantity', submit: 'Request part' },
 ];
 
 const options = async (sel) => (await sel.locator('option').allTextContents()).join(' | ');
@@ -43,7 +47,8 @@ for (const F of FORMS) {
   const p = await as(F.role);
   if (!dialogs[F.role]) { dialogs[F.role] = []; p.on('dialog', (d) => { dialogs[F.role].push(d.message()); d.accept(); }); }
   await nav(p, F.hash, F.heading);
-  const proj = p.getByLabel('Project', { exact: true });
+  const proj = p.getByLabel(F.driver || 'Project', { exact: true });
+  const A = F.a || 'P-API', B = F.b || 'P-TWO';
   const cc = p.getByLabel(F.cc, { exact: true }).first();
   const typed = F.typed ? p.getByLabel(F.typed, { exact: true }).first() : null;
   const submit = p.getByRole('button', { name: F.submit });
@@ -53,14 +58,14 @@ for (const F of FORMS) {
     return el && [...el.options].some((o) => o.textContent.includes(c));
   }, [F.cc, code]);
 
-  await selectByText(proj, 'P-API');
+  await selectByText(proj, A);
   await waitOffers('01-MAT');
 
   // 1. older answer after newer
   let b = await barrier(p, CC);
-  await selectByText(proj, 'P-TWO');           // request for P-TWO is held
+  await selectByText(proj, B);           // request for P-TWO is held
   await b.arrived();
-  await selectByText(proj, 'P-API');           // request for P-API is answered
+  await selectByText(proj, A);           // request for P-API is answered
   await waitOffers('01-MAT');
   if (typed) await typed.fill('typed before the late answer');
   await b.release();                            // P-TWO's answer arrives last
@@ -74,7 +79,7 @@ for (const F of FORMS) {
 
   // 2. a choice the new project does not offer is unresolved, never remapped
   await selectByText(cc, '01-MAT');
-  await selectByText(proj, 'P-TWO');
+  await selectByText(proj, B);
   await waitOffers('02-LAB');
   if (await cc.getAttribute('aria-invalid') !== 'true') fail(`${F.name}: a cost code of the previous project was not marked unresolved (options: ${await options(cc)}; value ${await cc.inputValue()})`);
   if (await cc.inputValue() !== '') fail(`${F.name}: the line was silently remapped to ${await cc.inputValue()}`);
@@ -87,7 +92,7 @@ for (const F of FORMS) {
 
   // 3. submission waits for choices
   b = await barrier(p, CC);
-  await selectByText(proj, 'P-API');
+  await selectByText(proj, A);
   await b.arrived();
   if (!(await submit.isDisabled())) fail(`${F.name}: the form could be sent while its cost codes were loading`);
   await b.release();
@@ -96,9 +101,9 @@ for (const F of FORMS) {
 
   // 4. an older failure after a newer success is not reported
   b = await barrier(p, CC);
-  await selectByText(proj, 'P-TWO');
+  await selectByText(proj, B);
   await b.arrived();
-  await selectByText(proj, 'P-API');
+  await selectByText(proj, A);
   await waitOffers('01-MAT');
   await b.release(500);
   await b.stop();
