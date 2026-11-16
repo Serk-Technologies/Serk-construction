@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "2e0c8c7",
+ "register_commit": "48be931",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -803,7 +803,6 @@
    ],
    "open_requirement_ids": [
     "SUP-01.2",
-    "SUP-03.3",
     "SUP-04.1",
     "SUP-06.2",
     "SUP-07.1",
@@ -815,11 +814,6 @@
     {
      "id": "SUP-01.2",
      "text": "Material demand generated from schedule and BOQ, netted against stock",
-     "status": "NOT_STARTED"
-    },
-    {
-     "id": "SUP-03.3",
-     "text": "Supplier qualification, conflict disclosure and performance scoring",
      "status": "NOT_STARTED"
     },
     {
@@ -853,6 +847,7 @@
     "TestAPIJourneyC_StockValuation",
     "TestAuthority_MatrixLimitsPurchaseOrders",
     "TestBankAtRest_CiphertextOnlyInTheDatabase",
+    "TestConsoleBrowserJourneyA",
     "TestConsoleBrowserJourneyC",
     "TestIA04001_PrivilegedRevealIsPermissionedFreshAndAudited",
     "TestJourneyA_BOQToBankReconciliationToGL",
@@ -875,7 +870,8 @@
     "TestStock_QuarantineAndWriteoff",
     "TestStock_SiteReturns",
     "TestSupplierExposureNeedsDualApproval",
-    "TestSupplierExposureWindowAndConcurrency"
+    "TestSupplierExposureWindowAndConcurrency",
+    "TestSupplierGovernance_QualificationConflictsScores"
    ],
    "external_dependencies": [],
    "technical_status": "IN_PROGRESS",

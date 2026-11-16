@@ -1,10 +1,10 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-15-calendar-2e0c8c7.tests.txt",
- "register_commit": "2e0c8c7",
+ "results_file": "docs/engineering/evidence/2026-11-16-sup033-48be931.tests.txt",
+ "register_commit": "48be931",
  "requirement_counts": {
-  "VERIFIED": 113,
-  "NOT_STARTED": 65,
+  "VERIFIED": 114,
+  "NOT_STARTED": 64,
   "IMPLEMENTING": 24,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
@@ -13,7 +13,7 @@
   "IMPLEMENTING": 7,
   "NOT_STARTED": 41,
   "BLOCKED": 12,
-  "VERIFIED": 29
+  "VERIFIED": 33
  },
  "requirements": [
   {
@@ -715,9 +715,51 @@
    "domain": "SUP-03",
    "product": "SUPPLY / STOCK",
    "text": "Supplier qualification, conflict disclosure and performance scoring",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
-   "criteria": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSupplierGovernance_QualificationConflictsScores",
+    "TestConsoleBrowserJourneyA"
+   ],
+   "criteria": [
+    {
+     "id": "SUP-03.3.a",
+     "text": "A qualification is approved or rejected by someone other than its recorder, through an attestation; a raw status write is refused",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores",
+      "TestConsoleBrowserJourneyA"
+     ],
+     "note": ""
+    },
+    {
+     "id": "SUP-03.3.b",
+     "text": "With the policy on, nobody evaluates quotes or awards an RFQ without a declaration on it, and nobody who declared a conflict with a supplier evaluates its quote or awards to it",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores"
+     ],
+     "note": ""
+    },
+    {
+     "id": "SUP-03.3.c",
+     "text": "With the policy on, an RFQ is awarded only to a supplier with an approved qualification valid on the award day",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores"
+     ],
+     "note": ""
+    },
+    {
+     "id": "SUP-03.3.d",
+     "text": "A supplier is scored once per purchase order, only after a confirmed receipt, by someone other than the order approver; scores are immutable",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores",
+      "TestConsoleBrowserJourneyA"
+     ],
+     "note": ""
+    }
+   ],
    "work_package": "WP-011",
    "human_acceptance": "PENDING"
   },

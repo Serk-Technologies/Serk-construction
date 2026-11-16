@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-15-calendar-2e0c8c7.tests.txt",
- "commit": "2e0c8c7",
+ "results_file": "docs/engineering/evidence/2026-11-16-sup033-48be931.tests.txt",
+ "commit": "48be931",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,8 +11,8 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 113,
-  "NOT_STARTED": 65,
+  "VERIFIED": 114,
+  "NOT_STARTED": 64,
   "IMPLEMENTING": 24,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
@@ -21,7 +21,7 @@
   "IMPLEMENTING": 7,
   "NOT_STARTED": 41,
   "BLOCKED": 12,
-  "VERIFIED": 29
+  "VERIFIED": 33
  },
  "domain_counts": {
   "IMPLEMENTING": 51,
@@ -897,7 +897,7 @@
    "milestone": "M3",
    "owner": "Finance controller",
    "status": "IMPLEMENTING",
-   "all_listed_requirements_verified": false,
+   "all_listed_requirements_verified": true,
    "requirements": [
     {
      "id": "SUP-03.1",
@@ -927,11 +927,53 @@
     {
      "id": "SUP-03.3",
      "text": "Supplier qualification, conflict disclosure and performance scoring",
-     "status": "NOT_STARTED",
-     "evidence_tests": [],
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores",
+      "TestConsoleBrowserJourneyA"
+     ],
      "evidence_file": "",
-     "note": "",
-     "criteria": []
+     "note": "0093: qualifications decided by another person (attested); per-RFQ conflict declarations; one score per order after a confirmed receipt. Both award gates are switched on by the P2P policy (default off).",
+     "criteria": [
+      {
+       "id": "SUP-03.3.a",
+       "text": "A qualification is approved or rejected by someone other than its recorder, through an attestation; a raw status write is refused",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestSupplierGovernance_QualificationConflictsScores",
+        "TestConsoleBrowserJourneyA"
+       ],
+       "note": ""
+      },
+      {
+       "id": "SUP-03.3.b",
+       "text": "With the policy on, nobody evaluates quotes or awards an RFQ without a declaration on it, and nobody who declared a conflict with a supplier evaluates its quote or awards to it",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestSupplierGovernance_QualificationConflictsScores"
+       ],
+       "note": ""
+      },
+      {
+       "id": "SUP-03.3.c",
+       "text": "With the policy on, an RFQ is awarded only to a supplier with an approved qualification valid on the award day",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestSupplierGovernance_QualificationConflictsScores"
+       ],
+       "note": ""
+      },
+      {
+       "id": "SUP-03.3.d",
+       "text": "A supplier is scored once per purchase order, only after a confirmed receipt, by someone other than the order approver; scores are immutable",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestSupplierGovernance_QualificationConflictsScores",
+        "TestConsoleBrowserJourneyA"
+       ],
+       "note": ""
+      }
+     ]
     }
    ]
   },

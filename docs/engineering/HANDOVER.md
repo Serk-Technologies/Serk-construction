@@ -1,9 +1,11 @@
-# Handover — 2026-11-15 (updated after the fleet review corrections, ADR 0024)
+# Handover — 2026-11-16 (header updated after SUP-03.3; detailed sections below are from 2026-11-15)
 
 > **Final-completion programme (latest):** start at `docs/final-completion/00_PROGRAM_CHARTER.md`, `docs/completion/22_FINAL_SCOPE_AND_GAP_REGISTER.md` and ADR 0025 (integration of the unmerged `new-version` line). Open defects: `docs/final-completion/06_DEFECT_REGISTER.json`; next action: `execution-state.json` → `final_completion.exact_next_action`.
 >
 > **Latest cycle (2026-11-15, after 4e893b2), each slice with a full fresh-database run, evidence under `evidence/`:**
 > DEF-014 role adjustments attested (0082, 26b7a29) · DEF-013 overhead and recurring journals bound to their computation, recurring templates approved (0083, 1d9c9a0) · DEF-017 cancellations attested, disposal by its approval (0084, f518c83) · CNX-05.1 correspondence and PPL-05.1 certifications (0085, 0086, e412014) · CNX-07.2 tasks and DEF-019 (0087, 995dbe1) · DEF-018 `rawFails` refuses vacuous statements and labels the control that held (`evidence/2026-11-15-rawfails-controls.txt`). Every new database rule was shown to fail its test when removed. Not done: SUP-05.4 returns/scrap/quarantine, DEF-004, DEF-005; owner decisions (branch protection DEF-002, PR, ADR 0025 questions) remain open. Production: NO-GO.
+>
+> **Since then (2026-11-15/16), same discipline:** SUP-05.4 quarantine stores and scrap write-offs (0088, 67620b4) and site returns at the issue's cost (0089, 4da1b31) · statement drill-down, RFI cost/time impact through change events, submittal review cycles (0090, f5e0b8c) · DEF-021 found and closed: an apostrophe broke the console while plain `node --check` passed; CI and pre-push now check the static JS as ES modules · CAP-01.5.b direct-method cash-flow statement from approved account classes (0091, f9106d5) · FLT-03.1.d maintenance calendar (0092, 2e0c8c7) · DEF-004 contingency drawdown and stock issue forms added to the race regressions · SUP-03.3 supplier qualification (attested, second person), per-RFQ conflict declarations and post-receipt scoring, award gates switched on by the P2P policy (0093, 48be931). Last full fresh-database run: **511 passed, 0 failed, 0 skipped** (`evidence/2026-11-16-sup033-48be931.tests.txt`). Register: VERIFIED 114, IMPLEMENTING 24, NOT_STARTED 64, BLOCKED 9, IMPLEMENTED_UNVERIFIED 1. Open defects: DEF-002 (owner: protect `main`), DEF-004 (fuel and work-order part forms), DEF-005, DEF-007, DEF-020. Production: NO-GO.
 >
 > Earlier state is in `execution-state.json` and `docs/completion/21_AURA_CYCLE_REPORT.md`. Fuel (0055), maintenance (0056) and the review corrections (0057) are built; this file's detailed sections below describe the earlier audit remediation and are kept for history.
 
@@ -90,5 +92,5 @@ Feature work is suspended by the audit directive. In order:
 ## Resume
 
 ```text
-Read CLAUDE.md and docs/engineering/execution-state.json, check the latest GitHub Actions run for this branch, reproduce the baseline (460 tests, none skipped: `tools/ci/check_test_results.py`) per docs/engineering/RUNBOOK.md, then take the first open item of "Next checkpoint" in docs/engineering/HANDOVER.md. Do not start feature work while the stabilisation gate is open.
+Read CLAUDE.md and docs/engineering/execution-state.json, check the latest GitHub Actions run for this branch, reproduce the baseline (511 tests at 48be931, none skipped: `tools/ci/check_test_results.py`) per docs/engineering/RUNBOOK.md, then take the first open item of "Next checkpoint" in docs/engineering/HANDOVER.md. Do not start feature work while the stabilisation gate is open.
 ```
