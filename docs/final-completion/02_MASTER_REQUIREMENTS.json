@@ -1,9 +1,9 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-16-auth1-3469055.tests.txt",
- "register_commit": "3469055",
+ "results_file": "docs/engineering/evidence/2026-11-16-auth2345-9cfe480.tests.txt",
+ "register_commit": "9cfe480",
  "requirement_counts": {
-  "VERIFIED": 118,
+  "VERIFIED": 123,
   "NOT_STARTED": 62,
   "IMPLEMENTING": 23,
   "BLOCKED": 9,
@@ -13,7 +13,7 @@
   "IMPLEMENTING": 7,
   "NOT_STARTED": 42,
   "BLOCKED": 12,
-  "VERIFIED": 47
+  "VERIFIED": 51
  },
  "requirements": [
   {
@@ -3132,6 +3132,33 @@
    "human_acceptance": "PENDING"
   },
   {
+   "id": "BRS-04.5",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "Leadership roles with separated powers: system administrator, board chairman, CEO",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestLeadershipRoles_SeparatedPowers",
+    "TestDefaultRolesSeparateDuties"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-04.6",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "Company roles state responsibilities beside permissions; leadership product roles carry written responsibilities (0096)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestRoleResponsibilities"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
    "id": "XCT-OFFLINE.1",
    "domain": "XCT-OFFLINE",
    "product": "PLATFORM",
@@ -3634,6 +3661,94 @@
    "id": "XCT-UI.4",
    "domain": "XCT-UI",
    "product": "PLATFORM",
+   "text": "Two-panel e-mail + PIN sign-in page in the company's brand: attempts left, lock and first-sign-in PIN change shown; token and staging sign-in kept as other options",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserSignin",
+    "TestAPIPinLogin"
+   ],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.5",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Workflow map: every document workflow's steps with the product and company roles that may take each step, the duty controls that keep steps apart and the amount bands of the authority matrix in force",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserSignin"
+   ],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.6",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Company branding: name, motto, address and contacts, logo, and a light and dark colour theme with enforced contrast (0097)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestBranding_WordsThemeLogo",
+    "TestAPIBranding",
+    "TestValidate",
+    "TestLogo",
+    "TestDefaultsAreReadable",
+    "TestConsoleBrowserSignin"
+   ],
+   "criteria": [
+    {
+     "id": "XCT-UI.6.a",
+     "text": "The logo is PNG, JPEG or WebP up to 10 MB, identified by its content (SVG refused), digest-checked by the database and served with nosniff and a sandbox policy",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestLogo",
+      "TestBranding_WordsThemeLogo",
+      "TestAPIBranding"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-UI.6.b",
+     "text": "Fifteen colour tokens per mode, radius and font are customisable; text pairs keep 4.5:1 and non-text pairs 3:1, or the theme is refused",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestValidate",
+      "TestDefaultsAreReadable",
+      "TestBranding_WordsThemeLogo",
+      "TestAPIBranding"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-UI.6.c",
+     "text": "Branding is changed only with tenant.settings.manage, versioned and audited; another company sees nothing",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestBranding_WordsThemeLogo",
+      "TestAPIBranding"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-UI.6.d",
+     "text": "The settings page previews the theme and logo before saving, and the console and sign-in page apply them",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestConsoleBrowserSignin"
+     ],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.7",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
    "text": "Personal workspace: tasks, approvals, deadlines, recent records; layout preferences saved per user and tenant",
    "status": "NOT_STARTED",
    "evidence_tests": [],
@@ -3642,7 +3757,7 @@
    "human_acceptance": "PENDING"
   },
   {
-   "id": "XCT-UI.5",
+   "id": "XCT-UI.8",
    "domain": "XCT-UI",
    "product": "PLATFORM",
    "text": "Application shell: project switcher, command palette, notification centre, permission-aware search",
@@ -3653,7 +3768,7 @@
    "human_acceptance": "PENDING"
   },
   {
-   "id": "XCT-UI.6",
+   "id": "XCT-UI.9",
    "domain": "XCT-UI",
    "product": "PLATFORM",
    "text": "Role workspaces for the roles in the directive, each with its own working queue",
@@ -3664,7 +3779,7 @@
    "human_acceptance": "PENDING"
   },
   {
-   "id": "XCT-UI.7",
+   "id": "XCT-UI.10",
    "domain": "XCT-UI",
    "product": "PLATFORM",
    "text": "Every screen family reviewed by screenshot at the listed widths, with defects recorded and fixed",
@@ -3675,7 +3790,7 @@
    "human_acceptance": "PENDING"
   },
   {
-   "id": "XCT-UI.8",
+   "id": "XCT-UI.11",
    "domain": "XCT-UI",
    "product": "PLATFORM",
    "text": "Automated accessibility checks on every screen family; manual review recorded separately",

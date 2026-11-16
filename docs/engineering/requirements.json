@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-16-auth1-3469055.tests.txt",
- "commit": "3469055",
+ "results_file": "docs/engineering/evidence/2026-11-16-auth2345-9cfe480.tests.txt",
+ "commit": "9cfe480",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,7 +11,7 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 118,
+  "VERIFIED": 123,
   "NOT_STARTED": 62,
   "IMPLEMENTING": 23,
   "BLOCKED": 9,
@@ -21,7 +21,7 @@
   "IMPLEMENTING": 7,
   "NOT_STARTED": 42,
   "BLOCKED": 12,
-  "VERIFIED": 47
+  "VERIFIED": 51
  },
  "domain_counts": {
   "IMPLEMENTING": 52,
@@ -3663,6 +3663,29 @@
      "evidence_file": "",
      "note": "",
      "criteria": []
+    },
+    {
+     "id": "BRS-04.5",
+     "text": "Leadership roles with separated powers: system administrator, board chairman, CEO",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestLeadershipRoles_SeparatedPowers",
+      "TestDefaultRolesSeparateDuties"
+     ],
+     "evidence_file": "",
+     "note": "The system administrator runs people, roles, settings, branding, sessions and workflow administration and holds no financial or approval permission; the board chairman reads everything including the audit trail and acts on nothing; the CEO approves operations within the authority matrix and never prepares, posts or releases.",
+     "criteria": []
+    },
+    {
+     "id": "BRS-04.6",
+     "text": "Company roles state responsibilities beside permissions; leadership product roles carry written responsibilities (0096)",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRoleResponsibilities"
+     ],
+     "evidence_file": "",
+     "note": "",
+     "criteria": []
     }
    ]
   }
@@ -4186,6 +4209,88 @@
     },
     {
      "id": "XCT-UI.4",
+     "text": "Two-panel e-mail + PIN sign-in page in the company's brand: attempts left, lock and first-sign-in PIN change shown; token and staging sign-in kept as other options",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestConsoleBrowserSignin",
+      "TestAPIPinLogin"
+     ],
+     "evidence_file": "",
+     "note": "Self-service PIN change and authenticator set-up in My profile; administrators issue, unlock, reset and disable sign-ins from the person sheet and the People › Sign-ins tab, with the trail.",
+     "criteria": []
+    },
+    {
+     "id": "XCT-UI.5",
+     "text": "Workflow map: every document workflow's steps with the product and company roles that may take each step, the duty controls that keep steps apart and the amount bands of the authority matrix in force",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestConsoleBrowserSignin"
+     ],
+     "evidence_file": "",
+     "note": "Read-only; computed from the console's workflow definitions, the role catalogue, /v1/people and the authority matrix. Filter by area or role.",
+     "criteria": []
+    },
+    {
+     "id": "XCT-UI.6",
+     "text": "Company branding: name, motto, address and contacts, logo, and a light and dark colour theme with enforced contrast (0097)",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestBranding_WordsThemeLogo",
+      "TestAPIBranding",
+      "TestValidate",
+      "TestLogo",
+      "TestDefaultsAreReadable",
+      "TestConsoleBrowserSignin"
+     ],
+     "evidence_file": "",
+     "note": "",
+     "criteria": [
+      {
+       "id": "XCT-UI.6.a",
+       "text": "The logo is PNG, JPEG or WebP up to 10 MB, identified by its content (SVG refused), digest-checked by the database and served with nosniff and a sandbox policy",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestLogo",
+        "TestBranding_WordsThemeLogo",
+        "TestAPIBranding"
+       ],
+       "note": ""
+      },
+      {
+       "id": "XCT-UI.6.b",
+       "text": "Fifteen colour tokens per mode, radius and font are customisable; text pairs keep 4.5:1 and non-text pairs 3:1, or the theme is refused",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestValidate",
+        "TestDefaultsAreReadable",
+        "TestBranding_WordsThemeLogo",
+        "TestAPIBranding"
+       ],
+       "note": ""
+      },
+      {
+       "id": "XCT-UI.6.c",
+       "text": "Branding is changed only with tenant.settings.manage, versioned and audited; another company sees nothing",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestBranding_WordsThemeLogo",
+        "TestAPIBranding"
+       ],
+       "note": ""
+      },
+      {
+       "id": "XCT-UI.6.d",
+       "text": "The settings page previews the theme and logo before saving, and the console and sign-in page apply them",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestConsoleBrowserSignin"
+       ],
+       "note": ""
+      }
+     ]
+    },
+    {
+     "id": "XCT-UI.7",
      "text": "Personal workspace: tasks, approvals, deadlines, recent records; layout preferences saved per user and tenant",
      "status": "NOT_STARTED",
      "evidence_tests": [],
@@ -4194,7 +4299,7 @@
      "criteria": []
     },
     {
-     "id": "XCT-UI.5",
+     "id": "XCT-UI.8",
      "text": "Application shell: project switcher, command palette, notification centre, permission-aware search",
      "status": "NOT_STARTED",
      "evidence_tests": [],
@@ -4203,7 +4308,7 @@
      "criteria": []
     },
     {
-     "id": "XCT-UI.6",
+     "id": "XCT-UI.9",
      "text": "Role workspaces for the roles in the directive, each with its own working queue",
      "status": "NOT_STARTED",
      "evidence_tests": [],
@@ -4212,7 +4317,7 @@
      "criteria": []
     },
     {
-     "id": "XCT-UI.7",
+     "id": "XCT-UI.10",
      "text": "Every screen family reviewed by screenshot at the listed widths, with defects recorded and fixed",
      "status": "NOT_STARTED",
      "evidence_tests": [],
@@ -4221,7 +4326,7 @@
      "criteria": []
     },
     {
-     "id": "XCT-UI.8",
+     "id": "XCT-UI.11",
      "text": "Automated accessibility checks on every screen family; manual review recorded separately",
      "status": "NOT_STARTED",
      "evidence_tests": [],

@@ -29,7 +29,8 @@
    "label": "My profile",
    "browser_journeys": [
     "console_journey_a.mjs",
-    "console_journey_b.mjs"
+    "console_journey_b.mjs",
+    "console_signin.mjs"
    ],
    "status": "COVERED_BY_BROWSER_JOURNEY"
   },
@@ -685,8 +686,10 @@
   {
    "route": "#/people",
    "label": "People & access",
-   "browser_journeys": [],
-   "status": "NOT_COVERED"
+   "browser_journeys": [
+    "console_signin.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
   },
   {
    "route": "#/org",
@@ -749,10 +752,26 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/workflows",
+   "label": "Workflow map",
+   "browser_journeys": [
+    "console_signin.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
    "route": "#/settings",
    "label": "Company settings",
    "browser_journeys": [],
    "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/branding",
+   "label": "Brand & appearance",
+   "browser_journeys": [
+    "console_signin.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
   }
  ]
 }

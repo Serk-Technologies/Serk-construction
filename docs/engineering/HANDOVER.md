@@ -9,6 +9,15 @@
 >
 > **Then (2026-11-16):** DEF-004 closed: the fuel and work-order part forms joined the race regressions (fb86907) · the journal worklist pages by cursor (XCT-API.2.e for journals, de4b97d; people, stock and report lists still do not) · EST-06 resource rate library and rate build-ups: provenance, attested approval, database-computed figures reproducing the Bible's 7,400 → 8,140 → 9,576.47, frozen on approval, revisions (0094, f94f52f; freezing *at bid submission* waits for a tender record, EST-04) · DEF-022 found by CI run 64 (the only failed run since 56: TestConsoleBrowserFinance) and closed: a page the person had left could paint over the newer one; reads now carry the page's abort signal (7fea1e5). Last full fresh-database run: **515 passed, 0 failed, 0 skipped** (`evidence/2026-11-16-def022-7fea1e5.tests.txt`). CI runs 65–67 passed. Open defects: DEF-002 (owner), DEF-005, DEF-007, DEF-020. Production: NO-GO.
 >
+> **Then (2026-11-16), sign-in, roles and branding:**
+> - **E-mail + 6-digit PIN sign-in** (0095, 3469055): optional authenticator; 15 failures lock the sign-in for 15 minutes; full trail.
+> - **Leadership roles with separated powers** (0096, cbc9a41): system administrator, board chairman (read-only), CEO (approves only). Every role carries written responsibilities.
+> - **Company branding** (0097): words, logo up to 10 MB, 15 colour tokens per mode with enforced contrast.
+> - **Console** (794f753): the two-panel sign-in page; Brand & appearance with a live preview; PIN and authenticator self-service; sign-in administration; the workflow map with authorities. New mandatory browser test `TestConsoleBrowserSignin`.
+> - **Staging** (9cfe480): every position gets a seeded e-mail sign-in, with one-time PINs derived from `SERK_SEED_PIN_SECRET`.
+>
+> The full run of cbc9a41 alone failed `TestOpenAPIMatchesRoutes` (`make gen-docs` was forgotten); 794f753 fixed it. One unexplained failure of `TestConsoleBrowserSignin` occurred during a screenshot run, followed by 9 passes (4 under `-race`). Last full fresh-database run: **531 passed, 0 failed, 0 skipped** (`evidence/2026-11-16-auth2345-9cfe480.tests.txt`). Register: VERIFIED 123. Production: NO-GO; PIN sign-in issues HS256 sessions, so it runs in development and staging only.
+>
 > Earlier state is in `execution-state.json` and `docs/completion/21_AURA_CYCLE_REPORT.md`. Fuel (0055), maintenance (0056) and the review corrections (0057) are built; this file's detailed sections below describe the earlier audit remediation and are kept for history.
 
 For the next engineer or session. Machine-readable state: `execution-state.json`. Earlier history: `CHANGELOG.md`.

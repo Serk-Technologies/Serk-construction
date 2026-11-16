@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "3469055",
+ "register_commit": "9cfe480",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -325,16 +325,19 @@
     "XCT-UI.5",
     "XCT-UI.6",
     "XCT-UI.7",
-    "XCT-UI.8"
+    "XCT-UI.8",
+    "XCT-UI.9",
+    "XCT-UI.10",
+    "XCT-UI.11"
    ],
    "open_requirement_ids": [
     "XCT-UI.2",
     "XCT-UI.3",
-    "XCT-UI.4",
-    "XCT-UI.5",
-    "XCT-UI.6",
     "XCT-UI.7",
-    "XCT-UI.8"
+    "XCT-UI.8",
+    "XCT-UI.9",
+    "XCT-UI.10",
+    "XCT-UI.11"
    ],
    "dependencies": [
     "WP-001"
@@ -351,33 +354,40 @@
      "status": "NOT_STARTED"
     },
     {
-     "id": "XCT-UI.4",
+     "id": "XCT-UI.7",
      "text": "Personal workspace: tasks, approvals, deadlines, recent records; layout preferences saved per user and tenant",
      "status": "NOT_STARTED"
     },
     {
-     "id": "XCT-UI.5",
+     "id": "XCT-UI.8",
      "text": "Application shell: project switcher, command palette, notification centre, permission-aware search",
      "status": "NOT_STARTED"
     },
     {
-     "id": "XCT-UI.6",
+     "id": "XCT-UI.9",
      "text": "Role workspaces for the roles in the directive, each with its own working queue",
      "status": "NOT_STARTED"
     },
     {
-     "id": "XCT-UI.7",
+     "id": "XCT-UI.10",
      "text": "Every screen family reviewed by screenshot at the listed widths, with defects recorded and fixed",
      "status": "NOT_STARTED"
     },
     {
-     "id": "XCT-UI.8",
+     "id": "XCT-UI.11",
      "text": "Automated accessibility checks on every screen family; manual review recorded separately",
      "status": "NOT_STARTED"
     }
    ],
    "tests": [
-    "TestAURATokensMatchStylesheet"
+    "TestAPIBranding",
+    "TestAPIPinLogin",
+    "TestAURATokensMatchStylesheet",
+    "TestBranding_WordsThemeLogo",
+    "TestConsoleBrowserSignin",
+    "TestDefaultsAreReadable",
+    "TestLogo",
+    "TestValidate"
    ],
    "external_dependencies": [],
    "technical_status": "IN_PROGRESS",
@@ -1489,7 +1499,9 @@
     "BRS-04.1",
     "BRS-04.2",
     "BRS-04.3",
-    "BRS-04.4"
+    "BRS-04.4",
+    "BRS-04.5",
+    "BRS-04.6"
    ],
    "open_requirement_ids": [
     "BRS-01.1",
@@ -1565,6 +1577,7 @@
     "TestDefaultRolesSeparateDuties",
     "TestGovernedAI_DraftOnly",
     "TestHashVerify",
+    "TestLeadershipRoles_SeparatedPowers",
     "TestPeople_AdjustProductRole",
     "TestPeople_DirectoryRolesAndProfile",
     "TestPinLoginConfig",
@@ -1576,6 +1589,7 @@
     "TestR6_11_HumanRuleAndDraftParity",
     "TestR8_HumanDecisionsAndScope",
     "TestReservedPermissionsNotGrantableByRoles",
+    "TestRoleResponsibilities",
     "TestSealOpen",
     "TestSessions_RevocationKillsOldTokensIncludingInFlightApprovals",
     "TestSetup_ChecklistReadsRealState",

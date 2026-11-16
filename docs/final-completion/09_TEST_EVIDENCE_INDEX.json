@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py",
  "directory": "docs/engineering/evidence",
- "register_results_file": "docs/engineering/evidence/2026-11-16-auth1-3469055.tests.txt",
+ "register_results_file": "docs/engineering/evidence/2026-11-16-auth2345-9cfe480.tests.txt",
  "files": [
   "2026-11-15-baseline-711a174-fresh-db.json",
   "2026-11-15-baseline.tests.txt",
@@ -73,6 +73,8 @@
   "2026-11-15-workforce-hse-dd68054.tests.txt",
   "2026-11-16-auth1-3469055.summary.json",
   "2026-11-16-auth1-3469055.tests.txt",
+  "2026-11-16-auth2345-9cfe480.summary.json",
+  "2026-11-16-auth2345-9cfe480.tests.txt",
   "2026-11-16-def004-fb86907.summary.json",
   "2026-11-16-def004-fb86907.tests.txt",
   "2026-11-16-def022-7fea1e5.summary.json",

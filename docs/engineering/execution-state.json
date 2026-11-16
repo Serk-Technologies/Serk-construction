@@ -77,7 +77,9 @@
   "0092_work_order_planned_date.sql",
   "0093_supplier_governance.sql",
   "0094_rate_buildup.sql",
-  "0095_pin_login.sql"
+  "0095_pin_login.sql",
+  "0096_role_responsibilities.sql",
+  "0097_branding.sql"
  ],
  "adrs_added": [
   "0018",
@@ -294,7 +296,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-16-auth1-3469055.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-16-auth2345-9cfe480.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -303,7 +305,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "AUTH-2 leadership roles; AUTH-3 branding; AUTH-4 sign-in page and workflow map; AUTH-5 staging accounts.",
+  "exact_next_action": "Push, redeploy staging pinned to 9cfe480 with SERK_LOGIN_PEPPER and SERK_SEED_PIN_SECRET, verify the deploy log; then people/stock list paging, DEF-005, EST-04/07.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -336,8 +338,9 @@
    "XCT-API.2.e journal worklist cursor paging (de4b97d)",
    "EST-06 rate library and rate build-ups (f94f52f)",
    "DEF-022 stale page painting over a newer one, found on CI run 64, closed (7fea1e5)",
-   "AUTH-1 e-mail + 6-digit PIN sign-in, optional authenticator, 15-try lockout (3469055)"
+   "AUTH-1 e-mail + 6-digit PIN sign-in, optional authenticator, 15-try lockout (3469055)",
+   "AUTH-2..5 (cbc9a41, 794f753, 9cfe480): leadership roles (system admin, board chairman, CEO) with separated powers and written responsibilities; company branding (words, logo up to 10 MB, 15 colour tokens per mode with enforced contrast); two-panel e-mail + PIN sign-in page; branding editor with live preview; PIN/authenticator self-service; sign-in administration; workflow map with authorities; staging sign-ins for every position. Full run of 9cfe480: 531 passed, 0 failed, 0 skipped. The full run of cbc9a41 alone FAILED TestOpenAPIMatchesRoutes (stale OpenAPI); fixed in 794f753."
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-16-auth1-3469055.summary.json (522/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-16-auth2345-9cfe480.summary.json (531/0/0)"
 }
