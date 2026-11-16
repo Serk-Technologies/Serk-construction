@@ -95,6 +95,14 @@ const (
 	PermChangeApprove      Permission = "change.approve"      // approve or reject a change event (fresh MFA)
 	PermClaimManage        Permission = "claim.manage"        // raise notices; prepare claims; record the client's answer (0046)
 	PermClaimApprove       Permission = "claim.approve"       // approve or reject a claim for sending (fresh MFA)
+	PermDocumentManage     Permission = "document.manage"     // register documents, upload and submit revisions; raise, answer and close RFIs (0052)
+	PermDocumentApprove    Permission = "document.approve"    // publish or reject a document revision (fresh MFA)
+	PermFleetManage        Permission = "fleet.manage"        // register equipment, prepare operator authorisations and meter resets (0054)
+	PermFleetApprove       Permission = "fleet.approve"       // commission, retire and dispose of equipment; approve reservations (fresh MFA)
+	PermFleetReserve       Permission = "fleet.reserve"       // request equipment for a project
+	PermFleetOperate       Permission = "fleet.operate"       // move equipment through its working states, stop it, write its daily logs
+	PermFleetLogApprove    Permission = "fleet.log.approve"   // approve or reject daily equipment logs
+	PermFleetRelease       Permission = "fleet.release"       // certify equipment fit for service; approve operators and meter resets (fresh MFA)
 	PermBondManage         Permission = "bond.manage"         // register guarantees; reduce or extend them (0050)
 	PermBondApprove        Permission = "bond.approve"        // release a guarantee to the bank or record its call (fresh MFA)
 	PermEscalationManage   Permission = "escalation.manage"   // indices, index values, formulas, price adjustments (0050)
@@ -242,38 +250,57 @@ var DefaultRoles = map[string]Role{
 		PermPeriodReopen, PermAuditRead, PermScopeTenantWide, PermWorkflowRead, PermWorkflowPublish, PermApprovalHighValue,
 		PermPaymentApprove, PermP2PPolicyApprove, PermBudgetOverride, PermBudgetApprove, PermAuthorityApprove, PermDelegationCreate, PermBankAcctApprove, PermBankDetailsReveal, PermContractApprove, PermContractPolicyApprove, PermP2PRead}},
 	"auditor":            {Name: "auditor", Permissions: []Permission{PermIntelligenceRead, PermJournalRead, PermAuditRead, PermFXRead, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
-	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermCreditApprove, PermDocApprove, PermDocRespond, PermDocRaise, PermQualityApprove, PermSiteRecord, PermSiteInstruct, PermQualityRequest, PermTimesheetApprove, PermEquipmentApprove, PermHSEReport, PermProjectUpdate, PermProjectGateSubmit, PermForecastPrepare, PermChangeManage, PermClaimManage, PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead}},
-	"project_accountant": {Name: "project_accountant", Permissions: []Permission{PermJournalCreate, PermRevenueRun, PermJournalRead, PermFXRead, PermWorkflowRead}},
+	"project_manager":    {Name: "project_manager", Permissions: []Permission{PermTimesheetApprove, PermHSEReport, PermFleetReserve, PermFleetLogApprove, PermDocumentApprove, PermProjectUpdate, PermProjectGateSubmit, PermForecastPrepare, PermChangeManage, PermClaimManage, PermStockReserve, PermDelegationCreate, PermIntelligenceRead, PermJournalRead, PermFXRead, PermWBSManage, PermWorkflowRead, PermPRApprove, PermStockIssueApprove, PermScheduleApprove, PermSiteDiaryApprove, PermBudgetRevise, PermBudgetTransfer, PermP2PRead, PermCreditApprove, PermQualityApprove, PermSiteRecord, PermSiteInstruct, PermQualityRequest}},
+	"project_accountant": {Name: "project_accountant", Permissions: []Permission{PermJournalCreate, PermJournalRead, PermFXRead, PermWorkflowRead, PermRevenueRun}},
 	"process_owner":      {Name: "process_owner", Permissions: []Permission{PermAuthorityManage, PermWorkflowDefine, PermWorkflowRead, PermAutomationManage, PermIntelligenceRead, PermScopeTenantWide}},
 	"workflow_admin":     {Name: "workflow_admin", Permissions: []Permission{PermWorkflowAdmin, PermWorkflowRead, PermAutomationActivate, PermIntelligenceRead, PermScopeTenantWide}},
 	// Payroll: an officer prepares, an HR manager approves, treasury releases (0061).
 	"payroll_officer":     {Name: "payroll_officer", Permissions: []Permission{PermPayrollPrepare, PermScopeTenantWide, PermWorkflowRead}},
-	"plant_manager":       {Name: "plant_manager", Permissions: []Permission{PermEquipmentManage, PermEquipmentRecord, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
 	"document_controller": {Name: "document_controller", Permissions: []Permission{PermDocManage, PermDocRaise, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
 	"quality_engineer":    {Name: "quality_engineer", Permissions: []Permission{PermQualityManage, PermQualityRequest, PermSiteRecord, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
 	"hse_officer":         {Name: "hse_officer", Permissions: []Permission{PermHSEManage, PermHSEReport, PermScopeTenantWide, PermWorkflowRead, PermP2PRead}},
 	"hr_manager":          {Name: "hr_manager", Permissions: []Permission{PermPayrollApprove, PermScopeTenantWide, PermWorkflowRead}},
 	// Identity administration holds no financial permission at all.
 	"security_admin": {Name: "security_admin", Permissions: []Permission{PermUserManage, PermRoleManage, PermDelegationApprove, PermIdentityRevoke, PermAuditRead, PermSiteDeviceManage, PermTenantSettingsManage, PermScopeTenantWide}},
+	// Leadership roles (separated powers). The system administrator runs the
+	// platform (people, roles, settings, sessions, workflow and automation
+	// administration) and holds no financial or approval permission. The
+	// board chairman sees every record, report and the audit trail and acts on
+	// nothing. The CEO sees the company's operations and approves within the
+	// authority matrix; never prepares, posts or releases, so is never both
+	// maker and checker.
+	"system_admin": {Name: "system_admin", Permissions: []Permission{PermUserManage, PermRoleManage, PermDelegationApprove, PermIdentityRevoke, PermAuditRead,
+		PermSiteDeviceManage, PermTenantSettingsManage, PermWorkflowAdmin, PermWorkflowRead, PermAutomationActivate, PermIntelligenceRead, PermScopeTenantWide}},
+	"board_chairman": {Name: "board_chairman", Permissions: []Permission{PermP2PRead, PermJournalRead, PermFXRead, PermAuditRead, PermWorkflowRead,
+		PermIntelligenceRead, PermScopeTenantWide}},
+	"ceo": {Name: "ceo", Permissions: []Permission{PermP2PRead, PermJournalRead, PermFXRead, PermWorkflowRead, PermIntelligenceRead, PermScopeTenantWide,
+		PermApprovalHighValue, PermProjectGateDecide, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBudgetApprove, PermBOQApprove,
+		PermPRApprove, PermPOApprove, PermRFQAward, PermContractApprove, PermSubcontractApprove, PermAuthorityApprove, PermDelegationCreate}},
 	// Journey A operational roles.
 	"estimator":           {Name: "estimator", Permissions: []Permission{PermBOQManage, PermP2PRead}},
-	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermProjectCreate, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBondApprove, PermEscalationApprove, PermSubcontractApprove, PermSubcontractCertify, PermDelegationCreate, PermIntelligenceRead, PermBOQApprove, PermBudgetApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead}},
-	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermCreditRecord, PermDocRaise, PermQualityRequest, PermSiteRecord, PermTimesheetRecord, PermEquipmentRecord, PermHSEReport, PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead}},
+	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermProjectCreate, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBondApprove, PermEscalationApprove, PermDelegationCreate, PermIntelligenceRead, PermBOQApprove, PermBudgetApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead, PermSubcontractApprove, PermSubcontractCertify}},
+	"site_engineer":       {Name: "site_engineer", Permissions: []Permission{PermTimesheetRecord, PermHSEReport, PermFleetOperate, PermFleetReserve, PermDocumentManage, PermStockReserve, PermPRCreate, PermGRNConfirm, PermRFQEvaluate, PermMeasureVerify, PermStockIssueApprove, PermSiteDiaryManage, PermSiteDeviceRegister, PermP2PRead, PermCreditRecord, PermQualityRequest, PermSiteRecord}},
 	"storekeeper":         {Name: "storekeeper", Permissions: []Permission{PermStockReserve, PermGRNCreate, PermStockReceive, PermStockIssue, PermStockCount, PermStockTransfer, PermP2PRead}},
 	"procurement_officer": {Name: "procurement_officer", Permissions: []Permission{PermSupplierManage, PermRFQManage, PermPOManage, PermStockItemManage, PermP2PRead}},
 	"procurement_manager": {Name: "procurement_manager", Permissions: []Permission{PermDelegationCreate, PermIntelligenceRead, PermSupplierApprove, PermRFQAward, PermPOApprove, PermWarehouseManage, PermP2PRead}},
 	"ap_clerk":            {Name: "ap_clerk", Permissions: []Permission{PermAPEnter, PermP2PRead}},
 	"ap_supervisor":       {Name: "ap_supervisor", Permissions: []Permission{PermAPApprove, PermP2PRead}},
 	// Journey B operational roles.
-	"quantity_surveyor": {Name: "quantity_surveyor", Permissions: []Permission{PermChangeManage, PermClaimManage, PermEscalationManage, PermSubcontractManage, PermSubcontractApply, PermIntelligenceRead, PermMeasureCreate, PermIPCPrepare, PermP2PRead}},
+	"quantity_surveyor": {Name: "quantity_surveyor", Permissions: []Permission{PermDocumentManage, PermChangeManage, PermClaimManage, PermEscalationManage, PermIntelligenceRead, PermMeasureCreate, PermIPCPrepare, PermP2PRead, PermSubcontractManage, PermSubcontractApply}},
 	"ar_clerk": {Name: "ar_clerk", Permissions: []Permission{PermCustomerManage, PermARInvoiceCreate, PermARReceiptCreate, PermARCreditCreate, PermARRetentionCreate, PermScopeTenantWide,
 		PermP2PRead}},
 	// Approves stock count adjustments. Separate from the journal chain: the
 	// adjustment journal it generates is approved by finance and posted by a
 	// controller, and its preparer may do neither.
 	"inventory_controller": {Name: "inventory_controller", Permissions: []Permission{PermStockAdjustApprove, PermStockTransferApprove, PermScopeTenantWide, PermP2PRead}},
+	// SERK FLEET (0054). The plant officer keeps the register and moves machines;
+	// the plant manager commissions, retires and allocates; the plant inspector
+	// alone certifies a machine fit for service. No one holds two of these.
+	"plant_officer":   {Name: "plant_officer", Permissions: []Permission{PermFleetManage, PermFleetOperate, PermScopeTenantWide, PermP2PRead}},
+	"plant_manager":   {Name: "plant_manager", Permissions: []Permission{PermFleetApprove, PermIntelligenceRead, PermScopeTenantWide, PermP2PRead}},
+	"plant_inspector": {Name: "plant_inspector", Permissions: []Permission{PermFleetRelease, PermScopeTenantWide, PermP2PRead}},
 	// Plans and reports progress; a project manager approves (GATED-02).
-	"planner":       {Name: "planner", Permissions: []Permission{PermCreditManage, PermIntelligenceRead, PermScheduleManage, PermP2PRead}},
+	"planner":       {Name: "planner", Permissions: []Permission{PermDocumentManage, PermIntelligenceRead, PermScheduleManage, PermP2PRead, PermCreditManage}},
 	"ar_supervisor": {Name: "ar_supervisor", Permissions: []Permission{PermARInvoiceApprove, PermARReceiptConfirm, PermScopeTenantWide, PermP2PRead}},
 }
 
@@ -692,6 +719,12 @@ var DefaultSoDConflicts = []SoDConflict{
 	{"Cost forecasts", []Permission{PermForecastPrepare, PermForecastApprove}},
 	{"Change events", []Permission{PermChangeManage, PermChangeApprove}},
 	{"Claims", []Permission{PermClaimManage, PermClaimApprove}},
+	{"Controlled documents", []Permission{PermDocumentManage, PermDocumentApprove}},
+	{"Equipment register and commissioning", []Permission{PermFleetManage, PermFleetApprove}},
+	{"Equipment register and certification", []Permission{PermFleetManage, PermFleetRelease}},
+	{"Equipment reservations", []Permission{PermFleetReserve, PermFleetApprove}},
+	{"Equipment operation and certification", []Permission{PermFleetOperate, PermFleetRelease}},
+	{"Equipment logs", []Permission{PermFleetOperate, PermFleetLogApprove}},
 	{"Guarantees", []Permission{PermBondManage, PermBondApprove}},
 	{"Price adjustment", []Permission{PermEscalationManage, PermEscalationApprove}},
 	{"Subcontracts", []Permission{PermSubcontractManage, PermSubcontractApprove}},
@@ -814,4 +847,18 @@ func RoleMatrixMarkdown() string {
 	sort.Strings(nd)
 	b.WriteString(strings.Join(nd, ", ") + "\n")
 	return b.String()
+}
+
+// RoleProfiles states what the company may expect of the holder of a product
+// role, beside what its permissions let them do. Roles without an entry are
+// described by their permissions alone.
+var RoleProfiles = map[string]string{
+	"system_admin": "Runs the platform: adds people and turns them off, gives and removes roles, designs company roles, sets company settings and branding, " +
+		"issues and unlocks sign-ins, revokes sessions, administers workflows and activates automation rules, and reads the audit trail. " +
+		"Holds no financial or approval permission: cannot approve, post, pay or certify anything. Answers to the CEO and the board for access control.",
+	"board_chairman": "Oversight: sees every project, document, journal, report and the audit trail across the company, read-only. " +
+		"Approves and changes nothing in the system; board decisions are carried out by the people who hold those duties.",
+	"ceo": "Runs the company's operations: sees all projects and finance, and approves within the authority matrix (BOQs, budgets, requisitions, purchase orders, " +
+		"RFQ awards, contracts and subcontracts, changes, claims, forecasts, stage gates, high-value approvals and authority-matrix changes). " +
+		"Never prepares, posts or releases, so every approval is a second person's check; payments stay with finance and treasury.",
 }

@@ -1,0 +1,74 @@
+{
+  "what": "three consecutive full runs: go test -race -count=1 -p 1 -shuffle=on -json ./... (random test order, a different seed per package and run)",
+  "commit_tree": "be030f7",
+  "go": "go1.26.11 linux/amd64",
+  "environment": "4 vCPU, 16 GiB, PostgreSQL 16.15 over password-authenticated TCP (scram-sha-256), ClamAV daemon (EICAR-only local database), MinIO built from source, Playwright 1.63.0 + Chromium",
+  "runs": [
+    {
+      "verdict": "PASS",
+      "top_level_tests": {
+        "passed": 457,
+        "failed": 0,
+        "skipped": 0
+      },
+      "packages": {
+        "passed": 21,
+        "failed": 0,
+        "no_result": 0,
+        "no_tests": 13
+      },
+      "mandatory_tests": 23,
+      "non_json_lines": 0,
+      "problems": [],
+      "commit": "",
+      "ref": "",
+      "workflow_run_id": "",
+      "workflow_run_attempt": "",
+      "generated_at": "2026-11-15T12:18:37Z"
+    },
+    {
+      "verdict": "PASS",
+      "top_level_tests": {
+        "passed": 457,
+        "failed": 0,
+        "skipped": 0
+      },
+      "packages": {
+        "passed": 21,
+        "failed": 0,
+        "no_result": 0,
+        "no_tests": 13
+      },
+      "mandatory_tests": 23,
+      "non_json_lines": 0,
+      "problems": [],
+      "commit": "",
+      "ref": "",
+      "workflow_run_id": "",
+      "workflow_run_attempt": "",
+      "generated_at": "2026-11-15T12:22:02Z"
+    },
+    {
+      "verdict": "PASS",
+      "top_level_tests": {
+        "passed": 457,
+        "failed": 0,
+        "skipped": 0
+      },
+      "packages": {
+        "passed": 21,
+        "failed": 0,
+        "no_result": 0,
+        "no_tests": 13
+      },
+      "mandatory_tests": 23,
+      "non_json_lines": 0,
+      "problems": [],
+      "commit": "",
+      "ref": "",
+      "workflow_run_id": "",
+      "workflow_run_attempt": "",
+      "generated_at": "2026-11-15T12:25:39Z"
+    }
+  ]
+}

@@ -14,6 +14,7 @@ package kernel
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,17 +26,30 @@ import (
 
 func rawFails(t *testing.T, f *fixture, name, q string) {
 	t.Helper()
+	matched := true
 	err := f.app.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
 		ct, err := tx.Exec(ctx, q)
 		if err == nil && ct.RowsAffected() == 0 {
+			matched = false
 			return errors.New("no rows")
 		}
 		return err
 	})
+	if !matched {
+		// DEF-018: a statement that touches no row proves nothing about the control.
+		t.Fatalf("%s: the statement matched no row, so it tests nothing", name)
+	}
 	if err == nil {
 		t.Fatalf("database accepted: %s", name)
 	}
-	t.Logf("held: %s: %v", name, err)
+	// DEF-018: say which control held. A missing grant is a control in its own
+	// right (the tenant login cannot even attempt the change); a guard is a
+	// trigger or constraint that saw the change and refused it.
+	control := "guard"
+	if strings.Contains(err.Error(), "permission denied") {
+		control = "privilege"
+	}
+	t.Logf("held (%s): %s: %v", control, name, err)
 }
 
 func TestOrg_ProjectLifecycleThroughGates(t *testing.T) {

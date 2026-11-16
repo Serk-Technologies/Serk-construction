@@ -74,7 +74,8 @@ func TestConsoleBrowserPayroll(t *testing.T) {
 	for _, e := range []map[string]any{{"number": "E-001", "name": "Abebe Kebede", "kind": "SALARIED", "base_rate": "20000", "bank_name": "CBE", "account_number": "1000111122223"},
 		{"number": "E-002", "name": "Tigist Alemu", "kind": "DAILY", "base_rate": "400", "bank_name": "CBE", "account_number": "1000444455556"}} {
 		e["legal_entity_id"], e["starts_on"] = a.entity, "2026-01-01"
-		a.id("POST", "/v1/employees", officer, e)
+		emp := a.id("POST", "/v1/employees", officer, e)
+		a.call(200, "POST", "/v1/employees/"+emp+"/approve", hrSeed, nil) // a second person approves the record (0074)
 	}
 	bank := a.id("POST", "/v1/company-bank-accounts", a.tok("u-treasury-seed", nil, true, "treasury_officer"), map[string]any{"legal_entity_id": a.entity,
 		"name": "CBE Payroll", "account_number": "1000999888777", "currency": "ETB", "gl_account_id": a.accounts["1000"], "clearing_account_id": a.accounts["1050"]})

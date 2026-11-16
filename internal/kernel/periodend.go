@@ -238,8 +238,43 @@ func (s *Service) CreateRecurring(ctx context.Context, p auth.Principal, in Recu
 	return id, err
 }
 
+// ApproveRecurring approves a recurring journal template: journal.approve on its
+// project, a fresh second factor, not the person who prepared it (DEF-013, 0083).
+// The database attests the approval over the template and its lines; only an
+// approved template runs.
+func (s *Service) ApproveRecurring(ctx context.Context, p auth.Principal, id string) error {
+	return s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		var creator, project, status string
+		var approved *string
+		if err := mapNoRows(tx.QueryRow(ctx, `SELECT created_by, COALESCE(project_id::text, ''), status, approved_by FROM recurring_journals WHERE id = $1::uuid`, id).
+			Scan(&creator, &project, &status, &approved)); err != nil {
+			return err
+		}
+		if err := s.authz.RequireProject(p, auth.PermJournalApprove, p.TenantID, project); err != nil {
+			return err
+		}
+		if approved != nil {
+			return fmt.Errorf("%w: the recurring journal is already approved", ErrWorkflowState)
+		}
+		if status != "ACTIVE" {
+			return fmt.Errorf("%w: only an active recurring journal is approved", ErrWorkflowState)
+		}
+		if err := auth.CheckMakerChecker(p, creator, "recurring journal"); err != nil {
+			return err
+		}
+		if err := s.authorize(ctx, tx, p, "recurring.approve", "recurring_journal", id, "APPROVED"); err != nil {
+			return err
+		}
+		if err := postgres.Exec1(ctx, tx, `UPDATE recurring_journals SET approved_by = $2 WHERE id = $1::uuid`, id, p.UserID); err != nil {
+			return err
+		}
+		return s.record(ctx, tx, p, "recurring.approve", "recurring_journal", id, "recurring_journal.approved", map[string]any{"id": id})
+	})
+}
+
 // RunRecurring creates the DRAFT journals of every active template due on or
 // before asOf (catching up at most 24 months per template), once per date.
+// A template that is not yet approved does not run.
 func (s *Service) RunRecurring(ctx context.Context, p auth.Principal, asOf string) ([]string, error) {
 	until, err := parseDay("as_of", asOf)
 	if err != nil {
@@ -257,7 +292,7 @@ func (s *Service) RunRecurring(ctx context.Context, p auth.Principal, asOf strin
 	var due []tpl
 	if err := s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT id::text, legal_entity_id::text, COALESCE(project_id::text, ''), name, number, next_run_on, ends_on FROM recurring_journals
-			WHERE status = 'ACTIVE' AND next_run_on <= $1 ORDER BY number`, until)
+			WHERE status = 'ACTIVE' AND approved_by IS NOT NULL AND next_run_on <= $1 ORDER BY number`, until)
 		if err != nil {
 			return err
 		}
@@ -552,7 +587,7 @@ func (s *Service) PeriodEndView(ctx context.Context, p auth.Principal) (map[stri
 			out[key] = list
 			return rows.Err()
 		}
-		if err := q("recurring", `SELECT r.id, r.number, r.name, r.status, r.next_run_on, r.ends_on, (SELECT code FROM projects WHERE id = r.project_id) AS project,
+		if err := q("recurring", `SELECT r.id, r.number, r.name, r.status, r.created_by, r.approved_by, r.approved_at, r.next_run_on, r.ends_on, (SELECT code FROM projects WHERE id = r.project_id) AS project,
 			(SELECT sum(amount) FROM recurring_journal_lines l WHERE l.template_id = r.id AND l.side = 'DEBIT') AS amount, (SELECT count(*) FROM recurring_journal_runs x WHERE x.template_id = r.id) AS runs
 			FROM recurring_journals r ORDER BY r.number`); err != nil {
 			return err

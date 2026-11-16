@@ -1,0 +1,85 @@
+# Changelog (engineering)
+
+Changes made under the SERK Construction OS 3.0 directive (`MASTER_PROMPT.md`). Earlier history: `docs/release/CHECKPOINT_*.md` and `git log`.
+
+## 2026-11-15: final-completion directive — control centre, integration, form state, API contract
+
+- **Control centre** (`docs/final-completion/`, `tools/final_completion.py`): the 196 original requirements are frozen; CI fails if one disappears or changes meaning, if evidence names a test that does not exist, or if a release document claims GO while work is open.
+- **Integration of `new-version`** (ADR 0025): two owner commits that had never been merged (about 21,000 lines: revenue, subcontracts, fixed assets, period end, payroll, consolidation, tax, quality, credit rules) are now on the candidate line as migrations 0058–0071 plus a reconciliation migration 0072. Its colliding document and equipment parts are to be rebuilt on this branch's tables.
+- **Independent review of the carried work**: none of its tests fully evidences a register requirement; 13 defects recorded (DEF-008 to DEF-020), three High (unattested inspection results and NCR closure; no database maker-checker on tax returns, consolidation and plans; unapproved employee bank details).
+- **Form state**: lines live in state, a project change keeps typed lines and marks invalid cost codes for a new choice, submission waits for loading choices, stale failures are not shown, leaving a typed form asks first. A barrier-driven browser test fails on the previous console and passes now.
+- **API**: RFC 9457 problem details on every error; cursor pagination on the document lists.
+
+## 2026-11-15: console forms apply only the newest answer
+
+- A slow earlier response could arrive after a newer one and overwrite it: a reset choice in six forms, and in five forms a rebuilt line grid that discarded typed lines. Found because a GitHub run failed on timing the build environment did not have. All eleven forms converted; three have reproductions that fail without the fix.
+
+## 2026-11-15: fleet corrections after independent review (0057, ADR 0024)
+
+- **Correction of an overstatement:** a work order was described as passing through "four separate hands". Only two pairs were separated. Now the certifier is none of the preparer, authoriser or reporter (at least three people), enforced in the kernel and the database; the documents say exactly that.
+- Authorising a repair needs a fresh second factor at the database, not only in the application.
+- Fuel and maintenance thresholds are an approved, effective-dated fleet policy; reports name the policy used and label engineering defaults.
+- Preventive plans can be revised and retired. Expected fuel is computed across several standards in one period.
+- Requirement mapping: FLT-04 is Fixed assets; costing and charge-out is FLT-01.14; there is no FLT-05.
+
+## 2026-11-15: fleet part 3, maintenance (0056, ADR 0023)
+
+- Work orders: prepared, authorised (fleet.approve, fresh MFA), reported complete, closed or sent back by a certifier who did not report the work.
+- **Behaviour change:** a machine that has been UNDER_MAINTENANCE no longer returns to service on the certifier's word alone. It needs a work order closed after it entered maintenance, and no open work order. The existing lifecycle test was extended to assert the refusal first.
+- Parts are stock issues linked to the work order. Preventive plans by meter and calendar with a due list. Maintenance history and out-of-service hours per machine.
+- Console: work orders as a document type with actions, forms for work orders, parts and plans, due table on the Fleet page.
+
+## 2026-11-15: fleet part 2, fuel (0055, ADR 0022)
+
+- Fuel is ordinary stock. Filling a machine prepares a stock issue of a designated fuel item together with the record of which machine took it; the existing second-person approval values it, takes it out of the tank and charges the project through the existing issue journal. No second ledger and no new posting.
+- Fuel items and effective-dated fuel standards, set by `fleet.approve`, attested.
+- Reconciliation of dispensed, logged and expected fuel per machine, in the API and on the Fleet page, listing differences for a person to explain.
+- `scripts/prepush.sh` runs the same Gitleaks as CI before a push. Completion plan for all 80 domains generated from the register (`docs/completion/`).
+
+## 2026-11-15: audit remediation (CI honesty, storage fault classes, mandatory browser journeys)
+
+- CI could not fail on a failing test run (pipe without pipefail). Replaced by a structured gate over `go test -json`: any failure, any skip, a missing mandatory test or a package without a result rejects the run.
+- Test logins without passwords failed on the runner's password-authenticated PostgreSQL (8 tests). Fixed in the tests.
+- A kernel test depended on a bucket created by another package's test. Buckets are now provisioned and proven private before the suite; the S3 client distinguishes missing bucket, missing object, refused credentials and unavailable service; the API refuses to start without its bucket and answers storage faults as 503.
+- Playwright and Chromium are installed in CI; the seven browser journeys are mandatory.
+- Report: `AUDIT_REMEDIATION_2026-11-15.md`. Feature work suspended.
+
+## 2026-11-15 (second session) — document security, CI, SERK FLEET part 1
+
+### Added
+- **Document security** (migration `0053`, ADR 0019):
+  - `pkg/blob`: S3-compatible object store client (Signature V4, multipart, standard library only), a development directory store, and an envelope that encrypts every object per tenant and detects tampering, truncation and swaps.
+  - `pkg/docscan`: inspection before storage (type signatures, archive bombs, path traversal, macros, active PDF content; SVG and HTML refused) and a ClamAV daemon client.
+  - Fail-closed quarantine in the kernel and the database; a per-tenant document policy changed only by an attested decision with fresh MFA; scan verdicts carry a keyed proof.
+  - Streamed upload (`PUT /v1/documents/{id}/revisions/{revision}/file`) and download; short-lived signed download links; storage quota; rescan and discard.
+  - Two-step migration from PostgreSQL to object storage (`POST /v1/document-storage/migrate`, then `serk-migrate release-migrated-documents` by the schema owner).
+  - Configuration: `SERK_DOCUMENT_KEY`, `SERK_S3_*`, `SERK_CLAMD_ADDR`, `SERK_DOCUMENT_MAX_MB`, `SERK_BLOB_DIR` (development only).
+- **SERK FLEET part 1** (migration `0054`, ADR 0020): equipment register, fourteen-state lifecycle, reservations that cannot overlap, operator authorisations, daily logs, meter control and resets, Fleet Command Centre. Roles `plant_officer`, `plant_manager`, `plant_inspector`; six `fleet.*` permissions with five duty conflicts. API under `/v1/equipment*` and `/v1/fleet/summary`; register paged by cursor.
+- `tools/capacity/fleet_measure.sh` and its first result; `tools/test_results.py`; `ROLE_PERMISSION_PROPOSAL.md`.
+
+### Changed
+- CI: the image job built a stage that no longer exists and the vulnerability scan failed on Go 1.26.10. Now Go 1.26.11, both Dockerfiles built, image vulnerability scan, secret scan of the history (with one documented allow-listed test fixture file), console script check, and MinIO and ClamAV running for the integration tests, where a skipped integration fails the job. No credential is written in the workflow.
+- `size_bytes` of a revision is `bigint` with no schema ceiling; the limit is a deployment setting.
+- Requirement CNX-01.4 (malware scanning) moved from BLOCKED to VERIFIED; CNX-01 gained requirements 7–13 and FLT-01 requirements 2–13. Existing IDs are unchanged.
+
+### Not changed
+- No committed migration was edited. No deployment, merge or data load. The release decision remains NO-GO.
+
+## 2026-11-15 — M0 baseline and first M7 slice
+
+### Added
+- The implementation pack: `CLAUDE.md`, `MASTER_PROMPT.md`, `spec/` (Bible in Markdown and Word, 24 figures, module register).
+- `docs/engineering/`: baseline, requirement register (80 domains, generated, machine-readable), architecture and decision index, threat-model additions, test matrix for the 22 mandatory scenarios, capacity plan, release gates, runbook, handover and `execution-state.json`.
+- `tools/requirements_register.py`: generates the register and downgrades any VERIFIED claim whose tests did not pass in the cited run.
+- **Controlled documents, revisions and RFIs** (migration `0052`, ADR 0018): register entries, immutable revisions with database-hashed files, maker/checker publication with fresh MFA, supersession with exactly one current revision, scoped and recorded downloads, RFIs answered by a second person.
+  - Permissions `document.manage` (site engineer, quantity surveyor, planner) and `document.approve` (project manager), as a separation-of-duties pair.
+  - API: `/v1/documents`, `/v1/document-revisions/{id}/…`, `/v1/rfis`; both types also served by the generic `/v1/p2p/{type}` routes.
+  - Console: Documents navigation group, register, document page, upload and RFI forms, publication from the approvals worklist.
+  - Tests: four kernel tests, one API test, one browser journey.
+
+### Changed
+- The request body limit is per route: 1 MiB everywhere, 14.3 MiB on `POST /v1/documents/{id}/revisions`.
+- `docs/security/ROLE_PERMISSION_MATRIX.md` and `api/openapi.yaml` regenerated for the new permissions and routes.
+
+### Not changed
+- No committed migration was edited. No deployment, merge or data load was performed. The release decision remains NO-GO.

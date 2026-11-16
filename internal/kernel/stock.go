@@ -77,6 +77,10 @@ func (s *Service) ApproveStockItem(ctx context.Context, p auth.Principal, id str
 
 // CreateWarehouse records a warehouse: central (no project) or a project store.
 func (s *Service) CreateWarehouse(ctx context.Context, p auth.Principal, entity, projectID, code, name string) (string, error) {
+	return s.createWarehouse(ctx, p, entity, projectID, code, name, false)
+}
+
+func (s *Service) createWarehouse(ctx context.Context, p auth.Principal, entity, projectID, code, name string, quarantine bool) (string, error) {
 	if projectID != "" {
 		if err := s.authz.RequireProject(p, auth.PermWarehouseManage, p.TenantID, projectID); err != nil {
 			return "", err
@@ -91,8 +95,8 @@ func (s *Service) CreateWarehouse(ctx context.Context, p auth.Principal, entity,
 			proj = &projectID
 		}
 		var err error
-		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO warehouses(legal_entity_id, project_id, code, name, created_by) VALUES ($1::uuid, $2::uuid, $3, $4, $5) RETURNING id::text`,
-			entity, proj, strings.ToUpper(strings.TrimSpace(code)), strings.TrimSpace(name), p.UserID)
+		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO warehouses(legal_entity_id, project_id, code, name, created_by, quarantine) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6) RETURNING id::text`,
+			entity, proj, strings.ToUpper(strings.TrimSpace(code)), strings.TrimSpace(name), p.UserID, quarantine)
 		if err != nil {
 			return err
 		}
@@ -174,35 +178,44 @@ func (s *Service) CreateStockIssue(ctx context.Context, p auth.Principal, in Sto
 	in.Quantity = qty
 	var id string
 	err = s.p2pTx(ctx, p, auth.PermStockIssue, func(ctx context.Context, tx pgx.Tx) error {
-		if _, err := s.visibleDoc(ctx, tx, p, "warehouse", in.WarehouseID, false); err != nil {
-			return err
-		}
-		num, err := postgres.NextNumber(ctx, tx, "SIS")
-		if err != nil {
-			return err
-		}
-		var note *string
-		if strings.TrimSpace(in.Note) != "" {
-			note = &in.Note
-		}
-		var reservation any
-		if in.ReservationID != "" {
-			reservation = in.ReservationID
-		}
-		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO stock_issues(legal_entity_id, number, warehouse_id, stock_item_id, project_id, cost_code_id,
-			expense_account_id, quantity, issue_date, note, currency, created_by, reservation_id)
-			SELECT w.legal_entity_id, $1, w.id, $3::uuid, $4::uuid, $5::uuid, $6::uuid, $7, $8, $9, le.functional_currency, $10, $11::uuid
-			  FROM warehouses w JOIN legal_entities le ON le.id = w.legal_entity_id WHERE w.id = $2::uuid RETURNING id::text`,
-			num, in.WarehouseID, in.StockItemID, in.ProjectID, in.CostCodeID, in.ExpenseAccountID, in.Quantity, in.IssueDate, note, p.UserID, reservation)
-		if err != nil {
-			return mapNoRows(err)
-		}
-		if err := s.authorize(ctx, tx, p, "stock.issue.create", "stock_issue", id, ""); err != nil {
-			return err
-		}
-		return s.record(ctx, tx, p, "stock.issue.create", "stock_issue", id, "stock.issue_requested", map[string]any{"stock_issue_id": id, "number": num})
+		id, _, err = s.insertStockIssue(ctx, tx, p, in)
+		return err
 	})
 	return id, err
+}
+
+// insertStockIssue writes a DRAFT issue inside the caller's transaction and
+// returns its id and number. in.Quantity is in the item's base unit. Shared by
+// CreateStockIssue and DispenseFuel so that fuel is issued by exactly the same
+// rules as any other stock.
+func (s *Service) insertStockIssue(ctx context.Context, tx pgx.Tx, p auth.Principal, in StockIssueInput) (string, string, error) {
+	if _, err := s.visibleDoc(ctx, tx, p, "warehouse", in.WarehouseID, false); err != nil {
+		return "", "", err
+	}
+	num, err := postgres.NextNumber(ctx, tx, "SIS")
+	if err != nil {
+		return "", "", err
+	}
+	var note *string
+	if strings.TrimSpace(in.Note) != "" {
+		note = &in.Note
+	}
+	var reservation any
+	if in.ReservationID != "" {
+		reservation = in.ReservationID
+	}
+	id, err := postgres.InsertReturningID(ctx, tx, `INSERT INTO stock_issues(legal_entity_id, number, warehouse_id, stock_item_id, project_id, cost_code_id,
+		expense_account_id, quantity, issue_date, note, currency, created_by, reservation_id)
+		SELECT w.legal_entity_id, $1, w.id, $3::uuid, $4::uuid, $5::uuid, $6::uuid, $7, $8, $9, le.functional_currency, $10, $11::uuid
+		  FROM warehouses w JOIN legal_entities le ON le.id = w.legal_entity_id WHERE w.id = $2::uuid RETURNING id::text`,
+		num, in.WarehouseID, in.StockItemID, in.ProjectID, in.CostCodeID, in.ExpenseAccountID, in.Quantity, in.IssueDate, note, p.UserID, reservation)
+	if err != nil {
+		return "", "", mapNoRows(err)
+	}
+	if err := s.authorize(ctx, tx, p, "stock.issue.create", "stock_issue", id, ""); err != nil {
+		return "", "", err
+	}
+	return id, num, s.record(ctx, tx, p, "stock.issue.create", "stock_issue", id, "stock.issue_requested", map[string]any{"stock_issue_id": id, "number": num})
 }
 
 // ApproveStockIssue approves a DRAFT issue: the database values it (FIFO or
@@ -381,7 +394,7 @@ func (s *Service) stockJournal(ctx context.Context, tx pgx.Tx, p auth.Principal,
 	if !amount.IsPositive() {
 		return "", nil // nothing to post (a count difference worth less than the currency's minor unit)
 	}
-	jid, err := s.subledgerJournal(ctx, tx, p, doc, id, entity, ccy, map[string]string{"STK_ISSUE": "Stock issue ", "STK_ADJUST": "Stock count adjustment "}[doc]+num, date)
+	jid, err := s.subledgerJournal(ctx, tx, p, doc, id, entity, ccy, map[string]string{"STK_ISSUE": "Stock issue ", "STK_ADJUST": "Stock count adjustment ", "STK_SCRAP": "Stock write-off ", "STK_RETURN": "Stock return "}[doc]+num, date)
 	if err != nil {
 		return "", err
 	}

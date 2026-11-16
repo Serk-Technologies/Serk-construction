@@ -81,6 +81,10 @@ func (s *Service) ApproveCreditRule(ctx context.Context, p auth.Principal, id st
 		if _, err := tx.Exec(ctx, `UPDATE credit_rules SET status = 'RETIRED' WHERE status = 'APPROVED' AND project_id = $2::uuid AND activity_code = (SELECT activity_code FROM credit_rules WHERE id = $1::uuid)`, id, project); err != nil {
 			return err
 		}
+		// DEF-011: the approval is attested and spent by the database (0078).
+		if err := s.authorize(ctx, tx, p, "credit.rule.approve", "credit_rule", id, "APPROVED"); err != nil {
+			return err
+		}
 		if err := postgres.Exec1(ctx, tx, `UPDATE credit_rules SET status = 'APPROVED', approved_by = $2 WHERE id = $1::uuid AND status = 'DRAFT'`, id, p.UserID); err != nil {
 			return err
 		}

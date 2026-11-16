@@ -20,6 +20,7 @@ package kernel
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -84,9 +85,20 @@ func TestConsolidation_TranslateEliminateApprove(t *testing.T) {
 	if _, err := f.svc.DesignateIntercompany(f.ctx, ctrl, acct["B2400"], ent["A"], "RECEIVABLE"); err == nil {
 		t.Fatal("a liability was designated as an intercompany receivable")
 	}
+	var icDesignations []string
 	for _, d := range []struct{ a, cp, role string }{{"A1400", "B", "RECEIVABLE"}, {"A4100", "B", "REVENUE"}, {"B2400", "A", "PAYABLE"}, {"B6400", "A", "EXPENSE"}} {
-		_, err := f.svc.DesignateIntercompany(f.ctx, ctrl, acct[d.a], ent[d.cp], d.role)
+		id, err := f.svc.DesignateIntercompany(f.ctx, ctrl, acct[d.a], ent[d.cp], d.role)
 		must(t, "designate "+d.a, err)
+		icDesignations = append(icDesignations, id)
+	}
+	// DEF-015 (0081): approved by someone other than the person who recorded them, before any run.
+	ctrlAsApprover := cfo
+	ctrlAsApprover.UserID = ctrl.UserID
+	if err := f.svc.ApproveIntercompany(f.ctx, ctrlAsApprover, icDesignations[0]); !errors.Is(err, auth.ErrSoD) {
+		t.Fatalf("the person who recorded an intercompany designation approved it: %v", err)
+	}
+	for _, id := range icDesignations {
+		must(t, "approve intercompany designation", f.svc.ApproveIntercompany(f.ctx, cfo, id))
 	}
 	if _, err := f.svc.DesignateIntercompany(f.ctx, f.prep, acct["C1000"], ent["A"], "RECEIVABLE"); !errors.Is(err, auth.ErrForbidden) {
 		t.Fatalf("an accountant designated an intercompany account: %v", err)
@@ -114,6 +126,14 @@ func TestConsolidation_TranslateEliminateApprove(t *testing.T) {
 		t.Fatal("a run without a KES rate was prepared")
 	}
 	in.Rates = map[string]RatePair{"KES": {Closing: dec("0.45"), Average: dec("0.44")}}
+	// A designation still pending on a member (here the equity-accounted one, which takes no part in the
+	// eliminations) stops the run until it is approved.
+	pending, err := f.svc.DesignateIntercompany(f.ctx, ctrl, acct["C1000"], ent["A"], "RECEIVABLE")
+	must(t, "pending designation", err)
+	if _, err := f.svc.PrepareConsolidation(f.ctx, ctrl, in); err == nil || !strings.Contains(err.Error(), "pending approval") {
+		t.Fatalf("a consolidation ran on an unapproved intercompany designation: %v", err)
+	}
+	must(t, "approve pending", f.svc.ApproveIntercompany(f.ctx, cfo, pending))
 	run, err := f.svc.PrepareConsolidation(f.ctx, ctrl, in)
 	must(t, "prepare", err)
 	if _, err := f.svc.PrepareConsolidation(f.ctx, ctrl, in); err == nil {
@@ -152,7 +172,22 @@ func TestConsolidation_TranslateEliminateApprove(t *testing.T) {
 	if _, err := f.svc.ConsolidationView(f.ctx, f.prep); !errors.Is(err, auth.ErrForbidden) {
 		t.Fatalf("an accountant read the consolidation: %v", err)
 	}
+	// DEF-017 (0084): the tenant login cannot cancel a run, and a cancellation
+	// attested for one person cannot be recorded as another's.
+	rawRefusedWith(t, f, "cancel a run without an attested cancellation", "attested cancellation",
+		`UPDATE consolidation_runs SET status = 'CANCELLED', decision_reason = 'forged cancellation' WHERE id = $1::uuid`, run)
+	attestedWriteRefusedWith(t, f, ctrl, "conrun.cancel", "consolidation_run", run, "CANCELLED", "approval attestation",
+		`INSERT INTO document_cancellations (subject_type, subject_id, cancelled_by, reason) VALUES ('consolidation_run', $1::uuid, 'u-someone-else', 'cancelled in another name')`, run)
 	must(t, "cancel", f.svc.CancelConsolidation(f.ctx, ctrl, run, "Rates corrected by treasury"))
+	var by string
+	must(t, "cancellation record", f.app.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT cancelled_by FROM document_cancellations WHERE subject_type = 'consolidation_run' AND subject_id = $1::uuid`, run).Scan(&by)
+	}))
+	if by != ctrl.UserID {
+		t.Fatalf("cancellation recorded for %q", by)
+	}
+	rawRefusedWith(t, f, "rewrite a cancellation record", "permission denied",
+		`UPDATE document_cancellations SET cancelled_by = 'u-someone-else' WHERE subject_id = $1::uuid`, run)
 	in.Rates["KES"] = RatePair{Closing: dec("0.45"), Average: dec("0.45")}
 	run2, err := f.svc.PrepareConsolidation(f.ctx, ctrl, in)
 	must(t, "prepare again", err)
@@ -169,7 +204,7 @@ func TestConsolidation_TranslateEliminateApprove(t *testing.T) {
 	}
 	v, err := f.svc.ConsolidationView(f.ctx, ctrl)
 	must(t, "view", err)
-	if len(v["runs"].([]map[string]any)) != 2 || len(v["intercompany"].([]map[string]any)) != 4 || len(v["groups"].([]map[string]any)) != 2 {
+	if len(v["runs"].([]map[string]any)) != 2 || len(v["intercompany"].([]map[string]any)) != 5 || len(v["groups"].([]map[string]any)) != 2 {
 		t.Fatalf("view: runs %d, intercompany %d, groups %d", len(v["runs"].([]map[string]any)), len(v["intercompany"].([]map[string]any)), len(v["groups"].([]map[string]any)))
 	}
 }

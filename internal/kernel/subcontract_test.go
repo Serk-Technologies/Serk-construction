@@ -214,6 +214,14 @@ func TestSubcontract_PaymentComplianceAndPayWhenCertified(t *testing.T) {
 	pay, err := f.svc.PrepareSubPayment(f.ctx, c.treasury, in)
 	must(t, "payment", err)
 	must(t, "pay submit", f.svc.SubmitSubPayment(f.ctx, c.treasury, pay))
+	// DEF-017 (0084): the tenant login cannot cancel a payment.
+	rawRefusedWith(t, f, "cancel a payment without an attested cancellation", "attested cancellation",
+		`UPDATE subcontract_payments SET status = 'CANCELLED', cancel_reason = 'forged cancellation' WHERE id = $1::uuid`, pay)
+	// The preparer cancels it, attested, and prepares it again.
+	must(t, "cancel payment", f.svc.CancelSubPayment(f.ctx, c.treasury, pay, "Wrong value date on the first draft"))
+	pay, err = f.svc.PrepareSubPayment(f.ctx, c.treasury, in)
+	must(t, "payment again", err)
+	must(t, "pay submit again", f.svc.SubmitSubPayment(f.ctx, c.treasury, pay))
 	if err := f.svc.DecideSubPayment(f.ctx, w.mfa(c.finMgr), pay, true, ""); err == nil {
 		t.Fatal("a payment was approved while the subcontractor's insurance had expired")
 	}

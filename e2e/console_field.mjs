@@ -1,5 +1,5 @@
-// Browser end-to-end test of timesheets, equipment and HSE (migration 0064) in the SERK console, started by
-// internal/httpapi/console_browser_field_test.go. Accessibility audited on each new page; phone width and dark theme too.
+// Browser end-to-end test of timesheets and HSE (migration 0076; carried from new-version without its equipment
+// part) in the SERK console, started by internal/httpapi/console_browser_field_test.go. Accessibility audited on each new page; phone width and dark theme too.
 import { as, nav, act, selectByText, snap, audit, log, fail, failures, browser, pages } from './console_lib.mjs';
 
 try {
@@ -22,21 +22,6 @@ try {
   if (await pm.getByRole('link', { name: 'Record a day' }).count()) log('(pm sees the form tab: ok)');
   await act(pm, 'Approve', 'Approve: done');
   log('timesheet approved');
-
-  // ---- equipment usage ---------------------------------------------------------------------------
-  await nav(eng, '#/equipment/usage', 'Equipment and fleet');
-  await audit(eng, 'equipment usage');
-  await eng.locator('input[name=litres_fuel]').fill('200');
-  await act(eng, 'Save and submit', 'Usage submitted');
-  await nav(pm, '#/equipment/usage', 'Equipment and fleet');
-  await pm.getByRole('button', { name: 'Approve', exact: true }).first().click();
-  await pm.locator('p.notice').filter({ hasText: 'Usage approved' }).first().waitFor();
-  await nav(pm, '#/equipment/register', 'Equipment and fleet');
-  await pm.getByRole('cell', { name: 'EXC-01' }).first().waitFor();
-  const reg = await pm.locator('main').textContent();
-  if (!reg.includes('FUEL ANOMALY')) fail('the register does not flag the fuel anomaly (200 l over 8 hours against a norm of 18)');
-  await snap(pm, 'equipment-register');
-  log('equipment usage approved');
 
   // ---- HSE: incident and permit ----------------------------------------------------------------------
   await nav(eng, '#/hse/incidents', 'Health, safety and environment');
@@ -69,6 +54,24 @@ try {
   await hse.locator('p.notice').filter({ hasText: 'Permit issued' }).first().waitFor();
   await snap(hse, 'permit-issued');
   log('permit requested and issued');
+
+  // ---- certifications (0086): the engineer records a training, the HSE officer verifies it -------------
+  await nav(eng, '#/hse/certs', 'Health, safety and environment');
+  await eng.getByLabel('Person').locator('option').first().waitFor({ state: 'attached' });
+  await eng.getByLabel('Kind').fill('WORKING_AT_HEIGHT');
+  await eng.getByLabel('Title').fill('Working at height, level 2');
+  await eng.getByLabel('Issuer').fill('ECWC training centre');
+  await eng.getByLabel('Issued on').fill(new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10));
+  await eng.getByLabel('Expires on (optional)').fill(new Date(Date.now() + 700 * 864e5).toISOString().slice(0, 10));
+  await audit(eng, 'certifications');
+  await act(eng, 'Record certification', 'Certification recorded');
+  await eng.getByRole('table').filter({ hasText: 'Working at height, level 2' }).filter({ hasText: 'PENDING' }).waitFor();
+  if (await eng.getByRole('button', { name: 'Verify' }).count()) fail('the recorder is offered to verify their own certification');
+  await nav(hse, '#/hse/certs', 'Health, safety and environment');
+  await hse.getByRole('button', { name: 'Verify' }).first().click();
+  await hse.locator('p.notice').filter({ hasText: 'verified' }).first().waitFor();
+  await hse.getByRole('table').filter({ hasText: 'Working at height, level 2' }).filter({ hasText: 'VALID' }).waitFor();
+  log('certification recorded and verified');
 
   const phone = await as('engPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });
   await nav(phone, '#/timesheets/record', 'Timesheets');

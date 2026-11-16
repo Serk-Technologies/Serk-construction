@@ -321,4 +321,17 @@ func TestPeople_AdjustProductRole(t *testing.T) {
 	if !authz.Has(applied, auth.PermPOApprove) {
 		t.Fatal("a restored permission is still withheld")
 	}
+
+	// DEF-014 (0082): the database, not only the kernel, insists on an attested
+	// change by a holder of role.manage with a fresh second factor.
+	rawRefusedWith(t, f, "withhold a permission by a forged update", "approval attestation",
+		`UPDATE role_adjustments SET withheld = '{po.approve}', reason = 'forged', updated_by = 'u-secadmin' WHERE role_code = 'procurement_manager'`)
+	rawRefusedWith(t, f, "create an adjustment already withholding", "created empty",
+		`INSERT INTO role_adjustments (role_code, withheld, reason, updated_by) VALUES ('site_engineer', '{rfi.manage}', 'forged', 'u-secadmin')`)
+	var adj string
+	must(t, "adjustment id", f.app.WithTenant(f.ctx, f.tenant, func(ctx context.Context, tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT id::text FROM role_adjustments WHERE role_code = 'procurement_manager'`).Scan(&adj)
+	}))
+	attestedWriteRefusedWith(t, f, admin, "people.role_adjust", "role_adjustment", adj, "procurement_manager", "approval attestation",
+		`UPDATE role_adjustments SET withheld = '{po.approve}', reason = 'attested for the administrator, written as another', updated_by = 'u-procmgr' WHERE id = $1::uuid`, adj)
 }

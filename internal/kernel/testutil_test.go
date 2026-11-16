@@ -50,7 +50,8 @@ func newFixture(t *testing.T) *fixture {
 	env := testdb.Setup(t)
 	ctx, admin, app := env.Ctx, env.Admin, env.Router
 	f := &fixture{ctx: ctx, app: app, admin: admin, super: env.Super, db: env, accounts: map[string]string{}}
-	f.svc = New(app, auth.NewAuthorizer(nil, true)).UseApprovalSigner(attest.Signer{Master: testdb.ApprovalMaster}).UseBankDataKeys(testdb.BankDataKeys)
+	f.svc = New(app, auth.NewAuthorizer(nil, true)).UseApprovalSigner(attest.Signer{Master: testdb.ApprovalMaster}).UseBankDataKeys(testdb.BankDataKeys).
+		UseDocumentStore(DocumentStore{Scanner: testdb.FakeScanner{}, Key: testdb.DocumentKey})
 	f.tenant, f.tenant2 = uuid.NewString(), uuid.NewString()
 
 	// Bootstrap both tenants as the operator: provision the tenant and its

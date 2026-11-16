@@ -43,6 +43,12 @@ func TestQuality_HoldPointNCRAndSiteRecords(t *testing.T) {
 		t.Fatal("an inspection was requested against an unapproved plan")
 	}
 	must(t, "submit itp", f.svc.SubmitITP(f.ctx, qe, itp))
+	// DEF-009: the database refuses the plan's author as its approver even with a genuine attestation.
+	qeAlsoPM := qe
+	qeAlsoPM.Roles = []string{"quality_engineer", "project_manager"}
+	qeAlsoPM.ProjectIDs = proj
+	attestedWriteRefusedWith(t, f, qeAlsoPM, "itp.decide", "itp", itp, "APPROVED", "segregation of duties",
+		`UPDATE itps SET status = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, itp, qe.UserID)
 	if err := f.svc.DecideITP(f.ctx, qe, itp, true, ""); !errors.Is(err, auth.ErrForbidden) {
 		t.Fatalf("the quality engineer approved their own plan: %v", err)
 	}
@@ -70,6 +76,10 @@ func TestQuality_HoldPointNCRAndSiteRecords(t *testing.T) {
 	}
 	ir2, err := f.svc.RequestInspection(f.ctx, eng, InspectionIn{ProjectID: f.project, ITPID: itp, ItemSeq: 1, RequestedFor: today().Format("2006-01-02")})
 	must(t, "re-request", err)
+	// DEF-008: a result written by the tenant login, under a real inspector's name, is refused: the
+	// result is an attested decision now, not free text.
+	rawRefusedWith(t, f, "pass an inspection under a forged identity", "approval attestation",
+		`UPDATE inspection_requests SET status = 'PASSED', result_by = $2 WHERE id = $1::uuid`, ir2, qe.UserID)
 	must(t, "pass inspection", f.svc.DecideInspection(f.ctx, qe, ir2, true, ""))
 	must(t, "progress after the hold point", progress("40"))
 
@@ -99,6 +109,8 @@ func TestQuality_HoldPointNCRAndSiteRecords(t *testing.T) {
 	if err := f.svc.CloseNCR(f.ctx, eng, ncr, "Verified on site"); !errors.Is(err, auth.ErrForbidden) {
 		t.Fatalf("a site engineer closed a non-conformance: %v", err)
 	}
+	rawRefusedWith(t, f, "close a non-conformance under a forged identity", "approval attestation",
+		`UPDATE ncrs SET status = 'CLOSED', closed_by = $2, close_note = 'forged closure note' WHERE id = $1::uuid`, ncr, pm.UserID)
 	must(t, "close ncr", f.svc.CloseNCR(f.ctx, pm, ncr, "Cores retested at 29 N/mm2; verified on site"))
 	rawFails(t, f, "edit a closed non-conformance", `UPDATE ncrs SET description = 'changed' WHERE id = '`+ncr+`'`)
 

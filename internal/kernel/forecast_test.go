@@ -322,7 +322,8 @@ func TestForecast_CPIChangeAndSCurve(t *testing.T) {
 		}
 	}
 	if !moved {
-		t.Logf("EAC moved by %s only; the change rule is exercised by the raw check below", l.EAC.Sub(*l.PrevEAC))
+		// DEF-019: the rule itself is driven unconditionally by TestForecast_ChangeRuleNeedsExplanation.
+		t.Logf("EAC moved by %s only; the change rule is tested in TestForecast_ChangeRuleNeedsExplanation", l.EAC.Sub(*l.PrevEAC))
 	}
 	must(t, "explain", f.svc.SetForecastLine(f.ctx, c.pm, f2, w.costCode, "CPI", nil, "Excavation running over on cost performance"))
 	must(t, "submit 2", f.svc.SubmitForecast(f.ctx, c.pm, f2))

@@ -10,9 +10,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/serk-group/serk-construction/pkg/blob"
+	"github.com/serk-group/serk-construction/pkg/docscan"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -102,6 +106,48 @@ func main() {
 	} else {
 		log.Warn("no SERK_BANK_DATA_KEY: bank account numbers cannot be recorded or revealed (refused in production)")
 	}
+	docs := kernel.DocumentStore{Key: cfg.DocumentKey, MaxBytes: int64(cfg.DocumentMaxMB) << 20}
+	if len(cfg.DocumentKeyPrevious) > 0 {
+		docs.PreviousKeys = [][]byte{cfg.DocumentKeyPrevious}
+		log.Info("document key rotation in effect: the previous key still opens earlier files", "current", cfg.DocumentKeyID, "previous", cfg.DocumentKeyPreviousID)
+	}
+	switch kind, _ := cfg.DocumentStorage(); kind {
+	case "s3":
+		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, KeyID: cfg.DocumentKeyID, Previous: cfg.DocumentPreviousKeys(), Store: &blob.S3{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
+			AccessKey: cfg.S3AccessKey, SecretKey: string(cfg.S3SecretKey), Client: &http.Client{Timeout: 30 * time.Minute}}}
+		// Fail closed at start-up: a missing bucket or refused credentials is a
+		// deployment fault to fix now, not something to discover on the first upload.
+		bctx, bcancel := context.WithTimeout(ctx, 20*time.Second)
+		err := docs.Blob.Store.(*blob.S3).CheckBucket(bctx)
+		bcancel()
+		if err != nil {
+			log.Error("object storage is not usable", "bucket", cfg.S3Bucket, "err", err)
+			os.Exit(1)
+		}
+		log.Info("document files go to object storage, encrypted by this service", "bucket", cfg.S3Bucket)
+	case "fs":
+		docs.Blob = &blob.Sealed{Master: cfg.DocumentKey, KeyID: cfg.DocumentKeyID, Previous: cfg.DocumentPreviousKeys(), Store: blob.FS{Root: cfg.BlobDir}}
+		log.Warn("document files go to a local directory (development only)", "dir", cfg.BlobDir)
+	default:
+		log.Info("document files are kept in PostgreSQL (10 MiB each): set SERK_S3_ENDPOINT for object storage")
+	}
+	if cfg.ClamdAddr != "" {
+		c := docscan.Clamd{Network: "tcp", Address: cfg.ClamdAddr}
+		if path, ok := strings.CutPrefix(cfg.ClamdAddr, "unix:"); ok {
+			c = docscan.Clamd{Network: "unix", Address: path}
+		}
+		docs.Scanner = c
+		vctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		if v, err := c.Version(vctx); err != nil {
+			log.Error("the malware scanner is not answering: uploads will be quarantined until it does", "err", err)
+		} else {
+			log.Info("malware scanner connected", "engine", v)
+		}
+		cancel()
+	} else {
+		log.Warn("no malware scanner (SERK_CLAMD_ADDR): uploaded documents stay quarantined for every company that requires scanning, which is the default")
+	}
+	svc.UseDocumentStore(docs)
 	metrics := obs.NewRegistry()
 	if cfg.MonitorDSN != "" {
 		mon, err := pgxpool.New(ctx, cfg.MonitorDSN)
@@ -122,6 +168,7 @@ func main() {
 		log.Warn("metrics disabled (SERK_METRICS_LISTEN not set): no SLO or alert signals will be available")
 	}
 	abuse := httpapi.AbuseConfig{PreAuthPerMinute: cfg.PreAuthPerMinute, AuthFailuresPerMinute: cfg.AuthFailuresPerMin, TrustedProxies: cfg.TrustedProxies}
+	var pinLogin *httpapi.PinLogin
 	if cfg.AbuseDSN != "" {
 		ab, err := pgxpool.New(ctx, cfg.AbuseDSN)
 		if err != nil {
@@ -134,6 +181,11 @@ func main() {
 			os.Exit(1)
 		}
 		abuse.Shared, abuse.KeySecret = postgres.AbuseStore{Pool: ab}, cfg.AbuseKey
+		if len(cfg.LoginPepper) > 0 && cfg.Env != config.Production {
+			log.Info("e-mail + PIN sign-in enabled (HS256 sessions; development and staging only)")
+			pinLogin = &httpapi.PinLogin{Store: kernel.PoolLoginStore{Pool: ab}, Secrets: kernel.PinSecrets{Pepper: cfg.LoginPepper, Issuer: "SERK Construction"},
+				Signer: httpapi.HS256Verifier{Secret: cfg.HS256Secret, Issuer: cfg.TokenIssuer, Audience: cfg.TokenAudience}}
+		}
 	} else {
 		log.Warn("abuse limits are per replica (SERK_ABUSE_DSN not set): refused in production")
 	}
@@ -146,8 +198,12 @@ func main() {
 			staging.Companies = append(staging.Companies, httpapi.StagingCompany{ID: c.ID, Name: c.Name, Projects: c.Projects})
 		}
 	}
+	brandTenant := cfg.LoginBrandTenant
+	if brandTenant == "" {
+		brandTenant = cfg.StagingTenant
+	}
 	h := httpapi.New(httpapi.Config{Verifier: verifier, Kernel: svc, Store: router, Logger: log, RatePerMinute: cfg.RatePerMinute, Metrics: metrics,
-		Abuse: abuse, Staging: staging, CompanyName: cfg.CompanyName})
+		Abuse: abuse, Staging: staging, PinLogin: pinLogin, CompanyName: cfg.CompanyName, BrandTenant: brandTenant})
 	if cfg.SchedulerDSN != "" {
 		sched, err := pgxpool.New(ctx, cfg.SchedulerDSN)
 		if err != nil {

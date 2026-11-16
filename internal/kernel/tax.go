@@ -13,6 +13,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -52,8 +53,15 @@ func (FakeEInvoice) Submit(_ context.Context, inv EInvoice, hash string) (string
 	return "FAKE-" + strings.ToUpper(hash[:12]), true, "accepted by the fake adapter", nil
 }
 
-// EInvoiceAdapterFor is the adapter in use; replaced when the format is confirmed (D-06).
-var EInvoiceAdapterFor = func() EInvoiceAdapter { return FakeEInvoice{} }
+// EInvoiceAdapterFor is the adapter in use. None is configured: no authorised
+// e-invoicing interface exists yet (decision D-06, blocker CNX-13.1), and a
+// stand-in must never record a submission as accepted outside tests (DEF-016).
+// Tests install FakeEInvoice explicitly.
+var EInvoiceAdapterFor = func() EInvoiceAdapter { return nil }
+
+// ErrIntegrationNotConfigured: the external service an action needs is not
+// connected; nothing was sent or recorded.
+var ErrIntegrationNotConfigured = errors.New("kernel: integration not configured")
 
 func (s *Service) taxTx(ctx context.Context, p auth.Principal, perm auth.Permission, fn func(ctx context.Context, tx pgx.Tx) error) error {
 	if !s.tenantWide(p) {
@@ -173,6 +181,9 @@ func (s *Service) CancelTaxReturn(ctx context.Context, p auth.Principal, id, rea
 		return err
 	}
 	return s.taxTx(ctx, p, auth.PermTaxPrepare, func(ctx context.Context, tx pgx.Tx) error {
+		if err := s.cancelAttested(ctx, tx, p, "taxreturn.cancel", "tax_return", id, reason); err != nil {
+			return err
+		}
 		if err := postgres.Exec1(ctx, tx, `UPDATE tax_returns SET status = 'CANCELLED', decision_reason = $2 WHERE id = $1::uuid AND status = 'PREPARED'`, id, strings.TrimSpace(reason)); err != nil {
 			return err
 		}
@@ -198,6 +209,9 @@ func (s *Service) SubmitEInvoice(ctx context.Context, p auth.Principal, invoiceI
 		sum := sha256.Sum256(raw)
 		hash := hex.EncodeToString(sum[:])
 		ad := EInvoiceAdapterFor()
+		if ad == nil {
+			return fmt.Errorf("%w: no e-invoicing service is connected; the invoice was not sent", ErrIntegrationNotConfigured)
+		}
 		ref, ok, resp, err := ad.Submit(ctx, inv, hash)
 		if err != nil {
 			return err
@@ -249,7 +263,7 @@ func (s *Service) TaxView(ctx context.Context, p auth.Principal, returnID string
 		if err := q("accounts", `SELECT a.id, a.code, a.name, a.type, e.name AS entity FROM accounts a JOIN legal_entities e ON e.id = a.legal_entity_id WHERE a.active ORDER BY e.name, a.code`); err != nil {
 			return err
 		}
-		if err := q("tax_accounts", `SELECT t.id, t.kind, a.code, a.name, e.name AS entity FROM tax_accounts t JOIN accounts a ON a.id = t.account_id JOIN legal_entities e ON e.id = a.legal_entity_id ORDER BY e.name, t.kind, a.code`); err != nil {
+		if err := q("tax_accounts", `SELECT t.id, t.kind, a.code, a.name, e.name AS entity, t.status, t.created_by, t.approved_by FROM tax_accounts t JOIN accounts a ON a.id = t.account_id JOIN legal_entities e ON e.id = a.legal_entity_id ORDER BY e.name, t.kind, a.code`); err != nil {
 			return err
 		}
 		if err := q("returns", `SELECT r.id, r.number, r.kind, r.period_start, r.period_end, r.status, r.created_by, r.approved_by, r.filing_ref, r.filed_by, (SELECT name FROM legal_entities WHERE id = r.legal_entity_id) AS entity,

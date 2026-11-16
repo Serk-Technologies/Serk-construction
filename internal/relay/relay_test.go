@@ -89,7 +89,8 @@ func newWorld(t *testing.T) *world {
 	w.post = auth.Principal{Kind: auth.KindHuman, UserID: "post", TenantID: w.tenant, Roles: []string{"controller"}}
 	// A dedicated relay login, member of serk_publisher only.
 	role := "serk_relay_t" + strings.ReplaceAll(uuid.NewString()[:8], "-", "")
-	if _, err := db.Admin.Exec(db.Ctx, `CREATE ROLE `+role+` LOGIN INHERIT IN ROLE serk_publisher`); err != nil {
+	rpw := strings.ReplaceAll(uuid.NewString(), "-", "") // this run only; needed where TCP logins authenticate by password
+	if _, err := db.Admin.Exec(db.Ctx, `CREATE ROLE `+role+` LOGIN INHERIT PASSWORD '`+rpw+`' IN ROLE serk_publisher`); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -97,7 +98,7 @@ func newWorld(t *testing.T) *world {
 		_, _ = db.Admin.Exec(context.Background(), `DROP ROLE IF EXISTS `+role)
 	})
 	u, _ := url.Parse(db.BaseDSN)
-	u.User = url.User(role)
+	u.User = url.UserPassword(role, rpw)
 	w.pool, err = pgxpool.New(db.Ctx, u.String())
 	if err != nil {
 		t.Fatal(err)

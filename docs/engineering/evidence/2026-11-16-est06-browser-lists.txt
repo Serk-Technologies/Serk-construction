@@ -1,0 +1,22 @@
+# TestConsoleBrowserForms after adding the rate list pages to the walk (on top of f94f52f; e2e change only)
+# command: go test -count=1 -v -run 'TestConsoleBrowserForms$' ./internal/httpapi/
+=== RUN   TestConsoleBrowserForms
+    console_browser_forms_test.go:138: browser forms journey (21s):
+        03:25:15.453 Ethiopian calendar: 1965 sampled days agree; today 7 Hidar 2019
+        03:25:17.542 requisition form state checks done
+        03:25:19.379 budget revision form state checks done
+        03:25:21.146 change event form state checks done
+        03:25:23.200 BOQ form state checks done
+        03:25:25.256 schedule form state checks done
+        03:25:26.504 budget transfer form state checks done
+        03:25:28.287 contingency drawdown form state checks done
+        03:25:30.328 stock issue form state checks done
+        03:25:32.109 fuel dispense form state checks done
+        03:25:34.198 work-order part form state checks done
+        03:25:34.459 task assigned by the project manager and done by the site engineer
+        03:25:35.379 three resource rates recorded and approved by a second person
+        03:25:36.000 rate build-up priced at 9,576.47 per m3, submitted and approved (frozen)
+        forms: all checks passed
+--- PASS: TestConsoleBrowserForms (21.70s)
+PASS
+ok  	github.com/serk-group/serk-construction/internal/httpapi	21.709s

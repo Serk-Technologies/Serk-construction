@@ -24,6 +24,7 @@ import (
 //     must recognise them;
 //   - supplier bank accounts: tenant-wide scope, or supplier.manage (the
 //     procurement officers who enter them); always masked;
+//   - the resource rate library (0094): boq.manage or boq.approve holders;
 //   - entity-level finance documents (payment instructions, P2P and contract
 //     policies, company bank accounts, customer receipts, money-in statement
 //     lines) and anything not listed: tenant-wide scope only.
@@ -41,10 +42,13 @@ func (s *Service) canSee(p auth.Principal, docType, project string) bool {
 		return true
 	}
 	switch docType {
-	case "supplier", "customer", "stock_item", "uom_conversion", "price_index_value":
+	case "supplier", "customer", "stock_item", "uom_conversion", "price_index_value", "equipment", "equipment_operator_auth", "fleet_policy", "equipment_charge_rate":
 		return true
 	case "supplier_bank_account":
 		return s.authz.Has(p, auth.PermSupplierManage)
+	case "resource_rate":
+		// 0094: the rate library is commercial: those who price and approve BOQs.
+		return s.authz.Has(p, auth.PermBOQManage) || s.authz.Has(p, auth.PermBOQApprove)
 	case "authority_matrix", "sod_exception":
 		return s.authz.Has(p, auth.PermAuthorityManage) || s.authz.Has(p, auth.PermAuthorityApprove)
 	case "delegation":

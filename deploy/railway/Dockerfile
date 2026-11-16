@@ -4,7 +4,7 @@
 # small supervisor so the isolated signer and the API share one container
 # (Railway services cannot share a unix socket). The API is started with
 # SERK_ENV=staging and refuses production settings it is not given.
-FROM golang:1.26.10-alpine AS build
+FROM golang:1.26.11-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify

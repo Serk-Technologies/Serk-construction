@@ -157,7 +157,7 @@ func (s *Server) registerOrg() {
 	// Change events (0045).
 	m.Handle("POST /v1/change-events", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		var b kernel.ChangeEventInput
-		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) {
+		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) || (b.RFIID != "" && !validIDs(w, b.RFIID)) {
 			return
 		}
 		id, err := k.CreateChangeEvent(r.Context(), principalFrom(r.Context()), b)

@@ -91,19 +91,22 @@ type RoleGrant struct {
 // RoleInfo is a role of the catalogue: a seed role (fixed, from the product)
 // or one of the company's own.
 type RoleInfo struct {
-	Code        string            `json:"code"`
-	ID          string            `json:"id,omitempty"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Kind        string            `json:"kind"` // "seed" or "company"
-	Status      string            `json:"status"`
-	Permissions []auth.Permission `json:"permissions"`
-	Stage       string            `json:"stage"`
-	Holders     int               `json:"holders"`
-	Version     int               `json:"version,omitempty"`
-	CreatedBy   string            `json:"created_by,omitempty"`
-	UpdatedBy   *string           `json:"updated_by,omitempty"`
-	UpdatedAt   *time.Time        `json:"updated_at,omitempty"`
+	Code        string `json:"code"`
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	// Responsibilities: what the company expects of a holder (0096); product
+	// roles carry the product's own statement where one is written.
+	Responsibilities string            `json:"responsibilities,omitempty"`
+	Kind             string            `json:"kind"` // "seed" or "company"
+	Status           string            `json:"status"`
+	Permissions      []auth.Permission `json:"permissions"`
+	Stage            string            `json:"stage"`
+	Holders          int               `json:"holders"`
+	Version          int               `json:"version,omitempty"`
+	CreatedBy        string            `json:"created_by,omitempty"`
+	UpdatedBy        *string           `json:"updated_by,omitempty"`
+	UpdatedAt        *time.Time        `json:"updated_at,omitempty"`
 	// Product roles only (0060): the permissions this company withheld from the
 	// role, and the role's full product definition.
 	Withheld   []auth.Permission `json:"withheld,omitempty"`
@@ -326,7 +329,7 @@ func (s *Service) loadRoleBook(ctx context.Context, tx pgx.Tx) (roleBook, error)
 	if err := ar.Err(); err != nil {
 		return b, err
 	}
-	rows, err := tx.Query(ctx, `SELECT id::text, code, name, description, permissions, status, created_by, updated_by, updated_at, version
+	rows, err := tx.Query(ctx, `SELECT id::text, code, name, description, responsibilities, permissions, status, created_by, updated_by, updated_at, version
 		FROM custom_roles ORDER BY name`)
 	if err != nil {
 		return b, err
@@ -335,7 +338,7 @@ func (s *Service) loadRoleBook(ctx context.Context, tx pgx.Tx) (roleBook, error)
 	for rows.Next() {
 		r := &RoleInfo{Kind: "company"}
 		var perms []string
-		if err := rows.Scan(&r.ID, &r.Code, &r.Name, &r.Description, &perms, &r.Status, &r.CreatedBy, &r.UpdatedBy, &r.UpdatedAt, &r.Version); err != nil {
+		if err := rows.Scan(&r.ID, &r.Code, &r.Name, &r.Description, &r.Responsibilities, &perms, &r.Status, &r.CreatedBy, &r.UpdatedBy, &r.UpdatedAt, &r.Version); err != nil {
 			return b, err
 		}
 		for _, p := range perms {
@@ -525,8 +528,9 @@ func (s *Service) People(ctx context.Context, p auth.Principal) (PeopleView, err
 		v.Roles = []RoleInfo{}
 		for code, perms := range b.seed {
 			ri := RoleInfo{Code: code, Name: roleName(code), Kind: "seed", Status: "ACTIVE",
-				Description: "Product role. The company may withhold any of its permissions at any time (to give more, use a company role).",
-				Permissions: perms, Stage: auth.HighestStage(perms), Holders: holders[code], Withheld: b.withheld[code], Definition: b.full[code]}
+				Description:      "Product role. The company may withhold any of its permissions at any time (to give more, use a company role).",
+				Responsibilities: auth.RoleProfiles[code],
+				Permissions:      perms, Stage: auth.HighestStage(perms), Holders: holders[code], Withheld: b.withheld[code], Definition: b.full[code]}
 			if a, ok := b.adjust[code]; ok {
 				fmt.Sscan(a[0], &ri.Version)
 				ri.AdjustedBy, ri.AdjustNote = a[1], a[2]
@@ -554,6 +558,9 @@ func (s *Service) People(ctx context.Context, p auth.Principal) (PeopleView, err
 
 func roleName(code string) string {
 	s := strings.ReplaceAll(code, "_", " ")
+	if code == "ceo" {
+		return "CEO"
+	}
 	for _, a := range []string{"ap ", "ar ", "cfo", "qs"} {
 		if strings.HasPrefix(s, a) {
 			s = strings.ToUpper(strings.TrimSpace(a)) + s[len(strings.TrimSpace(a)):]
@@ -1092,12 +1099,13 @@ func (s *Service) RevokeRole(ctx context.Context, p auth.Principal, grantID, rea
 
 // RoleInput creates or changes a company role.
 type RoleInput struct {
-	Code        string            `json:"code"`
-	Name        string            `json:"name"`
-	Description string            `json:"description"`
-	Permissions []auth.Permission `json:"permissions"`
-	Version     int               `json:"version"`
-	Reason      string            `json:"reason"`
+	Code             string            `json:"code"`
+	Name             string            `json:"name"`
+	Description      string            `json:"description"`
+	Responsibilities string            `json:"responsibilities"`
+	Permissions      []auth.Permission `json:"permissions"`
+	Version          int               `json:"version"`
+	Reason           string            `json:"reason"`
 }
 
 func (s *Service) checkRolePerms(perms []auth.Permission) ([]string, error) {
@@ -1127,6 +1135,10 @@ func (s *Service) checkRolePerms(perms []auth.Permission) ([]string, error) {
 // it would give any present holder a duty conflict.
 func (s *Service) SaveRole(ctx context.Context, p auth.Principal, in RoleInput) (RoleInfo, error) {
 	in.Code, in.Name, in.Description, in.Reason = strings.TrimSpace(strings.TrimPrefix(in.Code, customPrefix)), strings.TrimSpace(in.Name), strings.TrimSpace(in.Description), strings.TrimSpace(in.Reason)
+	in.Responsibilities = strings.TrimSpace(in.Responsibilities)
+	if len(in.Responsibilities) > 4000 {
+		return RoleInfo{}, fmt.Errorf("%w: responsibilities are at most 4,000 characters", ErrInvalidInput)
+	}
 	if !roleCodePattern.MatchString(in.Code) {
 		return RoleInfo{}, fmt.Errorf("%w: the role code is 3 to 41 lowercase letters, digits or underscores, starting with a letter", ErrInvalidInput)
 	}
@@ -1147,8 +1159,8 @@ func (s *Service) SaveRole(ctx context.Context, p auth.Principal, in RoleInput) 
 	err = s.peopleTx(ctx, p, auth.PermRoleManage, func(ctx context.Context, tx pgx.Tx) error {
 		action := "people.role_created"
 		if in.Version == 0 {
-			if _, err := tx.Exec(ctx, `INSERT INTO custom_roles (code, name, description, permissions, created_by) VALUES ($1, $2, $3, $4, $5)`,
-				in.Code, in.Name, in.Description, perms, p.UserID); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO custom_roles (code, name, description, responsibilities, permissions, created_by) VALUES ($1, $2, $3, $6, $4, $5)`,
+				in.Code, in.Name, in.Description, perms, p.UserID, in.Responsibilities); err != nil {
 				if strings.Contains(err.Error(), "custom_roles_tenant_id_code_key") {
 					return fmt.Errorf("%w: a company role with the code %q already exists", ErrInvalidInput, in.Code)
 				}
@@ -1196,8 +1208,8 @@ func (s *Service) SaveRole(ctx context.Context, p auth.Principal, in RoleInput) 
 					return conflictError(x.label(), v)
 				}
 			}
-			if err := postgres.Exec1(ctx, tx, `UPDATE custom_roles SET name = $2, description = $3, permissions = $4, updated_by = $5, updated_at = now()
-				WHERE code = $1`, in.Code, in.Name, in.Description, perms, p.UserID); err != nil {
+			if err := postgres.Exec1(ctx, tx, `UPDATE custom_roles SET name = $2, description = $3, permissions = $4, updated_by = $5, updated_at = now(),
+				responsibilities = $6 WHERE code = $1`, in.Code, in.Name, in.Description, perms, p.UserID, in.Responsibilities); err != nil {
 				return err
 			}
 		}
@@ -1455,9 +1467,22 @@ func (s *Service) AdjustRole(ctx context.Context, p auth.Principal, code string,
 	}
 	sort.Strings(clean)
 	err := s.peopleTx(ctx, p, auth.PermRoleManage, func(ctx context.Context, tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `INSERT INTO role_adjustments (role_code, withheld, reason, updated_by) VALUES ($1, $2, $3, $4)
-			ON CONFLICT (tenant_id, role_code) DO UPDATE SET withheld = EXCLUDED.withheld, reason = EXCLUDED.reason, updated_by = EXCLUDED.updated_by`,
-			code, clean, strings.TrimSpace(reason), p.UserID); err != nil {
+		// DEF-014 (0082): the row is created empty (the role as the product defines
+		// it), then every change is an UPDATE attested for this person with a fresh
+		// second factor, so the database records who withheld or restored what.
+		if _, err := tx.Exec(ctx, `INSERT INTO role_adjustments (role_code, withheld, reason, updated_by) VALUES ($1, '{}', 'role adjustment record created', $2)
+			ON CONFLICT (tenant_id, role_code) DO NOTHING`, code, p.UserID); err != nil {
+			return err
+		}
+		var adj string
+		if err := tx.QueryRow(ctx, `SELECT id::text FROM role_adjustments WHERE role_code = $1`, code).Scan(&adj); err != nil {
+			return err
+		}
+		if err := s.authorize(ctx, tx, p, "people.role_adjust", "role_adjustment", adj, code); err != nil {
+			return err
+		}
+		if err := postgres.Exec1(ctx, tx, `UPDATE role_adjustments SET withheld = $2, reason = $3, updated_by = $4 WHERE id = $1::uuid`,
+			adj, clean, strings.TrimSpace(reason), p.UserID); err != nil {
 			return err
 		}
 		if err := s.record(ctx, tx, p, "people.role_adjusted", "role", code, "people.role_adjusted", map[string]any{"role": code, "withheld": clean, "reason": reason}); err != nil {

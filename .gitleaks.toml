@@ -1,0 +1,10 @@
+# Secret scanning configuration (CI job "secrets").
+# The default rules apply. The one allow-listed file holds fixed strings that
+# only look like secrets: they are the inputs of the configuration validator's
+# tests (what a strong and a weak secret look like) and are used nowhere else.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fixture strings of the configuration validator's tests; not credentials"
+paths = ['''^internal/config/config_test\.go$''']

@@ -13,9 +13,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/serk-group/serk-construction/pkg/datakey"
+	"net"
 	"net/netip"
 	"net/url"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -94,6 +96,15 @@ type Config struct {
 	// lists every synthetic company a tester may sign in to.
 	StagingCompanies []StagingCompany
 
+	// LoginPepper (SERK_LOGIN_PEPPER) enables the e-mail + 6-digit PIN sign-in
+	// (0095) and keys its PIN hashes and authenticator secrets; it is never
+	// stored in the database. It needs SERK_ABUSE_DSN (the pre-authentication
+	// login) and, like every HS256 sign-in, is refused in production.
+	LoginPepper []byte
+	// LoginBrandTenant (SERK_LOGIN_BRAND_TENANT) is the company whose branding
+	// the sign-in page shows before anyone signs in (default: the staging company).
+	LoginBrandTenant string
+
 	// CompanyName is the letterhead on exported documents (optional;
 	// default: the tenant's letterhead setting, then each legal entity's
 	// registered name).
@@ -102,10 +113,28 @@ type Config struct {
 	// Optional language model for phrasing assistant answers (never for
 	// deciding anything): an OpenAI-compatible chat-completions endpoint.
 	AIEndpoint, AIModel string
-	AIKey               []byte
+	// Document storage and scanning (ADR 0019). DocumentKey encrypts stored
+	// objects and signs scan verdicts and download links. With an S3 endpoint,
+	// files go to that bucket; BlobDir is a local directory for development
+	// only; with neither, files stay in PostgreSQL (10 MiB each). ClamdAddr
+	// ("host:port" or "unix:/path") is the ClamAV daemon; without it nothing is
+	// scanned and, while a company requires scanning, nothing is released.
+	DocumentKey []byte
+	// Document key versions (ADR 0021): DocumentKeyID names the current key
+	// inside every stored object; DocumentKeyPrevious (optional, after a
+	// rotation) still opens objects written under DocumentKeyPreviousID.
+	DocumentKeyPrevious                         []byte
+	DocumentKeyID, DocumentKeyPreviousID        string
+	S3Endpoint, S3Region, S3Bucket, S3AccessKey string
+	S3SecretKey                                 []byte
+	BlobDir, ClamdAddr                          string
+	DocumentMaxMB                               int
+	AIKey                                       []byte
 	// AutomationInterval is how often active rules are evaluated (seconds).
 	AutomationInterval int
 }
+
+var brandTenantRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 // StagingCompany is a synthetic company offered by the staging sign-in.
 type StagingCompany struct {
@@ -226,6 +255,10 @@ func Load(src Source) (Config, error) {
 	if c.StagingLoginPassphrase, err = src.secret("SERK_STAGING_LOGIN_PASSPHRASE"); err != nil {
 		return Config{}, err
 	}
+	if c.LoginPepper, err = src.secret("SERK_LOGIN_PEPPER"); err != nil {
+		return Config{}, err
+	}
+	c.LoginBrandTenant = src.Getenv("SERK_LOGIN_BRAND_TENANT")
 	c.StagingTenant = src.Getenv("SERK_STAGING_TENANT")
 	if v := src.Getenv("SERK_STAGING_COMPANIES"); v != "" {
 		if err := json.Unmarshal([]byte(v), &c.StagingCompanies); err != nil {
@@ -247,6 +280,24 @@ func Load(src Source) (Config, error) {
 		return Config{}, err
 	}
 	c.AIEndpoint, c.AIModel = src.Getenv("SERK_AI_ENDPOINT"), src.str("SERK_AI_MODEL", "")
+	if c.DocumentKey, err = src.secret("SERK_DOCUMENT_KEY"); err != nil {
+		return Config{}, err
+	}
+	if c.DocumentKeyPrevious, err = src.secret("SERK_DOCUMENT_KEY_PREVIOUS"); err != nil {
+		return Config{}, err
+	}
+	c.DocumentKeyID = src.str("SERK_DOCUMENT_KEY_ID", "d1")
+	c.DocumentKeyPreviousID = src.str("SERK_DOCUMENT_KEY_PREVIOUS_ID", "d0")
+	if c.S3SecretKey, err = src.secret("SERK_S3_SECRET_KEY"); err != nil {
+		return Config{}, err
+	}
+	c.S3Endpoint, c.S3Region, c.S3Bucket, c.S3AccessKey = src.Getenv("SERK_S3_ENDPOINT"), src.str("SERK_S3_REGION", "us-east-1"), src.Getenv("SERK_S3_BUCKET"), src.Getenv("SERK_S3_ACCESS_KEY")
+	c.BlobDir, c.ClamdAddr = src.Getenv("SERK_BLOB_DIR"), src.Getenv("SERK_CLAMD_ADDR")
+	if v := src.Getenv("SERK_DOCUMENT_MAX_MB"); v != "" {
+		if c.DocumentMaxMB, err = strconv.Atoi(v); err != nil || c.DocumentMaxMB < 1 {
+			return Config{}, fmt.Errorf("%w: SERK_DOCUMENT_MAX_MB must be a positive number of MiB", ErrInvalid)
+		}
+	}
 	if c.AIKey, err = src.secret("SERK_AI_KEY"); err != nil {
 		return Config{}, err
 	}
@@ -424,6 +475,79 @@ func (c Config) Validate() error {
 			bad("SERK_STAGING_LOGIN_PASSPHRASE must differ from every secret")
 		}
 	}
+	if c.LoginBrandTenant != "" && !brandTenantRe.MatchString(c.LoginBrandTenant) {
+		bad("SERK_LOGIN_BRAND_TENANT must be a company (tenant) id, a lowercase UUID")
+	}
+	if len(c.LoginPepper) > 0 {
+		switch {
+		case prod:
+			bad("SERK_LOGIN_PEPPER: the e-mail + PIN sign-in issues HS256 sessions and is refused in production until an ADR approves a production signer")
+		case oidc:
+			bad("the e-mail + PIN sign-in mints HS256 tokens and cannot be combined with OIDC")
+		case len(c.LoginPepper) < 32:
+			bad("SERK_LOGIN_PEPPER must be at least 32 characters")
+		case c.AbuseDSN == "":
+			bad("SERK_LOGIN_PEPPER needs SERK_ABUSE_DSN, the pre-authentication database login")
+		case string(c.LoginPepper) == string(c.HS256Secret) || string(c.LoginPepper) == string(c.TenantDBSecret) || string(c.LoginPepper) == string(c.AbuseKey) || string(c.LoginPepper) == string(c.BankDataKey):
+			bad("SERK_LOGIN_PEPPER must differ from every other secret")
+		}
+	}
+	if len(c.DocumentKey) > 0 {
+		if e := checkSecret(c.DocumentKey, prod); e != "" {
+			bad("SERK_DOCUMENT_KEY %s", e)
+		} else if string(c.DocumentKey) == string(c.TenantDBSecret) || string(c.DocumentKey) == string(c.AbuseKey) || string(c.DocumentKey) == string(c.BankDataKey) {
+			bad("SERK_DOCUMENT_KEY must differ from every other secret")
+		}
+		if !keyIDRe.MatchString(c.DocumentKeyID) {
+			bad("SERK_DOCUMENT_KEY_ID must be 1 to 32 letters, digits, '-' or '_'")
+		}
+		if len(c.DocumentKeyPrevious) > 0 {
+			if e := checkSecret(c.DocumentKeyPrevious, prod); e != "" {
+				bad("SERK_DOCUMENT_KEY_PREVIOUS %s", e)
+			} else if string(c.DocumentKeyPrevious) == string(c.DocumentKey) {
+				bad("SERK_DOCUMENT_KEY_PREVIOUS must differ from SERK_DOCUMENT_KEY (a rotation changes the key)")
+			}
+			if !keyIDRe.MatchString(c.DocumentKeyPreviousID) || c.DocumentKeyPreviousID == c.DocumentKeyID {
+				bad("SERK_DOCUMENT_KEY_PREVIOUS_ID must be a valid id different from SERK_DOCUMENT_KEY_ID")
+			}
+		}
+	} else if len(c.DocumentKeyPrevious) > 0 {
+		bad("SERK_DOCUMENT_KEY_PREVIOUS is set without SERK_DOCUMENT_KEY")
+	}
+	if c.S3Endpoint != "" {
+		if c.S3Bucket == "" || c.S3AccessKey == "" || len(c.S3SecretKey) == 0 {
+			bad("SERK_S3_ENDPOINT needs SERK_S3_BUCKET, SERK_S3_ACCESS_KEY and SERK_S3_SECRET_KEY")
+		}
+		if len(c.DocumentKey) == 0 {
+			bad("object storage needs SERK_DOCUMENT_KEY (objects are encrypted before they leave the service)")
+		}
+		if prod && !strings.HasPrefix(c.S3Endpoint, "https://") {
+			bad("SERK_S3_ENDPOINT must use https in production")
+		}
+		if c.BlobDir != "" {
+			bad("set SERK_S3_ENDPOINT or SERK_BLOB_DIR, not both")
+		}
+	}
+	if c.BlobDir != "" {
+		if prod {
+			bad("SERK_BLOB_DIR is a development store and is refused in production: use SERK_S3_ENDPOINT")
+		}
+		if len(c.DocumentKey) == 0 {
+			bad("SERK_BLOB_DIR needs SERK_DOCUMENT_KEY")
+		}
+	}
+	if c.ClamdAddr != "" {
+		if len(c.DocumentKey) == 0 {
+			bad("SERK_CLAMD_ADDR needs SERK_DOCUMENT_KEY (a scan verdict is recorded with a keyed proof)")
+		}
+		if rest, ok := strings.CutPrefix(c.ClamdAddr, "unix:"); ok && !strings.HasPrefix(rest, "/") {
+			bad("SERK_CLAMD_ADDR unix: needs an absolute socket path")
+		} else if !ok {
+			if _, _, err := net.SplitHostPort(c.ClamdAddr); err != nil {
+				bad("SERK_CLAMD_ADDR must be host:port or unix:/path")
+			}
+		}
+	}
 	if c.AIEndpoint != "" || len(c.AIKey) > 0 {
 		if c.AIEndpoint == "" || c.AIModel == "" {
 			bad("SERK_AI_ENDPOINT and SERK_AI_MODEL are set together (SERK_AI_KEY optional)")
@@ -471,6 +595,16 @@ func checkSecret(b []byte, prod bool) string {
 		}
 	}
 	return ""
+}
+
+var keyIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,32}$`)
+
+// DocumentPreviousKeys returns the earlier document keys by version id.
+func (c Config) DocumentPreviousKeys() map[string][]byte {
+	if len(c.DocumentKeyPrevious) == 0 {
+		return nil
+	}
+	return map[string][]byte{c.DocumentKeyPreviousID: c.DocumentKeyPrevious}
 }
 
 func checkDSN(dsn, name string, bad func(string, ...any)) {
@@ -600,4 +734,18 @@ func (c Config) BankDataRing() *datakey.Ring {
 		r.Previous = []datakey.Key{{ID: c.BankDataKeyPreviousID, Master: c.BankDataKeyPrevious}}
 	}
 	return r
+}
+
+// DocumentStorage reports how document files are configured: the store kind
+// ("s3", "fs" or "postgres") and whether a scanner address is set.
+func (c Config) DocumentStorage() (kind string, scanner bool) {
+	switch {
+	case c.S3Endpoint != "":
+		kind = "s3"
+	case c.BlobDir != "":
+		kind = "fs"
+	default:
+		kind = "postgres"
+	}
+	return kind, c.ClamdAddr != ""
 }

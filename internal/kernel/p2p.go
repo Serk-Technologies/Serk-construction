@@ -82,10 +82,16 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT project_id::text FROM customer_credit_notes WHERE id = $1::uuid`
 	case "site_diary":
 		q = `SELECT project_id::text FROM site_diaries WHERE id = $1::uuid`
+	case "equipment_charge_run":
+		q = `SELECT project_id::text FROM equipment_charge_runs WHERE id = $1::uuid`
+	case "transmittal":
+		q = `SELECT project_id::text FROM transmittals WHERE id = $1::uuid`
+	case "correspondence":
+		q = `SELECT project_id::text FROM correspondence WHERE id = $1::uuid`
+	case "submittal":
+		q = `SELECT project_id::text FROM submittals WHERE id = $1::uuid`
 	case "timesheet":
 		q = `SELECT project_id::text FROM timesheets WHERE id = $1::uuid`
-	case "equipment_usage":
-		q = `SELECT project_id::text FROM equipment_usage WHERE id = $1::uuid`
 	case "itp":
 		q = `SELECT project_id::text FROM itps WHERE id = $1::uuid`
 	case "project_stage_gate":
@@ -106,6 +112,19 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 	case "guarantee", "escalation_formula", "price_adjustment", "ld_terms":
 		q = map[string]string{"guarantee": "guarantees", "escalation_formula": "escalation_formulas", "price_adjustment": "price_adjustments", "ld_terms": "contract_ld_terms"}[docType]
 		q = `SELECT c.project_id::text FROM ` + q + ` x JOIN contracts c ON c.id = x.contract_id WHERE x.id = $1::uuid`
+	case "equipment", "equipment_operator_auth", "fleet_policy", "equipment_charge_rate":
+		// The register is company-wide: anyone who reads documents sees the fleet and its policy.
+		q = `SELECT '' FROM ` + map[string]string{"equipment": "equipment", "equipment_operator_auth": "equipment_operator_auths", "fleet_policy": "fleet_policies", "equipment_charge_rate": "equipment_charge_rates"}[docType] + ` WHERE id = $1::uuid`
+	case "equipment_reservation", "equipment_log":
+		q = `SELECT project_id::text FROM ` + map[string]string{"equipment_reservation": "equipment_reservations", "equipment_log": "equipment_logs"}[docType] + ` WHERE id = $1::uuid`
+	case "equipment_meter_reset":
+		q = `SELECT COALESCE(e.current_project_id::text, '') FROM equipment_meter_resets x JOIN equipment e ON e.id = x.equipment_id WHERE x.id = $1::uuid`
+	case "maintenance_work_order":
+		q = `SELECT COALESCE(e.current_project_id::text, '') FROM maintenance_work_orders x JOIN equipment e ON e.id = x.equipment_id WHERE x.id = $1::uuid`
+	case "document_revision":
+		q = `SELECT d.project_id::text FROM document_revisions x JOIN documents d ON d.id = x.document_id WHERE x.id = $1::uuid`
+	case "rfi":
+		q = `SELECT project_id::text FROM rfis WHERE id = $1::uuid`
 	case "schedule_version", "schedule_progress":
 		q = map[string]string{"schedule_version": "schedule_versions", "schedule_progress": "schedule_progress"}[docType]
 		q = `SELECT project_id::text FROM ` + q + ` WHERE id = $1::uuid`
@@ -121,6 +140,15 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT COALESCE(w.project_id::text, '') FROM stock_receipts r JOIN warehouses w ON w.id = r.warehouse_id WHERE r.id = $1::uuid`
 	case "stock_issue":
 		q = `SELECT project_id::text FROM stock_issues WHERE id = $1::uuid`
+	case "stock_return":
+		q = `SELECT project_id::text FROM stock_returns WHERE id = $1::uuid`
+	case "resource_rate":
+		// 0094: the rate library is company-wide.
+		q = `SELECT '' FROM resource_rates WHERE id = $1::uuid`
+	case "rate_buildup":
+		q = `SELECT project_id::text FROM rate_buildups WHERE id = $1::uuid`
+	case "stock_writeoff":
+		q = `SELECT COALESCE(w.project_id::text, '') FROM stock_writeoffs o JOIN warehouses w ON w.id = o.warehouse_id WHERE o.id = $1::uuid`
 	case "stock_count":
 		q = `SELECT COALESCE(project_id::text, '') FROM stock_counts WHERE id = $1::uuid`
 	case "stock_transfer":
@@ -256,11 +284,12 @@ func (s *Service) ProposeP2PPolicy(ctx context.Context, p auth.Principal, pol po
 		var err error
 		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO p2p_policies(legal_entity_id, version, currency, price_tolerance_pct, over_receipt_pct, vat_rate,
 			high_value_po_threshold, dual_payment_threshold, grni_account_id, ap_account_id, vat_input_account_id, ppv_account_id, created_by,
-			dual_payment_window_days)
+			dual_payment_window_days, require_conflict_declarations, require_supplier_qualification)
 			SELECT $1::uuid, COALESCE(max(version), 0) + 1, (SELECT functional_currency FROM legal_entities WHERE id = $1::uuid), $2, $3, $4, $5, $6,
-			       $7::uuid, $8::uuid, $9::uuid, $10::uuid, $11, COALESCE(NULLIF($12::int, 0), 30) FROM p2p_policies WHERE legal_entity_id = $1::uuid RETURNING id::text`,
+			       $7::uuid, $8::uuid, $9::uuid, $10::uuid, $11, COALESCE(NULLIF($12::int, 0), 30), $13, $14 FROM p2p_policies WHERE legal_entity_id = $1::uuid RETURNING id::text`,
 			pol.LegalEntityID, pol.PriceTolerancePct, pol.OverReceiptPct, pol.VATRate, pol.HighValuePOThreshold, pol.DualPaymentThreshold,
-			pol.GRNIAccountID, pol.APAccountID, pol.VATInputAccountID, pol.PPVAccountID, p.UserID, pol.DualPaymentWindowDays)
+			pol.GRNIAccountID, pol.APAccountID, pol.VATInputAccountID, pol.PPVAccountID, p.UserID, pol.DualPaymentWindowDays,
+			pol.RequireConflictDeclarations, pol.RequireSupplierQualification)
 		if err != nil {
 			return err
 		}

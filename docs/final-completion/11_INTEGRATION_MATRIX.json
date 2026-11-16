@@ -1,0 +1,75 @@
+{
+ "canonical": "hand-maintained; a mocked or test-double integration is never shown as live",
+ "integrations": [
+  {
+   "name": "S3-compatible object storage",
+   "purpose": "Document storage",
+   "state": "VERIFIED_LOCAL_AND_CI",
+   "evidence": "MinIO built from source in CI and locally; TestS3Store_* and document journeys",
+   "gap": "No managed cloud bucket has been used"
+  },
+  {
+   "name": "ClamAV",
+   "purpose": "Malware scanning",
+   "state": "VERIFIED_LOCAL_AND_CI",
+   "evidence": "Real clamd in CI and locally; scanner fault tests fail closed",
+   "gap": "Public signature feed unreachable from the build environment; freshness monitoring exists"
+  },
+  {
+   "name": "OpenID Connect identity provider",
+   "purpose": "Authentication, step-up, revocation",
+   "state": "TEST_DOUBLE_ONLY",
+   "evidence": "Token verification against locally generated issuers (TestOIDC_*)",
+   "gap": "No real identity provider (BRS-03.5)"
+  },
+  {
+   "name": "Approval signer",
+   "purpose": "Attestation signing",
+   "state": "VERIFIED_LOCAL_AND_CI",
+   "evidence": "Isolated signer process; TestSignerIsolation*",
+   "gap": "Key held in an environment secret, not KMS/HSM"
+  },
+  {
+   "name": "KMS/HSM",
+   "purpose": "Key custody",
+   "state": "NOT_INTEGRATED",
+   "evidence": "Adapter boundary only",
+   "gap": "Needs infrastructure owner"
+  },
+  {
+   "name": "Bank API",
+   "purpose": "Payments",
+   "state": "NOT_INTEGRATED",
+   "evidence": "Statement import and matching only",
+   "gap": "CAP-05.3 blocked"
+  },
+  {
+   "name": "E-mail / Telegram",
+   "purpose": "Exception digests",
+   "state": "NOT_INTEGRATED",
+   "evidence": "In-app notifications only",
+   "gap": "CMD-05.3 blocked"
+  },
+  {
+   "name": "Model provider",
+   "purpose": "AI assistance",
+   "state": "NOT_INTEGRATED",
+   "evidence": "Rule-based assistant",
+   "gap": "BRS-02.4 blocked"
+  },
+  {
+   "name": "Government portal",
+   "purpose": "Statutory filing",
+   "state": "NOT_INTEGRATED",
+   "evidence": "None on this branch; new-version has a stand-in adapter",
+   "gap": "CNX-13.1 blocked"
+  },
+  {
+   "name": "Prometheus/Alertmanager",
+   "purpose": "Monitoring",
+   "state": "VERIFIED_LOCAL",
+   "evidence": "Rules fire on induced failures (XCT-DR.3)",
+   "gap": "Delivery to an approved destination not demonstrated"
+  }
+ ]
+}

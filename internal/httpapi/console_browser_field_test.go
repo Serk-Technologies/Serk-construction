@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-// TestConsoleBrowserField drives timesheets, equipment usage and HSE (migration 0064) through the web
+// TestConsoleBrowserField drives timesheets and HSE (migration 0076; carried from new-version) through the web
 // console in a real Chromium: the site engineer records, the project manager approves, an incident is
 // reported and investigated, a permit requested and issued. Skipped when node or playwright is missing.
 func TestConsoleBrowserField(t *testing.T) {
@@ -42,12 +42,12 @@ func TestConsoleBrowserField(t *testing.T) {
 	a.srv = srv
 	P := []string{a.project}
 	payroll := a.tok("u-payroll", nil, false, "payroll_officer")
+	hr := a.tok("u-hr", nil, true, "hr_manager")
 	for i, n := range []string{"Dawit Haile", "Tigist Alemu"} {
-		a.id("POST", "/v1/employees", payroll, map[string]any{"legal_entity_id": a.entity, "number": "E-00" + string(rune('1'+i)), "name": n, "kind": "HOURLY", "base_rate": "50", "starts_on": "2026-01-01"})
+		emp := a.id("POST", "/v1/employees", payroll, map[string]any{"legal_entity_id": a.entity, "number": "E-00" + string(rune('1'+i)), "name": n, "kind": "HOURLY", "base_rate": "50", "starts_on": "2026-01-01"})
+		a.call(200, "POST", "/v1/employees/"+emp+"/approve", hr, nil) // 0074: a second person approves the record
 	}
-	a.id("POST", "/v1/equipment", a.tok("u-plant", nil, false, "plant_manager"), map[string]any{"legal_entity_id": a.entity, "code": "EXC-01", "name": "Excavator CAT 320", "class": "Excavator", "ownership": "OWNED",
-		"hire_rate": "800", "rate_unit": "HOUR", "fuel_norm_lph": "18", "service_interval_hours": "100"})
-	tokens := map[string]string{"eng": a.tok("u-site-eng", P, false, "site_engineer"), "pm": a.tok("u-pm", P, false, "project_manager"), "plant": a.tok("u-plant", nil, false, "plant_manager"),
+	tokens := map[string]string{"eng": a.tok("u-site-eng", P, false, "site_engineer"), "pm": a.tok("u-pm", P, false, "project_manager"),
 		"hse": a.tok("u-hse", nil, false, "hse_officer"), "engPhone": a.tok("u-site-eng", P, false, "site_engineer")}
 	dir := t.TempDir()
 	fx, _ := json.Marshal(map[string]any{"tokens": tokens, "entity": a.entity, "project": a.project})

@@ -47,6 +47,30 @@ func (s *Server) registerStock() {
 	m.Handle("POST /v1/stock-counts/{id}/reject", decide(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
 		return nil, k().RejectStockCount(ctx, p, id, b.Reason)
 	}))
+	// Write-offs (0088): scrap at cost with a reason, approved by someone else.
+	m.Handle("POST /v1/stock-writeoffs", s.authed(s.createStockWriteoff))
+	m.Handle("POST /v1/stock-writeoffs/{id}/approve", decide(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		jid, err := k().ApproveStockWriteoff(ctx, p, id)
+		return map[string]any{"id": id, "journal_id": jid}, err
+	}))
+	m.Handle("POST /v1/stock-writeoffs/{id}/reject", decide(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k().RejectStockWriteoff(ctx, p, id, b.Reason)
+	}))
+	m.Handle("POST /v1/stock-writeoffs/{id}/cancel", decide(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k().CancelStockWriteoff(ctx, p, id, b.Reason)
+	}))
+	// Site returns (0089): back from the project at the issue's cost.
+	m.Handle("POST /v1/stock-returns", s.authed(s.createStockReturn))
+	m.Handle("POST /v1/stock-returns/{id}/approve", decide(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		jid, err := k().ApproveStockReturn(ctx, p, id)
+		return map[string]any{"id": id, "journal_id": jid}, err
+	}))
+	m.Handle("POST /v1/stock-returns/{id}/reject", decide(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k().RejectStockReturn(ctx, p, id, b.Reason)
+	}))
+	m.Handle("POST /v1/stock-returns/{id}/cancel", decide(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k().CancelStockReturn(ctx, p, id, b.Reason)
+	}))
 	// Transfers (0025).
 	m.Handle("POST /v1/stock-transfers", s.authed(s.createStockTransfer))
 	m.Handle("POST /v1/stock-transfers/{id}/approve", decide(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
@@ -87,11 +111,42 @@ func (s *Server) createWarehouse(w http.ResponseWriter, r *http.Request) {
 		ProjectID     string `json:"project_id"`
 		Code          string `json:"code"`
 		Name          string `json:"name"`
+		Quarantine    bool   `json:"quarantine"` // 0088: a quarantine store (fixed at creation)
 	}
 	if !decode(w, r, &b) || !validIDs(w, b.LegalEntityID) || (b.ProjectID != "" && !validIDs(w, b.ProjectID)) {
 		return
 	}
-	id, err := s.cfg.Kernel.CreateWarehouse(r.Context(), principalFrom(r.Context()), b.LegalEntityID, b.ProjectID, b.Code, b.Name)
+	create := s.cfg.Kernel.CreateWarehouse
+	if b.Quarantine {
+		create = s.cfg.Kernel.CreateQuarantineWarehouse
+	}
+	id, err := create(r.Context(), principalFrom(r.Context()), b.LegalEntityID, b.ProjectID, b.Code, b.Name)
+	s.created(w, id, err)
+}
+
+func (s *Server) createStockReturn(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		kernel.StockReturnInput
+		ReturnDate day `json:"return_date"`
+	}
+	if !decode(w, r, &b) || !validIDs(w, b.IssueID, b.WarehouseID) {
+		return
+	}
+	b.StockReturnInput.ReturnDate = b.ReturnDate.Time
+	id, err := s.cfg.Kernel.CreateStockReturn(r.Context(), principalFrom(r.Context()), b.StockReturnInput)
+	s.created(w, id, err)
+}
+
+func (s *Server) createStockWriteoff(w http.ResponseWriter, r *http.Request) {
+	var b struct {
+		kernel.StockWriteoffInput
+		WriteoffDate day `json:"writeoff_date"`
+	}
+	if !decode(w, r, &b) || !validIDs(w, b.WarehouseID, b.StockItemID, b.ExpenseAccountID) {
+		return
+	}
+	b.StockWriteoffInput.WriteoffDate = b.WriteoffDate.Time
+	id, err := s.cfg.Kernel.CreateStockWriteoff(r.Context(), principalFrom(r.Context()), b.StockWriteoffInput)
 	s.created(w, id, err)
 }
 

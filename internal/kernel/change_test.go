@@ -64,7 +64,6 @@ func TestChange_EventToBudgetDraft(t *testing.T) {
 		t.Fatal("an event with no impact was submitted")
 	}
 
-	rawFails(t, f, "add a line to a submitted event later", `INSERT INTO change_event_lines (event_id, cost_code_id, cost_impact) SELECT '`+id+`', cost_code_id, 1 FROM change_event_lines WHERE event_id = '`+id+`' LIMIT 0`)
 	must(t, "submit", f.svc.SubmitChangeEvent(f.ctx, c.pm, id))
 	rawFails(t, f, "change a submitted event's revenue", `UPDATE change_events SET revenue_impact = 1 WHERE id = '`+id+`'`)
 	rawFails(t, f, "add a line after submission", `INSERT INTO change_event_lines (event_id, cost_code_id, cost_impact) VALUES ('`+id+`', '`+b.cnt+`', 5)`)

@@ -1,0 +1,125 @@
+{
+ "canonical": "This file is the canonical external-blocker register (hand-maintained). A blocker stays here until genuinely resolved.",
+ "blockers": [
+  {
+   "requirement": "CMD-05.3",
+   "missing_dependency": "Authorised e-mail or Telegram provider and credentials",
+   "responsible": "Product owner",
+   "required_decision": "Choose a provider; approve recipients and data in messages",
+   "required_material": "Provider credentials",
+   "status": "OPEN",
+   "implementation_completed": "Not yet: interface and local test provider are WP-007",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "PPL-03.1",
+   "missing_dependency": "Statutory payroll, pension and income-tax rules with sources",
+   "responsible": "Payroll/HR reviewer and tax specialist",
+   "required_decision": "Supply and sign the rule set per jurisdiction",
+   "required_material": "Signed rule fixtures (new-version decision D-04)",
+   "status": "OPEN",
+   "implementation_completed": "new-version contains a payroll engine on test rules (integration pending)",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "CAP-05.3",
+   "missing_dependency": "Bank API sandbox and authorisation",
+   "responsible": "CFO and the bank",
+   "required_decision": "Authorise a bank integration",
+   "required_material": "Bank sandbox credentials and interface specification",
+   "status": "OPEN",
+   "implementation_completed": "Payments are human-released instructions with bank statement matching",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "CAP-06.2",
+   "missing_dependency": "Real tax and withholding rules",
+   "responsible": "Tax specialist",
+   "required_decision": "Supply and sign current rates and rules",
+   "required_material": "Rule sources",
+   "status": "OPEN",
+   "implementation_completed": "new-version contains a configurable tax engine on test data (integration pending)",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "CNX-13.1",
+   "missing_dependency": "Official government interface",
+   "responsible": "Product owner with the responsible authority",
+   "required_decision": "Identify the authority and interface",
+   "required_material": "Official specification and credentials",
+   "status": "OPEN",
+   "implementation_completed": "new-version has a stand-in e-invoicing adapter (D-06)",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "BRS-02.4",
+   "missing_dependency": "Approved model provider",
+   "responsible": "Product owner and security lead",
+   "required_decision": "Approve provider, data sharing and cost limits",
+   "required_material": "Provider credentials and data-processing terms",
+   "status": "OPEN",
+   "implementation_completed": "Rule-based assistant only",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "BRS-03.5",
+   "missing_dependency": "Identity provider, KMS/HSM and independent penetration test",
+   "responsible": "Security lead and infrastructure owner",
+   "required_decision": "Provide an IdP tenant, a KMS and commission a tester",
+   "required_material": "IdP configuration, KMS access, tester engagement",
+   "status": "OPEN",
+   "implementation_completed": "OIDC verification, step-up and revocation exist against test issuers",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "XCT-DR.5",
+   "missing_dependency": "Operated environments",
+   "responsible": "Infrastructure owner",
+   "required_decision": "Authorise and provide staging",
+   "required_material": "Hosting account and secrets",
+   "status": "OPEN",
+   "implementation_completed": "Deployment profiles in deploy/; staging smoke script",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "XCT-LOC.5",
+   "missing_dependency": "Ethiopian statutory review",
+   "responsible": "Legal and accounting reviewers",
+   "required_decision": "Review statutory forms, tax, payroll and pension",
+   "required_material": "Current legal sources and reviewer",
+   "status": "OPEN",
+   "implementation_completed": "Calendar and translation work is engineering (XCT-LOC.3/4)",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  },
+  {
+   "requirement": "GOV-01",
+   "missing_dependency": "Branch protection on main and a reviewed integration",
+   "responsible": "Repository administrator",
+   "required_decision": "Enable protection; authorise the integration pull request",
+   "required_material": "Administrator access",
+   "status": "OPEN",
+   "implementation_completed": "GOVERNANCE_REVIEW_PACKAGE.md prepared",
+   "unverified_behaviour": "Everything that depends on the missing material",
+   "risk_of_proceeding": "Claims of real integration or compliance would be false",
+   "next_action_after_resolution": "Implement and verify against the real service or signed rules; record evidence"
+  }
+ ]
+}

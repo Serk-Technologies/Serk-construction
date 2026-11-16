@@ -1,0 +1,21 @@
+{
+ "revision": "7ac2a6c (origin/new-version, as committed)",
+ "run": "go test -race -count=1 -p 1 -json ./... on a fresh database in this environment",
+ "counts": {
+  "pass": 438,
+  "fail": 10
+ },
+ "failed": [
+  "TestBankAtRest_LegacyPlaintextConversionAndPosture",
+  "TestBankAtRest_LegacyDigestRedigested",
+  "TestR10_PgTempShadowsApprovalEvidence",
+  "TestR11_PostureThroughHealthLogin",
+  "TestR8_PostureCheck",
+  "TestR9_PostureFalseNegative",
+  "TestRelayDeliversInOrderExactlyOnceWhenHealthy",
+  "TestRelayCrashAfterPublishRedeliversAndConsumerDedupes",
+  "TestRelayRetryDeadLetterHeadOfLineAndReplay",
+  "TestWebhookSignedDeliveryAndReceiverChecks"
+ ],
+ "note": "The failing tests are those this branch corrected for password-authenticated TCP after the fork point; the integration carries this branch versions."
+}

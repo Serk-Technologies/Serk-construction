@@ -38,6 +38,8 @@ type ChangeEventInput struct {
 	RevenueImpct decimal.Decimal   `json:"revenue_impact"`
 	ScheduleDays int               `json:"schedule_impact_days"`
 	Lines        []ChangeEventLine `json:"lines"`
+	// RFIID names the answered RFI the change arises from (0090; source RFI).
+	RFIID string `json:"rfi_id,omitempty"`
 }
 
 // ChangeEvent is a change event with its lines, totals and the budget draft it raised.
@@ -47,6 +49,7 @@ type ChangeEvent struct {
 	ProjectID     string            `json:"project_id"`
 	Title         string            `json:"title"`
 	Source        string            `json:"source"`
+	RFIID         string            `json:"rfi_id,omitempty"`
 	Description   string            `json:"description"`
 	Status        string            `json:"status"`
 	CreatedBy     string            `json:"created_by"`
@@ -77,6 +80,9 @@ func (s *Service) CreateChangeEvent(ctx context.Context, p auth.Principal, in Ch
 	if len(strings.TrimSpace(in.Title)) < 3 || len(strings.TrimSpace(in.Description)) < 5 {
 		return "", fmt.Errorf("%w: a title (3+ characters) and a description (5+ characters) are required", ErrInvalidInput)
 	}
+	if in.RFIID != "" && in.Source != "RFI" {
+		return "", fmt.Errorf("%w: a change event raised from an RFI has the source RFI", ErrInvalidInput)
+	}
 	seen := map[string]bool{}
 	for _, l := range in.Lines {
 		if l.CostImpact.IsZero() {
@@ -93,9 +99,9 @@ func (s *Service) CreateChangeEvent(ctx context.Context, p auth.Principal, in Ch
 		if err != nil {
 			return err
 		}
-		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO change_events (project_id, number, title, source, description, revenue_impact, schedule_impact_days, created_by)
-			VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8) RETURNING id::text`,
-			in.ProjectID, num, strings.TrimSpace(in.Title), in.Source, strings.TrimSpace(in.Description), in.RevenueImpct, in.ScheduleDays, p.UserID)
+		id, err = postgres.InsertReturningID(ctx, tx, `INSERT INTO change_events (project_id, number, title, source, description, revenue_impact, schedule_impact_days, created_by, rfi_id)
+			VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, NULLIF($9, '')::uuid) RETURNING id::text`,
+			in.ProjectID, num, strings.TrimSpace(in.Title), in.Source, strings.TrimSpace(in.Description), in.RevenueImpct, in.ScheduleDays, p.UserID, in.RFIID)
 		if err != nil {
 			return err
 		}
@@ -164,9 +170,9 @@ func (s *Service) GetChangeEvent(ctx context.Context, p auth.Principal, id strin
 		}
 		var by, reason, bv *string
 		if err := tx.QueryRow(ctx, `SELECT e.id::text, e.number, e.project_id::text, e.title, e.source, e.description, e.status, e.created_by, e.approved_by, e.decision_reason,
-			e.revenue_impact, e.schedule_impact_days, b.budget_version_id::text
+			e.revenue_impact, e.schedule_impact_days, b.budget_version_id::text, COALESCE(e.rfi_id::text, '')
 			FROM change_events e LEFT JOIN change_event_budget b ON b.event_id = e.id WHERE e.id = $1::uuid`, id).
-			Scan(&e.ID, &e.Number, &e.ProjectID, &e.Title, &e.Source, &e.Description, &e.Status, &e.CreatedBy, &by, &reason, &e.RevenueImpact, &e.ScheduleDays, &bv); err != nil {
+			Scan(&e.ID, &e.Number, &e.ProjectID, &e.Title, &e.Source, &e.Description, &e.Status, &e.CreatedBy, &by, &reason, &e.RevenueImpact, &e.ScheduleDays, &bv, &e.RFIID); err != nil {
 			return mapNoRows(err)
 		}
 		e.ApprovedBy, e.Reason, e.BudgetDraftID = deref(by), deref(reason), deref(bv)

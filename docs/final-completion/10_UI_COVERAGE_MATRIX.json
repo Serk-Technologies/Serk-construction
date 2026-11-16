@@ -1,0 +1,777 @@
+{
+ "generated_by": "tools/final_completion.py from the console navigation (app.js NAV) and e2e/*.mjs",
+ "rule": "A route counts as covered only when a browser journey visits it; responsive and visual evidence are listed separately",
+ "routes": [
+  {
+   "route": "#/home",
+   "label": "My work",
+   "browser_journeys": [
+    "console_documents.mjs",
+    "console_fleet.mjs",
+    "console_forms.mjs",
+    "console_journey_a.mjs",
+    "console_journey_b.mjs",
+    "console_planning.mjs",
+    "console_site.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/tasks",
+   "label": "Tasks",
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/me",
+   "label": "My profile",
+   "browser_journeys": [
+    "console_journey_a.mjs",
+    "console_journey_b.mjs",
+    "console_signin.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/setup",
+   "label": "Company setup",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/dashboard",
+   "label": "Dashboard",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/ask",
+   "label": "Ask",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/risk",
+   "label": "Risks",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/reports",
+   "label": "Reports",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/projects",
+   "label": "Projects",
+   "browser_journeys": [
+    "console_forms.mjs",
+    "console_journey_a.mjs",
+    "console_planning.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/project_stage_gate",
+   "label": "Stage gates",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/budget",
+   "label": "Budget overview",
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/forecast_cycle",
+   "label": "Cost forecasts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/change_event",
+   "label": "Change events",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/budget_version",
+   "label": "Budget versions",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/budget_transfer",
+   "label": "Budget transfers",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/contingency_drawdown",
+   "label": "Contingency drawdowns",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/boq_version",
+   "label": "BOQ",
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/rate_buildup",
+   "label": "Rate build-ups",
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/resource_rate",
+   "label": "Rate library",
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/cost",
+   "label": "Cost report",
+   "browser_journeys": [
+    "console_forms.mjs",
+    "console_journey_a.mjs",
+    "console_planning.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/schedule_version",
+   "label": "Schedules",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/schedule_progress",
+   "label": "Progress",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/evm",
+   "label": "Earned value",
+   "browser_journeys": [
+    "console_planning.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/riskreg",
+   "label": "Risk register",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/purchase_requisition",
+   "label": "Requisitions",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/rfq",
+   "label": "RFQs",
+   "browser_journeys": [
+    "console_journey_a.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/rfq_quote",
+   "label": "Quotes",
+   "browser_journeys": [
+    "console_journey_a.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/purchase_order",
+   "label": "Purchase orders",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/supplier",
+   "label": "Suppliers",
+   "browser_journeys": [
+    "console_journey_a.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/site_diary",
+   "label": "Site diaries",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/grn",
+   "label": "Goods receipts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/site/devices",
+   "label": "Field devices",
+   "browser_journeys": [
+    "console_site.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/stock",
+   "label": "Stock on hand",
+   "browser_journeys": [
+    "console_forms.mjs",
+    "console_journey_c.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/stock_issue",
+   "label": "Stock issues",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/stock_receipt",
+   "label": "Put-aways",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/stock_transfer",
+   "label": "Transfers",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/stock_count",
+   "label": "Stock counts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/stock_writeoff",
+   "label": "Write-offs",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/stock_return",
+   "label": "Site returns",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/reservations",
+   "label": "Reservations",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/report/low-stock",
+   "label": "Low stock",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/uom_conversion",
+   "label": "Unit conversions",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/stock_item",
+   "label": "Stock items",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/warehouse",
+   "label": "Warehouses",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/contract",
+   "label": "Contracts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/contract_variation",
+   "label": "Variations",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/contract_notice",
+   "label": "Contract notices",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/contract_claim",
+   "label": "Claims",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/obligations",
+   "label": "Contract obligations",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/bonds",
+   "label": "Guarantees & price adjustment",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/measurement",
+   "label": "Measurements",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/ipc",
+   "label": "Payment certificates",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/customer_invoice",
+   "label": "Customer invoices",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/customer_credit_note",
+   "label": "Credit notes",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/retention_release",
+   "label": "Retention releases",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/money_in",
+   "label": "Money received",
+   "browser_journeys": [
+    "console_journey_b.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/customer_receipt",
+   "label": "Receipts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/aging/ar",
+   "label": "Receivables aging",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/customer",
+   "label": "Customers",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/fleet",
+   "label": "Fleet command centre",
+   "browser_journeys": [
+    "console_fleet.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/equipment_reservation",
+   "label": "Reservations",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/equipment_log",
+   "label": "Daily logs",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/equipment_operator_auth",
+   "label": "Operator authorisations",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/equipment_meter_reset",
+   "label": "Meter resets",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/maintenance_work_order",
+   "label": "Work orders",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/fleet_policy",
+   "label": "Fleet policies",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/equipment_charge_rate",
+   "label": "Charge-out rates",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/equipment_charge_run",
+   "label": "Charge runs",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/documents",
+   "label": "Document register",
+   "browser_journeys": [
+    "console_documents.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/document_revision/SUBMITTED",
+   "label": "Revisions in review",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/rfi",
+   "label": "Requests for information",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/transmittal",
+   "label": "Transmittals",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/submittal",
+   "label": "Submittals",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/correspondence",
+   "label": "Correspondence",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/timesheets",
+   "label": "Timesheets",
+   "browser_journeys": [
+    "console_field.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/hse",
+   "label": "Health and safety",
+   "browser_journeys": [
+    "console_field.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/quality",
+   "label": "Quality",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/siterecords",
+   "label": "Punch lists, instructions, meetings",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/credit",
+   "label": "Progress credit",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/subcontract",
+   "label": "Subcontracts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/subcontract_application",
+   "label": "Applications and certificates",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/subcontract_backcharge",
+   "label": "Back-charges",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/subcontract_payment",
+   "label": "Subcontract payments",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/subpolicy",
+   "label": "Subcontract accounts",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/supplier_invoice",
+   "label": "Supplier invoices",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/payment_instruction",
+   "label": "Payments",
+   "browser_journeys": [
+    "console_journey_a.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/aging/ap",
+   "label": "Payables aging",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/cash",
+   "label": "Cash forecast",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/bank",
+   "label": "Bank statements",
+   "browser_journeys": [
+    "console_journey_a.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/company_bank_account",
+   "label": "Company banks",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/supplier_bank_account",
+   "label": "Supplier banks",
+   "browser_journeys": [
+    "console_journey_a.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/journals",
+   "label": "Journals",
+   "browser_journeys": [
+    "console_journey_a.mjs",
+    "console_journey_b.mjs",
+    "console_journey_c.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/assets",
+   "label": "Fixed assets",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/periodend",
+   "label": "Period end",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/tax",
+   "label": "Tax returns & e-invoices",
+   "browser_journeys": [
+    "console_finance.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/consolidation",
+   "label": "Consolidation",
+   "browser_journeys": [
+    "console_finance.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/revenue",
+   "label": "Revenue & WIP",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/recon",
+   "label": "Reconciliation",
+   "browser_journeys": [
+    "console_journey_a.mjs",
+    "console_journey_b.mjs",
+    "console_journey_c.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/tb",
+   "label": "Trial balance",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/statements",
+   "label": "Financial statements",
+   "browser_journeys": [
+    "console_finance.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/payroll",
+   "label": "Payroll",
+   "browser_journeys": [
+    "console_payroll.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/people",
+   "label": "People & access",
+   "browser_journeys": [
+    "console_signin.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/org",
+   "label": "Organisation & calendar",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/authority",
+   "label": "Authority & duties",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/authority_matrix",
+   "label": "Authority matrices",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/delegation",
+   "label": "Delegations",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/sod_exception",
+   "label": "Duty-conflict exceptions",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/imports",
+   "label": "Data imports",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/p2p_policy",
+   "label": "P2P policies",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/list/contract_policy",
+   "label": "Contract policies",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/controls",
+   "label": "Control review",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/automation",
+   "label": "Automation rules",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/workflows",
+   "label": "Workflow map",
+   "browser_journeys": [
+    "console_signin.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/settings",
+   "label": "Company settings",
+   "browser_journeys": [],
+   "status": "NOT_COVERED"
+  },
+  {
+   "route": "#/branding",
+   "label": "Brand & appearance",
+   "browser_journeys": [
+    "console_signin.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  }
+ ]
+}

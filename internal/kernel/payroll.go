@@ -191,6 +191,35 @@ func (s *Service) EmployeeLeaves(ctx context.Context, p auth.Principal, id, ends
 	})
 }
 
+// ApproveEmployee approves a registered employee's record — pay rate and
+// bank account included — so that they can be paid (DEF-010). The approver
+// holds payroll.approve, did not register the employee and has a fresh second
+// factor; the database enforces the same with an attestation (0074).
+func (s *Service) ApproveEmployee(ctx context.Context, p auth.Principal, id string) error {
+	if err := s.authz.RequireStepUp(p); err != nil {
+		return err
+	}
+	return s.payrollTx(ctx, p, auth.PermPayrollApprove, func(ctx context.Context, tx pgx.Tx) error {
+		var creator, approval string
+		if err := mapNoRows(tx.QueryRow(ctx, `SELECT created_by, approval FROM employees WHERE id = $1::uuid`, id).Scan(&creator, &approval)); err != nil {
+			return err
+		}
+		if approval != "PENDING" {
+			return fmt.Errorf("%w: the employee record is already approved", ErrWorkflowState)
+		}
+		if err := auth.CheckMakerChecker(p, creator, "employee record"); err != nil {
+			return err
+		}
+		if err := s.authorize(ctx, tx, p, "employee.approve", "employee", id, "APPROVED"); err != nil {
+			return err
+		}
+		if err := postgres.Exec1(ctx, tx, `UPDATE employees SET approval = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, id, p.UserID); err != nil {
+			return err
+		}
+		return s.record(ctx, tx, p, "employee.approve", "employee", id, "employee.approved", map[string]any{"id": id})
+	})
+}
+
 // CreateRuleSet prepares a DRAFT rule set.
 func (s *Service) CreateRuleSet(ctx context.Context, p auth.Principal, in RuleSetInput) (string, error) {
 	from, err := parseDay("effective_from", in.EffectiveFrom)
@@ -490,7 +519,7 @@ func (s *Service) PayrollView(ctx context.Context, p auth.Principal, run string)
 		if err := q("projects", `SELECT id, code, name FROM projects ORDER BY code`); err != nil {
 			return err
 		}
-		if err := q("employees", `SELECT id, number, name, kind, trade, base_rate, tin, pension_no, bank_name, CASE WHEN account_last4 IS NULL THEN NULL ELSE '****' || account_last4 END AS account, starts_on, ends_on, status FROM employees ORDER BY number`); err != nil {
+		if err := q("employees", `SELECT id, number, name, kind, trade, base_rate, tin, pension_no, bank_name, CASE WHEN account_last4 IS NULL THEN NULL ELSE '****' || account_last4 END AS account, starts_on, ends_on, status, approval, approved_by, created_by FROM employees ORDER BY number`); err != nil {
 			return err
 		}
 		if err := q("rule_sets", `SELECT id, number, effective_from, tax_bands, pension_ee_rate, pension_er_rate, overtime_multiplier, source_ref, status, created_by, approved_by FROM payroll_rule_sets ORDER BY effective_from DESC`); err != nil {

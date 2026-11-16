@@ -43,6 +43,9 @@ func TestCredit_RulesToProgress(t *testing.T) {
 	if err := f.svc.ApproveCreditRule(f.ctx, planner, rule); !errors.Is(err, auth.ErrForbidden) {
 		t.Fatalf("the planner approved their own rule: %v", err)
 	}
+	// DEF-011: the approval is attested; the tenant login cannot write it under the project manager's name.
+	rawRefusedWith(t, f, "approve a rule of credit under a forged identity", "approval attestation",
+		`UPDATE credit_rules SET status = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, rule, pm.UserID)
 	must(t, "approve", f.svc.ApproveCreditRule(f.ctx, pm, rule))
 	d1, d2 := today().AddDate(0, 0, -3).Format("2006-01-02"), today().AddDate(0, 0, -1).Format("2006-01-02")
 	if err := f.svc.CompleteCreditStep(f.ctx, eng, rule, 2, d1); err == nil {

@@ -46,6 +46,9 @@ type Persona struct {
 // StagingPersonas covers every journey: one person per duty so that
 // separation of duties can be exercised by switching persona.
 var StagingPersonas = []Persona{
+	{"u-sysadmin", "System administrator", []string{"system_admin"}, false},
+	{"u-chairman", "Board chairman (read only)", []string{"board_chairman"}, false},
+	{"u-ceo", "CEO", []string{"ceo"}, false},
 	{"u-estimator", "Estimator", []string{"estimator"}, true},
 	{"u-commercial", "Commercial manager", []string{"commercial_manager"}, true},
 	{"u-pm", "Project manager", []string{"project_manager"}, true},

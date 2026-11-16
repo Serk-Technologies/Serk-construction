@@ -8,6 +8,7 @@ package kernel
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,9 +59,25 @@ func TestTax_VATReturnAndEInvoice(t *testing.T) {
 	if _, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "VAT", start, end); err == nil {
 		t.Fatal("a return before any tax account is designated")
 	}
+	var designations []string
 	for _, d := range [][2]string{{"2300", "OUTPUT_VAT"}, {"1300", "INPUT_VAT"}, {"2330", "WHT_PAYABLE"}} {
-		_, err := f.svc.DesignateTaxAccount(f.ctx, acc, w.acct[d[0]], d[1])
+		id, err := f.svc.DesignateTaxAccount(f.ctx, acc, w.acct[d[0]], d[1])
 		must(t, "designate "+d[0], err)
+		designations = append(designations, id)
+	}
+	// DEF-015 (0081): a return is computed only from designations a second person approved.
+	if _, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "VAT", start, end); err == nil || !strings.Contains(err.Error(), "pending approval") {
+		t.Fatalf("a return was prepared from unapproved designations: %v", err)
+	}
+	accAsApprover := cfo
+	accAsApprover.UserID = acc.UserID
+	if err := f.svc.ApproveTaxAccount(f.ctx, accAsApprover, designations[0]); !errors.Is(err, auth.ErrSoD) {
+		t.Fatalf("the person who recorded a designation approved it: %v", err)
+	}
+	rawRefusedWith(t, f, "approve a designation under a forged identity", "approval attestation",
+		`UPDATE tax_accounts SET status = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, designations[0], cfo.UserID)
+	for _, id := range designations {
+		must(t, "approve designation", f.svc.ApproveTaxAccount(f.ctx, cfo, id))
 	}
 
 	ret, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "VAT", start, end)
@@ -91,6 +108,10 @@ func TestTax_VATReturnAndEInvoice(t *testing.T) {
 	if err := f.svc.DecideTaxReturn(f.ctx, selfCFO, ret, true, ""); !errors.Is(err, auth.ErrSoD) {
 		t.Fatalf("the preparer approved their own return: %v", err)
 	}
+	// DEF-009: the database refuses it too, with a genuine attestation and the kernel's check skipped.
+	selfCFO.MFA, selfCFO.AuthTime = true, time.Now()
+	attestedWriteRefusedWith(t, f, selfCFO, "taxreturn.decide", "tax_return", ret, "APPROVED", "segregation of duties",
+		`UPDATE tax_returns SET status = 'APPROVED', approved_by = $2 WHERE id = $1::uuid`, ret, acc.UserID)
 	stale := cfo
 	stale.AuthTime = time.Now().Add(-time.Hour)
 	if err := f.svc.DecideTaxReturn(f.ctx, stale, ret, true, ""); err == nil {
@@ -110,8 +131,22 @@ func TestTax_VATReturnAndEInvoice(t *testing.T) {
 	wht, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "WHT", start, end)
 	must(t, "wht", err)
 	must(t, "reject", f.svc.DecideTaxReturn(f.ctx, cfo, wht, false, "Wrong period for this return"))
+	// DEF-017 (0084): a prepared return is cancelled only with an attested
+	// cancellation by the person cancelling.
+	wht2, err := f.svc.PrepareTaxReturn(f.ctx, acc, f.entity, "WHT", start, end)
+	must(t, "wht again", err)
+	rawRefusedWith(t, f, "cancel a return without an attested cancellation", "attested cancellation",
+		`UPDATE tax_returns SET status = 'CANCELLED', decision_reason = 'forged cancellation' WHERE id = $1::uuid`, wht2)
+	must(t, "cancel wht", f.svc.CancelTaxReturn(f.ctx, acc, wht2, "Prepared twice by mistake"))
 
-	// E-invoice: the fake adapter accepts an approved invoice once.
+	// E-invoice: with no service connected nothing is sent or recorded (DEF-016)...
+	if _, err := f.svc.SubmitEInvoice(f.ctx, acc, arInv); !errors.Is(err, ErrIntegrationNotConfigured) {
+		t.Fatalf("an e-invoice was recorded with no service connected: %v", err)
+	}
+	// ...and with the test double installed explicitly, it accepts an approved invoice once.
+	prev := EInvoiceAdapterFor
+	EInvoiceAdapterFor = func() EInvoiceAdapter { return FakeEInvoice{} }
+	t.Cleanup(func() { EInvoiceAdapterFor = prev })
 	res, err := f.svc.SubmitEInvoice(f.ctx, acc, arInv)
 	must(t, "e-invoice", err)
 	if res["status"] != "ACCEPTED" || res["reference"] == "" {

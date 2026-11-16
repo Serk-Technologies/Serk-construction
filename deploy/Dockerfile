@@ -2,7 +2,7 @@
 # Production image: serk-api, serk-migrate, serk-relay and serk-signer only.
 # Development tools (seed data, dev tokens) live in deploy/Dockerfile.devtools
 # and are never built from this file (internal/config tests enforce it).
-ARG GO_IMAGE=golang:1.26.10-alpine
+ARG GO_IMAGE=golang:1.26.11-alpine
 FROM ${GO_IMAGE} AS build
 WORKDIR /src
 COPY go.mod go.sum ./
