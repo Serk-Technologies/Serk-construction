@@ -88,3 +88,17 @@ func TestSealOpen(t *testing.T) {
 		t.Fatal("opened with the wrong pepper")
 	}
 }
+
+func TestDerivePIN(t *testing.T) {
+	sec := []byte("a-seed-secret-of-at-least-32-bytes!!")
+	a, b := DerivePIN(sec, "t1", "u-ceo"), DerivePIN(sec, "t1", "u-cfo")
+	if CheckPIN(a) != nil || CheckPIN(b) != nil || a == b {
+		t.Fatalf("derived PINs %q %q", a, b)
+	}
+	if DerivePIN(sec, "t1", "u-ceo") != a {
+		t.Fatal("not deterministic")
+	}
+	if DerivePIN([]byte("another-secret-of-at-least-32-bytes!"), "t1", "u-ceo") == a && DerivePIN([]byte("a third secret of at least 32 bytes!"), "t1", "u-ceo") == a {
+		t.Fatal("the secret does not change the PIN")
+	}
+}

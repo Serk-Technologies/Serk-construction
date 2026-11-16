@@ -218,3 +218,19 @@ func Open(pepper, sealed []byte) (string, error) {
 	}
 	return string(out), nil
 }
+
+// DerivePIN derives a 6-digit PIN that passes CheckPIN from a secret and the
+// given parts (for example a tenant and a user id). The synthetic staging seed
+// uses it so that the initial PINs never appear in a log or a file: whoever
+// holds the secret can compute them. Every such PIN must be changed at the
+// first sign-in.
+func DerivePIN(secret []byte, parts ...string) string {
+	for n := 0; ; n++ {
+		mac := hmac.New(sha256.New, secret)
+		mac.Write([]byte("serk-seed-pin-v1\x00" + strings.Join(parts, "\x00") + "\x00" + strconv.Itoa(n)))
+		pin := fmt.Sprintf("%06d", binary.BigEndian.Uint32(mac.Sum(nil)[:4])%1000000)
+		if CheckPIN(pin) == nil {
+			return pin
+		}
+	}
+}

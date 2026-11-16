@@ -30,12 +30,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/shopspring/decimal"
 
+	"github.com/serk-group/serk-construction/internal/httpapi"
 	"github.com/serk-group/serk-construction/internal/kernel"
 	"github.com/serk-group/serk-construction/internal/store/postgres"
 	"github.com/serk-group/serk-construction/pkg/attest"
 	"github.com/serk-group/serk-construction/pkg/auth"
 	"github.com/serk-group/serk-construction/pkg/datakey"
 	"github.com/serk-group/serk-construction/pkg/ledger"
+	"github.com/serk-group/serk-construction/pkg/pinauth"
 )
 
 func fail(stage string, err error) {
@@ -160,6 +162,7 @@ func seedCompany(ctx context.Context, co company, adminDSN, baseDSN, sec, approv
 	case err == nil:
 		fmt.Printf("serk-seed: %s already seeded; checking platform settings and rules\n", co.name)
 		seedPlatform(ctx, svc, co, person)
+		seedLogins(ctx, svc, co, person)
 		return report(co, entity, projects)
 	case !errors.Is(err, pgx.ErrNoRows):
 		fail("existing data", err)
@@ -286,6 +289,7 @@ func seedCompany(ctx context.Context, co company, adminDSN, baseDSN, sec, approv
 		fmt.Println("serk-seed: SERK_BANK_DATA_KEY/SERK_BANK_DIGEST_KEY not set; company bank account skipped")
 	}
 	seedPlatform(ctx, svc, co, person)
+	seedLogins(ctx, svc, co, person)
 	fmt.Printf("serk-seed: %s seeded\n", co.name)
 	return report(co, entity, projects)
 }
@@ -355,4 +359,79 @@ func seedPlatform(ctx context.Context, svc *kernel.Service, co company, person f
 		_, err = svc.DecideRule(ctx, wfAdmin, rule.ID, true, "")
 		step("rule activate "+r.Code, err)
 	}
+}
+
+// seedLogins gives every staging position (httpapi.StagingPersonas) a person
+// in the company directory, managed there with the position's roles and
+// projects, and an e-mail + PIN sign-in (0095): <position>@<portal code>.serk.example.
+// It runs only when the deployment offers that sign-in (SERK_LOGIN_PEPPER) and
+// SERK_SEED_PIN_SECRET is set. The one-time PIN of each is derived from that
+// secret (pinauth.DerivePIN), so it is never printed or stored readable, and
+// must be replaced at the first sign-in. Idempotent: existing people and
+// sign-ins are left as they are (a PIN someone chose is never reset).
+func seedLogins(ctx context.Context, svc *kernel.Service, co company, person func(string, bool, ...string) auth.Principal) {
+	pepper, secret := os.Getenv("SERK_LOGIN_PEPPER"), os.Getenv("SERK_SEED_PIN_SECRET")
+	if pepper == "" || secret == "" {
+		fmt.Println("serk-seed: SERK_LOGIN_PEPPER or SERK_SEED_PIN_SECRET not set; staging e-mail sign-ins skipped")
+		return
+	}
+	if len(pepper) < 32 || len(secret) < 32 || pepper == secret {
+		fail("staging sign-ins", errors.New("SERK_LOGIN_PEPPER and SERK_SEED_PIN_SECRET must each be at least 32 bytes and differ"))
+	}
+	step := func(stage string, err error) {
+		if err != nil {
+			fail(stage, err)
+		}
+	}
+	admin := person("u-seed-admin", false, "security_admin")
+	view, err := svc.People(ctx, admin)
+	step("people", err)
+	have := map[string]kernel.Person{}
+	for _, x := range view.People {
+		have[x.UserID] = x
+	}
+	accts, err := svc.LoginAccounts(ctx, admin)
+	step("sign-ins", err)
+	signed := map[string]bool{}
+	for _, a := range accts {
+		signed[a.UserID] = true
+	}
+	scope := person("u-seed-scope", true).ProjectIDs
+	issued := 0
+	for _, ps := range httpapi.StagingPersonas {
+		email := strings.TrimPrefix(ps.ID, "u-") + "@" + co.shortCode + ".serk.example"
+		x, ok := have[ps.ID]
+		switch {
+		case !ok:
+			in := kernel.PersonInput{UserID: ps.ID, DisplayName: ps.Label + " (synthetic)", Email: email, JobTitle: ps.Label, Roles: ps.Roles,
+				Reason: "Synthetic staging position for testing"}
+			if ps.Scoped {
+				in.ProjectIDs = &scope
+			}
+			_, err := svc.AddPerson(ctx, admin, in)
+			step("person "+ps.ID, err)
+		case x.Status != "ACTIVE":
+			continue // disabled on purpose: left alone
+		case !x.Managed:
+			_, err := svc.ManagePerson(ctx, admin, ps.ID, "Synthetic staging position: roles managed in the directory")
+			step("manage "+ps.ID, err)
+			held := map[string]bool{}
+			for _, r := range x.Roles {
+				held[r] = true
+			}
+			for _, r := range ps.Roles {
+				if !held[r] {
+					_, err := svc.GrantRole(ctx, admin, ps.ID, r, "Synthetic staging position for testing")
+					step("grant "+ps.ID, err)
+				}
+			}
+		}
+		if signed[ps.ID] {
+			continue
+		}
+		pin := pinauth.DerivePIN([]byte(secret), co.tenant, ps.ID)
+		step("sign-in "+ps.ID, svc.SeedLogin(ctx, co.tenant, kernel.PinSecrets{Pepper: []byte(pepper)}, ps.ID, email, pin))
+		issued++
+	}
+	fmt.Printf("serk-seed: %s: %d staging e-mail sign-ins issued (one-time PINs, derived; never printed)\n", co.name, issued)
 }
