@@ -252,12 +252,13 @@
    "id": "DEF-022",
    "severity": "Medium",
    "area": "Console navigation",
-   "status": "OPEN",
+   "status": "CLOSED",
    "title": "A slow page the person had left could paint over the page they went to, and rewrite the address back",
    "evidence": "CI run 64 (TestConsoleBrowserFinance timed out waiting for Financial statements; the controller was back on #/consolidation/intercompany); reproduced locally 3 times in 30 runs",
    "impact": "After quick navigation a person could see, and act on, the page they had left while the address bar named another",
    "next_action": "Reads carry the page's abort signal; regression in TestConsoleBrowserForms",
-   "found": "CI run 64, 2026-11-16"
+   "found": "CI run 64, 2026-11-16",
+   "closure": "commit 7fea1e5: reads carry the page's abort signal; TestConsoleBrowserForms regression fails without the fix; finance journey 15/15 after it"
   }
  ]
 }

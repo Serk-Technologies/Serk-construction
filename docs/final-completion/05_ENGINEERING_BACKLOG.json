@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "f94f52f",
+ "register_commit": "7fea1e5",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -32,25 +32,13 @@
     "XCT-FORM.6"
    ],
    "open_requirement_ids": [
-    "XCT-FORM.4",
-    "XCT-FORM.5",
-    "XCT-FORM.6"
+    "XCT-FORM.4"
    ],
    "dependencies": [],
    "acceptance_criteria": [
     {
      "id": "XCT-FORM.4",
      "text": "Submission is blocked while dependent data is loading and cannot be sent twice",
-     "status": "IMPLEMENTING"
-    },
-    {
-     "id": "XCT-FORM.5",
-     "text": "Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests",
-     "status": "IMPLEMENTING"
-    },
-    {
-     "id": "XCT-FORM.6",
-     "text": "Every reloading form has a barrier-driven regression that fails without the fix",
      "status": "IMPLEMENTING"
     }
    ],

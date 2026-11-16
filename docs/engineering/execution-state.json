@@ -293,7 +293,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-16-est06-f94f52f.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-16-def022-7fea1e5.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -302,7 +302,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "EST-07 bid scenarios / EST-04 tender record (freeze at submission); people and stock list paging; DEF-005 screenshot review.",
+  "exact_next_action": "EST-04 tender record (freeze at submission) or EST-07 bid scenarios; people and stock list paging; DEF-005 screenshot review.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -333,8 +333,9 @@
    "SUP-03.3 supplier qualification, conflict declarations, scoring (48be931)",
    "DEF-004 closed: fuel and work-order part forms in the race regressions (fb86907)",
    "XCT-API.2.e journal worklist cursor paging (de4b97d)",
-   "EST-06 rate library and rate build-ups (f94f52f)"
+   "EST-06 rate library and rate build-ups (f94f52f)",
+   "DEF-022 stale page painting over a newer one, found on CI run 64, closed (7fea1e5)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-16-est06-f94f52f.summary.json (515/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-16-def022-7fea1e5.summary.json (515/0/0)"
 }

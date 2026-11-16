@@ -1,11 +1,11 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-16-est06-f94f52f.tests.txt",
- "register_commit": "f94f52f",
+ "results_file": "docs/engineering/evidence/2026-11-16-def022-7fea1e5.tests.txt",
+ "register_commit": "7fea1e5",
  "requirement_counts": {
-  "VERIFIED": 115,
+  "VERIFIED": 117,
   "NOT_STARTED": 62,
-  "IMPLEMENTING": 25,
+  "IMPLEMENTING": 23,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
@@ -3501,7 +3501,7 @@
    "domain": "XCT-FORM",
    "product": "PLATFORM",
    "text": "Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests",
-   "status": "IMPLEMENTING",
+   "status": "VERIFIED",
    "evidence_tests": [
     "TestConsoleBrowserForms"
    ],
@@ -3514,9 +3514,10 @@
    "domain": "XCT-FORM",
    "product": "PLATFORM",
    "text": "Every reloading form has a barrier-driven regression that fails without the fix",
-   "status": "IMPLEMENTING",
+   "status": "VERIFIED",
    "evidence_tests": [
-    "TestConsoleBrowserForms"
+    "TestConsoleBrowserForms",
+    "TestConsoleBrowserDocuments"
    ],
    "criteria": [],
    "work_package": "WP-001",

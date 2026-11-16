@@ -120,8 +120,10 @@
   {
    "route": "#/list/boq_version",
    "label": "BOQ",
-   "browser_journeys": [],
-   "status": "NOT_COVERED"
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
   },
   {
    "route": "#/list/rate_buildup",
