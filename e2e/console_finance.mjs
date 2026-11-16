@@ -55,8 +55,10 @@ try {
   await audit(ctrl, 'consolidation run sheet');
   await snap(ctrl, 'consolidation-run');
   await nav(ctrl, '#/consolidation/groups', 'Consolidation');
+  await ctrl.getByRole('tab', { name: 'Groups', selected: true }).waitFor(); // the heading is the same on every tab
   await audit(ctrl, 'consolidation groups');
   await nav(ctrl, '#/consolidation/intercompany', 'Consolidation');
+  await ctrl.getByRole('tab', { name: 'Intercompany accounts', selected: true }).waitFor(); // the heading is the same on every tab
   await audit(ctrl, 'intercompany accounts');
 
   // CAP-01.5.c: a balance-sheet line opens its account's journal lines.

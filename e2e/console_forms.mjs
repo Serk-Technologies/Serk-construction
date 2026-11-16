@@ -136,6 +136,24 @@ for (const F of FORMS) {
   log('task assigned by the project manager and done by the site engineer');
 }
 
+// A page the person has left never paints over the one they went to (found by
+// TestConsoleBrowserFinance on CI run 64): the BOQ list's answer is held until the
+// person has moved on to My work; released late, it must change nothing.
+{
+  const pm = await as('pm');
+  await nav(pm, '#/tasks', 'Tasks');
+  const b = await barrier(pm, /\/v1\/p2p\/boq_version/);
+  await pm.evaluate(() => { location.hash = '#/list/boq_version'; });
+  await b.arrived();
+  await nav(pm, '#/home', 'My work');
+  await b.release();
+  await b.stop();
+  const h1s = await stays(pm.getByRole('heading', { level: 1 }), (el) => el.textContent.trim());
+  const hash = await pm.evaluate(() => location.hash);
+  if (h1s.length !== 1 || h1s[0] !== 'My work' || hash !== '#/home') fail(`a left page painted over the newer one: headings ${JSON.stringify(h1s)}, address ${hash}`);
+  log('a slow answer for a page the person left changes nothing');
+}
+
 // EST-06 (0094): the estimator prices resources, the commercial manager approves them; the build-up of
 // 1 m³ of C25 concrete reproduces the Bible's example (7,400 direct, 8,140 full, 9,576.47 at 15% margin).
 {

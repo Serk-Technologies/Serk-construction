@@ -135,6 +135,8 @@ document.addEventListener('change', (ev) => {
 });
 function say(msg) { const s = $('status'); s.textContent = ''; setTimeout(() => { s.textContent = msg; }, 30); }
 function showError(err) {
+  // An aborted read belongs to a page that was left: nothing to report.
+  if (err && err.name === 'AbortError') return;
   const a = $('alert');
   a.textContent = '';
   a.append(h('strong', {}, errorTitle(err)), ' ', err.message || String(err));
@@ -160,6 +162,10 @@ class ApiError extends Error {
 }
 async function api(method, path, body, raw, signal) {
   const init = { method, headers: { Authorization: 'Bearer ' + S.token } };
+  // A read belongs to the page that asked for it: the next navigation aborts it, so a slow
+  // render of a page the person has left can never paint over the one they went to. Writes
+  // are never aborted (one sent may already have been committed).
+  if (!signal && method === 'GET' && FORM.ctl) signal = FORM.ctl.signal;
   if (signal) init.signal = signal;
   if (raw !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = raw; }
   else if (body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
@@ -3879,8 +3885,10 @@ function setBell(items) {
 }
 async function pollBell() {
   if (!S.token || document.hidden) return;
+  const ctl = FORM.ctl;
   try {
     const [queues, server] = await Promise.all([workQueues(), api('GET', '/v1/notifications?limit=50').catch(() => ({ items: [] }))]);
+    if (ctl && ctl.signal.aborted) return; // the person navigated meanwhile: the next poll counts again
     BELL.server = server.items || [];
     setBell(queues);
   } catch { /* next poll */ }
