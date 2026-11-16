@@ -142,6 +142,11 @@ func docProject(ctx context.Context, tx pgx.Tx, docType, id string) (string, err
 		q = `SELECT project_id::text FROM stock_issues WHERE id = $1::uuid`
 	case "stock_return":
 		q = `SELECT project_id::text FROM stock_returns WHERE id = $1::uuid`
+	case "resource_rate":
+		// 0094: the rate library is company-wide.
+		q = `SELECT '' FROM resource_rates WHERE id = $1::uuid`
+	case "rate_buildup":
+		q = `SELECT project_id::text FROM rate_buildups WHERE id = $1::uuid`
 	case "stock_writeoff":
 		q = `SELECT COALESCE(w.project_id::text, '') FROM stock_writeoffs o JOIN warehouses w ON w.id = o.warehouse_id WHERE o.id = $1::uuid`
 	case "stock_count":

@@ -315,6 +315,12 @@ const DOCS = {
   contingency_drawdown: { title: 'Contingency drawdowns', one: 'Contingency drawdown', base: '/v1/budgets/drawdowns', create: 'budget.revise', form: 'contingency_drawdown',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'budget.revise']], SUBMITTED: [['approve', 'budget.approve', 'opt'], ['reject', 'budget.approve', 'req']] } },
+  // EST-06 (0094): the rate library and rate build-ups.
+  resource_rate: { title: 'Rate library', one: 'Resource rate', base: '/v1/resource-rates', create: 'boq.manage', form: 'resource_rate',
+    statuses: ['PENDING', 'APPROVED', 'REJECTED'], actions: { PENDING: [['approve', 'boq.approve', 'opt'], ['reject', 'boq.approve', 'req']] } },
+  rate_buildup: { title: 'Rate build-ups', one: 'Rate build-up', base: '/v1/rate-buildups', create: 'boq.manage', form: 'rate_buildup',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
+    actions: { DRAFT: [['submit', 'boq.manage']], SUBMITTED: [['approve', 'boq.approve', 'opt'], ['reject', 'boq.approve', 'req']] } },
   boq_version: { title: 'BOQ versions', one: 'BOQ version', base: '/v1/boqs', create: 'boq.manage', form: 'boq',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
     actions: { DRAFT: [['submit', 'boq.manage']], SUBMITTED: [['approve', 'boq.approve', 'opt'], ['reject', 'boq.approve', 'req']] } },
@@ -426,7 +432,7 @@ const ACTION_LABEL = { submit: 'Submit for approval', approve: 'Approve', reject
 // Each category folds; the folded set is remembered per browser (NAV_KEY).
 const NAV = [
   ['Overview', [['#/home', 'My work', null], ['#/tasks', 'Tasks', null], ['#/me', 'My profile', null], ['#/setup', 'Company setup', 'p2p.read|tenant.settings.manage|org.manage'], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
-  ['Projects & planning', [['#/projects', 'Projects', 'p2p.read|project.create|project.update|project.gate.decide'], ['#/list/project_stage_gate', 'Stage gates', 'p2p.read|project.gate.submit|project.gate.decide'], ['#/budget', 'Budget overview', 'p2p.read'], ['#/list/forecast_cycle', 'Cost forecasts', 'p2p.read'], ['#/list/change_event', 'Change events', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/cost', 'Cost report', 'p2p.read'],
+  ['Projects & planning', [['#/projects', 'Projects', 'p2p.read|project.create|project.update|project.gate.decide'], ['#/list/project_stage_gate', 'Stage gates', 'p2p.read|project.gate.submit|project.gate.decide'], ['#/budget', 'Budget overview', 'p2p.read'], ['#/list/forecast_cycle', 'Cost forecasts', 'p2p.read'], ['#/list/change_event', 'Change events', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/list/rate_buildup', 'Rate build-ups', 'boq.manage|boq.approve'], ['#/list/resource_rate', 'Rate library', 'boq.manage|boq.approve'], ['#/cost', 'Cost report', 'p2p.read'],
     ['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read'], ['#/riskreg', 'Risk register', 'p2p.read']]],
   ['Procurement', [['#/list/purchase_requisition', 'Requisitions', 'p2p.read'], ['#/list/rfq', 'RFQs', 'p2p.read'], ['#/list/rfq_quote', 'Quotes', 'p2p.read'],
     ['#/list/purchase_order', 'Purchase orders', 'p2p.read'], ['#/list/supplier', 'Suppliers', 'p2p.read']]],
@@ -1045,6 +1051,7 @@ async function renderDoc(type, id) {
   if (type === 'timesheet') parts.push(await timesheetPanel(d));
   if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
   if (type === 'supplier') parts.push(await supplierStandingPanel(d));
+  if (type === 'rate_buildup') parts.push(await buildupPanel(d, head));
   if (type === 'rfq') parts.push(await rfqDeclarationsPanel(d, det));
   if (type === 'purchase_order' && ['APPROVED', 'CLOSED'].includes(d.status)) parts.push(supplierScorePanel(d));
   if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); parts.push(await rfiImpactPanel(d)); }
@@ -2359,6 +2366,56 @@ const FORMS = {
       created('payment_instruction', res, 'Payment instruction');
     });
     await load();
+  },
+
+  // EST-06 (0094): a priced resource with its provenance; someone else approves it.
+  async resource_rate() {
+    const ent = select('legal_entity_id', entityOpts(), { required: true });
+    const code = input('code', { type: 'text', required: true, maxlength: '40', placeholder: 'e.g. C25-MIX' });
+    const desc = input('description', { type: 'text', required: true, maxlength: '300' });
+    const kind = select('kind', [['MATERIAL', 'Material'], ['LABOUR', 'Labour'], ['EQUIPMENT', 'Equipment'], ['SUBCONTRACT', 'Subcontract']].map(([value, label]) => ({ value, label })), { required: true });
+    const unit = input('unit', { type: 'text', required: true, maxlength: '12', placeholder: 'm3, hr, t' });
+    const cur = input('currency', { type: 'text', value: 'ETB', maxlength: '3', required: true });
+    const rate = input('rate', { inputmode: 'decimal', required: true });
+    const src = input('source', { type: 'text', required: true, maxlength: '300', placeholder: 'Quotation, price list or historical project' });
+    const region = input('region', { type: 'text', required: true, maxlength: '100' });
+    const conf = select('confidence', [['HIGH', 'High'], ['MEDIUM', 'Medium'], ['LOW', 'Low']].map(([value, label]) => ({ value, label })), { required: true });
+    const fx = input('fx_date', { type: 'date' });
+    const from = input('valid_from', { type: 'date', value: today(), required: true });
+    const to = input('valid_to', { type: 'date', required: true });
+    formPage('New resource rate', 'A price for the rate library, with where it came from and how long it holds. Someone other than you approves it; once decided it never changes, and a new price is a new rate that starts after this one ends.', [
+      h('div', { class: 'grid' }, field('Legal entity', ent), field('Code', code), field('Description', desc), field('Kind', kind), field('Unit', unit), field('Currency', cur), field('Rate', rate),
+        field('Source', src), field('Region', region), field('Confidence', conf), field('Exchange-rate date', fx, 'Only for a currency other than the entity\u2019s own.'), field('Valid from', from), field('Valid to', to))], 'Record rate', async () => {
+      const res = await api('POST', '/v1/resource-rates', { legal_entity_id: ent.value, code: code.value.trim(), description: desc.value.trim(), kind: kind.value, unit: unit.value.trim(),
+        currency: cur.value.trim().toUpperCase(), rate: rate.value.trim(), source: src.value.trim(), region: region.value.trim(), confidence: conf.value, fx_date: fx.value || undefined, valid_from: from.value, valid_to: to.value });
+      created('resource_rate', res, 'Resource rate');
+    });
+  },
+
+  // EST-06 (0094): the price of one unit of work from approved rates; the database computes the figures.
+  async rate_buildup() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const code = input('code', { type: 'text', required: true, maxlength: '40', placeholder: 'e.g. C25-SLAB' });
+    const desc = input('description', { type: 'text', required: true, maxlength: '300' });
+    const unit = input('unit', { type: 'text', required: true, maxlength: '12', placeholder: 'm3' });
+    const cur = input('currency', { type: 'text', value: 'ETB', maxlength: '3', required: true });
+    const day = input('price_date', { type: 'date', value: today(), required: true });
+    const pct = (key) => input(key, { inputmode: 'decimal', value: '0', required: true });
+    const oh = pct('overhead_pct'), ct = pct('contingency_pct'), es = pct('escalation_pct'), mg = pct('margin_pct');
+    const rates = await docOpts('resource_rate', 'APPROVED');
+    const grid = lineGrid('Resources per unit of output', [
+      { key: 'resource_rate_id', label: 'Resource rate', make: () => select('resource_rate_id', rates) },
+      { key: 'quantity', label: 'Quantity', make: num('quantity') },
+      { key: 'wastage_pct', label: 'Wastage %', make: num('wastage_pct', { value: '0' }) },
+    ], [], true);
+    formPage('New rate build-up', 'Direct cost is the resources at their approved rates; overhead, contingency and escalation are percentages of it. The selling rate is full cost ÷ (1 − margin): margin is a share of the price, not a markup on cost. Someone other than you approves it, and it is then frozen.', [
+      h('div', { class: 'grid' }, field('Project', proj), field('Code', code), field('Description', desc), field('Unit of output', unit), field('Currency', cur), field('Price date', day, 'Every rate used must be valid on this day.'),
+        field('Overhead %', oh), field('Contingency %', ct), field('Escalation %', es), field('Margin %', mg, 'Below 100.')), grid], 'Create build-up', async () => {
+      const lines = grid.rows().map((r) => ({ resource_rate_id: r.resource_rate_id, quantity: r.quantity, wastage_pct: r.wastage_pct || '0' }));
+      const res = await api('POST', '/v1/rate-buildups', { project_id: proj.value, code: code.value.trim(), description: desc.value.trim(), unit: unit.value.trim(), currency: cur.value.trim().toUpperCase(),
+        price_date: day.value, overhead_pct: oh.value.trim(), contingency_pct: ct.value.trim(), escalation_pct: es.value.trim(), margin_pct: mg.value.trim(), lines });
+      created('rate_buildup', res, 'Rate build-up');
+    });
   },
 
   async supplier() {
@@ -5491,6 +5548,24 @@ function submittalPanel(d, head) {
     h('div', { class: 'grid' }, field('Review code', code), field('Note', note)), h('div', { class: 'actions' }, btn));
 }
 // SUP-03.3 (0093): qualifications and performance of a supplier.
+// EST-06 (0094): the database's figures for a build-up, and its next revision.
+async function buildupPanel(d, head) {
+  const f = await api('GET', `/v1/rate-buildups/${d.id}/figures`);
+  const rows = [['Materials', f.materials], ['Labour', f.labour], ['Equipment', f.equipment], ['Subcontract', f.subcontract], ['Direct cost', f.direct_cost],
+    [`Overhead (${head.overhead_pct}%)`, f.overhead], [`Contingency (${head.contingency_pct}%)`, f.contingency], [`Escalation (${head.escalation_pct}%)`, f.escalation],
+    ['Full cost', f.full_cost], [`Selling rate at ${head.margin_pct}% margin`, f.selling_rate]].map(([k, v]) => ({ k, v }));
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, `Price per ${head.unit} (${head.currency})`),
+    h('p', { class: 'hint' }, f.fixed ? 'Fixed when the build-up was submitted; an approved build-up never changes.' : 'A draft: these move with its lines and percentages until it is submitted.'),
+    table('Rate build-up', [{ label: 'Item', cell: (r) => r.k }, { label: 'Amount', num: true, cell: (r) => money(r.v) }], rows, ''),
+    f.markup_pct != null ? h('p', { class: 'hint' }, `Equivalent markup on full cost: ${f.markup_pct}% (the margin is ${head.margin_pct}% of the selling rate).`) : null);
+  if (['APPROVED', 'REJECTED'].includes(d.status) && S.can.has('boq.manage')) {
+    const day = input('price_date', { type: 'date', value: today() });
+    const b = h('button', { type: 'button' }, 'Start a revision');
+    b.addEventListener('click', async () => { try { clearError(); const res = await api('POST', `/v1/rate-buildups/${d.id}/revise`, { price_date: day.value }); say('Revision started.'); location.hash = `#/doc/rate_buildup/${res.id}`; } catch (e) { showError(e); } });
+    box.append(h('div', { class: 'actions' }, field('Price the revision on', day, 'Each resource takes the approved rate of its code valid on this day.'), b));
+  }
+  return box;
+}
 async function supplierStandingPanel(d) {
   const st = await api('GET', `/v1/suppliers/${d.id}/standing`);
   const decide = (q) => {

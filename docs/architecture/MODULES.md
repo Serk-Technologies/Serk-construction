@@ -42,6 +42,13 @@ even if the kernel is bypassed (`review*_regression_test.go` prove it).
 | Sessions, abuse limits | `sessions.go`, `httpapi/abuse*.go` | 0009, 0029 | `/v1/identity/*` | — |
 | Reports and exports | `reports.go`, `internal/export` | — | `/v1/reports/*`, `/v1/export` | Reports, export buttons |
 | **Platform** (0038): company settings, notifications, automation rules, intelligence | `platform.go`, `intelligence.go`, `pkg/automation` | 0038 | `/v1/tenant/settings`, `/v1/notifications`, `/v1/automation/*`, `/v1/intelligence/*`, `/v1/assistant/ask` | Company settings, bell, Automation rules, Risks, Ask, Control review |
+| Correspondence, certifications, assigned tasks | `correspondence.go`, `certifications.go`, `tasks.go` | 0085–0087 | `/v1/correspondence`, `/v1/certifications`, `/v1/tasks` | Documents, People, Tasks |
+| Stock quarantine, scrap write-offs, site returns (STK_SCRAP, STK_RETURN journals) | `stockwriteoff.go`, `stockreturn.go`, `stock.go` | 0088, 0089 | `/v1/stock-writeoffs`, `/v1/stock-returns` | Stores |
+| RFI cost and time impact, submittal review cycles | `docflow.go`, `change.go` | 0090 | `/v1/rfis/{id}/impact`, `/v1/submittals/{id}/cycle` | Documents |
+| Direct-method cash-flow statement from approved account classes | `cashflow.go`, `statements.go` | 0091 | `/v1/reports/cash-flow`, `/v1/cash-flow-classes` | Finance statements |
+| Maintenance calendar | `maintenance.go` | 0092 | `/v1/fleet/maintenance-calendar` | Fleet |
+| Supplier qualification, conflict declarations, performance scores (policy-gated) | `suppliergov.go` | 0093 | `/v1/supplier-qualifications`, `/v1/suppliers/{id}/standing`, `/v1/rfqs/{id}/declarations`, `/v1/purchase-orders/{id}/score` | Supplier, RFQ and purchase order pages |
+| Resource rate library and rate build-ups (database-computed figures, frozen on approval, revisions) | `ratebuildup.go` | 0094 | `/v1/resource-rates`, `/v1/rate-buildups` | Rate library, Rate build-ups |
 
 ## Governance invariants (do not break)
 

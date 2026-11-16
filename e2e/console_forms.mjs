@@ -136,6 +136,69 @@ for (const F of FORMS) {
   log('task assigned by the project manager and done by the site engineer');
 }
 
+// EST-06 (0094): the estimator prices resources, the commercial manager approves them; the build-up of
+// 1 m³ of C25 concrete reproduces the Bible's example (7,400 direct, 8,140 full, 9,576.47 at 15% margin).
+{
+  const est = await as('estimator');
+  const com = await as('commercial');
+  for (const p of [est, com]) p.on('dialog', (d) => d.accept());
+  const idOf = async (p) => (await p.evaluate(() => location.hash)).split('/').pop();
+  const approve = async (type, id, heading) => {
+    await nav(com, `#/doc/${type}/${id}`, heading);
+    await com.getByRole('button', { name: 'Approve', exact: true }).click();
+    await com.locator('p.notice').filter({ hasText: 'Approve: done' }).first().waitFor();
+  };
+  const rates = {};
+  for (const [code, kind, unit, rate] of [['C25-MIX', 'Material', 'm3', '5800'], ['CREW-CONC', 'Labour', 'hr', '95'], ['MIXER-05', 'Equipment', 'hr', '325']]) {
+    await nav(est, '#/new/resource_rate', 'New resource rate');
+    await est.getByLabel('Code', { exact: true }).fill(code);
+    await est.getByLabel('Description', { exact: true }).fill(`${code} for slabs`);
+    await selectByText(est.getByLabel('Kind', { exact: true }), kind);
+    await est.getByLabel('Unit', { exact: true }).fill(unit);
+    await est.getByLabel('Rate', { exact: true }).fill(rate);
+    await est.getByLabel('Source', { exact: true }).fill('Supplier quotation SQ-114');
+    await est.getByLabel('Region', { exact: true }).fill('Addis Ababa');
+    await est.getByLabel('Valid to', { exact: true }).fill('2028-12-31');
+    await est.getByRole('button', { name: 'Record rate' }).click();
+    await est.getByRole('heading', { level: 1, name: `Resource rate ${code}` }).waitFor();
+    rates[code] = await idOf(est);
+    if (await est.getByRole('button', { name: 'Approve', exact: true }).count()) fail('the recorder of a rate is offered its approval');
+    await approve('resource_rate', rates[code], `Resource rate ${code}`);
+  }
+  log('three resource rates recorded and approved by a second person');
+
+  await nav(est, '#/new/rate_buildup', 'New rate build-up');
+  await selectByText(est.getByLabel('Project', { exact: true }), 'P-API');
+  await est.getByLabel('Code', { exact: true }).fill('C25-SLAB');
+  await est.getByLabel('Description', { exact: true }).fill('C25 concrete in suspended slabs');
+  await est.getByLabel('Unit of output', { exact: true }).fill('m3');
+  await est.getByLabel('Overhead %', { exact: true }).fill('10');
+  await est.getByLabel('Margin %', { exact: true }).fill('15');
+  const lines = [['C25-MIX', '1'], ['CREW-CONC', '10'], ['MIXER-05', '2']];
+  for (let i = 0; i < lines.length; i++) {
+    if (i) await est.getByRole('button', { name: 'Add line' }).click();
+    await selectByText(est.getByLabel(`Resource rate, line ${i + 1}`), lines[i][0]);
+    await est.getByLabel(`Quantity, line ${i + 1}`).fill(lines[i][1]);
+  }
+  await est.getByRole('button', { name: 'Create build-up' }).click();
+  await est.getByRole('heading', { level: 1, name: 'Rate build-up C25-SLAB/R1' }).waitFor();
+  const bu = await idOf(est);
+  const figures = est.getByRole('table', { name: 'Rate build-up' });
+  for (const [item, amount] of [['Direct cost', '7,400.00'], ['Overhead (10', '740.00'], ['Full cost', '8,140.00'], ['Selling rate at 15', '9,576.47']]) {
+    const row = figures.getByRole('row').filter({ hasText: item });
+    if (!(await row.textContent()).includes(amount)) fail(`build-up ${item}: ${await row.textContent()}, want ${amount}`);
+  }
+  await est.getByText(/Equivalent markup on full cost: 17\.6471%/).waitFor();
+  await est.getByRole('button', { name: 'Submit for approval', exact: true }).click();
+  await est.locator('p.notice').filter({ hasText: 'Submit for approval: done' }).first().waitFor();
+  if (await est.getByRole('button', { name: 'Approve', exact: true }).count()) fail('the author of a build-up is offered its approval');
+  await approve('rate_buildup', bu, 'Rate build-up C25-SLAB/R1');
+  await nav(est, `#/doc/rate_buildup/${bu}`, 'Rate build-up C25-SLAB/R1');
+  await est.getByText('Fixed when the build-up was submitted; an approved build-up never changes.').waitFor();
+  await est.getByRole('button', { name: 'Start a revision' }).waitFor();
+  log('rate build-up priced at 9,576.47 per m3, submitted and approved (frozen)');
+}
+
 await browser.close();
 if (failures.length) { console.log(`${failures.length} failure(s)`); process.exit(1); }
 console.log('forms: all checks passed');

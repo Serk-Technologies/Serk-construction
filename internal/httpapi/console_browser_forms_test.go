@@ -73,7 +73,7 @@ func TestConsoleBrowserForms(t *testing.T) {
 	P := []string{a.project, p2}
 	tokens := map[string]string{"siteEng": a.tok("u-se", P, false, "site_engineer"), "pm": a.tok("u-pm", P, false, "project_manager"),
 		"estimator": a.tok("u-est", P, false, "estimator"), "planner": a.tok("u-planner", P, false, "planner"),
-		"store": a.tok("u-store", P, false, "storekeeper")}
+		"store": a.tok("u-store", P, false, "storekeeper"), "commercial": a.tok("u-com", P, false, "commercial_manager")}
 	// DEF-004: a machine working at each project (the fuel form follows the
 	// machine's project) and one in the yard with a work order (its part form
 	// asks which project bears the cost).

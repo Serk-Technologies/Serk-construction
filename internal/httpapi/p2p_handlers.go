@@ -93,6 +93,7 @@ func (s *Server) registerP2P() {
 	s.registerRisks()              // project risk register (0080)
 	s.registerTasks()              // assignable tasks (0087)
 	s.registerSupplierGovernance() // supplier qualification, conflicts, scores (0093)
+	s.registerEstimates()          // resource rates and rate build-ups (0094)
 	s.registerQuality()            // quality and site records (0070); new-version 0065
 	s.registerCredit()             // rules of credit and installed quantities (0071); new-version 0067
 	s.registerImports()            // staged imports and the setup checklist (0043)
