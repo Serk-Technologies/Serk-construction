@@ -52,3 +52,20 @@ posture warning was logged.
   the seed succeeded on 18, but the adversarial suite has not run on 18.
 - Everything listed in `deploy/railway/README.md` under "Differences from
   production" remains a production blocker.
+
+## Redeployment 2026-11-16 (commit 942e52a)
+
+TEST ENVIRONMENT ONLY; the release decision stays NO-GO.
+
+| Item | Value |
+|---|---|
+| Source | GitHub `Serk-Technologies/Serk-construction`, branch `claude/new-session-xkd5g3`, **pinned** to `942e52a` (pushes do not redeploy) |
+| Deployment | `4d9e0ecf-…`, status SUCCESS (Railway `/readyz` health check passed), replacing `efeb8cca-…` (commit `5f94bc3`, 2026-10-26) |
+| Deploy log | migrations 0039–0094 applied as `serk_owner`; seed found both synthetic companies already seeded; signer listening; API listening on :8080 |
+| Warnings logged (expected) | HS256 staging tokens; no malware scanner (`SERK_CLAMD_ADDR` unset), so uploaded documents stay quarantined; metrics disabled; persona sign-in enabled |
+
+Rehearsed before switching, on PostgreSQL 16 in the development container: the staging entrypoint on an empty
+database (94 migrations, seed, signer, API ready; `scripts/staging_smoke.py` 10 PASS) and the upgrade path
+(entrypoint of `5f94bc3`, then of `942e52a`, on the same database: 56 migrations applied, seed idempotent,
+smoke 10 PASS). Not done: the smoke script against the Railway URL (unreachable from the agent's network) and
+the adversarial suite on PostgreSQL 18.
