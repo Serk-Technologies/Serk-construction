@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-16-def022-7fea1e5.tests.txt",
- "commit": "7fea1e5",
+ "results_file": "docs/engineering/evidence/2026-11-16-auth1-3469055.tests.txt",
+ "commit": "3469055",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -11,7 +11,7 @@
  ],
  "rule": "VERIFIED means every named test passed in results_file. It is not a human acceptance.",
  "requirement_counts": {
-  "VERIFIED": 117,
+  "VERIFIED": 118,
   "NOT_STARTED": 62,
   "IMPLEMENTING": 23,
   "BLOCKED": 9,
@@ -21,7 +21,7 @@
   "IMPLEMENTING": 7,
   "NOT_STARTED": 42,
   "BLOCKED": 12,
-  "VERIFIED": 42
+  "VERIFIED": 47
  },
  "domain_counts": {
   "IMPLEMENTING": 52,
@@ -3534,6 +3534,76 @@
        "text": "External penetration test by an independent tester",
        "status": "BLOCKED",
        "evidence_tests": [],
+       "note": ""
+      }
+     ]
+    },
+    {
+     "id": "BRS-03.6",
+     "text": "E-mail + 6-digit PIN sign-in with an optional authenticator, lockout and a full trail",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestPinLogin_LockoutChangeAuthenticatorTrail",
+      "TestAPIPinLogin",
+      "TestPinLoginConfig",
+      "TestCheckPIN",
+      "TestHashVerify",
+      "TestTOTPVectors",
+      "TestSealOpen"
+     ],
+     "evidence_file": "",
+     "note": "0095. HS256 sessions, so development and staging only until an ADR approves a production signer; the release still needs the identity provider of BRS-03.5 or that ADR.",
+     "criteria": [
+      {
+       "id": "BRS-03.6.a",
+       "text": "The PIN is 6 digits and not an easy pattern; it is stored only as PBKDF2 over an HMAC with a server-side pepper the database never holds",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestCheckPIN",
+        "TestHashVerify",
+        "TestPinLogin_LockoutChangeAuthenticatorTrail"
+       ],
+       "note": ""
+      },
+      {
+       "id": "BRS-03.6.b",
+       "text": "15 consecutive failures lock the sign-in for 15 minutes, counted by the database under a row lock; the right PIN is refused during the lock",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestPinLogin_LockoutChangeAuthenticatorTrail",
+        "TestAPIPinLogin"
+       ],
+       "note": ""
+      },
+      {
+       "id": "BRS-03.6.c",
+       "text": "An administrator (user.manage, fresh second factor, never for themselves) issues a one-time PIN that must be changed at the first sign-in; no read returns a PIN",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestPinLogin_LockoutChangeAuthenticatorTrail",
+        "TestAPIPinLogin"
+       ],
+       "note": ""
+      },
+      {
+       "id": "BRS-03.6.d",
+       "text": "The authenticator is optional; once on it is required, each code works once, and only such a session counts as multi-factor",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestPinLogin_LockoutChangeAuthenticatorTrail",
+        "TestTOTPVectors",
+        "TestAPIPinLogin"
+       ],
+       "note": ""
+      },
+      {
+       "id": "BRS-03.6.e",
+       "text": "Every attempt and administrative action is in an append-only trail, per company; another company sees and changes nothing",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestPinLogin_LockoutChangeAuthenticatorTrail",
+        "TestAPIPinLogin"
+       ],
        "note": ""
       }
      ]

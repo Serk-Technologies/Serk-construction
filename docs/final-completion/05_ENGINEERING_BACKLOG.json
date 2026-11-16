@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "7fea1e5",
+ "register_commit": "3469055",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -1485,6 +1485,7 @@
     "BRS-03.3",
     "BRS-03.4",
     "BRS-03.5",
+    "BRS-03.6",
     "BRS-04.1",
     "BRS-04.2",
     "BRS-04.3",
@@ -1557,12 +1558,17 @@
    ],
    "tests": [
     "TestAIPhraserAdapter",
+    "TestAPIPinLogin",
     "TestAPIPreAuthFloodProtection",
     "TestAPISessionRevocationAcrossReplicas",
+    "TestCheckPIN",
     "TestDefaultRolesSeparateDuties",
     "TestGovernedAI_DraftOnly",
+    "TestHashVerify",
     "TestPeople_AdjustProductRole",
     "TestPeople_DirectoryRolesAndProfile",
+    "TestPinLoginConfig",
+    "TestPinLogin_LockoutChangeAuthenticatorTrail",
     "TestPlatform_IntelligenceAndAssistant",
     "TestPlatform_TenantSettings",
     "TestProductionManifestHasNoDemoDefaults",
@@ -1570,11 +1576,13 @@
     "TestR6_11_HumanRuleAndDraftParity",
     "TestR8_HumanDecisionsAndScope",
     "TestReservedPermissionsNotGrantableByRoles",
+    "TestSealOpen",
     "TestSessions_RevocationKillsOldTokensIncludingInFlightApprovals",
     "TestSetup_ChecklistReadsRealState",
     "TestSharedAbuse_LockoutAndBudgetsSpanReplicas",
     "TestSignerIsolation_APIWithoutSecretFailsClosed",
-    "TestSignerIsolation_CompromisedAPICannotForge"
+    "TestSignerIsolation_CompromisedAPICannotForge",
+    "TestTOTPVectors"
    ],
    "external_dependencies": [],
    "technical_status": "IN_PROGRESS",

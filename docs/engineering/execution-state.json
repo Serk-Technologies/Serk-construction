@@ -76,7 +76,8 @@
   "0091_cash_flow_classes.sql",
   "0092_work_order_planned_date.sql",
   "0093_supplier_governance.sql",
-  "0094_rate_buildup.sql"
+  "0094_rate_buildup.sql",
+  "0095_pin_login.sql"
  ],
  "adrs_added": [
   "0018",
@@ -293,7 +294,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-16-def022-7fea1e5.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-16-auth1-3469055.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -302,7 +303,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "EST-04 tender record (freeze at submission) or EST-07 bid scenarios; people and stock list paging; DEF-005 screenshot review.",
+  "exact_next_action": "AUTH-2 leadership roles; AUTH-3 branding; AUTH-4 sign-in page and workflow map; AUTH-5 staging accounts.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -334,8 +335,9 @@
    "DEF-004 closed: fuel and work-order part forms in the race regressions (fb86907)",
    "XCT-API.2.e journal worklist cursor paging (de4b97d)",
    "EST-06 rate library and rate build-ups (f94f52f)",
-   "DEF-022 stale page painting over a newer one, found on CI run 64, closed (7fea1e5)"
+   "DEF-022 stale page painting over a newer one, found on CI run 64, closed (7fea1e5)",
+   "AUTH-1 e-mail + 6-digit PIN sign-in, optional authenticator, 15-try lockout (3469055)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-16-def022-7fea1e5.summary.json (515/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-16-auth1-3469055.summary.json (522/0/0)"
 }
