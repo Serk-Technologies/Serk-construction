@@ -592,6 +592,9 @@ D = {
         r("Access reviews, legal hold and break-glass access", N),
         r("A security administrator withholds or restores permissions of a product role with a fresh second factor; the database refuses any change not attested for that person (DEF-014, 0082)", V,
           "TestPeople_AdjustProductRole"),
+        r("Leadership roles with separated powers: system administrator, board chairman, CEO", V, "TestLeadershipRoles_SeparatedPowers", "TestDefaultRolesSeparateDuties",
+          note="The system administrator runs people, roles, settings, branding, sessions and workflow administration and holds no financial or approval permission; the board chairman reads everything including the audit trail and acts on nothing; the CEO approves operations within the authority matrix and never prepares, posts or releases."),
+        r("Company roles state responsibilities beside permissions; leadership product roles carry written responsibilities (0096)", V, "TestRoleResponsibilities"),
     ]),
 }
 
@@ -676,6 +679,15 @@ X = {
           "TestAURATokensMatchStylesheet", note="Runs tools/design/aura_contrast.py --check-css."),
         r("AURA warm and high-contrast themes, selectable per user", N),
         r("Sign-in page: accessible labels, password-manager friendly, MFA and SSO when configured, no unsupported claims", N),
+        r("Company branding: name, motto, address and contacts, logo, and a light and dark colour theme with enforced contrast (0097)", I,
+          "TestBranding_WordsThemeLogo", "TestAPIBranding", "TestValidate", "TestLogo", "TestDefaultsAreReadable",
+          criteria=[
+            c("The logo is PNG, JPEG or WebP up to 10 MB, identified by its content (SVG refused), digest-checked by the database and served with nosniff and a sandbox policy", V,
+              "TestLogo", "TestBranding_WordsThemeLogo", "TestAPIBranding"),
+            c("Fifteen colour tokens per mode, radius and font are customisable; text pairs keep 4.5:1 and non-text pairs 3:1, or the theme is refused", V,
+              "TestValidate", "TestDefaultsAreReadable", "TestBranding_WordsThemeLogo", "TestAPIBranding"),
+            c("Branding is changed only with tenant.settings.manage, versioned and audited; another company sees nothing", V, "TestBranding_WordsThemeLogo", "TestAPIBranding"),
+            c("The settings page previews the theme and logo before saving, and the console and sign-in page apply them", N)]),
         r("Personal workspace: tasks, approvals, deadlines, recent records; layout preferences saved per user and tenant", N),
         r("Application shell: project switcher, command palette, notification centre, permission-aware search", N),
         r("Role workspaces for the roles in the directive, each with its own working queue", N),

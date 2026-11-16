@@ -4701,6 +4701,8 @@ function roleSheet(code) {
   if (r) {
     const holders = PV.people.filter((x) => x.status === 'ACTIVE' && x.roles.includes(r.code));
     parts.push(h('p', { class: 'callout' }, r.kind === 'company' ? (r.description || 'A company role.') + (r.updated_by ? ` Last changed by ${nameOf(r.updated_by)} ${ago(r.updated_at)}.` : '') : (r.withheld && r.withheld.length ? `A product role, narrowed for this company: ${r.withheld.length} permission(s) withheld. ` : 'A product role, tested never to hold both halves of a control. ') + 'The company may withhold any of its permissions at any time; to give more, build a company role.'));
+    // 0096: what the company expects of a holder, beside what the permissions allow.
+    if (r.responsibilities) parts.push(h('section', {}, h('h3', {}, 'Responsibilities'), h('p', { class: 'responsibilities' }, r.responsibilities)));
     parts.push(h('section', {}, h('h3', {}, `Held by (${holders.length})`), holders.length
       ? h('div', { class: 'rolechips' }, holders.map((x) => h('button', { type: 'button', class: 'ghost', on: { click: () => personSheet(x.user_id) } }, avatar(x.user_id, personName(x), 'sm'), personName(x))))
       : h('p', { class: 'hint' }, 'Nobody holds this role.')));
@@ -4734,7 +4736,8 @@ function roleSheet(code) {
   } else {
     const pick = new Set(r ? r.permissions : ['p2p.read']);
     const f = { code: input('code', { type: 'text', maxlength: '41', value: r ? r.code.replace(/^custom:/, '') : '', placeholder: 'site_buyer', disabled: !!r }),
-      name: input('name', { type: 'text', maxlength: '80', value: r ? r.name : '', required: true }), description: input('description', { type: 'text', maxlength: '500', value: r ? r.description : '' }) };
+      name: input('name', { type: 'text', maxlength: '80', value: r ? r.name : '', required: true }), description: input('description', { type: 'text', maxlength: '500', value: r ? r.description : '' }),
+      responsibilities: h('textarea', { name: 'responsibilities', maxlength: '4000', rows: '5', placeholder: 'Duties, reporting line and what this role answers for' }, r ? r.responsibilities || '' : '') };
     const reason = reasonInput('Why? For example: approved by the CFO, ticket ACC-12');
     const warn = h('div', { 'aria-live': 'polite' });
     const summary = h('p', { class: 'hint' });
@@ -4753,13 +4756,14 @@ function roleSheet(code) {
       ev.preventDefault();
       try {
         const why = needReason(reason);
-        const body = { code: f.code.value.trim(), name: f.name.value.trim(), description: f.description.value.trim(), permissions: [...pick].sort(), reason: why };
+        const body = { code: f.code.value.trim(), name: f.name.value.trim(), description: f.description.value.trim(), responsibilities: f.responsibilities.value.trim(), permissions: [...pick].sort(), reason: why };
         let saved;
         await refreshAfter(async () => { saved = r ? await api('PUT', `/v1/roles/${encodeURIComponent(r.code)}`, { ...body, version: r.version }) : await api('POST', '/v1/roles', body); }, () => roleSheet(saved.code));
         say('Role saved.');
       } catch (e) { sheetError($('sheet').querySelector('.sheetbody'), e); }
     } } },
     h('div', { class: 'grid' }, field('Code', f.code, r ? 'Fixed once created.' : 'Lowercase letters, digits, underscores.'), field('Name', f.name), field('Description', f.description)),
+    field('Responsibilities', f.responsibilities, 'What the company expects of a holder: duties, reporting line, what they answer for. Up to 4,000 characters.'),
     h('h3', {}, 'What people with this role may do'), summary, groups, warn,
     field('Reason (kept in the access history)', reason),
     h('div', { class: 'actions' }, h('button', { type: 'submit' }, r ? 'Save role' : 'Create role'),

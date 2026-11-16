@@ -52,6 +52,8 @@ func (s *Server) bodyLimit(r *http.Request) int64 {
 		return 1 << 40 // the kernel stops reading at the deployment's limit
 	case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/documents/") && strings.HasSuffix(r.URL.Path, "/revisions"):
 		return maxUploadBodyBytes
+	case r.Method == http.MethodPut && r.URL.Path == "/v1/branding/logo":
+		return 10<<20 + 1 // a logo of at most 10 MB (0097)
 	}
 	return maxBodyBytes
 }

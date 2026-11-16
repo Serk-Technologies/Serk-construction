@@ -198,8 +198,12 @@ func main() {
 			staging.Companies = append(staging.Companies, httpapi.StagingCompany{ID: c.ID, Name: c.Name, Projects: c.Projects})
 		}
 	}
+	brandTenant := cfg.LoginBrandTenant
+	if brandTenant == "" {
+		brandTenant = cfg.StagingTenant
+	}
 	h := httpapi.New(httpapi.Config{Verifier: verifier, Kernel: svc, Store: router, Logger: log, RatePerMinute: cfg.RatePerMinute, Metrics: metrics,
-		Abuse: abuse, Staging: staging, PinLogin: pinLogin, CompanyName: cfg.CompanyName})
+		Abuse: abuse, Staging: staging, PinLogin: pinLogin, CompanyName: cfg.CompanyName, BrandTenant: brandTenant})
 	if cfg.SchedulerDSN != "" {
 		sched, err := pgxpool.New(ctx, cfg.SchedulerDSN)
 		if err != nil {

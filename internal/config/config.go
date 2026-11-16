@@ -101,6 +101,9 @@ type Config struct {
 	// stored in the database. It needs SERK_ABUSE_DSN (the pre-authentication
 	// login) and, like every HS256 sign-in, is refused in production.
 	LoginPepper []byte
+	// LoginBrandTenant (SERK_LOGIN_BRAND_TENANT) is the company whose branding
+	// the sign-in page shows before anyone signs in (default: the staging company).
+	LoginBrandTenant string
 
 	// CompanyName is the letterhead on exported documents (optional;
 	// default: the tenant's letterhead setting, then each legal entity's
@@ -130,6 +133,8 @@ type Config struct {
 	// AutomationInterval is how often active rules are evaluated (seconds).
 	AutomationInterval int
 }
+
+var brandTenantRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 // StagingCompany is a synthetic company offered by the staging sign-in.
 type StagingCompany struct {
@@ -253,6 +258,7 @@ func Load(src Source) (Config, error) {
 	if c.LoginPepper, err = src.secret("SERK_LOGIN_PEPPER"); err != nil {
 		return Config{}, err
 	}
+	c.LoginBrandTenant = src.Getenv("SERK_LOGIN_BRAND_TENANT")
 	c.StagingTenant = src.Getenv("SERK_STAGING_TENANT")
 	if v := src.Getenv("SERK_STAGING_COMPANIES"); v != "" {
 		if err := json.Unmarshal([]byte(v), &c.StagingCompanies); err != nil {
@@ -468,6 +474,9 @@ func (c Config) Validate() error {
 		case string(c.StagingLoginPassphrase) == string(c.HS256Secret) || string(c.StagingLoginPassphrase) == string(c.TenantDBSecret):
 			bad("SERK_STAGING_LOGIN_PASSPHRASE must differ from every secret")
 		}
+	}
+	if c.LoginBrandTenant != "" && !brandTenantRe.MatchString(c.LoginBrandTenant) {
+		bad("SERK_LOGIN_BRAND_TENANT must be a company (tenant) id, a lowercase UUID")
 	}
 	if len(c.LoginPepper) > 0 {
 		switch {

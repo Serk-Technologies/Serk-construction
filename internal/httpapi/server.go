@@ -51,6 +51,9 @@ type Config struct {
 	Staging *StagingLogin
 	// PinLogin enables the e-mail + 6-digit PIN sign-in (0095).
 	PinLogin *PinLogin
+	// BrandTenant is the company whose branding the public sign-in page shows
+	// (0097); empty shows the product's own.
+	BrandTenant string
 	// CompanyName overrides the export letterhead (default: the legal
 	// entity's registered name); Brand is the product line printed under it.
 	CompanyName string
@@ -173,6 +176,7 @@ func New(cfg Config) *Server {
 	s.registerSite()
 	s.registerStaging()
 	s.registerPinLogin()
+	s.registerBranding()
 	s.registerExport()
 	s.registerReports()
 	s.registerPlatform()

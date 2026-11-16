@@ -262,6 +262,20 @@ var DefaultRoles = map[string]Role{
 	"hr_manager":          {Name: "hr_manager", Permissions: []Permission{PermPayrollApprove, PermScopeTenantWide, PermWorkflowRead}},
 	// Identity administration holds no financial permission at all.
 	"security_admin": {Name: "security_admin", Permissions: []Permission{PermUserManage, PermRoleManage, PermDelegationApprove, PermIdentityRevoke, PermAuditRead, PermSiteDeviceManage, PermTenantSettingsManage, PermScopeTenantWide}},
+	// Leadership roles (separated powers). The system administrator runs the
+	// platform (people, roles, settings, sessions, workflow and automation
+	// administration) and holds no financial or approval permission. The
+	// board chairman sees every record, report and the audit trail and acts on
+	// nothing. The CEO sees the company's operations and approves within the
+	// authority matrix; never prepares, posts or releases, so is never both
+	// maker and checker.
+	"system_admin": {Name: "system_admin", Permissions: []Permission{PermUserManage, PermRoleManage, PermDelegationApprove, PermIdentityRevoke, PermAuditRead,
+		PermSiteDeviceManage, PermTenantSettingsManage, PermWorkflowAdmin, PermWorkflowRead, PermAutomationActivate, PermIntelligenceRead, PermScopeTenantWide}},
+	"board_chairman": {Name: "board_chairman", Permissions: []Permission{PermP2PRead, PermJournalRead, PermFXRead, PermAuditRead, PermWorkflowRead,
+		PermIntelligenceRead, PermScopeTenantWide}},
+	"ceo": {Name: "ceo", Permissions: []Permission{PermP2PRead, PermJournalRead, PermFXRead, PermWorkflowRead, PermIntelligenceRead, PermScopeTenantWide,
+		PermApprovalHighValue, PermProjectGateDecide, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBudgetApprove, PermBOQApprove,
+		PermPRApprove, PermPOApprove, PermRFQAward, PermContractApprove, PermSubcontractApprove, PermAuthorityApprove, PermDelegationCreate}},
 	// Journey A operational roles.
 	"estimator":           {Name: "estimator", Permissions: []Permission{PermBOQManage, PermP2PRead}},
 	"commercial_manager":  {Name: "commercial_manager", Permissions: []Permission{PermProjectCreate, PermForecastApprove, PermChangeApprove, PermClaimApprove, PermBondApprove, PermEscalationApprove, PermDelegationCreate, PermIntelligenceRead, PermBOQApprove, PermBudgetApprove, PermContractManage, PermIPCCertify, PermARCreditApprove, PermARRetentionApprove, PermP2PRead, PermSubcontractApprove, PermSubcontractCertify}},
@@ -833,4 +847,18 @@ func RoleMatrixMarkdown() string {
 	sort.Strings(nd)
 	b.WriteString(strings.Join(nd, ", ") + "\n")
 	return b.String()
+}
+
+// RoleProfiles states what the company may expect of the holder of a product
+// role, beside what its permissions let them do. Roles without an entry are
+// described by their permissions alone.
+var RoleProfiles = map[string]string{
+	"system_admin": "Runs the platform: adds people and turns them off, gives and removes roles, designs company roles, sets company settings and branding, " +
+		"issues and unlocks sign-ins, revokes sessions, administers workflows and activates automation rules, and reads the audit trail. " +
+		"Holds no financial or approval permission: cannot approve, post, pay or certify anything. Answers to the CEO and the board for access control.",
+	"board_chairman": "Oversight: sees every project, document, journal, report and the audit trail across the company, read-only. " +
+		"Approves and changes nothing in the system; board decisions are carried out by the people who hold those duties.",
+	"ceo": "Runs the company's operations: sees all projects and finance, and approves within the authority matrix (BOQs, budgets, requisitions, purchase orders, " +
+		"RFQ awards, contracts and subcontracts, changes, claims, forecasts, stage gates, high-value approvals and authority-matrix changes). " +
+		"Never prepares, posts or releases, so every approval is a second person's check; payments stay with finance and treasury.",
 }
