@@ -188,6 +188,7 @@ tr.total td { font-weight: 800; border-top: 2px solid var(--ink); }
 .chip.ok { background: var(--ok-bg); color: var(--ok); }
 .chip.warn { background: var(--warn-bg); color: var(--warn); }
 .chip.bad { background: var(--bad-bg); color: var(--bad); }
+.chip.info { background: var(--info-bg); color: var(--info); }
 
 /* ---------- export ---------- */
 .export { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -585,3 +586,108 @@ ul.flags li + li { margin-top: 0.25rem; }
 .ckey { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
 .ckey::before { content: ""; width: 14px; height: 10px; border-radius: 2px; background: var(--c); }
 .tablewrap { position: relative; }
+
+/* ---------- sign-in (two panels: the company, then the sign-in) ---------- */
+.signin2 { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: clamp(16px, 4vw, 56px); align-items: stretch;
+  max-width: 1120px; margin: 4vh auto; }
+.signbrand { background: var(--panel-2); border: 1px solid var(--line); border-radius: calc(var(--radius) * 2); padding: clamp(20px, 3.5vw, 40px);
+  display: flex; flex-direction: column; gap: 28px; min-height: 520px; color: var(--ink); }
+.signbrandtop { display: flex; align-items: center; gap: 14px; }
+.brandtile { width: 52px; height: 52px; border-radius: 14px; background: var(--ink); color: var(--panel); display: inline-flex; align-items: center; justify-content: center;
+  font: 700 26px/1 var(--display); flex: none; }
+.brandtile .dot { color: var(--panel); opacity: .7; }
+.brandlogo { max-height: 56px; max-width: 200px; object-fit: contain; flex: none; }
+.brandword { display: flex; flex-direction: column; line-height: 1.1; }
+.brandword .bn { font: 800 18px/1.1 var(--display); letter-spacing: .12em; text-transform: uppercase; }
+.brandword .bs { font-size: 12px; letter-spacing: .28em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.signbrandmid { margin-top: auto; }
+.signbrand .eyebrow, .signside .eyebrow { font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 12px; }
+.signbrand .motto { font: 650 clamp(34px, 5vw, 56px)/1.05 var(--display); letter-spacing: -.02em; margin: 0 0 16px; }
+.signbrand .desc { color: var(--muted); font-size: 16px; max-width: 46ch; margin: 0 0 12px; }
+.signbrand address, .signbrand .contacts { font-style: normal; color: var(--muted); font-size: 14px; white-space: pre-line; margin: 0 0 6px; }
+.signbrandfoot { margin: 0; display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: .2em; color: var(--muted); font-weight: 700; flex-wrap: wrap; }
+.signbrandfoot .ring { width: 9px; height: 9px; border: 2px solid var(--muted); border-radius: 50%; }
+.signside { display: flex; flex-direction: column; justify-content: center; max-width: 460px; width: 100%; justify-self: center; }
+.signside h1 { font-size: clamp(28px, 3.4vw, 38px); margin-bottom: 8px; }
+.signside .lede { margin-bottom: 22px; }
+.signform { display: flex; flex-direction: column; gap: 4px; }
+.signform input { width: 100%; }
+.field.withbtn { position: relative; }
+.field.withbtn input { padding-right: 46px; }
+.field.withbtn .eye { position: absolute; right: 4px; bottom: 4px; min-width: 38px; height: 36px; padding: 0; background: transparent; border: 0; color: var(--muted);
+  display: inline-flex; align-items: center; justify-content: center; }
+.field.withbtn .eye svg, .eye svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.signbtn { width: 100%; margin-top: 10px; padding: 12px 16px; font-size: 16px; font-weight: 700; background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.signbtn:hover { background: color-mix(in srgb, var(--ink) 88%, var(--panel)); }
+.formmsg { border-radius: var(--radius); padding: 10px 12px; margin: 8px 0 0; border: 1px solid var(--bad); background: var(--bad-bg); color: var(--bad); }
+.formmsg.info { border-color: var(--info); background: var(--info-bg); color: var(--info); }
+.pinchange { margin-top: 10px; }
+.othersign { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+.othersign summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.othersign .signform { margin-top: 12px; }
+.signform.staging h2 { font-size: 18px; margin: 12px 0 6px; }
+.signfoot { margin-top: 26px; color: var(--muted); font-size: 13px; text-align: center; }
+@media (max-width: 860px) {
+  .signin2 { grid-template-columns: 1fr; margin: 2vh auto; }
+  .signbrand { min-height: 0; gap: 18px; }
+  .signbrand .motto { font-size: 34px; }
+  .signside { justify-self: stretch; max-width: none; }
+}
+.bandlogo { height: 30px; max-width: 140px; object-fit: contain; flex: none; }
+
+/* ---------- brand & appearance ---------- */
+.brandcols { align-items: start; }
+.stick { position: sticky; top: calc(var(--top-h, 60px) + 12px); }
+.tokengrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px 14px; margin: 10px 0 16px; }
+.tokenrow { display: grid; grid-template-columns: 40px minmax(0, 1fr) 84px auto; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius); }
+.tokenrow.changed { border-color: var(--accent); }
+.tokenrow.bad { border-color: var(--bad); background: var(--bad-bg); }
+.tokenrow input[type=color] { width: 40px; height: 32px; padding: 2px; border-radius: 6px; }
+.tokenrow .hex { font-family: var(--mono); font-size: 13px; padding: 6px; }
+.tokenrow .tl { display: flex; flex-direction: column; font-size: 14px; min-width: 0; }
+.tokenrow .tk { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.brandpreview { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--text); }
+.pvband { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--band); color: var(--band-ink); }
+.pvband .pvtag { color: var(--band-muted); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+.pvmark img { height: 22px; max-width: 90px; object-fit: contain; display: block; }
+.pvbody { padding: 14px; display: grid; gap: 12px; }
+.pvsign { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.pvsign .eyebrow { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 12px 0 6px; }
+.pvsign .motto { font: 650 26px/1.1 var(--display); margin: 0 0 8px; }
+.pvsign .desc, .pvsign address { color: var(--muted); font-size: 13px; font-style: normal; white-space: pre-line; margin: 0; }
+.pvlogo img { max-height: 44px; max-width: 160px; object-fit: contain; display: block; }
+.pvlogo .brandtile { width: 40px; height: 40px; font-size: 20px; border-radius: 10px; }
+.pvpanel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+.pvpanel h4 { margin: 0 0 4px; }
+.pvpanel .muted { color: var(--muted); margin: 0 0 10px; font-size: 14px; }
+.pvchips, .pvbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.pvbtn { background: var(--accent); color: var(--accent-ink); padding: 6px 14px; border-radius: var(--radius); font-weight: 600; font-size: 14px; }
+.pvraised { background: var(--panel-2); border-radius: var(--radius); padding: 8px 10px; font-size: 14px; }
+
+/* ---------- my security, sign-in administration ---------- */
+.subform { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+.subform h3 { font-size: 16px; margin: 0 0 8px; }
+code.secret { font-family: var(--mono); font-size: 14px; background: var(--panel-2); padding: 2px 6px; border-radius: 6px; word-break: break-all; }
+.pinonce code.secret { font-size: 22px; letter-spacing: .2em; }
+ol.steps { padding-left: 20px; }
+ol.steps li { margin-bottom: 6px; }
+
+/* ---------- workflow map ---------- */
+.flowlegend p { margin: 0; color: var(--muted); }
+.flowcard { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: var(--gap); box-shadow: var(--shadow); }
+.flowcard header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.flowcard h3 { margin: 0; font-family: var(--display); font-size: 18px; }
+.flowstates { display: flex; flex-wrap: wrap; gap: 4px; }
+.flowsteps { list-style: none; margin: 0 0 8px; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); gap: 10px; overflow-x: auto; }
+.flowstep { border: 1px solid var(--line); border-top: 4px solid var(--line-strong); border-radius: var(--radius); padding: 10px; background: var(--panel); position: relative; min-width: 0; }
+.flowstep.v-create, .flowstep.v-submit { border-top-color: var(--info); }
+.flowstep.v-approve, .flowstep.v-certify, .flowstep.v-award { border-top-color: var(--ok); }
+.flowstep.v-reject, .flowstep.v-cancel { border-top-color: var(--bad); }
+.flowstep.v-release, .flowstep.v-post { border-top-color: var(--warn); }
+.flowstep.mine { outline: 2px solid var(--accent); }
+.flowstep.dim { opacity: .55; }
+.flowstep .fsh { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; margin-bottom: 6px; }
+.flowstep .from { color: var(--muted); font-size: 12.5px; }
+.flowstep .perm { margin-bottom: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.flowstep .perm code { font-size: 12px; }
+@media (max-width: 700px) { .flowsteps { grid-auto-flow: row; } }

@@ -470,7 +470,7 @@ const NAV = [
     ['#/list/delegation', 'Delegations', 'delegation.create|delegation.approve'], ['#/list/sod_exception', 'Duty-conflict exceptions', 'authority.manage|authority.approve'],
     ['#/imports', 'Data imports', 'supplier.manage|customer.manage|stock.item.manage'], ['#/list/p2p_policy', 'P2P policies', 'scope.tenant_wide'], ['#/list/contract_policy', 'Contract policies', 'scope.tenant_wide'],
     ['#/controls', 'Control review', 'scope.tenant_wide'], ['#/automation', 'Automation rules', 'automation.manage|automation.activate|workflow.read'],
-    ['#/settings', 'Company settings', null]]],
+    ['#/workflows', 'Workflow map', null], ['#/settings', 'Company settings', null], ['#/branding', 'Brand & appearance', null]]],
 ];
 const NAV_KEY = 'serk.nav.folded';
 // A leading "+wide:" also requires tenant-wide scope (entity-level pages).
@@ -749,6 +749,8 @@ async function route() {
       case 'controls': return await renderControls();
       case 'automation': return await renderAutomation();
       case 'settings': return await renderSettings();
+      case 'branding': return await renderBranding();
+      case 'workflows': return await renderWorkflows(a);
       case 'people': return await renderPeople(a);
       case 'me': return await renderMe();
       case 'bonds': return await renderBonds(a);
@@ -777,55 +779,201 @@ async function route() {
 }
 
 // ---------- sign-in ----------
-function renderSignin(msg) {
-  $('nav').hidden = true;
-  $('who').hidden = true;
-  const ta = h('textarea', { name: 'token', autocomplete: 'off', spellcheck: 'false', required: true });
-  const form = h('form', { class: 'panel signin', on: { submit: async (ev) => {
+// Two panels: the company's own words and logo (GET /branding, the
+// deployment's configured company) and the sign-in. With the e-mail + PIN
+// sign-in offered (GET /auth/methods) it comes first; an access token from
+// the identity provider and, on test deployments, the staging personas are
+// the other options. Nothing here is stored: the session token lives in this
+// tab's memory only.
+async function publicBrand() {
+  try {
+    const r = await fetch('/branding');
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+async function signinMethods() {
+  try { const r = await fetch('/auth/methods'); return r.ok ? await r.json() : { pin: false, staging: false }; } catch { return { pin: false, staging: false }; }
+}
+function brandPanel(b) {
+  const logo = b && b.logo ? h('img', { class: 'brandlogo', src: `/branding/logo?v=${b.logo.sha256.slice(0, 12)}`, alt: `${b.brand_name || 'Company'} logo` })
+    : h('span', { class: 'brandtile', 'aria-hidden': 'true' }, (b && b.brand_name ? b.brand_name.trim()[0] : 's').toLowerCase(), h('span', { class: 'dot' }, '.'));
+  const name = (b && b.brand_name) || 'SERK';
+  const suffix = (b && b.brand_suffix) || (b && b.brand_name ? '' : 'GROUP');
+  return h('section', { class: 'signbrand', 'aria-label': `${name} ${suffix || ''}`.trim() },
+    h('div', { class: 'signbrandtop' }, logo, h('div', { class: 'brandword' }, h('span', { class: 'bn' }, name), suffix ? h('span', { class: 'bs' }, suffix) : null)),
+    h('div', { class: 'signbrandmid' },
+      h('p', { class: 'eyebrow' }, (b && b.eyebrow) || 'Calm software for focused teams'),
+      h('p', { class: 'motto' }, (b && b.motto) || 'Less noise. More done.'),
+      h('p', { class: 'desc' }, (b && b.description) || 'Projects, procurement, site, stores, commercial, finance and governance in one place, with every decision signed and traceable.'),
+      b && b.address ? h('address', {}, b.address) : null,
+      b && (b.phone || b.email || b.website) ? h('p', { class: 'contacts' }, [b.phone, b.email, b.website].filter(Boolean).join(' · ')) : null),
+    h('p', { class: 'signbrandfoot' }, h('span', {}, `${name.toUpperCase()} OFFICE OS`), h('span', { class: 'ring', 'aria-hidden': 'true' }), h('span', {}, 'SECURE WORKSPACE')));
+}
+
+// The session is a bearer token in memory: load who this is and open the console.
+async function finishSignin(token) {
+  S.token = token;
+  try {
+    S.me = await api('GET', '/v1/identity/me');
+    S.can = new Set(S.me.permissions);
+    S.ref = S.can.has('p2p.read') ? await api('GET', '/v1/p2p-reference') : { legal_entities: [], projects: [], accounts: [] };
+    try { S.company = await api('GET', '/v1/tenant/settings'); } catch { S.company = null; }
+    try { applyBrand(await api('GET', '/v1/branding')); } catch { applyBrand(null); }
+    brandCompany();
+    paintWho(S.me.user_id);
+    $('acct-id').textContent = S.me.user_id;
+    $('acct-roles').textContent = S.me.roles.length ? S.me.roles.map((r) => words(r.replace(/^custom:/, ''))).join(' · ') : 'No role';
+    $('acct-people').hidden = !['user.manage', 'role.manage', 'audit.read'].some((x) => S.can.has(x));
+    api('GET', '/v1/me/profile').then((pr) => { if (pr.display_name) paintWho(pr.display_name); }).catch(() => { /* the id is shown */ });
+    $('who-mfa').textContent = S.me.mfa ? 'Signed in with a second factor: approvals and releases are allowed (for 10 minutes after sign-in).' : 'Signed in without a second factor: approvals and releases need a sign-in with your authenticator code.';
+    $('who-mfa').className = `acctmfa ${S.me.mfa ? 'ok' : 'warn'}`;
+    $('who-mfa').hidden = false;
+    $('who').hidden = false;
+    buildNav();
+    startBell();
+    if (location.hash === '' || location.hash === '#/') location.hash = '#/home';
+    else route();
+    say(`Signed in as ${S.me.user_id}`);
+  } catch (e) {
+    S.token = null;
+    throw e;
+  }
+}
+
+// A 6-digit field: digits only, never offered to autocomplete as a password
+// of another site, with a show/hide button.
+function pinBox(name, label, attrs = {}) {
+  const el = input(name, { type: 'password', inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', minlength: '6', autocomplete: 'current-password', required: true, spellcheck: 'false', ...attrs });
+  el.addEventListener('input', () => { const d = el.value.replace(/\D/g, '').slice(0, 6); if (d !== el.value) el.value = d; });
+  const eye = h('button', { type: 'button', class: 'eye', 'aria-label': `Show ${label.toLowerCase()}`, 'aria-pressed': 'false' }, icon(EYE));
+  eye.addEventListener('click', () => {
+    const show = el.type === 'password';
+    el.type = show ? 'text' : 'password';
+    eye.setAttribute('aria-pressed', String(show));
+    eye.setAttribute('aria-label', `${show ? 'Hide' : 'Show'} ${label.toLowerCase()}`);
+    eye.replaceChildren(icon(show ? EYE_OFF : EYE));
+  });
+  const f = field(label, el);
+  f.classList.add('withbtn');
+  f.append(eye);
+  return { el, f };
+}
+const EYE = ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z', 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z'];
+const EYE_OFF = ['M3 3l18 18', 'M10.6 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2', 'M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6', 'M9.9 9.9a3 3 0 0 0 4.2 4.2'];
+
+function pinForm(note) {
+  const email = input('email', { type: 'email', autocomplete: 'username', required: true, maxlength: '254', placeholder: 'you@company.com', spellcheck: 'false' });
+  const pin = pinBox('pin', 'Password');
+  pin.el.setAttribute('placeholder', '6-digit PIN');
+  const code = input('code', { type: 'text', inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', autocomplete: 'one-time-code', placeholder: '000000', spellcheck: 'false' });
+  code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 6); });
+  const fresh = pinBox('new_pin', 'New PIN', { autocomplete: 'new-password', required: false });
+  const again = pinBox('new_pin_again', 'New PIN again', { autocomplete: 'new-password', required: false });
+  const change = h('fieldset', { class: 'pinchange', hidden: true }, h('legend', {}, 'Choose your own PIN'),
+    h('p', { class: 'hint' }, 'The PIN you were given works once. Choose six digits that are not a run (123456), a repeat (111111) or a pattern (121212); nobody else will know it.'),
+    fresh.f, again.f);
+  const msg = h('p', { class: 'formmsg', role: 'alert', hidden: true });
+  const tell = (t, kind) => { msg.textContent = t; msg.className = `formmsg ${kind || 'bad'}`; msg.hidden = !t; };
+  const btn = h('button', { type: 'submit', class: 'signbtn' }, 'Sign in', h('span', { 'aria-hidden': 'true' }, ' →'));
+  const form = h('form', { class: 'signform', novalidate: true, on: { submit: async (ev) => {
     ev.preventDefault();
-    S.token = ta.value.trim();
-    try {
-      S.me = await api('GET', '/v1/identity/me');
-      S.can = new Set(S.me.permissions);
-      S.ref = S.can.has('p2p.read') ? await api('GET', '/v1/p2p-reference') : { legal_entities: [], projects: [], accounts: [] };
-      try { S.company = await api('GET', '/v1/tenant/settings'); } catch { S.company = null; }
-      brandCompany();
-      paintWho(S.me.user_id);
-      $('acct-id').textContent = S.me.user_id;
-      $('acct-roles').textContent = S.me.roles.length ? S.me.roles.map((r) => words(r.replace(/^custom:/, ''))).join(' · ') : 'No role';
-      $('acct-people').hidden = !['user.manage', 'role.manage', 'audit.read'].some((x) => S.can.has(x));
-      api('GET', '/v1/me/profile').then((pr) => { if (pr.display_name) paintWho(pr.display_name); }).catch(() => { /* the id is shown */ });
-      $('who-mfa').textContent = S.me.mfa ? 'Signed in with a second factor: approvals and releases are allowed (for 10 minutes after sign-in).' : 'Signed in with a password only: approvals and releases need a sign-in with a second factor.';
-      $('who-mfa').className = `acctmfa ${S.me.mfa ? 'ok' : 'warn'}`;
-      $('who-mfa').hidden = false;
-      $('who').hidden = false;
-      buildNav();
-      startBell();
-      if (location.hash === '' || location.hash === '#/') location.hash = '#/home';
-      else route();
-      say(`Signed in as ${S.me.user_id}`);
-    } catch (e) {
-      S.token = null;
-      showError(e);
+    clearError();
+    tell('');
+    if (!email.value.trim() || !/^\d{6}$/.test(pin.el.value)) { tell('Enter your e-mail address and your 6-digit PIN.'); (email.value.trim() ? pin.el : email).focus(); return; }
+    if (code.value && !/^\d{6}$/.test(code.value)) { tell('The authenticator code is 6 digits.'); code.focus(); return; }
+    const body = { email: email.value.trim(), pin: pin.el.value };
+    if (code.value) body.code = code.value;
+    if (!change.hidden) {
+      if (!/^\d{6}$/.test(fresh.el.value)) { tell('Your new PIN is 6 digits.'); fresh.el.focus(); return; }
+      if (fresh.el.value !== again.el.value) { tell('The two new PINs differ.'); again.el.focus(); return; }
+      body.new_pin = fresh.el.value;
     }
+    btn.disabled = true;
+    try {
+      const r = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        pin.el.value = ''; fresh.el.value = ''; again.el.value = ''; code.value = '';
+        await finishSignin(d.token);
+        return;
+      }
+      const why = d.detail || (d.error || {}).message || r.statusText;
+      if (d.code === 'pin_change_required') {
+        change.hidden = false; fresh.el.required = true; again.el.required = true;
+        tell('Your PIN is correct. Choose a new PIN of your own to finish signing in.', 'info');
+        fresh.el.focus();
+      } else if (d.code === 'code_required') {
+        tell('You turned on the authenticator: enter the 6-digit code from your app.', 'info');
+        code.focus();
+      } else if (d.code === 'invalid_credentials' && typeof d.attempts_left === 'number') {
+        tell(`${why} ${d.attempts_left} attempt${d.attempts_left === 1 ? '' : 's'} left before this sign-in locks for 15 minutes.`);
+        pin.el.select();
+      } else if (r.status === 423) {
+        tell(why);
+      } else if (r.status === 429) {
+        tell('Too many attempts from this address. Wait a few minutes and try again.');
+      } else if (r.status === 422 && !change.hidden) {
+        tell(why); fresh.el.select();
+      } else tell(why);
+    } catch (e) {
+      tell(e.message || 'The sign-in could not be completed.');
+    } finally { btn.disabled = false; }
   } } },
-  h('h1', { tabindex: '-1' }, 'Sign in'),
-  h('p', { class: 'lede' }, 'Paste the access token issued by your organisation’s identity provider. It is kept in this tab’s memory only and is forgotten when you sign out or close the tab.'),
-  msg ? h('p', { class: 'notice' }, msg) : null,
+  field('Email address', email),
+  pin.f,
+  field('Authenticator code (if enabled)', code),
+  change, msg,
+  btn,
+  note ? h('p', { class: 'hint' }, note) : null);
+  return { form, email };
+}
+
+function tokenForm() {
+  const ta = h('textarea', { name: 'token', autocomplete: 'off', spellcheck: 'false', required: true });
+  const form = h('form', { class: 'signform', on: { submit: async (ev) => {
+    ev.preventDefault();
+    clearError();
+    try { await finishSignin(ta.value.trim()); } catch (e) { showError(e); }
+  } } },
+  h('p', { class: 'hint' }, 'Paste the access token issued by your organisation’s identity provider. It is kept in this tab’s memory only and is forgotten when you sign out or close the tab.'),
   field('Access token', ta),
   h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Sign in')));
+  return { form, ta };
+}
+
+async function renderSignin(msg) {
+  $('nav').hidden = true;
+  $('who').hidden = true;
   const v = $('view');
   v.textContent = '';
-  v.append(form);
   document.title = 'Sign in — SERK Construction';
-  ta.focus();
-  stagingSignin(v, ta);
+  const [b, m] = await Promise.all([publicBrand(), signinMethods()]);
+  applyBrand(b);
+  const tok = tokenForm();
+  const side = h('section', { class: 'signside' });
+  const h1 = h('h1', { tabindex: '-1' }, 'Sign in to your space');
+  side.append(h('p', { class: 'eyebrow' }, 'Welcome back'), h1,
+    h('p', { class: 'lede' }, `Use your authorized ${(b && b.brand_name) || 'SERK'} account to continue.`),
+    msg ? h('p', { class: 'notice' }, msg) : '');
+  let first = tok.ta;
+  if (m.pin) {
+    const p = pinForm();
+    first = p.email;
+    side.append(p.form, h('details', { class: 'othersign' }, h('summary', {}, 'Other sign-in options'), tok.form));
+  } else side.append(tok.form);
+  side.append(h('p', { class: 'signfoot' }, 'Protected sessions · role-scoped data · audit records'));
+  const wrap = h('div', { class: 'signin2' }, brandPanel(b), side);
+  v.append(wrap);
+  h1.focus();
+  first.focus();
+  stagingSignin(m.pin ? side.querySelector('.othersign') : side, tok.ta);
 }
 
 // Test environments only: the server offers /staging/* when it runs with
 // SERK_ENV=staging and a staging passphrase (refused in production). The
 // minted token is an ordinary bearer token; it carries no extra authority.
-async function stagingSignin(v, ta) {
+async function stagingSignin(host, ta) {
   let data;
   try {
     const r = await fetch('/staging/personas');
@@ -837,7 +985,7 @@ async function stagingSignin(v, ta) {
   const co = h('select', { name: 'company', required: true });
   for (const c of data.companies || []) co.append(h('option', { value: c.id }, c.name));
   const pw = h('input', { type: 'password', name: 'passphrase', autocomplete: 'off', required: true });
-  const panel = h('form', { class: 'panel signin', on: { submit: async (ev) => {
+  const panel = h('form', { class: 'signform staging', on: { submit: async (ev) => {
     ev.preventDefault();
     clearError();
     try {
@@ -845,8 +993,7 @@ async function stagingSignin(v, ta) {
         body: JSON.stringify({ passphrase: pw.value, persona: sel.value, company: co.value || undefined }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new ApiError(r.status, (d.error || {}).code || 'error', (d.error || {}).message || r.statusText);
-      ta.value = d.token;
-      ta.form.requestSubmit();
+      await finishSignin(d.token);
     } catch (e) { showError(e); }
   } } },
   h('h2', {}, 'Test environment sign-in'),
@@ -855,7 +1002,7 @@ async function stagingSignin(v, ta) {
   field('Persona', sel),
   field('Staging passphrase', pw),
   h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Sign in as persona')));
-  v.prepend(panel);
+  host.append(panel);
 }
 async function signOut(msg) {
   if (S.token) { try { await api('POST', '/v1/identity/logout'); } catch { /* session may already be gone */ } }
@@ -3970,6 +4117,244 @@ function brandCompany() {
   }
 }
 
+// ---------- company branding and theme (0097) ----------
+// The company's colours override the stylesheet's tokens for the mode in
+// use, through CSSOM custom properties (allowed by the CSP, unlike inline
+// style). The same fifteen tokens, defaults and contrast pairs as pkg/brand:
+// the server refuses an unreadable theme, the editor warns before saving.
+const BRAND_TOKENS = [
+  ['bg', 'Page background'], ['panel', 'Cards and panels'], ['panel-2', 'Raised areas'], ['ink', 'Text'], ['muted', 'Secondary text'], ['line', 'Lines and borders'],
+  ['accent', 'Accent (buttons, links)'], ['accent-ink', 'Text on accent'], ['band', 'Top band'], ['band-ink', 'Text on top band'], ['band-muted', 'Quiet text on top band'],
+  ['ok', 'Success'], ['warn', 'Warning'], ['bad', 'Error'], ['info', 'Information']];
+const BRAND_DEFAULTS = {
+  light: { bg: '#f7f9f8', panel: '#ffffff', 'panel-2': '#eef3f0', ink: '#14201c', muted: '#52635d', line: '#e0e7e3', accent: '#103e32', 'accent-ink': '#ffffff',
+    band: '#103e32', 'band-ink': '#ffffff', 'band-muted': '#c9ddd3', ok: '#16794a', warn: '#946000', bad: '#b42318', info: '#175cd3' },
+  dark: { bg: '#0e1512', panel: '#151e1a', 'panel-2': '#1c2823', ink: '#eaf1ed', muted: '#a9b8b1', line: '#2a3a33', accent: '#8fd9b6', 'accent-ink': '#0e1512',
+    band: '#0a100e', 'band-ink': '#eaf1ed', 'band-muted': '#a9b8b1', ok: '#7fd6a4', warn: '#f2c879', bad: '#f7a59b', info: '#9cc2ff' } };
+const BRAND_PAIRS = [['ink', 'bg', 4.5], ['ink', 'panel', 4.5], ['ink', 'panel-2', 4.5], ['muted', 'panel', 4.5], ['muted', 'bg', 4.5],
+  ['accent-ink', 'accent', 4.5], ['band-ink', 'band', 4.5], ['band-muted', 'band', 3],
+  ['accent', 'panel', 3], ['ok', 'panel', 3], ['warn', 'panel', 3], ['bad', 'panel', 3], ['info', 'panel', 3]];
+const BRAND_FONTS = [['manrope', 'Manrope (default)', '"Manrope", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Ethiopic", sans-serif'],
+  ['system', 'System interface font', 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Ethiopic", sans-serif'],
+  ['serif', 'Serif', 'Georgia, "Times New Roman", "Noto Serif", "Noto Serif Ethiopic", serif'],
+  ['rounded', 'Rounded', 'ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif']];
+function lum(hex) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function contrast(a, b) { const x = lum(a); const y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+const effective = (theme, mode) => ({ ...BRAND_DEFAULTS[mode], ...((theme && theme[mode]) || {}) });
+function themeProblems(theme, mode) {
+  const e = effective(theme, mode);
+  return BRAND_PAIRS.map(([fg, bg, min]) => ({ fg, bg, min, r: contrast(e[fg], e[bg]) })).filter((p) => p.r < p.min);
+}
+// Paints a theme's tokens for one mode onto an element (the page or a preview).
+function paintTokens(el, theme, mode) {
+  const own = (theme && theme[mode]) || {};
+  for (const [k] of BRAND_TOKENS) {
+    if (own[k]) el.style.setProperty(`--${k}`, own[k]); else el.style.removeProperty(`--${k}`);
+  }
+  // The tinted backgrounds of the status colours follow them.
+  for (const k of ['ok', 'warn', 'bad', 'info']) {
+    if (own[k]) el.style.setProperty(`--${k}-bg`, `color-mix(in srgb, ${own[k]} 14%, ${effective(theme, mode).panel})`); else el.style.removeProperty(`--${k}-bg`);
+  }
+  if (own.band || own['band-ink']) el.style.setProperty('--band-focus', effective(theme, mode)['band-ink']); else el.style.removeProperty('--band-focus');
+  const font = theme && theme.font && BRAND_FONTS.find(([k]) => k === theme.font);
+  if (font && theme.font !== 'manrope') { el.style.setProperty('--text', font[2]); el.style.setProperty('--display', font[2]); } else { el.style.removeProperty('--text'); el.style.removeProperty('--display'); }
+  if (theme && theme.radius != null) el.style.setProperty('--radius', `${theme.radius}px`); else el.style.removeProperty('--radius');
+}
+let BRAND = null;
+function applyBrand(b) {
+  BRAND = b;
+  paintTokens(document.documentElement, b && b.theme, isNight() ? 'dark' : 'light');
+  paintBandLogo();
+}
+// The top band shows the company's logo once signed in (fetched with the
+// session, shown from a blob: address; never the bytes as markup).
+let BAND_LOGO = { sha: null, url: null };
+async function paintBandLogo() {
+  const mark = document.querySelector('.brand .mark');
+  const old = document.querySelector('.brand .bandlogo');
+  const sha = BRAND && BRAND.logo ? BRAND.logo.sha256 : null;
+  if (!sha || !S.token) { if (old) old.remove(); mark.hidden = false; return; }
+  if (BAND_LOGO.sha !== sha) {
+    try {
+      const r = await fetch('/v1/branding/logo', { headers: { Authorization: 'Bearer ' + S.token } });
+      if (!r.ok) return;
+      if (BAND_LOGO.url) URL.revokeObjectURL(BAND_LOGO.url);
+      BAND_LOGO = { sha, url: URL.createObjectURL(await r.blob()) };
+    } catch { return; }
+  }
+  const img = old || h('img', { class: 'bandlogo', alt: '' });
+  img.src = BAND_LOGO.url;
+  if (!old) mark.after(img);
+  mark.hidden = true;
+}
+
+async function renderBranding() {
+  const b = await api('GET', '/v1/branding');
+  const can = S.can.has('tenant.settings.manage') && S.can.has('scope.tenant_wide');
+  const theme = { light: { ...((b.theme && b.theme.light) || {}) }, dark: { ...((b.theme && b.theme.dark) || {}) }, font: (b.theme && b.theme.font) || 'manrope', radius: b.theme && b.theme.radius != null ? b.theme.radius : 10 };
+  let mode = isNight() ? 'dark' : 'light';
+  let logoURL = null;
+  let pendingLogo = null; // a file chosen but not yet uploaded
+  // Words
+  const W = [['brand_name', 'Brand name', 80, 'SERK'], ['brand_suffix', 'Brand suffix', 40, 'GROUP'], ['eyebrow', 'Eyebrow line', 80, 'Calm software for focused teams'],
+    ['motto', 'Motto (headline)', 120, 'Less noise. More done.'], ['description', 'Description', 300, ''], ['address', 'Address', 500, ''],
+    ['phone', 'Phone', 40, ''], ['email', 'Company e-mail', 254, ''], ['website', 'Website', 200, 'https://']];
+  const f = {};
+  for (const [k, , max, ph] of W) {
+    f[k] = (k === 'description' || k === 'address') ? h('textarea', { name: k, maxlength: String(max), rows: k === 'address' ? '3' : '2', placeholder: ph }) : input(k, { type: k === 'email' ? 'email' : k === 'website' ? 'url' : 'text', maxlength: String(max), placeholder: ph });
+    f[k].value = b[k] || '';
+    if (!can) f[k].disabled = true;
+  }
+  // Preview: the sign-in card and a slice of the console, painted with the edited theme.
+  const pv = h('div', { class: 'brandpreview', 'aria-label': 'Preview' });
+  const pvLogo = h('div', { class: 'pvlogo' });
+  const draw = () => {
+    pv.dataset.mode = mode;
+    paintTokens(pv, theme, mode);
+    // The preview shows every token for its mode, not only overrides.
+    const e = effective(theme, mode);
+    for (const [k] of BRAND_TOKENS) pv.style.setProperty(`--${k}`, e[k]);
+    pv.textContent = '';
+    pvLogo.textContent = '';
+    pvLogo.append(logoURL ? h('img', { src: logoURL, alt: 'Logo preview' }) : h('span', { class: 'brandtile', 'aria-hidden': 'true' }, (f.brand_name.value.trim()[0] || 's').toLowerCase(), h('span', { class: 'dot' }, '.')));
+    pv.append(
+      h('div', { class: 'pvband' }, h('span', { class: 'pvmark' }, logoURL ? h('img', { src: logoURL, alt: '' }) : null), h('strong', {}, f.brand_name.value || 'SERK'), h('span', { class: 'pvtag' }, f.brand_suffix.value || 'GROUP')),
+      h('div', { class: 'pvbody' },
+        h('div', { class: 'pvsign' }, pvLogo, h('p', { class: 'eyebrow' }, f.eyebrow.value || 'Calm software for focused teams'), h('p', { class: 'motto' }, f.motto.value || 'Less noise. More done.'),
+          h('p', { class: 'desc' }, f.description.value), f.address.value ? h('address', {}, f.address.value) : null),
+        h('div', { class: 'pvpanel' }, h('h4', {}, 'Purchase order PO-0042'), h('p', { class: 'muted' }, 'Secondary text reads like this.'),
+          h('div', { class: 'pvchips' }, h('span', { class: 'chip ok' }, 'Approved'), h('span', { class: 'chip warn' }, 'Awaiting'), h('span', { class: 'chip bad' }, 'Rejected'), h('span', { class: 'chip info' }, 'Note')),
+          h('div', { class: 'pvbtns' }, h('span', { class: 'pvbtn' }, 'Approve'), h('a', { href: '#/branding', tabindex: '-1' }, 'A link')),
+          h('div', { class: 'pvraised' }, 'A raised area'))));
+    // Contrast warnings for the mode shown.
+    const probs = themeProblems(theme, mode);
+    warn.textContent = '';
+    warn.className = probs.length ? 'callout bad' : 'callout ok';
+    warn.append(h('span', {}, probs.length ? [h('strong', {}, `Hard to read in ${mode} mode — the server will refuse this theme: `),
+      probs.map((p, i) => [i ? '; ' : '', `${tokenName(p.fg)} on ${tokenName(p.bg)} is ${p.r.toFixed(2)}:1 (needs ${p.min}:1)`])]
+      : `Every text and colour pair in ${mode} mode is readable (WCAG 2.2 AA).`));
+    for (const row of grid.querySelectorAll('[data-token]')) {
+      const k = row.dataset.token;
+      const val = effective(theme, mode)[k];
+      row.querySelector('input[type=color]').value = val;
+      const hx = row.querySelector('input[type=text]');
+      if (document.activeElement !== hx) hx.value = val;
+      row.classList.toggle('changed', !!theme[mode][k]);
+      row.classList.toggle('bad', probs.some((p) => p.fg === k || p.bg === k));
+    }
+  };
+  const tokenName = (k) => BRAND_TOKENS.find(([x]) => x === k)[1].toLowerCase();
+  const warn = h('div', { class: 'callout', 'aria-live': 'polite' });
+  const setTok = (k, v) => {
+    v = v.toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(v)) return;
+    if (v === BRAND_DEFAULTS[mode][k]) delete theme[mode][k]; else theme[mode][k] = v;
+    draw();
+  };
+  const grid = h('div', { class: 'tokengrid' }, BRAND_TOKENS.map(([k, label]) => {
+    const pick = h('input', { type: 'color', 'aria-label': `${label} colour` });
+    const hex = h('input', { type: 'text', maxlength: '7', class: 'hex', 'aria-label': `${label} hex value`, spellcheck: 'false' });
+    const reset = h('button', { type: 'button', class: 'linkbtn', 'aria-label': `Reset ${label} to the default` }, 'Default');
+    if (!can) { pick.disabled = true; hex.disabled = true; reset.disabled = true; }
+    pick.addEventListener('input', () => setTok(k, pick.value));
+    hex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) setTok(k, hex.value); });
+    hex.addEventListener('change', () => { hex.value = effective(theme, mode)[k]; });
+    reset.addEventListener('click', () => { delete theme[mode][k]; draw(); });
+    return h('div', { class: 'tokenrow', 'data-token': k }, pick, h('span', { class: 'tl' }, label, h('span', { class: 'tk' }, `--${k}`)), hex, reset);
+  }));
+  const modeBtns = h('div', { class: 'pills', role: 'group', 'aria-label': 'Colours for' }, [['light', 'Day (light) mode'], ['dark', 'Night (dark) mode']].map(([k, l]) =>
+    h('button', { type: 'button', 'data-k': k, 'aria-pressed': String(k === mode), on: { click: (ev) => { mode = k; for (const x of ev.currentTarget.parentNode.children) x.setAttribute('aria-pressed', String(x.dataset.k === k)); draw(); } } }, l)));
+  const font = select('font', BRAND_FONTS.map(([value, label]) => ({ value, label })));
+  font.value = theme.font;
+  font.addEventListener('change', () => { theme.font = font.value; draw(); });
+  const radius = input('radius', { type: 'range', min: '0', max: '24', step: '1', value: String(theme.radius) });
+  const radiusOut = h('output', { for: radius.id || (radius.id = nextId('f')) }, `${theme.radius}px`);
+  radius.addEventListener('input', () => { theme.radius = Number(radius.value); radiusOut.textContent = `${radius.value}px`; draw(); });
+  if (!can) { font.disabled = true; radius.disabled = true; }
+  for (const el of Object.values(f)) el.addEventListener('input', draw);
+  const resetAll = h('button', { type: 'button', class: 'ghost', disabled: !can, on: { click: () => { theme[mode] = {}; draw(); } } }, 'Reset this mode to the product colours');
+
+  // Logo: PNG, JPEG or WebP up to 10 MB; previewed before upload.
+  const file = h('input', { type: 'file', name: 'logo', accept: 'image/png,image/jpeg,image/webp', disabled: !can });
+  const logoInfo = h('p', { class: 'hint', 'aria-live': 'polite' });
+  const upBtn = h('button', { type: 'button', disabled: true }, 'Upload logo');
+  const rmBtn = h('button', { type: 'button', class: 'danger', hidden: !b.logo || !can }, 'Remove logo');
+  const describeLogo = () => {
+    logoInfo.textContent = pendingLogo ? `Chosen: ${pendingLogo.name}, ${(pendingLogo.size / 1048576).toFixed(2)} MB — previewed below, not yet uploaded.`
+      : b.logo ? `Current logo: ${b.logo.content_type.replace('image/', '').toUpperCase()}, ${b.logo.width}×${b.logo.height} px, ${(b.logo.bytes / 1048576).toFixed(2)} MB, SHA-256 ${b.logo.sha256.slice(0, 16)}…, by ${b.logo.updated_by} ${when(b.logo.updated_at)}.`
+        : 'No logo: the product mark is shown.';
+  };
+  if (b.logo) {
+    try { const r = await fetch('/v1/branding/logo', { headers: { Authorization: 'Bearer ' + S.token } }); if (r.ok) logoURL = URL.createObjectURL(await r.blob()); } catch { /* shown without */ }
+  }
+  file.addEventListener('change', () => {
+    const fl = file.files[0];
+    pendingLogo = null; upBtn.disabled = true;
+    if (!fl) { describeLogo(); return; }
+    if (fl.size > 10 * 1048576) { logoInfo.textContent = `${fl.name} is ${(fl.size / 1048576).toFixed(1)} MB; the limit is 10 MB.`; file.value = ''; return; }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(fl.type)) { logoInfo.textContent = 'Choose a PNG, JPEG or WebP image (SVG is refused because it can carry script).'; file.value = ''; return; }
+    pendingLogo = fl;
+    if (logoURL) URL.revokeObjectURL(logoURL);
+    logoURL = URL.createObjectURL(fl);
+    upBtn.disabled = false;
+    describeLogo();
+    draw();
+  });
+  upBtn.addEventListener('click', async () => {
+    clearError();
+    upBtn.disabled = true;
+    try {
+      const r = await fetch('/v1/branding/logo', { method: 'PUT', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': pendingLogo.type }, body: pendingLogo });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new ApiError(r.status, d.code || 'error', d.detail || (d.error || {}).message || r.statusText);
+      say('Logo uploaded.');
+      await renderBranding();
+      applyBrand(await api('GET', '/v1/branding'));
+    } catch (e) { upBtn.disabled = false; showError(e); }
+  });
+  rmBtn.addEventListener('click', async () => {
+    clearError();
+    try { await api('POST', '/v1/branding/logo/remove'); say('Logo removed.'); applyBrand(await api('GET', '/v1/branding')); await renderBranding(); } catch (e) { showError(e); }
+  });
+  describeLogo();
+
+  const form = h('form', { class: 'panel', novalidate: true, on: { submit: async (ev) => {
+    ev.preventDefault();
+    clearError();
+    const bad = [...themeProblems(theme, 'light').map(() => 'light'), ...themeProblems(theme, 'dark').map(() => 'dark')];
+    if (bad.length) { showError(new ApiError(422, 'validation', `The ${[...new Set(bad)].join(' and ')} mode colours are hard to read; fix the pairs marked in red first.`)); return; }
+    const body = {};
+    for (const [k] of W) body[k] = f[k].value.trim();
+    body.theme = { light: theme.light, dark: theme.dark };
+    if (theme.font !== 'manrope') body.theme.font = theme.font;
+    if (theme.radius !== 10) body.theme.radius = theme.radius;
+    try {
+      const saved = await api('PUT', '/v1/branding', body);
+      applyBrand(saved);
+      say(`Branding saved (version ${saved.version}).`);
+      await renderBranding();
+    } catch (e) { showError(e); }
+  } } },
+  h('h2', { class: 'section' }, 'Words'),
+  h('div', { class: 'grid' }, W.map(([k, label]) => field(label, f[k],
+    k === 'motto' ? 'The large line on the sign-in page.' : k === 'eyebrow' ? 'The small capitals above the motto.' : k === 'website' ? 'Starts with https://' : k === 'brand_suffix' ? 'Shown after the name, e.g. GROUP or PLC.' : null))),
+  h('h2', { class: 'section' }, 'Colours'),
+  h('div', { class: 'toolbar' }, modeBtns, h('span', { class: 'spacer' }), resetAll),
+  warn, grid,
+  h('div', { class: 'grid' }, field('Font', font), h('div', { class: 'field' }, h('label', { for: radius.id }, 'Corner radius'), h('div', { class: 'inline' }, radius, radiusOut))),
+  can ? h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Save branding')) : h('p', { class: 'hint' }, 'Only a company-wide settings administrator (system administrator or security administrator) can change the branding.'));
+  const logoPanel = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Logo'),
+    h('p', { class: 'hint' }, 'PNG, JPEG or WebP, up to 10 MB, 16 to 20,000 pixels on each side. The server identifies the file by its content and keeps its SHA-256; SVG is refused because it can carry script.'),
+    can ? [field('Logo file', file), h('div', { class: 'actions' }, upBtn, rmBtn)] : null, logoInfo);
+  page('Brand & appearance', `How ${(S.company && S.company.display_name) || 'the company'} appears on the sign-in page and in the console. Version ${b.version || 0}${b.updated_by ? `, last changed by ${b.updated_by} ${when(b.updated_at)}` : ''}. Every change is recorded in the audit log.`,
+    h('div', { class: 'twocol brandcols' }, h('div', {}, logoPanel, form), h('div', { class: 'stick' }, h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Preview'),
+      h('p', { class: 'hint' }, 'What people will see, before you save. Switch the mode above to check the night colours.'), pv))));
+  draw();
+}
+
 // ---------- ask ----------
 const SUGGESTED = ['Which projects are over budget?', 'Which activities are behind schedule?', 'Which purchase orders have not been delivered?',
   'Which invoices are awaiting approval?', 'What is the cash requirement for the next 90 days?', 'Which projects have deteriorating margins?',
@@ -4306,7 +4691,7 @@ async function renderPeople(tab) {
     kpi(v.people.length - active.length, 'Disabled', true), kpi(active.filter((p) => p.conflicts.length).length, 'Holding conflicting duties', true),
     kpi(v.roles.filter((r) => r.kind === 'company' && r.status === 'ACTIVE').length, 'Company roles'));
 
-  const TABS = [['people', 'People', v.people.length], ['map', 'Dependency graph', null], ['roles', 'Roles', v.roles.filter((r) => r.status === 'ACTIVE').length], ['history', 'Access history', v.history.length]];
+  const TABS = [['people', 'People', v.people.length], ['signins', 'Sign-ins', null], ['map', 'Dependency graph', null], ['roles', 'Roles', v.roles.filter((r) => r.status === 'ACTIVE').length], ['history', 'Access history', v.history.length]];
   let cur = TABS.some(([k]) => k === tab) ? tab : 'people';
   const content = h('div', { role: 'tabpanel' });
   const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'People and access' });
@@ -4315,6 +4700,7 @@ async function renderPeople(tab) {
     for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
     history.replaceState(null, '', `#/people/${k}`);
     content.textContent = '';
+    if (k === 'signins') { signinsTab(v, nameOf).then((el) => content.append(el)); return; }
     content.append(k === 'map' ? dutyView(v, nameOf) : k === 'roles' ? rolesTab(v) : k === 'history' ? historyTab(v, nameOf) : peopleTab(v));
   };
   for (const [k, label, n] of TABS) {
@@ -4680,6 +5066,8 @@ async function personSheet(id) {
     parts.splice(1, 0, h('section', { class: 'panel' }, h('h3', {}, 'Change access'), field('Reason (kept in the access history)', reason, 'Every button on this sheet uses it.'),
       h('div', { class: 'actions' }, btns)));
   }
+  const signin = await loginSection(x, canEdit, nameOf);
+  if (signin) parts.push(signin);
   if (d.grant_history.length) {
     parts.push(h('section', {}, h('h3', {}, 'Role history'), h('ol', { class: 'timeline' }, d.grant_history.map((g) => h('li', {},
       h('div', {}, h('strong', {}, roleOf(g.role).name), g.revoked_at ? ' — removed' : ' — in force'),
@@ -7206,14 +7594,264 @@ async function renderMe() {
       h('button', { type: 'button', class: 'danger', on: { click: async () => {
         try { await api('POST', '/v1/identity/sessions/revoke', { subject: pr.user_id, reason: 'Signed out everywhere from my profile' }); signOut('You were signed out on every device.'); } catch (e) { showError(e); }
       } } }, 'Sign out everywhere')));
+  const security = await mySecurityPanel();
   page('My profile', 'Who you are in this company, what you may do and why, and what you did last.', hero, kpis,
-    h('div', { class: 'twocol' }, h('div', {}, roles, can, activity), h('div', {}, details, where, lent, exc, session)));
+    h('div', { class: 'twocol' }, h('div', {}, roles, can, activity), h('div', {}, details, security, where, lent, exc, session)));
 }
 function permGroupsFrom(infos) {
   const areas = new Map();
   for (const p of infos) { if (!areas.has(p.area)) areas.set(p.area, []); areas.get(p.area).push(p); }
   return h('div', { class: 'permgroups' }, [...areas.entries()].map(([a, list]) => h('div', { class: 'permgroup' }, h('h4', {}, a, h('span', { class: 'count' }, String(list.length))),
     h('ul', {}, list.map((p) => h('li', { class: `st-${p.stage}`, title: p.code }, h('span', { class: 'dot' }), p.label))))));
+}
+
+// ---------- e-mail + PIN sign-in: my security, administration (0095) ----------
+const LOGIN_OUTCOME = { SUCCESS: 'Signed in', WRONG_PIN: 'Wrong PIN', WRONG_CODE: 'Wrong authenticator code', CODE_REPLAYED: 'Authenticator code used twice',
+  LOCKED: 'Refused: locked', NOW_LOCKED: 'Locked after 15 failures', UNKNOWN_EMAIL: 'Unknown e-mail', DISABLED: 'Refused: sign-in disabled',
+  PIN_CHANGED: 'PIN changed', PIN_ISSUED: 'PIN issued by an administrator', UNLOCKED: 'Unlocked', AUTHENTICATOR_ON: 'Authenticator turned on',
+  AUTHENTICATOR_OFF: 'Authenticator turned off', AUTHENTICATOR_RESET: 'Authenticator reset by an administrator', LOGIN_DISABLED: 'Sign-in disabled', LOGIN_ENABLED: 'Sign-in enabled' };
+const outcomeChip = (o) => h('span', { class: `chip ${/SUCCESS|CHANGED|ISSUED|UNLOCKED|_ON$|ENABLED/.test(o) ? 'ok' : /WRONG|LOCK|UNKNOWN|DISABLED|REPLAYED/.test(o) ? 'bad' : 'info'}` }, LOGIN_OUTCOME[o] || words(o.toLowerCase()));
+function trailList(items, nameOf) {
+  return items.length ? h('ol', { class: 'timeline' }, items.map((e) => h('li', {}, h('div', {}, outcomeChip(e.outcome), ' ', e.email),
+    h('div', { class: 'when' }, `${when(e.at)} · ${ago(e.at)}${e.actor && e.actor !== e.user_id ? ` · by ${nameOf ? nameOf(e.actor) : e.actor}` : ''}`),
+    e.detail ? h('div', { class: 'why' }, `“${e.detail}”`) : null)))
+    : h('p', { class: 'hint' }, 'Nothing recorded yet.');
+}
+
+// My profile: change my PIN, turn the authenticator on or off, my trail.
+async function mySecurityPanel() {
+  let acct;
+  try { acct = await api('GET', '/v1/me/login'); } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Sign-in & security'),
+      h('p', { class: 'hint' }, 'You sign in through your organisation’s identity provider (or e-mail and PIN sign-in is not offered here): your password and second factor are managed there.'));
+    throw e;
+  }
+  const trail = await api('GET', `/v1/login-trail?user=${encodeURIComponent(S.me.user_id)}&limit=20`).then((r) => r.items).catch(() => []);
+  const panel = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Sign-in & security'));
+  panel.append(h('dl', { class: 'kv' }, h('dt', {}, 'E-mail'), h('dd', {}, acct.email),
+    h('dt', {}, 'PIN'), h('dd', {}, `set ${when(acct.pin_set_at)}${acct.pin_set_by && acct.pin_set_by !== S.me.user_id ? ' by an administrator' : ' by you'}`),
+    h('dt', {}, 'Authenticator'), h('dd', {}, acct.authenticator ? h('span', { class: 'chip ok' }, 'On — every sign-in asks for a code') : h('span', { class: 'chip warn' }, 'Off')),
+    h('dt', {}, 'Last sign-in'), h('dd', {}, acct.last_success_at ? `${when(acct.last_success_at)} (${ago(acct.last_success_at)})` : '—'),
+    h('dt', {}, 'Failed attempts'), h('dd', {}, `${acct.failed_attempts} of 15${acct.last_failure_at ? `, last ${ago(acct.last_failure_at)}` : ''}`)));
+  // Change PIN
+  const cur = pinBox('current_pin', 'Current PIN');
+  const nx = pinBox('new_pin', 'New PIN', { autocomplete: 'new-password' });
+  const nx2 = pinBox('new_pin_again', 'New PIN again', { autocomplete: 'new-password' });
+  panel.append(h('form', { class: 'subform', novalidate: true, on: { submit: async (ev) => {
+    ev.preventDefault(); clearError();
+    if (nx.el.value !== nx2.el.value) { showError(new ApiError(422, 'validation', 'The two new PINs differ.')); return; }
+    try { await api('POST', '/v1/me/pin', { current_pin: cur.el.value, new_pin: nx.el.value }); say('Your PIN was changed.'); await renderMe(); } catch (e) { showError(e); }
+  } } }, h('h3', {}, 'Change my PIN'), h('div', { class: 'grid' }, cur.f, nx.f, nx2.f),
+  h('p', { class: 'hint' }, 'Six digits; not a run (123456), a repeat (111111) or a pattern (121212).'),
+  h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'ghost' }, 'Change PIN'))));
+  // Authenticator
+  const auth = h('div', { class: 'subform' }, h('h3', {}, 'Authenticator app (optional)'),
+    h('p', { class: 'hint' }, 'With an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password …) each sign-in also asks for a 6-digit code. Approvals, payments, postings and access changes need a sign-in with the code.'));
+  if (acct.authenticator) {
+    const pin = pinBox('pin', 'Your PIN to turn it off');
+    auth.append(h('form', { novalidate: true, on: { submit: async (ev) => {
+      ev.preventDefault(); clearError();
+      try { await api('POST', '/v1/me/authenticator/off', { pin: pin.el.value }); say('Authenticator turned off.'); await renderMe(); } catch (e) { showError(e); }
+    } } }, pin.f, h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'danger' }, 'Turn off the authenticator'))));
+  } else {
+    const box = h('div');
+    auth.append(h('div', { class: 'actions' }, h('button', { type: 'button', on: { click: async () => {
+      clearError();
+      try {
+        const s = await api('POST', '/v1/me/authenticator/begin');
+        const code = input('code', { type: 'text', inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', autocomplete: 'one-time-code', placeholder: '000000' });
+        box.textContent = '';
+        box.append(h('ol', { class: 'steps' },
+          h('li', {}, 'In your authenticator app choose “add account” and “enter a setup key”.'),
+          h('li', {}, 'Enter this key (time-based, 6 digits, 30 seconds): ', h('code', { class: 'secret' }, s.secret.replace(/(.{4})/g, '$1 ').trim())),
+          h('li', {}, 'Or, where the app accepts a link, use: ', h('code', { class: 'secret uri' }, s.otpauth_uri)),
+          h('li', {}, 'Type the code the app now shows.')),
+        h('form', { novalidate: true, on: { submit: async (ev) => {
+          ev.preventDefault(); clearError();
+          try { await api('POST', '/v1/me/authenticator/confirm', { secret: s.secret, code: code.value }); say('Authenticator turned on. Sign in again with a code to approve and release.'); await renderMe(); } catch (e) { showError(e); }
+        } } }, field('Code from the app', code), h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Turn on'))));
+        code.focus();
+      } catch (e) { showError(e); }
+    } } }, 'Set up an authenticator')), box);
+  }
+  panel.append(auth, h('div', { class: 'subform' }, h('h3', {}, 'My recent sign-ins'), trailList(trail)));
+  return panel;
+}
+
+// People: a person's e-mail + PIN sign-in, for user administrators.
+async function loginSection(x, canEdit, nameOf) {
+  let acct = null;
+  try { acct = ((await api('GET', '/v1/logins')).items || []).find((a) => a.user_id === x.user_id) || null; } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null; // the deployment offers no PIN sign-in
+    return null;
+  }
+  const trail = acct ? await api('GET', `/v1/login-trail?user=${encodeURIComponent(x.user_id)}&limit=25`).then((r) => r.items).catch(() => []) : [];
+  const sec = h('section', {}, h('h3', {}, 'E-mail and PIN sign-in'));
+  const once = h('div', { 'aria-live': 'polite' });
+  if (acct) {
+    const locked = acct.locked_until && new Date(acct.locked_until) > new Date();
+    sec.append(h('dl', { class: 'kv' }, h('dt', {}, 'E-mail'), h('dd', {}, acct.email),
+      h('dt', {}, 'State'), h('dd', {}, acct.disabled ? chip('DISABLED') : locked ? h('span', { class: 'chip bad' }, `Locked until ${when(acct.locked_until)}`) : acct.must_change ? h('span', { class: 'chip warn' }, 'Must choose a PIN at first sign-in') : h('span', { class: 'chip ok' }, 'Active')),
+      h('dt', {}, 'Authenticator'), h('dd', {}, acct.authenticator ? 'on' : 'off'),
+      h('dt', {}, 'Failed attempts'), h('dd', {}, `${acct.failed_attempts} of 15`),
+      h('dt', {}, 'Last sign-in'), h('dd', {}, acct.last_success_at ? `${when(acct.last_success_at)} (${ago(acct.last_success_at)})` : 'never'),
+      h('dt', {}, 'PIN set'), h('dd', {}, `${when(acct.pin_set_at)} by ${nameOf(acct.pin_set_by)}`)));
+  } else sec.append(h('p', { class: 'hint' }, 'No e-mail and PIN sign-in yet.'));
+  if (canEdit && x.managed && x.status === 'ACTIVE') {
+    const email = input('login_email', { type: 'email', maxlength: '254', value: (acct && acct.email) || x.email || '', autocomplete: 'off' });
+    const reason = reasonInput('Why? For example: locked out after a holiday, HR ticket 52');
+    const run = (fn, done) => async () => {
+      clearError(); once.textContent = '';
+      try { const r = await fn(); if (done) done(r); else { say('Saved.'); await personSheet(x.user_id); } } catch (e) { sheetError(sec, e); }
+    };
+    const issue = h('button', { type: 'button', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login`, { email: email.value.trim() }), (r) => {
+      once.append(h('div', { class: 'callout ok pinonce' }, h('strong', {}, 'One-time PIN: '), h('code', { class: 'secret' }, r.pin),
+        h('p', {}, `Give it to ${personName(x)} in person or by phone; it is shown only now and never stored readable. At the first sign-in they must choose their own PIN.`)));
+      say('Sign-in issued.');
+    }) } }, acct ? 'Issue a new one-time PIN' : 'Issue sign-in');
+    const btns = [issue];
+    if (acct) {
+      if (acct.failed_attempts || acct.locked_until) btns.push(h('button', { type: 'button', class: 'ghost', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login/unlock`, { reason: reason.value.trim() })) } }, 'Unlock'));
+      if (acct.authenticator) btns.push(h('button', { type: 'button', class: 'ghost', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login/reset-authenticator`, { reason: needReason(reason) })) } }, 'Reset authenticator'));
+      btns.push(acct.disabled
+        ? h('button', { type: 'button', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login/enable`, { reason: reason.value.trim() })) } }, 'Enable sign-in')
+        : h('button', { type: 'button', class: 'danger', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login/disable`, { reason: needReason(reason) })) } }, 'Disable sign-in'));
+    }
+    sec.append(h('div', { class: 'grid' }, field('Sign-in e-mail', email), field('Reason (kept in the sign-in trail)', reason, 'Needed to disable or reset the authenticator.')),
+      h('div', { class: 'actions' }, btns), once,
+      h('p', { class: 'hint' }, 'Issuing, unlocking and resetting need your own sign-in with an authenticator code within the last 10 minutes. You cannot change your own sign-in here.'));
+  }
+  if (acct) sec.append(h('h4', {}, 'Sign-in trail'), trailList(trail, nameOf));
+  return sec;
+}
+
+// People › Sign-ins: everyone's sign-in state at a glance.
+async function signinsTab(v, nameOf) {
+  const box = h('div', {}, h('p', { class: 'hint' }, 'Loading…'));
+  (async () => {
+    let items;
+    try { items = (await api('GET', '/v1/logins')).items || []; } catch (e) {
+      box.textContent = '';
+      box.append(h('p', { class: 'empty panel' }, e instanceof ApiError && e.status === 404 ? 'This deployment does not offer e-mail and PIN sign-in.' : e.message));
+      return;
+    }
+    const trail = await api('GET', '/v1/login-trail?limit=100').then((r) => r.items).catch(() => []);
+    const locked = items.filter((a) => a.locked_until && new Date(a.locked_until) > new Date());
+    const kpi = (n, k, w) => h('div', { class: `kpi${w && n ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(n)), h('div', { class: 'k' }, k));
+    box.textContent = '';
+    box.append(h('div', { class: 'kpis' }, kpi(items.length, 'People with a sign-in'), kpi(items.filter((a) => a.authenticator).length, 'With an authenticator'),
+      kpi(items.filter((a) => a.must_change).length, 'Not yet signed in'), kpi(locked.length, 'Locked now', true), kpi(items.filter((a) => a.disabled).length, 'Disabled', true),
+      kpi(v.people.filter((p) => p.status === 'ACTIVE' && !items.some((a) => a.user_id === p.user_id)).length, 'Active people without one')),
+    table(`${items.length} sign-ins`, [
+      { label: 'Person', cell: (a) => h('button', { type: 'button', class: 'linkbtn', on: { click: () => personSheet(a.user_id) } }, nameOf(a.user_id)) },
+      { label: 'E-mail', cell: (a) => a.email },
+      { label: 'State', cell: (a) => (a.disabled ? chip('DISABLED') : a.locked_until && new Date(a.locked_until) > new Date() ? h('span', { class: 'chip bad' }, 'Locked') : a.must_change ? h('span', { class: 'chip warn' }, 'First sign-in pending') : h('span', { class: 'chip ok' }, 'Active')) },
+      { label: 'Authenticator', cell: (a) => (a.authenticator ? 'on' : 'off') },
+      { label: 'Failures', num: true, cell: (a) => String(a.failed_attempts) },
+      { label: 'Last sign-in', cell: (a) => (a.last_success_at ? ago(a.last_success_at) : 'never') },
+    ], items, 'Nobody has an e-mail and PIN sign-in yet. Open a person to issue one.'),
+    h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Recent sign-in activity'), trailList(trail, nameOf)));
+  })();
+  return box;
+}
+
+// ---------- workflow map with authorities ----------
+// Every document workflow of the console (DOCS), step by step, with the
+// roles that may take each step: product roles from the role catalogue and,
+// for people who may read the directory, the company's own roles. Amount
+// bands come from the authority matrix in force; controls that keep two
+// steps apart come from the duty-conflict catalogue. Read-only: it shows
+// the rules the server enforces, it changes nothing.
+const STEP_WORD = { create: 'Prepare', submit: 'Submit', approve: 'Approve', reject: 'Reject', release: 'Release', post: 'Post', cancel: 'Cancel', issue: 'Issue',
+  award: 'Award', certify: 'Certify', confirm: 'Confirm', close: 'Close', activate: 'Activate', settle: 'Settle', receive: 'Receive' };
+async function renderWorkflows(focus) {
+  await loadRoles();
+  let company = [];
+  let controls = [];
+  const names = {};
+  if (['user.manage', 'role.manage', 'audit.read'].some((p) => S.can.has(p))) {
+    try {
+      const pv = await api('GET', '/v1/people');
+      company = pv.roles.filter((r) => r.kind === 'company' && r.status === 'ACTIVE');
+      controls = pv.controls || [];
+      for (const r of pv.roles) names[r.code] = r.name;
+    } catch { /* product roles only */ }
+  }
+  const roleName = (c) => names[c] || words(c);
+  let matrix = null;
+  try { matrix = (await api('GET', '/v1/authority/matrix')).matrix; } catch { /* not readable */ }
+  const holders = (perm) => {
+    const out = Object.entries(ROLES || {}).filter(([, ps]) => ps.includes(perm)).map(([code]) => ({ code, name: roleName(code), company: false }));
+    for (const r of company) if (r.permissions.includes(perm)) out.push({ code: r.code, name: r.name, company: true });
+    return out;
+  };
+  const groupOf = (type) => { for (const [g, items] of NAV) if (items.some(([href]) => href === `#/list/${type}` || href.startsWith(`#/list/${type}/`))) return g; return 'Other'; };
+  const flows = Object.entries(DOCS).filter(([, d]) => d.actions && Object.keys(d.actions).length).map(([type, d]) => {
+    const steps = [];
+    if (d.create) steps.push({ verb: 'create', perm: d.create, from: null });
+    for (const [st, acts] of Object.entries(d.actions)) for (const [verb, perm, why] of acts) steps.push({ verb, perm, from: st, why });
+    return { type, d, steps, group: groupOf(type) };
+  });
+  const roleFilter = h('select', { name: 'role', 'aria-label': 'Show the steps of a role' }, h('option', { value: '' }, 'Every role'),
+    h('optgroup', { label: 'Product roles' }, Object.keys(ROLES || {}).sort().map((c) => h('option', { value: c }, roleName(c)))),
+    company.length ? h('optgroup', { label: 'Company roles' }, company.map((r) => h('option', { value: r.code }, r.name))) : null);
+  const find = h('input', { type: 'search', class: 'findbox', placeholder: 'Find a workflow', 'aria-label': 'Find a workflow', autocomplete: 'off' });
+  const groups = [...new Set(flows.map((f) => f.group))];
+  const area = select('area', [{ value: '', label: 'Every area' }, ...groups.map((g) => ({ value: g, label: g }))], { 'aria-label': 'Area' });
+  if (focus && groups.includes(decodeURIComponent(focus))) area.value = decodeURIComponent(focus);
+  const out = h('div');
+  const conflictOf = (a, b) => controls.find((c) => c.Perms && c.Perms.includes(a) && c.Perms.includes(b));
+  const draw = () => {
+    out.textContent = '';
+    const q = find.value.trim().toLowerCase();
+    const rf = roleFilter.value;
+    const rperms = rf ? new Set(rf.startsWith('custom:') ? (company.find((r) => r.code === rf) || { permissions: [] }).permissions : (ROLES[rf] || [])) : null;
+    let n = 0;
+    for (const g of groups) {
+      if (area.value && area.value !== g) continue;
+      const list = flows.filter((f) => f.group === g && (!q || `${f.d.title} ${f.d.one}`.toLowerCase().includes(q)) && (!rperms || f.steps.some((s) => rperms.has(s.perm))));
+      if (!list.length) continue;
+      out.append(h('h2', { class: 'section' }, g));
+      for (const f of list) {
+        n++;
+        const bands = matrix && matrix.rules ? matrix.rules.filter((r) => r.doc_type === f.type) : [];
+        const approver = f.steps.find((s) => s.verb === 'approve');
+        const preparer = f.steps.find((s) => s.verb === 'create' || s.verb === 'submit');
+        const kept = approver && preparer ? conflictOf(preparer.perm, approver.perm) : null;
+        out.append(h('article', { class: 'flowcard' },
+          h('header', {}, h('h3', {}, h('a', { href: `#/list/${f.type}` }, f.d.title)), h('div', { class: 'flowstates' }, (f.d.statuses || []).map((s) => chip(s)))),
+          h('ol', { class: 'flowsteps' }, f.steps.map((s) => {
+            const who = holders(s.perm);
+            const mine = rperms && rperms.has(s.perm);
+            return h('li', { class: `flowstep v-${s.verb}${mine ? ' mine' : ''}${rperms && !mine ? ' dim' : ''}` },
+              h('div', { class: 'fsh' }, h('strong', {}, STEP_WORD[s.verb] || words(s.verb)), s.from ? h('span', { class: 'from' }, `from ${words(s.from.toLowerCase())}`) : h('span', { class: 'from' }, 'new record'),
+                s.why === 'req' ? h('span', { class: 'chip warn' }, 'reason required') : null),
+              h('div', { class: 'perm' }, h('code', {}, s.perm), S.can.has(s.perm) ? h('span', { class: 'chip ok' }, 'you may') : null),
+              who.length ? h('div', { class: 'rolechips' }, who.map((r) => h('span', { class: `rolechip${r.company ? ' company' : ''}` }, r.name)))
+                : h('p', { class: 'hint' }, 'No role holds this permission yet.'));
+          })),
+          kept ? h('p', { class: 'callout' }, h('strong', {}, 'Kept apart: '), `the person who prepares cannot approve (${kept.Control}). The server refuses it, whatever roles they hold.`) : null,
+          bands.length ? table('Approval authority by amount (matrix in force)', [
+            { label: 'From', num: true, cell: (r) => money(r.min_amount) },
+            { label: 'Below', num: true, cell: (r) => (r.max_amount ? money(r.max_amount) : 'no limit') },
+            { label: 'Currency', cell: (r) => r.currency },
+            { label: 'Approver needs', cell: (r) => h('span', {}, h('code', {}, r.required_perm), ' — ', holders(r.required_perm).map((x) => x.name).join(', ') || 'no role') },
+            { label: 'Fresh second factor', cell: (r) => (r.requires_mfa ? 'yes' : '') },
+          ], bands) : null));
+      }
+    }
+    if (!n) out.append(h('p', { class: 'empty panel' }, 'No workflow matches.'));
+  };
+  find.addEventListener('input', draw);
+  roleFilter.addEventListener('change', draw);
+  area.addEventListener('change', draw);
+  const legend = h('div', { class: 'panel flowlegend' }, h('p', {}, 'Each card is one kind of record. Its steps run left to right; under each step are the roles that may take it. ',
+    'Every step is also checked by the server for project scope, separation of duties, amount limits and, for approvals, payments and postings, a sign-in with a second factor in the last 10 minutes. ',
+    matrix ? `Amount bands come from authority matrix version ${matrix.version}.` : 'No authority matrix is readable for you, so amount bands are not shown.',
+    company.length ? '' : ' Company roles appear for people who may read the directory.'));
+  page('Workflow map', 'Who prepares, approves and releases each kind of record, with the authority limits in force.', legend,
+    h('div', { class: 'toolbar' }, find, area, roleFilter), out);
+  draw();
 }
 
 // ---------- theme: day (green on cream) / night (cream on green) ----------
@@ -7245,9 +7883,10 @@ function paintThemeButton() {
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable */ }
     paintThemeButton();
+    if (BRAND) paintTokens(document.documentElement, BRAND.theme, next);
     say(next === 'dark' ? 'Night theme' : 'Day theme');
   });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintThemeButton);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { paintThemeButton(); if (BRAND) paintTokens(document.documentElement, BRAND.theme, isNight() ? 'dark' : 'light'); });
 }());
 
 // ---------- boot ----------

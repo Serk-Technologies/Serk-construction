@@ -61,6 +61,7 @@ internal/httpapi TestProblemDetailsRFC9457
 internal/httpapi TestListCursorPagination
 internal/kernel TestWorkforce_TimesheetsAndHSE
 internal/httpapi TestConsoleBrowserField
+internal/httpapi TestConsoleBrowserSignin
 internal/kernel TestDocflow_TransmittalsAndSubmittals
 pkg/ethcal TestEthiopianCalendarRoundTrip
 internal/kernel TestFleet_ChargeOut

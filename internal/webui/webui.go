@@ -18,7 +18,7 @@ var files embed.FS
 
 // CSP for the console: same-origin scripts, styles and API calls only; no
 // inline script or style, no framing, no plugins, no form posts elsewhere.
-const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; " +
+const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; " +
 	"font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
 var types = map[string]string{
