@@ -24,6 +24,7 @@ import (
 //     must recognise them;
 //   - supplier bank accounts: tenant-wide scope, or supplier.manage (the
 //     procurement officers who enter them); always masked;
+//   - the resource rate library (0094): boq.manage or boq.approve holders;
 //   - entity-level finance documents (payment instructions, P2P and contract
 //     policies, company bank accounts, customer receipts, money-in statement
 //     lines) and anything not listed: tenant-wide scope only.
@@ -41,10 +42,13 @@ func (s *Service) canSee(p auth.Principal, docType, project string) bool {
 		return true
 	}
 	switch docType {
-	case "supplier", "customer", "stock_item", "uom_conversion", "price_index_value", "equipment", "equipment_operator_auth":
+	case "supplier", "customer", "stock_item", "uom_conversion", "price_index_value", "equipment", "equipment_operator_auth", "fleet_policy", "equipment_charge_rate":
 		return true
 	case "supplier_bank_account":
 		return s.authz.Has(p, auth.PermSupplierManage)
+	case "resource_rate":
+		// 0094: the rate library is commercial: those who price and approve BOQs.
+		return s.authz.Has(p, auth.PermBOQManage) || s.authz.Has(p, auth.PermBOQApprove)
 	case "authority_matrix", "sod_exception":
 		return s.authz.Has(p, auth.PermAuthorityManage) || s.authz.Has(p, auth.PermAuthorityApprove)
 	case "delegation":
@@ -180,6 +184,8 @@ func maskedAccountOf(ctx context.Context, tx pgx.Tx, docType, id string) (string
 		q = `SELECT COALESCE(account_last4, right(account_number, 4), '') FROM company_bank_accounts WHERE id = $1::uuid`
 	case "payment_instruction":
 		q = `SELECT COALESCE(b.account_last4, right(b.account_number, 4), '') FROM payment_instructions p JOIN supplier_bank_accounts b ON b.id = p.supplier_bank_id WHERE p.id = $1::uuid`
+	case "subcontract_payment":
+		q = `SELECT COALESCE(b.account_last4, right(b.account_number, 4), '') FROM subcontract_payments p JOIN supplier_bank_accounts b ON b.id = p.supplier_bank_id WHERE p.id = $1::uuid`
 	default:
 		return "", nil
 	}
@@ -210,6 +216,17 @@ func projectDoc(docType string, raw json.RawMessage, masked string) (json.RawMes
 		h, _ := m["h"].(map[string]any)
 		payee, _ := m["payee"].(map[string]any)
 		out := map[string]any{"h": pick(h, paymentFields), "alloc": m["alloc"]}
+		if payee != nil {
+			pe := pick(payee, bankAccountFields["supplier_bank_account"])
+			pe["account_number_masked"] = masked
+			out["payee"] = pe
+		}
+		v = out
+	case docType == "subcontract_payment" && m != nil:
+		// 0056: the header and allocations as stored; the payee as the masked
+		// projection of an approved bank account.
+		payee, _ := m["payee"].(map[string]any)
+		out := map[string]any{"h": scrub(m["h"]), "alloc": m["alloc"]}
 		if payee != nil {
 			pe := pick(payee, bankAccountFields["supplier_bank_account"])
 			pe["account_number_masked"] = masked

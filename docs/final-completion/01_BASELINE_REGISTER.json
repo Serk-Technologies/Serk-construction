@@ -1,0 +1,1738 @@
+{
+ "frozen_at_commit": "dd0e9bc055176e84f6edc2fe741f6c40369f4464",
+ "frozen_on": "2026-11-15",
+ "rule": "Never edited. tools/final_completion.py --check fails if any of these IDs disappears or changes meaning.",
+ "domains": 80,
+ "requirement_count": 196,
+ "status_counts": {
+  "VERIFIED": 101,
+  "NOT_STARTED": 76,
+  "IMPLEMENTING": 9,
+  "BLOCKED": 9,
+  "IMPLEMENTED_UNVERIFIED": 1
+ },
+ "requirements": [
+  {
+   "id": "CMD-01.1",
+   "domain": "CMD-01",
+   "text": "A tenant's data is reachable only through that tenant's database login and row-level security",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSC04_CompromisedTenantCredentialCannotReachOtherTenant",
+    "TestTenantIsolation",
+    "TestPrivileges_OwnerMaintenancePolicyEverywhere"
+   ]
+  },
+  {
+   "id": "CMD-01.2",
+   "domain": "CMD-01",
+   "text": "Legal entities, regions and business units are master data with roll-ups",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestOrg_MasterDataRegionsAndRollups"
+   ]
+  },
+  {
+   "id": "CMD-01.3",
+   "domain": "CMD-01",
+   "text": "Group → entity → book/branch hierarchy with effective-dated joint-venture and intercompany relationships",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CMD-02.1",
+   "domain": "CMD-02",
+   "text": "A project moves through phases only by an approved stage gate (maker/checker, fresh MFA)",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestOrg_ProjectLifecycleThroughGates"
+   ]
+  },
+  {
+   "id": "CMD-02.2",
+   "domain": "CMD-02",
+   "text": "Portfolio roll-up across projects and entities with FX as-of rates (no naive sum of currencies)",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CMD-03.1",
+   "domain": "CMD-03",
+   "text": "Programs group projects with a dependency graph and investment gates",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CMD-04.1",
+   "domain": "CMD-04",
+   "text": "Rule-based risk assessments are recorded as snapshots with their inputs",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestPlatform_IntelligenceAndAssistant"
+   ]
+  },
+  {
+   "id": "CMD-04.2",
+   "domain": "CMD-04",
+   "text": "OKRs, decision log and risk register with owners and due dates",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CMD-05.1",
+   "domain": "CMD-05",
+   "text": "Every dashboard tile equals the report it drills into; the KPI catalogue documents formula and source",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDashboard_TilesEqualTheirReports",
+    "TestDashboard_ScopeAndPermissions",
+    "TestKPICatalogueDocumentIsCurrent"
+   ]
+  },
+  {
+   "id": "CMD-05.2",
+   "domain": "CMD-05",
+   "text": "13-week cash projection separating certified, billed and collected amounts",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  },
+  {
+   "id": "CMD-05.3",
+   "domain": "CMD-05",
+   "text": "Daily exception digest by e-mail or Telegram",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "EST-01.1",
+   "domain": "EST-01",
+   "text": "Lead and opportunity pipeline",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "EST-02.1",
+   "domain": "EST-02",
+   "text": "Feasibility and discounted cash-flow scenarios with documented assumptions",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "EST-03.1",
+   "domain": "EST-03",
+   "text": "Land and permit records",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "EST-04.1",
+   "domain": "EST-04",
+   "text": "Tender calendar, confidential bid room, eligibility checklist, bid approval and submission record",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "EST-05.1",
+   "domain": "EST-05",
+   "text": "BOQ versions are approved by a second person; the approved version supersedes the previous one and is never overwritten",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_BOQToBankReconciliationToGL",
+    "TestJourneyA_SegregationOfDutiesAndBudget"
+   ]
+  },
+  {
+   "id": "EST-05.2",
+   "domain": "EST-05",
+   "text": "Spreadsheet import is staged, reviewed and committed explicitly, with row errors reported",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestImports_StageReviewCommit"
+   ]
+  },
+  {
+   "id": "EST-05.3",
+   "domain": "EST-05",
+   "text": "PDF and IFC take-off arrive as reviewed suggestions, never as authoritative quantities",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "EST-06.1",
+   "domain": "EST-06",
+   "text": "Rate build-up: resources × rates + overhead, contingency and escalation; selling rate = full cost / (1 − margin); markup kept distinct",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "EST-06.2",
+   "domain": "EST-06",
+   "text": "Every rate carries source, region, currency, FX date, validity and approval; rates freeze at bid submission",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "EST-07.1",
+   "domain": "EST-07",
+   "text": "Bid scenarios and comparison of estimate against actual historical rates",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-01.1",
+   "domain": "PLB-01",
+   "text": "Original, revised and current budget; revisions and transfers need a second person and cannot overspend under concurrency",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestBudget_ArithmeticAndControls",
+    "TestBudget_DatabaseRefusesBypass",
+    "TestBudget_ConcurrentTransfersCannotOverspend"
+   ]
+  },
+  {
+   "id": "PLB-01.2",
+   "domain": "PLB-01",
+   "text": "Available budget is checked when a commitment is approved; consumed commitments are not counted twice",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_OverBudgetHighValuePOEscalation",
+    "TestR7_BudgetDoubleCount",
+    "TestR8_BudgetNettingByCount"
+   ]
+  },
+  {
+   "id": "PLB-02.1",
+   "domain": "PLB-02",
+   "text": "CPM with FS/SS/FF/SF links, lags and calendars; cycles and invalid networks are refused",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestCPMTextbook",
+    "TestCPMLinkTypesAndLags",
+    "TestCPMRefusesInvalidNetworks",
+    "TestCalendarSixDayWeekWithHoliday"
+   ]
+  },
+  {
+   "id": "PLB-02.2",
+   "domain": "PLB-02",
+   "text": "Approved baselines, progress at a status date and earned value; undefined ratios are null, not zero",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestScheduleBaselineProgressEVM",
+    "TestComputeAndZeroDenominatorPolicy",
+    "TestR9_ScheduleEVMHand"
+   ]
+  },
+  {
+   "id": "PLB-02.3",
+   "domain": "PLB-02",
+   "text": "Monte Carlo delay forecast (P50/P80) with reproducible seeds and stated distributions",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-02.4",
+   "domain": "PLB-02",
+   "text": "Look-ahead and Last Planner constraint tracking",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-03.1",
+   "domain": "PLB-03",
+   "text": "Resource- and cost-loaded schedules; levelling proposals never alter an approved schedule silently",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-04.1",
+   "domain": "PLB-04",
+   "text": "Project risk register with quantified exposure feeding contingency",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-05.1",
+   "domain": "PLB-05",
+   "text": "Work packages released only with approved drawings, permits, ITP, resources and predecessor acceptance",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-06.1",
+   "domain": "PLB-06",
+   "text": "Daily site diaries (labour, equipment, notes) are versioned, approved by a project manager and corrected, never overwritten",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestOffline_DiaryLifecycleOnline",
+    "TestSync_APIDeviceDiaryApproval",
+    "TestOffline_DatabaseRules"
+   ]
+  },
+  {
+   "id": "PLB-06.2",
+   "domain": "PLB-06",
+   "text": "Photographs, weather, delays and instructions on the daily report",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-07.1",
+   "domain": "PLB-07",
+   "text": "Measurements are prepared by one person and verified by another; certified quantity cannot be counted twice",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_ContractToCashToGL",
+    "TestR6_15_ConcurrentMeasurementVerification",
+    "TestCreditQuantityCorrection_NoDoubleDeduction"
+   ]
+  },
+  {
+   "id": "PLB-07.2",
+   "domain": "PLB-07",
+   "text": "Measurement book lines carry method, chainage/location, drawing revision, dimensions and evidence",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-08.1",
+   "domain": "PLB-08",
+   "text": "Progress reports against the approved baseline are approved before they count",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestR9_ScheduleProgressAndRaw"
+   ]
+  },
+  {
+   "id": "PLB-08.2",
+   "domain": "PLB-08",
+   "text": "Installed, measured, certified, billed and collected quantities are reported side by side",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  },
+  {
+   "id": "PLB-09.1",
+   "domain": "PLB-09",
+   "text": "Engineering deliverables register linked to RFIs and submittals",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "DSN-01.1",
+   "domain": "DSN-01",
+   "text": "IFC import in an isolated parser; object identity by model revision + GlobalId; mapping to BOQ/WBS",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "DSN-02.1",
+   "domain": "DSN-02",
+   "text": "Installed-asset records with measured/estimated/reported/certified data classes",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "DSN-03.1",
+   "domain": "DSN-03",
+   "text": "PostGIS spatial objects with explicit coordinate reference system and chainage",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "SUP-01.1",
+   "domain": "SUP-01",
+   "text": "Reorder rules flag items below their level",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestStockPlus_ReservationsIssuesAndReorder"
+   ]
+  },
+  {
+   "id": "SUP-01.2",
+   "domain": "SUP-01",
+   "text": "Material demand generated from schedule and BOQ, netted against stock",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "SUP-02.1",
+   "domain": "SUP-02",
+   "text": "Requisition → RFQ → award → purchase order → goods receipt → three-way match → payment, reconciled to the ledger",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_BOQToBankReconciliationToGL",
+    "TestAPIJourneyA_EndToEnd"
+   ]
+  },
+  {
+   "id": "SUP-02.2",
+   "domain": "SUP-02",
+   "text": "No self-approval, no split-order bypass; authority limits apply to purchase orders",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_SegregationOfDutiesAndBudget",
+    "TestJourneyA_ProcurementRules",
+    "TestAuthority_MatrixLimitsPurchaseOrders"
+   ]
+  },
+  {
+   "id": "SUP-02.3",
+   "domain": "SUP-02",
+   "text": "Receipt and matching tolerances; duplicate supplier invoices are refused",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_ReceiptAndMatchingControls"
+   ]
+  },
+  {
+   "id": "SUP-03.1",
+   "domain": "SUP-03",
+   "text": "Supplier bank details are dual-controlled, masked, encrypted at rest and revealed only with MFA and a purpose",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestBankAtRest_CiphertextOnlyInTheDatabase",
+    "TestIA04001_PrivilegedRevealIsPermissionedFreshAndAudited",
+    "TestR5_02_MaskingAcrossAllDetailTypesAndStores"
+   ]
+  },
+  {
+   "id": "SUP-03.2",
+   "domain": "SUP-03",
+   "text": "Supplier-level exposure triggers dual payment approval",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSupplierExposureNeedsDualApproval",
+    "TestSupplierExposureWindowAndConcurrency"
+   ]
+  },
+  {
+   "id": "SUP-03.3",
+   "domain": "SUP-03",
+   "text": "Supplier qualification, conflict disclosure and performance scoring",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "SUP-04.1",
+   "domain": "SUP-04",
+   "text": "Subcontracts: scope/BOQ, security, measured work, retention, deductions",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "SUP-05.1",
+   "domain": "SUP-05",
+   "text": "Stock quantity and value move together (FIFO or weighted average) and reconcile to the inventory account",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyC_StockValuationToGL",
+    "TestR7_FIFOManyLayersSmallIssues",
+    "TestR7_WACFractionalToZero",
+    "TestAPIJourneyC_StockValuation"
+   ]
+  },
+  {
+   "id": "SUP-05.2",
+   "domain": "SUP-05",
+   "text": "Stock cannot go negative, including by raw SQL and under concurrent movements",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyC_Controls",
+    "TestR8_RawSQL_Stock",
+    "TestR7_ConcurrentPutAwayAndCount",
+    "TestR10_StockStateTenantWrites"
+   ]
+  },
+  {
+   "id": "SUP-05.3",
+   "domain": "SUP-05",
+   "text": "Reservations reduce what can be issued",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestStockPlus_ReservationsIssuesAndReorder"
+   ]
+  },
+  {
+   "id": "SUP-05.4",
+   "domain": "SUP-05",
+   "text": "Returns, scrap and quarantine",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "SUP-06.1",
+   "domain": "SUP-06",
+   "text": "Transfers between warehouses pass through in-transit and leave no value residue",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyC_StockTransfer",
+    "TestR8_TransferLifecycleAndRaces",
+    "TestR8_TransferFractionalNoResidue"
+   ]
+  },
+  {
+   "id": "SUP-06.2",
+   "domain": "SUP-06",
+   "text": "Bins, lots/batches and serial numbers",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "SUP-07.1",
+   "domain": "SUP-07",
+   "text": "Delivery tracking, haulage and inland logistics",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "SUP-08.1",
+   "domain": "SUP-08",
+   "text": "Import file: pro forma, LC, customs, freight and landed-cost allocation by a documented basis",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "SUP-09.1",
+   "domain": "SUP-09",
+   "text": "Unit conversions are approved data; incompatible conversions are refused",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestStockPlus_ConversionsAreControlled"
+   ]
+  },
+  {
+   "id": "SUP-09.2",
+   "domain": "SUP-09",
+   "text": "BOQ theoretical quantity against actual issues and installation (waste)",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-01.1",
+   "domain": "FLT-01",
+   "text": "Asset register, assignment, utilisation and monotonic meter readings",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_RegisterAndLifecycle",
+    "TestFleet_DailyLogsAndMeter",
+    "TestAPIFleet"
+   ]
+  },
+  {
+   "id": "FLT-01.2",
+   "domain": "FLT-01",
+   "text": "A fourteen-state lifecycle enforced identically in Go and in the database; every move is an attested human decision with a reason; history is written by the database and cannot be edited",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_StateMachineGoAndSQLAgree",
+    "TestLifecycleRules",
+    "TestFleet_RegisterAndLifecycle"
+   ]
+  },
+  {
+   "id": "FLT-01.3",
+   "domain": "FLT-01",
+   "text": "Equipment on safety hold, broken down, under maintenance or under inspection cannot be put to work or reserved, and returns to service only through a certifier with fresh MFA",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_RegisterAndLifecycle",
+    "TestLifecycleRules",
+    "TestAPIFleet",
+    "TestConsoleBrowserFleet"
+   ]
+  },
+  {
+   "id": "FLT-01.4",
+   "domain": "FLT-01",
+   "text": "Approved reservations of one machine never overlap, also under concurrent approval; a machine reaches a project only through that project's approved reservation",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_ReservationsNeverDoubleBook",
+    "TestFleet_RegisterAndLifecycle",
+    "TestAPIFleet"
+   ]
+  },
+  {
+   "id": "FLT-01.5",
+   "domain": "FLT-01",
+   "text": "Daily logs: one per machine, day and shift; an authorised operator; hours fit the meter and the day; the machine is at the project; approved by a second person; an offline repeat is recorded once",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_DailyLogsAndMeter",
+    "TestAPIFleet"
+   ]
+  },
+  {
+   "id": "FLT-01.6",
+   "domain": "FLT-01",
+   "text": "A meter never runs backwards and moves only through an approved log or an approved, two-person meter reset; replacement and rollover are recorded",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_DailyLogsAndMeter"
+   ]
+  },
+  {
+   "id": "FLT-01.7",
+   "domain": "FLT-01",
+   "text": "Fleet data is invisible to other tenants; project hours are visible only inside the project scope; the register pages by cursor",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_TenantIsolationAndPaging",
+    "TestFleet_DailyLogsAndMeter",
+    "TestAPIFleet"
+   ]
+  },
+  {
+   "id": "FLT-01.8",
+   "domain": "FLT-01",
+   "text": "Fleet Command Centre figures (counts by state, hours, utilization, availability, fuel per hour) equal the register and the approved logs; a ratio with no data is absent, not zero",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_DailyLogsAndMeter",
+    "TestHoursRatios",
+    "TestConsoleBrowserFleet"
+   ]
+  },
+  {
+   "id": "FLT-01.9",
+   "domain": "FLT-01",
+   "text": "Work-package assignment, capacity planning, cross-project requests, availability forecasting, rental agreements, standby periods",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-01.10",
+   "domain": "FLT-01",
+   "text": "Attachments, equipment documents and photographs, fixed-asset linkage, warranty and insurance expiry alerts",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-01.11",
+   "domain": "FLT-01",
+   "text": "Daily logs captured offline through the field device command log",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-01.12",
+   "domain": "FLT-01",
+   "text": "Telematics ingestion (GPS, engine hours, fuel level) with authenticated devices and replay protection, stored apart from accounting data",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-01.13",
+   "domain": "FLT-01",
+   "text": "Deterministic allocation and transfer recommendations with explainable constraints",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-01.14",
+   "domain": "FLT-01",
+   "text": "Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-02.1",
+   "domain": "FLT-02",
+   "text": "Fuel issues linked to asset, operator, meter and stock movement; variance review",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-02.2",
+   "domain": "FLT-02",
+   "text": "Fuel is ordinary stock: a dispense is a stock issue of a designated fuel item, prepared with the machine, meter reading and operator, and takes effect (tank quantity, value, journal, project cost) only when a second person approves the issue; there is no second fuel ledger",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFuel_DispenseIsAStockIssue",
+    "TestAPIFuel"
+   ]
+  },
+  {
+   "id": "FLT-02.3",
+   "domain": "FLT-02",
+   "text": "A dispense is refused for an item not designated as fuel, a machine not at the project, a meter reading behind the last approved one, or more than the tank holds; an offline retry records once; a tenant database login cannot write or alter a dispense around the kernel",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFuel_DispenseIsAStockIssue"
+   ]
+  },
+  {
+   "id": "FLT-02.4",
+   "domain": "FLT-02",
+   "text": "Fuel items and fuel standards (litres per metered unit, effective-dated, append-only) are set only by a person with fleet.approve, attested",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFuel_DispenseIsAStockIssue",
+    "TestFuel_StandardsAndReconciliation",
+    "TestAPIFuel"
+   ]
+  },
+  {
+   "id": "FLT-02.5",
+   "domain": "FLT-02",
+   "text": "Per machine and period, dispensed, logged and expected fuel are compared and differences beyond a stated threshold are listed with both figures, in the API and the console, limited to the reader's projects",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFuel_StandardsAndReconciliation",
+    "TestFuelFlags",
+    "TestAPIFuel",
+    "TestConsoleBrowserFleet"
+   ]
+  },
+  {
+   "id": "FLT-02.6",
+   "domain": "FLT-02",
+   "text": "Recorded investigation and approved closure of a fuel variance; tank dip readings reconciled to the stock ledger; fuel sensors (telematics)",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-02.7",
+   "domain": "FLT-02",
+   "text": "The thresholds for listing a fuel difference and for a service being due soon are an approved, versioned, effective-dated fleet policy (prepared by fleet.manage, approved by another person with fleet.approve and a fresh second factor); reports name the policy applied, and say so when only engineering defaults exist",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleetPolicy_ApprovedThresholdsApply",
+    "TestAPIMaintenance",
+    "TestFuelFlags",
+    "TestDueState"
+   ]
+  },
+  {
+   "id": "FLT-02.8",
+   "domain": "FLT-02",
+   "text": "Expected fuel for a period that spans several effective-dated standards is the sum of each approved log's metered units at the standard in force on that log's date; days logged with no standard in force predict nothing and are reported",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestFleetPolicy_ApprovedThresholdsApply",
+    "TestFuel_StandardsAndReconciliation",
+    "TestFuelFlags"
+   ]
+  },
+  {
+   "id": "FLT-03.1",
+   "domain": "FLT-03",
+   "text": "Maintenance plans, work orders, parts and downtime",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-03.2",
+   "domain": "FLT-03",
+   "text": "A work order is prepared (plant staff; site staff for a breakdown of a machine at their project), authorised by fleet.approve with a fresh second factor, reported complete by plant staff and closed or sent back by a certifier who did not report it; a decided work order never changes; none of these decisions can be taken by an AI or service principal",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestAPIMaintenance",
+    "TestConsoleBrowserFleet"
+   ]
+  },
+  {
+   "id": "FLT-03.3",
+   "domain": "FLT-03",
+   "text": "A machine that has been under maintenance returns to service only after a work order for it was closed after it entered maintenance, never while a work order is open, and not by passing through inspection; an earlier work order does not release a later spell",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestFleet_RegisterAndLifecycle",
+    "TestAPIMaintenance"
+   ]
+  },
+  {
+   "id": "FLT-03.4",
+   "domain": "FLT-03",
+   "text": "A part used on a work order is an ordinary stock issue linked to the work order: approved by a second person, valued by the stock ledger, charged to the machine's project; a work order is not reported complete while a part awaits approval",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestAPIMaintenance"
+   ]
+  },
+  {
+   "id": "FLT-03.5",
+   "domain": "FLT-03",
+   "text": "Preventive plans by metered units and/or days show what is due; a plan is raised as one work order at a time and moves on only when a certifier closes that work order",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_PlansAndDue",
+    "TestDueState",
+    "TestAPIMaintenance",
+    "TestConsoleBrowserFleet"
+   ]
+  },
+  {
+   "id": "FLT-03.6",
+   "domain": "FLT-03",
+   "text": "Maintenance history per machine (work orders, labour hours, parts cost from the stock ledger) and hours out of service by state from the lifecycle history; a tenant database login cannot write work orders, parts or plans around the kernel",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestAPIMaintenance"
+   ]
+  },
+  {
+   "id": "FLT-03.7",
+   "domain": "FLT-03",
+   "text": "Labour cost of maintenance, workshop cost centres for machines not at a project, parts reservation per work order, retiring or changing a plan, safety inspection checklists",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "FLT-03.8",
+   "domain": "FLT-03",
+   "text": "Separation on a work order as enforced in the kernel and in the database: the authoriser is not the preparer; the certifier is none of the preparer, the authoriser or the reporter; authorising and certifying each need a fresh second factor at the database boundary; an attestation serves one decision on one record once; forged session settings and direct writes are refused; other projects and tenants reach nothing",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_SeparationAsEnforced",
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestAPIMaintenance"
+   ]
+  },
+  {
+   "id": "FLT-03.9",
+   "domain": "FLT-03",
+   "text": "A preventive plan is revised by a new version that retires the old one in the same transaction and continues from its last service, or retired with a reason; retired plans are kept, are not due and take no work orders; neither is possible while a work order of the plan is open",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_PlanRevisionAndRetirement",
+    "TestAPIMaintenance"
+   ]
+  },
+  {
+   "id": "FLT-04.1",
+   "domain": "FLT-04",
+   "text": "Capitalisation, depreciation and disposal posted through the ledger",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PPL-01.1",
+   "domain": "PPL-01",
+   "text": "Employee and contractor records with protected personal data",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PPL-02.1",
+   "domain": "PPL-02",
+   "text": "Attendance and timesheets with approval, duplicate and overlap detection",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PPL-03.1",
+   "domain": "PPL-03",
+   "text": "Payroll preview → approval → locked run → posting → payment, on effective-dated reviewed rules",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PPL-04.1",
+   "domain": "PPL-04",
+   "text": "Crew output and labour cost by work package",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "PPL-05.1",
+   "domain": "PPL-05",
+   "text": "Certifications and safety training with expiry",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CON-01.1",
+   "domain": "CON-01",
+   "text": "Contracts with approved lines, advance, retention and policy; the signed version is never overwritten",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_ContractToCashToGL",
+    "TestJourneyB_Controls",
+    "TestR6_09_ContractPolicySuccession"
+   ]
+  },
+  {
+   "id": "CON-01.2",
+   "domain": "CON-01",
+   "text": "Guarantees register, liquidated-damages terms and contract obligations",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestBonds_GuaranteeRegister",
+    "TestContractTime_DamagesExtensionsObligations"
+   ]
+  },
+  {
+   "id": "CON-02.1",
+   "domain": "CON-02",
+   "text": "Variations are approved by a second person before they change contract value; pending and approved stay separate",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_Variation",
+    "TestR9_VariationRaces",
+    "TestR9_VariationRawSQLAndScope"
+   ]
+  },
+  {
+   "id": "CON-02.2",
+   "domain": "CON-02",
+   "text": "Change events carry cost impact into a draft budget revision",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestChange_EventToBudgetDraft"
+   ]
+  },
+  {
+   "id": "CON-03.1",
+   "domain": "CON-03",
+   "text": "Notices with a computed time bar; claims prepared and approved by different people; the client's answer recorded once",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestClaims_NoticesAndClaims"
+   ]
+  },
+  {
+   "id": "CON-04.1",
+   "domain": "CON-04",
+   "text": "Payment certificate = cumulative certified − previous, less retention and advance recovery; never negative; no duplicate certification",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_ContractToCashToGL",
+    "TestR6_01_NegativeAmountDue",
+    "TestR6_03_AdvanceRecoveryEdges",
+    "TestJourneyB_CertificateHashConstant"
+   ]
+  },
+  {
+   "id": "CON-04.2",
+   "domain": "CON-04",
+   "text": "Retention release, credit notes and price adjustment are separate approved documents",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_RetentionRelease",
+    "TestJourneyB_CreditNote",
+    "TestBonds_PriceAdjustment"
+   ]
+  },
+  {
+   "id": "CON-04.3",
+   "domain": "CON-04",
+   "text": "Certification, invoice, revenue recognition and collection are distinct states",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  },
+  {
+   "id": "CAP-01.1",
+   "domain": "CAP-01",
+   "text": "A journal posts only if balanced, in an open period, with valid accounts; enforced in Go and in the database",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestHappyPathPostsAndBalancesAccounts",
+    "TestUnbalancedRejectedInGoAndInDatabase",
+    "TestClosedPeriodBlocksPosting",
+    "TestSC14_DatabaseEnforcesCurrencyPrecision"
+   ]
+  },
+  {
+   "id": "CAP-01.2",
+   "domain": "CAP-01",
+   "text": "Posted journals are immutable; correction is by reversal",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestPostedJournalIsImmutable",
+    "TestSC01_PostedLineCannotBeReassignedOrMutated",
+    "TestReversalFlow"
+   ]
+  },
+  {
+   "id": "CAP-01.3",
+   "domain": "CAP-01",
+   "text": "The same source posts once: replay returns the original, a changed payload conflicts",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestIdempotentReplayAndConflict",
+    "TestConcurrentIdenticalCreatesAreIdempotent"
+   ]
+  },
+  {
+   "id": "CAP-01.4",
+   "domain": "CAP-01",
+   "text": "Posting and period close cannot race",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSC08_PostWaitsForInFlightCloseThenRefuses",
+    "TestSC08_CloseWaitsForInFlightPostAndIncludesIt"
+   ]
+  },
+  {
+   "id": "CAP-01.5",
+   "domain": "CAP-01",
+   "text": "Balance sheet, income statement and cash-flow statement",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CAP-02.1",
+   "domain": "CAP-02",
+   "text": "Supplier invoices post through bound draft journals; payables reconcile to the control account",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_SubledgerJournalIntegrity",
+    "TestJourneyA_BOQToBankReconciliationToGL",
+    "TestR3_01_SubledgerJournalLinesAppendedAfterBinding"
+   ]
+  },
+  {
+   "id": "CAP-03.1",
+   "domain": "CAP-03",
+   "text": "Customer invoices, receipts and credit notes reconcile to the receivable control account, including under concurrency",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_ContractToCashToGL",
+    "TestJourneyB_CreditNoteRacesReceipt",
+    "TestR8_ConcurrentCreditsAndReceipt",
+    "TestR6_10_ManualJournalOnARControl"
+   ]
+  },
+  {
+   "id": "CAP-04.1",
+   "domain": "CAP-04",
+   "text": "Cost codes are validated against the approved WBS",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSC10_CostCodesAreValidatedAgainstApprovedWBS"
+   ]
+  },
+  {
+   "id": "CAP-04.2",
+   "domain": "CAP-04",
+   "text": "Monthly cost forecast (EAC/ETC), WIP schedule and budget-vs-actual tie to their sources",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestForecast_MethodsAndGuards",
+    "TestForecast_WIPScheduleAndSummary",
+    "TestReportCatalogue_EveryReportRunsAndTiesOut"
+   ]
+  },
+  {
+   "id": "CAP-05.1",
+   "domain": "CAP-05",
+   "text": "Payments are prepared, approved and released by different people and settled only by an independent bank statement",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_PaymentControls",
+    "TestR3_09_FabricatedStatementSettlesPayment",
+    "TestR4_04_ReconcilerSeparation"
+   ]
+  },
+  {
+   "id": "CAP-05.2",
+   "domain": "CAP-05",
+   "text": "FX rates are policy-bound, maker/checker approved and re-checked at posting",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSC02_DatabaseRejectsIneligibleFXAndRechecksAtPost",
+    "TestSC03_FXMakerChecker",
+    "TestConvertIsExactAndBoundToSnapshot"
+   ]
+  },
+  {
+   "id": "CAP-05.3",
+   "domain": "CAP-05",
+   "text": "Bank transfers through a bank API",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CAP-06.1",
+   "domain": "CAP-06",
+   "text": "Tax rules are effective-dated data with review status; ambiguity is an error",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestRulesValidate",
+    "TestEffectiveDatingAndReviewStatus",
+    "TestAmbiguityIsAnError"
+   ]
+  },
+  {
+   "id": "CAP-06.2",
+   "domain": "CAP-06",
+   "text": "Real jurisdiction tax and withholding rules",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CAP-07.1",
+   "domain": "CAP-07",
+   "text": "Intercompany matching, translation and elimination for consolidated statements",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CAP-08.1",
+   "domain": "CAP-08",
+   "text": "Cash forecast scenarios including payroll, tax and supplier schedules",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  },
+  {
+   "id": "CAP-09.1",
+   "domain": "CAP-09",
+   "text": "Every command writes a hash-chained audit entry and its outbox event in the same transaction",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestAuditChainLinearUnderConcurrency",
+    "TestSC07_FXCommandsEmitAtomicOutboxEvents",
+    "TestOutboxAndPeriodsCannotBeTamperedByAppRole"
+   ]
+  },
+  {
+   "id": "CAP-09.2",
+   "domain": "CAP-09",
+   "text": "A tenant login cannot rewrite history",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestPrivileges_TenantLoginCannotRewriteHistory",
+    "TestR3_02_NoDeleteOrTruncate"
+   ]
+  },
+  {
+   "id": "CAP-09.3",
+   "domain": "CAP-09",
+   "text": "Audit chain anchored to separately protected storage",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "ASR-01.1",
+   "domain": "ASR-01",
+   "text": "ITP with hold/witness points, NCR and corrective action through independent closure",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "ASR-02.1",
+   "domain": "ASR-02",
+   "text": "Samples with chain of custody, calibrated equipment, results against limits; failed tests preserved",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "ASR-03.1",
+   "domain": "ASR-03",
+   "text": "Permits to work, incidents, toolbox talks; stop-work effective offline; no AI release",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "ASR-04.1",
+   "domain": "ASR-04",
+   "text": "Carbon, waste, water and energy records with versioned factors; measured vs estimated",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-01.1",
+   "domain": "CNX-01",
+   "text": "A controlled document has immutable revisions; content is hashed by the database; a revision is published by a second person with fresh MFA",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_RevisionsAndPublication"
+   ]
+  },
+  {
+   "id": "CNX-01.2",
+   "domain": "CNX-01",
+   "text": "Publishing a revision supersedes the previous one in the same transaction; there is never more than one current revision",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_RevisionsAndPublication",
+    "TestDocuments_ConcurrentPublicationKeepsOneCurrent"
+   ]
+  },
+  {
+   "id": "CNX-01.3",
+   "domain": "CNX-01",
+   "text": "Documents are visible only inside the tenant and the reader's project scope; every download is recorded",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_ScopeAndTenantIsolation",
+    "TestAPIDocumentsAndRFIs"
+   ]
+  },
+  {
+   "id": "CNX-01.4",
+   "domain": "CNX-01",
+   "text": "Malware scanning and quarantine before a file can be downloaded",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_FailClosedQuarantine",
+    "TestDocSecurity_InfectedAndMaliciousUploads",
+    "TestClamdAgainstARealDaemon",
+    "TestDocSecurity_RealScannerAndObjectStore"
+   ]
+  },
+  {
+   "id": "CNX-01.5",
+   "domain": "CNX-01",
+   "text": "Object storage with pre-signed, short-lived URLs and resumable upload",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-01.6",
+   "domain": "CNX-01",
+   "text": "Transmittals, QR verification of a revision, retention policy and legal hold",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-01.7",
+   "domain": "CNX-01",
+   "text": "Files over the PostgreSQL cap are stored encrypted in an S3-compatible store under a tenant-scoped, immutable key fixed by the database; a tampered, swapped or cross-tenant object is not served",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_ObjectStorageAndMigration",
+    "TestS3AgainstARealServer",
+    "TestSealedRoundTripAndTamperDetection",
+    "TestObjectKeyIsTenantScopedAndStrict",
+    "TestDocumentStorageConfig"
+   ]
+  },
+  {
+   "id": "CNX-01.8",
+   "domain": "CNX-01",
+   "text": "Migration from PostgreSQL to object storage is incremental and repeatable, verifies each copy by reading it back, and removes no byte until the schema owner releases it",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_ObjectStorageAndMigration"
+   ]
+  },
+  {
+   "id": "CNX-01.9",
+   "domain": "CNX-01",
+   "text": "Download links are short-lived, bound to tenant, revision and person, re-checked against quarantine when used and audited; downloads and links count against the export budget",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_DownloadLinksAndExportBudget",
+    "TestAPIDocumentSecurity"
+   ]
+  },
+  {
+   "id": "CNX-01.10",
+   "domain": "CNX-01",
+   "text": "Uploads are streamed with bounded memory and refused when mislabelled, an archive bomb, a path traversal, SVG/HTML, or carrying macros or active PDF content; refusals are audited",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestInspect",
+    "TestDocSecurity_InfectedAndMaliciousUploads",
+    "TestAPIDocumentSecurity"
+   ]
+  },
+  {
+   "id": "CNX-01.11",
+   "domain": "CNX-01",
+   "text": "The scan requirement and storage quota are a per-tenant policy changed only by a person with tenant.settings.manage and fresh MFA, attested",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_FailClosedQuarantine",
+    "TestDocSecurity_ObjectStorageAndMigration",
+    "TestAPIDocumentSecurity"
+   ]
+  },
+  {
+   "id": "CNX-01.12",
+   "domain": "CNX-01",
+   "text": "Safe document preview generation",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-01.13",
+   "domain": "CNX-01",
+   "text": "Resumable multipart upload from the client for very large BIM and engineering files",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-01.14",
+   "domain": "CNX-01",
+   "text": "Storage faults are told apart (missing bucket, missing object, refused credentials, unavailable service); the bucket is provisioned and proven private before use; the API refuses to start without it and never reports a storage fault as a missing file",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestS3ErrorClassification",
+    "TestS3FaultClassesAgainstARealServer",
+    "TestStorageFaultsAreNotReportedAsNotFound",
+    "TestDocSecurity_RealScannerAndObjectStore"
+   ]
+  },
+  {
+   "id": "CNX-01.15",
+   "domain": "CNX-01",
+   "text": "Document encryption keys are versioned: rotation keeps earlier files readable, a missing key is reported as such and is recoverable, scan verdicts survive a rotation",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestKeyVersionsRotationAndRecovery",
+    "TestDocSecurity_KeyRotation",
+    "TestDocumentKeyRotationConfig"
+   ]
+  },
+  {
+   "id": "CNX-02.1",
+   "domain": "CNX-02",
+   "text": "Drawings are controlled documents: the current revision is the only one offered as current",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_RevisionsAndPublication"
+   ]
+  },
+  {
+   "id": "CNX-02.2",
+   "domain": "CNX-02",
+   "text": "Mark-ups and 2D review",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-03.1",
+   "domain": "CNX-03",
+   "text": "An RFI is raised against a project (optionally a document revision), answered once by someone other than its author, then closed",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_RFILifecycle",
+    "TestAPIDocumentsAndRFIs"
+   ]
+  },
+  {
+   "id": "CNX-03.2",
+   "domain": "CNX-03",
+   "text": "RFI cost/time impact linked to change events",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-04.1",
+   "domain": "CNX-04",
+   "text": "Submittals with review cycles and consultant responses",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-05.1",
+   "domain": "CNX-05",
+   "text": "Correspondence register (in/out) linked to contracts",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-06.1",
+   "domain": "CNX-06",
+   "text": "Versioned workflow definitions; thresholds, quorum, maker excluded; the database refuses a forged approval trail",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestWorkflow_MandatoryJournalWorkflowReplacesDirectPath",
+    "TestWorkflow_HighValueNeedsQuorumOfDistinctExecutivesWithMFA",
+    "TestWorkflow_DatabaseRefusesForgedTrail",
+    "TestValidatorRefusesUnsafeDefinitions"
+   ]
+  },
+  {
+   "id": "CNX-06.2",
+   "domain": "CNX-06",
+   "text": "An approval is bound to the exact document content, step and outcome, and cannot be replayed",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestAttestation_ReplaySubstitutionExpiryAndTampering",
+    "TestAttestation_DecisionBoundToStepAndOutcome"
+   ]
+  },
+  {
+   "id": "CNX-06.3",
+   "domain": "CNX-06",
+   "text": "Authority matrix and time-limited delegation that cannot defeat separation of duties",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestAuthority_MatrixGovernanceAndLimits",
+    "TestAuthority_DelegationLifecycle",
+    "TestAuthority_ConflictingDelegationIsDroppedUnlessExcepted"
+   ]
+  },
+  {
+   "id": "CNX-07.1",
+   "domain": "CNX-07",
+   "text": "Alert rules notify the right people; a rule is activated by someone other than its author",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestPlatform_RulesLifecycleAndWorker"
+   ]
+  },
+  {
+   "id": "CNX-07.2",
+   "domain": "CNX-07",
+   "text": "Assignable tasks with due dates outside document approvals",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-08.1",
+   "domain": "CNX-08",
+   "text": "Meeting minutes with actions and decisions",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-09.1",
+   "domain": "CNX-09",
+   "text": "Every catalogued report runs and ties to its source; exports show no more than the screen and are budgeted",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestReportCatalogue_EveryReportRunsAndTiesOut",
+    "TestReportCatalogue_ScopeAndInput",
+    "TestAPIReportsAndExports",
+    "TestPlatform_ExportBudget"
+   ]
+  },
+  {
+   "id": "CNX-10.1",
+   "domain": "CNX-10",
+   "text": "Client portal limited to the client's own contracts, certificates and documents",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-11.1",
+   "domain": "CNX-11",
+   "text": "Supplier portal limited to the supplier's own RFQs, orders and invoices",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-12.1",
+   "domain": "CNX-12",
+   "text": "Consultant portal for scoped review and certification",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "CNX-13.1",
+   "domain": "CNX-13",
+   "text": "Government/regulator portal",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "RES-01.1",
+   "domain": "RES-01",
+   "text": "Unit inventory, atomic reservation, sale agreements and instalments",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "RES-02.1",
+   "domain": "RES-02",
+   "text": "Service requests, preventive maintenance, leases and utilities",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "RES-03.1",
+   "domain": "RES-03",
+   "text": "Commissioning checks and final acceptance",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "RES-04.1",
+   "domain": "RES-04",
+   "text": "Handover package: as-built revisions, manuals, warranties, punch list",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "BRS-01.1",
+   "domain": "BRS-01",
+   "text": "Lessons learned and authorised document retrieval with ACL before search",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "BRS-02.1",
+   "domain": "BRS-02",
+   "text": "An AI principal can draft but never approve, post, pay or release; enforced in Go and in the database",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestGovernedAI_DraftOnly",
+    "TestR6_11_HumanRuleAndDraftParity",
+    "TestR8_HumanDecisionsAndScope"
+   ]
+  },
+  {
+   "id": "BRS-02.2",
+   "domain": "BRS-02",
+   "text": "The assistant answers only from permission-filtered computed facts and shows sources",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestPlatform_IntelligenceAndAssistant",
+    "TestAIPhraserAdapter"
+   ]
+  },
+  {
+   "id": "BRS-02.3",
+   "domain": "BRS-02",
+   "text": "Model-independent gateway, agent registry and evaluation sets",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "BRS-02.4",
+   "domain": "BRS-02",
+   "text": "A live model provider",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "BRS-03.1",
+   "domain": "BRS-03",
+   "text": "Sessions can be revoked across replicas, including in-flight approvals",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSessions_RevocationKillsOldTokensIncludingInFlightApprovals",
+    "TestAPISessionRevocationAcrossReplicas"
+   ]
+  },
+  {
+   "id": "BRS-03.2",
+   "domain": "BRS-03",
+   "text": "The approval signing key lives outside the API; a compromised API cannot forge an approval",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSignerIsolation_CompromisedAPICannotForge",
+    "TestSignerIsolation_APIWithoutSecretFailsClosed"
+   ]
+  },
+  {
+   "id": "BRS-03.3",
+   "domain": "BRS-03",
+   "text": "Pre-authentication abuse limits shared across replicas",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSharedAbuse_LockoutAndBudgetsSpanReplicas",
+    "TestAPIPreAuthFloodProtection"
+   ]
+  },
+  {
+   "id": "BRS-03.4",
+   "domain": "BRS-03",
+   "text": "Production configuration fails closed on any demo default",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestProductionRefusesTheOldDemoDefaults",
+    "TestProductionManifestHasNoDemoDefaults"
+   ]
+  },
+  {
+   "id": "BRS-03.5",
+   "domain": "BRS-03",
+   "text": "Independent penetration test; a real identity provider with step-up; HSM/KMS custody of the signer key",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "BRS-04.1",
+   "domain": "BRS-04",
+   "text": "Directory of people, custom roles and grants; identity administrators hold no financial permission",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestPeople_DirectoryRolesAndProfile",
+    "TestDefaultRolesSeparateDuties",
+    "TestReservedPermissionsNotGrantableByRoles"
+   ]
+  },
+  {
+   "id": "BRS-04.2",
+   "domain": "BRS-04",
+   "text": "Tenant settings and a setup checklist that reads real state",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestPlatform_TenantSettings",
+    "TestSetup_ChecklistReadsRealState"
+   ]
+  },
+  {
+   "id": "BRS-04.3",
+   "domain": "BRS-04",
+   "text": "Access reviews, legal hold and break-glass access",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-OFFLINE.1",
+   "domain": "XCT-OFFLINE",
+   "text": "Offline commands are idempotent: a lost acknowledgement or a retry applies once; conflicts are returned, never merged",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSync_IdempotencyConflictsAndRevocation",
+    "TestSync_ConcurrentRetriesApplyOnce",
+    "TestR12_CommandLogForgeryAndSequenceBound",
+    "TestR12_TransientFailureIsRetried"
+   ]
+  },
+  {
+   "id": "XCT-OFFLINE.2",
+   "domain": "XCT-OFFLINE",
+   "text": "A revoked device is refused",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSync_IdempotencyConflictsAndRevocation",
+    "TestR12_DeviceCap"
+   ]
+  },
+  {
+   "id": "XCT-OFFLINE.3",
+   "domain": "XCT-OFFLINE",
+   "text": "Native field app with an encrypted local database, restart-safe queue and 7-day offline objective",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-OFFLINE.4",
+   "domain": "XCT-OFFLINE",
+   "text": "Offline stock issue through expiring quantity rights; offline stop-work",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-SCALE.1",
+   "domain": "XCT-SCALE",
+   "text": "Tenant routing with a dedicated-database tier",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestSC04_DedicatedDatabaseTier",
+    "TestSC04_SharedLoginRetiredAndMisroutingFailsClosed"
+   ]
+  },
+  {
+   "id": "XCT-SCALE.2",
+   "domain": "XCT-SCALE",
+   "text": "Partitioned high-volume tables with partition-independent source identity",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-SCALE.3",
+   "domain": "XCT-SCALE",
+   "text": "Archive catalogue, verified export to open formats and reconciled restore",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-SCALE.4",
+   "domain": "XCT-SCALE",
+   "text": "Measured load at tier T1 or above",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-DR.1",
+   "domain": "XCT-DR",
+   "text": "Base backup plus WAL archive restores exactly to a named point, every migration included; data loss on losing the primary is measured",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-DR.2",
+   "domain": "XCT-DR",
+   "text": "Encrypted, signed offsite PITR backup restores exactly; forged or colliding archives are refused",
+   "status_at_baseline": "IMPLEMENTED_UNVERIFIED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-DR.3",
+   "domain": "XCT-DR",
+   "text": "Request telemetry, trace context and alert rules fire on induced failures",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestAlertDrill_InducedFailuresFireTheRightAlerts",
+    "TestRequestTelemetryAndTraceContext"
+   ]
+  },
+  {
+   "id": "XCT-DR.4",
+   "domain": "XCT-DR",
+   "text": "Outbox relay delivers in order, retries, dead-letters and replays; consumers dedupe",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestRelayDeliversInOrderExactlyOnceWhenHealthy",
+    "TestRelayCrashAfterPublishRedeliversAndConsumerDedupes",
+    "TestRelayRetryDeadLetterHeadOfLineAndReplay"
+   ]
+  },
+  {
+   "id": "XCT-DR.5",
+   "domain": "XCT-DR",
+   "text": "Operated staging and production environments",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-LOC.1",
+   "domain": "XCT-LOC",
+   "text": "Exact decimal money per ISO 4217 minor units; ETB supported",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestParseQuantisesToMinorUnits",
+    "TestAllocateConservesEveryMinorUnit"
+   ]
+  },
+  {
+   "id": "XCT-LOC.2",
+   "domain": "XCT-LOC",
+   "text": "Ethiopic text renders in PDF exports",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestPDFEthiopicFontOnlyWhenNeeded"
+   ]
+  },
+  {
+   "id": "XCT-LOC.3",
+   "domain": "XCT-LOC",
+   "text": "Ethiopian calendar display and input with round-trip tests",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-LOC.4",
+   "domain": "XCT-LOC",
+   "text": "Translated interface (Amharic, Tigrinya, Afan Oromo)",
+   "status_at_baseline": "NOT_STARTED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-LOC.5",
+   "domain": "XCT-LOC",
+   "text": "Ethiopian statutory tax, payroll and forms",
+   "status_at_baseline": "BLOCKED",
+   "evidence_tests": []
+  },
+  {
+   "id": "XCT-API.1",
+   "domain": "XCT-API",
+   "text": "The OpenAPI contract matches the routes served",
+   "status_at_baseline": "VERIFIED",
+   "evidence_tests": [
+    "TestOpenAPIMatchesRoutes"
+   ]
+  },
+  {
+   "id": "XCT-API.2",
+   "domain": "XCT-API",
+   "text": "Problem details per RFC 9457 and cursor pagination on every list",
+   "status_at_baseline": "IMPLEMENTING",
+   "evidence_tests": []
+  }
+ ]
+}

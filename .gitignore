@@ -3,3 +3,8 @@ bin/
 go.work
 go.work.sum
 deploy/.env
+
+# Python bytecode is never tracked
+__pycache__/
+*.pyc
+/vendor/

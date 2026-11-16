@@ -132,3 +132,60 @@ export async function audit(p, where) {
   else log(`a11y ok: ${where}`);
 }
 
+// holdFirstAnswer delays the first response matching pattern so that it arrives
+// AFTER later ones: the situation in which a form that applies answers in
+// arrival order overwrites newer data with older. Returns { delivered, stop }:
+// await delivered once the held answer has been handed to the page.
+export async function holdFirstAnswer(page, pattern, ms = 600) {
+  let held = false;
+  let done;
+  const delivered = new Promise((r) => { done = r; });
+  await page.route(pattern, async (route) => {
+    if (held) return route.continue();
+    held = true;
+    await new Promise((r) => setTimeout(r, ms));
+    await route.continue();
+    done();
+  });
+  return { delivered: () => (held ? delivered : Promise.resolve()), stop: () => page.unroute(pattern) };
+}
+
+// stays samples a value in the page for half a second and returns the distinct values seen
+// (or that the element was replaced).
+export async function stays(locator, read) {
+  return locator.evaluate(async (el, src) => {
+    const f = new Function('el', `return (${src})(el)`);
+    const seen = new Set();
+    // An element the page has replaced still holds its old value: report the replacement, not the stale value.
+    for (let i = 0; i < 20; i++) { seen.add(el.isConnected ? String(f(el)) : '(element replaced by the page)'); await new Promise((r) => setTimeout(r, 25)); }
+    return [...seen];
+  }, read.toString());
+}
+
+
+// barrier holds the first request matching pattern until the test releases it:
+// an explicit, deterministic ordering of answers (no timers). arrived() resolves
+// when the request has been caught; release() lets it through, release(status)
+// answers it with that HTTP error instead. Later requests pass untouched.
+export async function barrier(page, pattern) {
+  let caught = false;
+  let arrivedResolve; const arrived = new Promise((r) => { arrivedResolve = r; });
+  let openResolve; const open = new Promise((r) => { openResolve = r; });
+  let doneResolve; const done = new Promise((r) => { doneResolve = r; });
+  await page.route(pattern, async (route) => {
+    if (caught) return route.continue();
+    caught = true;
+    arrivedResolve();
+    const status = await open;
+    try {
+      if (status) await route.fulfill({ status, contentType: 'application/problem+json', body: JSON.stringify({ type: 'urn:serk:problem:internal', title: 'Internal error', status, detail: 'held answer failed on purpose', code: 'internal' }) });
+      else await route.continue();
+    } catch { /* the page cancelled the request: that is allowed */ }
+    doneResolve();
+  });
+  return {
+    arrived: () => arrived,
+    release: async (status) => { openResolve(status || 0); await done; },
+    stop: () => page.unroute(pattern),
+  };
+}

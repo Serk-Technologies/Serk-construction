@@ -1,5 +1,17 @@
 # Running SERK Construction locally (fully in Docker)
 
+**The short way: one command.**
+
+```bash
+./run.sh            # build, start, load the demo company and demo data, print how to sign in
+./run.sh reset      # ERASE the demo database and start from scratch (asks first)
+./run.sh stop       # stop (data kept)    ./run.sh status    ./run.sh logs
+./run.sh pin cfo    # the one-time e-mail sign-in PIN of a demo position
+```
+
+`run.sh` picks free ports by itself (database 5432, otherwise 5434/55432; console 8080, otherwise 8081/8082),
+so it does not collide with another project's database. Everything below explains what it does step by step.
+
 Everything runs in containers: PostgreSQL, the migrator, the approval signer
 and the API (which also serves the web console). Nothing is installed on the
 host except Docker. **Development only:** published, well-known secrets,
@@ -188,7 +200,10 @@ Two things the suite needs from that throwaway cluster (CI does the same):
 
 ```bash
 docker run -d --name serk-test-pg -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=serk_test \
-  -p 127.0.0.1:55433:5432 ${POSTGRES_IMAGE:-postgres:16}
+  -p 127.0.0.1:55433:5432 ${POSTGRES_IMAGE:-postgres:16} -c max_connections=300
+# (300 connections: the full suite runs the API and kernel packages in parallel, each with a
+# connection pool per test company; at the default 100 a test can fail with
+# "cannot open tenant database session".)
 sleep 5
 docker exec -i serk-test-pg psql -q -U postgres -d serk_test < deploy/00-roles.sql
 export SERK_TEST_ADMIN_DSN='postgres://postgres@127.0.0.1:55433/serk_test?sslmode=disable'

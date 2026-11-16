@@ -92,10 +92,31 @@ try {
   log('current revision downloaded and matches the upload');
 
   // ---- 5. RFI: raised by the engineer, answered by the planner, closed by the engineer ---
+  // Regression (run 35): the form asks for the document list when it opens and again when the project changes.
+  // Hold the FIRST answer back so that it arrives last; it must not undo the choice made meanwhile.
+  let heldFirst = false;
+  let firstAnswered;
+  const firstDone = new Promise((r) => { firstAnswered = r; });
+  await eng.route(/\/v1\/documents\?project=/, async (route) => {
+    if (heldFirst) return route.continue();
+    heldFirst = true;
+    await new Promise((r) => setTimeout(r, 600));
+    await route.continue();
+    firstAnswered();
+  });
   await nav(eng, '#/new/rfi', 'Raise a request for information');
   await selectByText(eng.getByLabel('Project'), 'P-API');
   await eng.getByLabel('About').locator('option', { hasText: 'A-101 rev B' }).waitFor({ state: 'attached' });
   await selectByText(eng.getByLabel('About'), 'A-101 rev B');
+  if (heldFirst) await firstDone;
+  // The held answer has now been delivered to the page. Watch the choice while the page handles it.
+  const seen = await eng.getByLabel('About').evaluate(async (el) => {
+    const texts = new Set();
+    for (let i = 0; i < 20; i++) { texts.add(el.options[el.selectedIndex].text); await new Promise((r) => setTimeout(r, 25)); }
+    return [...texts];
+  });
+  await eng.unroute(/\/v1\/documents\?project=/);
+  if (seen.length !== 1 || !/A-101 rev B/.test(seen[0])) fail(`a late answer to an earlier request reset the RFI's document: saw ${JSON.stringify(seen)}`);
   await eng.getByLabel('Subject').fill('Slab thickness at grid C-4');
   await eng.getByLabel('Question').fill('Section 2 shows 200 mm, the schedule shows 250 mm. Which governs?');
   await eng.getByLabel('Expected to answer').fill('u-doc-planner');
@@ -117,6 +138,85 @@ try {
   await eng.locator('main').filter({ hasText: 'CLOSED' }).waitFor();
   await snap(eng, 'rfi-closed');
   log('RFI raised, answered and closed');
+
+  // ---- 5b. Transmittal of the approved drawing; a submittal reviewed by someone else (0077) ---
+  await nav(eng, '#/new/transmittal', 'Send a transmittal');
+  await selectByText(eng.getByLabel('Project', { exact: true }), 'P-API');
+  await eng.getByRole('checkbox', { name: /^A-101 rev B/ }).check();
+  await eng.getByLabel('Subject').fill('General arrangement for construction');
+  await eng.getByLabel('To', { exact: true }).fill('Abay Construction PLC');
+  await audit(eng, 'transmittal form');
+  await eng.getByRole('button', { name: 'Send transmittal' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Transmittal TRM-/ }).waitFor();
+  log('transmittal sent');
+  await nav(eng, '#/new/submittal', 'New submittal');
+  await selectByText(eng.getByLabel('Project', { exact: true }), 'P-API');
+  await eng.getByLabel('Specification section').fill('03 30 00');
+  await eng.getByLabel('Title').fill('Concrete mix design C30');
+  await eng.getByRole('button', { name: 'Submit for review' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Submittal SBM-/ }).waitFor();
+  const sbm = await idFromHash(eng);
+  if (await eng.getByRole('button', { name: 'Record the review' }).count()) fail('the submitter is offered to review their own submittal');
+  await nav(pm, `#/doc/submittal/${sbm}`, /^Submittal SBM-/);
+  await audit(pm, 'submittal review');
+  await selectByText(pm.getByLabel('Review code'), 'C —');
+  await pm.getByLabel('Note').fill('Increase the cement content to meet the 28-day strength');
+  await pm.getByRole('button', { name: 'Record the review' }).click();
+  await pm.getByRole('button', { name: 'Record the review' }).waitFor({ state: 'detached' });
+  await pm.locator('main').filter({ hasText: 'REVIEWED' }).first().waitFor();
+  log('submittal reviewed (C)');
+
+  // ---- 5b'. Review cycle (0090): the engineer resubmits; the cycle shows both submissions --------
+  await nav(eng, `#/doc/submittal/${sbm}`, /^Submittal SBM-/);
+  await eng.getByRole('link', { name: 'Resubmit' }).click();
+  await eng.getByRole('heading', { level: 1, name: 'Resubmit' }).waitFor();
+  if ((await eng.getByLabel('Specification section').inputValue()) !== '03 30 00') fail('the resubmission did not keep the specification section');
+  await audit(eng, 'resubmission form');
+  await eng.getByRole('button', { name: 'Submit for review' }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Submittal SBM-/ }).waitFor();
+  await eng.getByRole('table').filter({ hasText: 'Concrete mix design C30' }).filter({ hasText: '2' }).first().waitFor();
+  if ((await eng.getByRole('table', { name: /Submissions/ }).getByRole('row').count()) < 3) fail('the review cycle does not list both submissions');
+  log('submittal resubmitted: cycle 2');
+
+  // ---- 5b''. A change event raised from the answered RFI shows on the RFI (0090) ---------------
+  await nav(pm, '#/new/change_event', 'Raise a change event');
+  await selectByText(pm.getByLabel('Project', { exact: true }), 'P-API');
+  await pm.getByLabel('Title').fill('Slab thickness per RFI answer');
+  await selectByText(pm.getByLabel('RFI (when raised from one)'), 'RFI-');
+  await pm.getByLabel('Description').fill('250 mm governs, as answered');
+  await pm.getByLabel('Schedule impact (days; signed)').fill('2');
+  await pm.getByRole('button', { name: 'Create change event' }).click();
+  await pm.getByRole('heading', { level: 1, name: /^Change event CE-/ }).waitFor();
+  await nav(pm, `#/doc/rfi/${rfi}`, /^Request for information RFI-/);
+  await pm.getByRole('table').filter({ hasText: 'CE-' }).first().waitFor();
+  await audit(pm, 'rfi with its change events');
+  log('change event raised from the RFI and shown on it');
+
+  // ---- 5c. Correspondence: an incoming letter needing an answer, then its reply (0085) ---------
+  const inWeek = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  await nav(eng, '#/new/correspondence', 'Record correspondence');
+  await selectByText(eng.getByLabel('Project', { exact: true }), 'P-API');
+  await eng.getByLabel('Counterparty').fill('Ethiopian Roads Administration');
+  await eng.getByLabel('Subject').fill('Notice of delayed access to the site');
+  await eng.getByLabel('Reference').fill('ERA/RE/2026/233');
+  await eng.getByLabel('Answer due (optional)').fill(inWeek);
+  await audit(eng, 'correspondence form');
+  await eng.getByRole('button', { name: 'Record', exact: true }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Correspondence item COR-/ }).waitFor();
+  const cor = await idFromHash(eng);
+  await eng.locator('main').filter({ hasText: 'AWAITING_REPLY' }).first().waitFor();
+  await nav(eng, '#/new/correspondence', 'Record correspondence');
+  await selectByText(eng.getByLabel('Project', { exact: true }), 'P-API');
+  await selectByText(eng.getByLabel('Direction'), 'Outgoing');
+  await eng.getByLabel('Counterparty').fill('Ethiopian Roads Administration');
+  await eng.getByLabel('Subject').fill('Re: delayed access — revised sequence enclosed');
+  await selectByText(eng.getByLabel('Reply to (optional)'), 'Notice of delayed access');
+  await eng.getByRole('button', { name: 'Record', exact: true }).click();
+  await eng.getByRole('heading', { level: 1, name: /^Correspondence item COR-/ }).waitFor();
+  await nav(eng, `#/doc/correspondence/${cor}`, /^Correspondence item COR-/);
+  await eng.locator('main').filter({ hasText: 'ANSWERED' }).first().waitFor();
+  await snap(eng, 'correspondence-answered');
+  log('correspondence recorded and answered');
 
   // ---- 6. Phone width, dark theme ------------------------------------------------------------
   const phone = await as('pmPhone', { viewport: { width: 390, height: 844 }, colorScheme: 'dark' });

@@ -46,6 +46,9 @@ type Persona struct {
 // StagingPersonas covers every journey: one person per duty so that
 // separation of duties can be exercised by switching persona.
 var StagingPersonas = []Persona{
+	{"u-sysadmin", "System administrator", []string{"system_admin"}, false},
+	{"u-chairman", "Board chairman (read only)", []string{"board_chairman"}, false},
+	{"u-ceo", "CEO", []string{"ceo"}, false},
 	{"u-estimator", "Estimator", []string{"estimator"}, true},
 	{"u-commercial", "Commercial manager", []string{"commercial_manager"}, true},
 	{"u-pm", "Project manager", []string{"project_manager"}, true},
@@ -74,6 +77,14 @@ var StagingPersonas = []Persona{
 	{"u-process-owner", "Process owner (automation rules)", []string{"process_owner"}, false},
 	{"u-workflow-admin", "Workflow admin (activates rules)", []string{"workflow_admin"}, false},
 	{"u-security-admin", "Security admin (company settings)", []string{"security_admin"}, false},
+	{"u-payroll", "Payroll officer", []string{"payroll_officer"}, false},
+	{"u-hr-manager", "HR manager (approves payroll)", []string{"hr_manager"}, false},
+	{"u-plant-officer", "Plant officer (registers equipment)", []string{"plant_officer"}, false},
+	{"u-plant", "Plant manager (approves equipment)", []string{"plant_manager"}, false},
+	{"u-plant-inspector", "Plant inspector (certifies fitness)", []string{"plant_inspector"}, false},
+	{"u-hse", "HSE officer", []string{"hse_officer"}, false},
+	{"u-quality", "Quality engineer", []string{"quality_engineer"}, false},
+	{"u-doc-controller", "Document controller", []string{"document_controller"}, false},
 }
 
 func (s *Server) registerStaging() {

@@ -2,6 +2,13 @@
 
 The repository's gate record is `docs/release/GO_NO_GO.md` with `docs/release/GATE_STATUS.json` (generated) and the checklist CSV. Its decision is **NO-GO**; nothing in this session changes that. This page maps the milestones of `MASTER_PROMPT.md` section 12 to their gates and current state.
 
+## CI and governance status, 2026-11-15 (after the independent audit)
+
+- The first GitHub Actions run with all six jobs passing **and** no skipped test is run 22 (`be030f7`). Green `test` jobs before run 17 are not evidence: the step could not fail. Details: `AUDIT_REMEDIATION_2026-11-15.md`.
+- "Pass" in the table below means the named tests pass in the build environment and, from run 22, on GitHub. It never means an owner has accepted the scope.
+- `main` holds a revision whose CI failed (PR #3 was merged while failing) and has no branch protection. Both need a repository administrator. Until they are fixed no gate below can be treated as passed for release purposes.
+- Feature development is suspended by directive until the stabilisation gate is met.
+
 | Milestone | Gate | State on 2026-11-15 |
 |---|---|---|
 | M0 Discover | Known status, no destructive change | **Met**: `BASELINE.md`, `REQUIREMENTS.md`, this folder |

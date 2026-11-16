@@ -74,14 +74,29 @@ func (s *Server) registerP2P() {
 	m.Handle("POST /v1/boqs/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
 		return nil, s.cfg.Kernel.DecideBOQ(ctx, p, id, false, b.Reason)
 	})))
-	s.registerAuthority(m) // authority matrix, delegation, SoD exceptions (0040)
-	s.registerStockPlus()  // unit conversions, reservations, reorder rules (0041)
-	s.registerOrg()        // project master, stage gates, regions, business units, calendar (0042)
-	s.registerPeople()     // people directory, company roles, profiles (0048)
-	s.registerBonds()      // guarantees, price indices, escalation (0050)
-	s.registerDocuments()  // controlled documents, revisions, RFIs (0052)
-	s.registerFleet()      // equipment register, lifecycle, reservations, logs (0054)
-	s.registerImports()    // staged imports and the setup checklist (0043)
+	s.registerAuthority(m)         // authority matrix, delegation, SoD exceptions (0040)
+	s.registerStockPlus()          // unit conversions, reservations, reorder rules (0041)
+	s.registerOrg()                // project master, stage gates, regions, business units, calendar (0042)
+	s.registerPeople()             // people directory, company roles, profiles (0048)
+	s.registerBonds()              // guarantees, price indices, escalation (0050)
+	s.registerDocuments()          // controlled documents, revisions, RFIs (0052)
+	s.registerFleet()              // equipment register, lifecycle, reservations, logs (0054)
+	s.registerRevenue()            // revenue over time, WIP adjustment (0059); new-version 0053
+	s.registerSubcontracts()       // subcontracts, applications, certificates (0061); new-version 0055
+	s.registerAssets()             // fixed assets (0063); new-version 0057
+	s.registerPeriodEnd()          // fiscal years, recurring journals, accruals, overhead (0064); new-version 0058
+	s.registerCash()               // cash forecasting (0065); new-version 0059
+	s.registerPayroll()            // workforce and payroll (0067); new-version 0061
+	s.registerConsolidation()      // consolidation and intercompany (0068); new-version 0062
+	s.registerTax()                // tax returns and e-invoicing (0069); new-version 0063
+	s.registerWorkforceHSE()       // timesheets and health and safety (0076; new-version 0064 without its equipment)
+	s.registerRisks()              // project risk register (0080)
+	s.registerTasks()              // assignable tasks (0087)
+	s.registerSupplierGovernance() // supplier qualification, conflicts, scores (0093)
+	s.registerEstimates()          // resource rates and rate build-ups (0094)
+	s.registerQuality()            // quality and site records (0070); new-version 0065
+	s.registerCredit()             // rules of credit and installed quantities (0071); new-version 0067
+	s.registerImports()            // staged imports and the setup checklist (0043)
 	// Financial control dashboard (WP-1.4): GET /v1/dashboard?preset=executive|project|finance|procurement&entity_id=
 	m.Handle("GET /v1/dashboard", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		preset := r.URL.Query().Get("preset")
@@ -510,28 +525,46 @@ func (s *Server) journalBatch(approve bool) func(http.ResponseWriter, *http.Requ
 	}
 }
 
+// listJournals pages by cursor (XCT-API.2.e): pass "next" back as ?cursor=
+// with the same status and source_prefix; the order is newest first.
 func (s *Server) listJournals(w http.ResponseWriter, r *http.Request) {
-	out, err := s.cfg.Kernel.ListJournals(r.Context(), principalFrom(r.Context()), r.URL.Query().Get("status"), r.URL.Query().Get("source_prefix"), 200)
+	q := r.URL.Query()
+	limit := 0
+	if v := q.Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 500 {
+			writeErr(w, http.StatusUnprocessableEntity, "validation", "limit is a whole number from 1 to 500")
+			return
+		}
+		limit = n
+	}
+	out, err := s.cfg.Kernel.ListJournalsPage(r.Context(), principalFrom(r.Context()), q.Get("status"), q.Get("source_prefix"), q.Get("cursor"), limit)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	if out == nil {
-		out = []postgres.JournalSummary{}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"journals": out})
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) listP2P(w http.ResponseWriter, r *http.Request) {
-	out, err := s.cfg.Kernel.ListP2PDocs(r.Context(), principalFrom(r.Context()), r.PathValue("type"), r.URL.Query().Get("status"), 200)
+	q := r.URL.Query()
+	limit := 0
+	if v := q.Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 500 {
+			writeErr(w, http.StatusUnprocessableEntity, "validation", "limit is a whole number from 1 to 500")
+			return
+		}
+		limit = n
+	}
+	// Cursor pagination (XCT-API.2): pass "next" back as ?cursor= with the
+	// same status filter; the order is newest first and stable.
+	out, err := s.cfg.Kernel.ListP2PDocsPage(r.Context(), principalFrom(r.Context()), r.PathValue("type"), q.Get("status"), q.Get("cursor"), limit)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	if out == nil {
-		out = []postgres.DocSummary{}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"items": out})
+	writeJSON(w, http.StatusOK, out)
 }
 
 // canonicalUUID accepts a path id only in the canonical lowercase,

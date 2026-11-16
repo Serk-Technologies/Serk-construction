@@ -13,6 +13,38 @@ import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 
+// (This journey predates console_lib.mjs and keeps its own helpers; these two are the same as there.)
+// holdFirstAnswer delays the first response matching pattern so that it arrives
+// AFTER later ones: the situation in which a form that applies answers in
+// arrival order overwrites newer data with older. Returns { delivered, stop }:
+// await delivered once the held answer has been handed to the page.
+async function holdFirstAnswer(page, pattern, ms = 600) {
+  let held = false;
+  let done;
+  const delivered = new Promise((r) => { done = r; });
+  await page.route(pattern, async (route) => {
+    if (held) return route.continue();
+    held = true;
+    await new Promise((r) => setTimeout(r, ms));
+    await route.continue();
+    done();
+  });
+  return { delivered: () => (held ? delivered : Promise.resolve()), stop: () => page.unroute(pattern) };
+}
+
+// stays samples a value in the page for half a second and returns the distinct values seen
+// (or that the element was replaced).
+async function stays(locator, read) {
+  return locator.evaluate(async (el, src) => {
+    const f = new Function('el', `return (${src})(el)`);
+    const seen = new Set();
+    // An element the page has replaced still holds its old value: report the replacement, not the stale value.
+    for (let i = 0; i < 20; i++) { seen.add(el.isConnected ? String(f(el)) : '(element replaced by the page)'); await new Promise((r) => setTimeout(r, 25)); }
+    return [...seen];
+  }, read.toString());
+}
+
+
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.SERK_PLAYWRIGHT);
 const BASE = process.env.SERK_URL + '/console/';
@@ -165,10 +197,17 @@ try {
   // ---- 1. Requisition: site engineer creates and submits ------------------------
   const se = await as('siteEng');
   await audit(se, 'home (site engineer)');
+  // Regression: a late answer to the form's first cost-code request must not rebuild the lines over typed text.
+  const heldPR = await holdFirstAnswer(se, /\/v1\/projects\/[^/]+\/cost-codes/);
   await nav(se, '#/new/requisition', 'New requisition');
+  await se.getByLabel('Project').dispatchEvent('change');
   await se.getByLabel('Cost code, line 1').waitFor();
   await se.getByLabel('Justification').fill('Level 3 slab reinforcement and concrete');
   await se.getByLabel('Description, line 1').fill('Reinforcement steel Grade 60');
+  await heldPR.delivered();
+  const keptPR = await stays(se.getByLabel('Description, line 1'), (el) => (el.isConnected ? el.value : '(line removed)'));
+  await heldPR.stop();
+  if (keptPR.length !== 1 || keptPR[0] !== 'Reinforcement steel Grade 60') fail(`a late answer rebuilt the requisition lines over typed text: saw ${JSON.stringify(keptPR)}`);
   await se.getByLabel('Unit, line 1').fill('t');
   await se.getByLabel('Quantity, line 1').fill('20');
   await se.getByLabel('Estimated unit price, line 1').fill('86000');
@@ -213,6 +252,14 @@ try {
   }
   log('rfq issued, 3 quotes recorded');
 
+  // ---- 3b. SUP-03.3: the evaluator declares no conflict before evaluating --------
+  await nav(se, `#/doc/rfq/${rfqID}`, /^RFQ RFQ-/);
+  await se.getByRole('heading', { name: 'Conflict-of-interest declarations' }).waitFor();
+  await se.getByRole('button', { name: 'Declare', exact: true }).click();
+  await se.getByRole('cell', { name: 'No conflict', exact: true }).waitFor();
+  if (await se.getByRole('button', { name: 'Declare', exact: true }).count()) fail('the declaration form is still offered after declaring');
+  log('no-conflict declaration recorded');
+
   // ---- 4. Technical evaluation by the site engineer ----------------------------
   await nav(se, '#/list/rfq_quote/PENDING', 'Quotes');
   for (const [code, , , , ok] of [[...quotes[0], true], [...quotes[1], true], [...quotes[2], false]]) {
@@ -224,8 +271,25 @@ try {
     await act(se, 'Record evaluation', 'Record evaluation: done');
   }
 
+  // ---- 4b. SUP-03.3: supplier qualification, recorded by the buyer, approved by another
+  await nav(buyer, '#/list/supplier/ACTIVE', 'Suppliers');
+  await buyer.getByRole('link', { name: 'ABC-STEEL', exact: true }).click();
+  await buyer.getByRole('heading', { name: 'Qualification and performance' }).waitFor();
+  await buyer.getByLabel('Category', { exact: true }).fill('Structural steel supply');
+  await buyer.getByLabel('Reference', { exact: true }).fill('LIC-STEEL-2026');
+  await buyer.getByLabel('Valid from').fill('2026-10-01');
+  await buyer.getByLabel('Valid to').fill('2027-09-30');
+  await buyer.getByRole('button', { name: 'Record qualification' }).click();
+  await buyer.getByRole('cell', { name: 'LIC-STEEL-2026' }).waitFor();
+  if (await buyer.locator('[data-approve-qualification]').count()) fail('the qualification maker is offered its approval');
+  const supplierHash = await buyer.evaluate(() => location.hash);
   // ---- 5. Award (lowest compliant) and purchase order --------------------------
   const pmgr = await as('procMgr');
+  await nav(pmgr, supplierHash, null);
+  await pmgr.locator('[data-approve-qualification="LIC-STEEL-2026"]').click();
+  await pmgr.getByText('Qualified today.').waitFor();
+  log('supplier qualification recorded and approved by a second person');
+
   await nav(pmgr, `#/doc/rfq/${rfqID}`, /^RFQ RFQ-/);
   await selectByText(pmgr.getByLabel('Winning quote (technically compliant only)'), 'Q-A');
   await act(pmgr, 'Award', 'Award: done');
@@ -261,6 +325,19 @@ try {
   await receipt('12', '500', 'DN-4471');
   await receipt('8', '', 'DN-4502');
   log('two receipts confirmed');
+  // ---- 6b. SUP-03.3: the site engineer scores the supplier after receipt ----------
+  await nav(se, `#/doc/purchase_order/${poID}`, /^Purchase order PO-/);
+  await se.getByText('Score the supplier (once, after receipt)').click();
+  await se.getByLabel('Quality', { exact: true }).selectOption('4');
+  await se.getByLabel('Delivery', { exact: true }).selectOption('3');
+  await se.getByLabel('Safety', { exact: true }).selectOption('5');
+  await se.getByLabel('Note', { exact: true }).fill('Second delivery a week late');
+  await se.getByRole('button', { name: 'Score the supplier' }).click();
+  await se.locator('#status').filter({ hasText: 'Supplier scored.' }).waitFor();
+  await nav(pmgr, supplierHash, null);
+  await pmgr.getByText(/1 scored order\(s\): quality 4/).waitFor();
+  log('supplier scored after receipt');
+
 
   // ---- 7. Invoices: 3-way match, AP supervisor approval -------------------------
   const ap = await as('apClerk');
@@ -414,7 +491,8 @@ try {
   await snap(mobile, 'mobile-purchase-order');
 
   // ---- 13. Sign-out revokes the session server-side ------------------------------------
-  await ctl.getByRole('button', { name: 'Sign out' }).click();
+  await ctl.getByRole('button', { name: 'Account menu' }).click();
+  await ctl.getByRole('menuitem', { name: 'Sign out' }).click();
   await ctl.getByRole('heading', { level: 1, name: 'Sign in' }).waitFor();
   const r = await fetch(process.env.SERK_URL + '/v1/identity/me', { headers: { Authorization: 'Bearer ' + T.controller } });
   if (r.status !== 401) fail(`token still valid after sign-out: ${r.status}`);

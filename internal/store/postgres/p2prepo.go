@@ -35,9 +35,12 @@ type P2PPolicy struct {
 	APAccountID           string `json:"ap_account_id"`
 	VATInputAccountID     string `json:"vat_input_account_id"`
 	PPVAccountID          string `json:"ppv_account_id"`
-	Status                string `json:"status"`
-	CreatedBy             string `json:"created_by"`
-	ApprovedBy            string `json:"approved_by,omitempty"`
+	// 0093: conflict declarations before evaluation and award; awards only to qualified suppliers.
+	RequireConflictDeclarations  bool   `json:"require_conflict_declarations"`
+	RequireSupplierQualification bool   `json:"require_supplier_qualification"`
+	Status                       string `json:"status"`
+	CreatedBy                    string `json:"created_by"`
+	ApprovedBy                   string `json:"approved_by,omitempty"`
 }
 
 // Doc is the common header of a P2P document as returned to callers.
@@ -79,6 +82,10 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"warehouse":         {"warehouses", "created_by", ""},
 	"stock_receipt":     {"stock_receipts", "created_by", ""},
 	"stock_issue":       {"stock_issues", "created_by", ""},
+	"stock_writeoff":    {"stock_writeoffs", "created_by", ""}, // 0088
+	"stock_return":      {"stock_returns", "created_by", ""},   // 0089
+	"resource_rate":     {"resource_rates", "created_by", ""},  // 0094
+	"rate_buildup":      {"rate_buildups", "created_by", ""},   // 0094
 	"stock_count":       {"stock_counts", "created_by", ""},
 	"stock_transfer":    {"stock_transfers", "created_by", ""},
 	"schedule_version":  {"schedule_versions", "created_by", ""},
@@ -120,6 +127,36 @@ var p2pTables = map[string]struct{ table, creator, children string }{
 	"equipment_operator_auth": {"equipment_operator_auths", "created_by", ""},
 	"equipment_log":           {"equipment_logs", "created_by", ""},
 	"equipment_meter_reset":   {"equipment_meter_resets", "created_by", ""},
+	"maintenance_work_order":  {"maintenance_work_orders", "created_by", ""},
+	"fleet_policy":            {"fleet_policies", "created_by", ""},
+	"equipment_charge_rate":   {"equipment_charge_rates", "created_by", ""},
+	"equipment_charge_run":    {"equipment_charge_runs", "created_by", ""},
+	// Revenue policies (0053).
+	"revenue_policy": {"revenue_policies", "created_by", ""},
+	// Subcontracts (0055).
+	"subcontract_policy":      {"subcontract_policies", "created_by", ""},
+	"subcontract":             {"subcontracts", "created_by", ""},
+	"subcontract_application": {"subcontract_applications", "created_by", ""},
+	"subcontract_backcharge":  {"subcontract_backcharges", "created_by", ""},
+	"subcontract_payment":     {"subcontract_payments", "created_by", ""},
+	// Fixed assets (0057).
+	"fixed_asset":    {"fixed_assets", "created_by", ""},
+	"asset_disposal": {"asset_disposals", "created_by", ""},
+	// Payroll (0061).
+	"payroll_policy":      {"payroll_policies", "created_by", ""},
+	"payroll_rule_set":    {"payroll_rule_sets", "created_by", ""},
+	"pay_run":             {"pay_runs", "created_by", ""},
+	"consolidation_group": {"consolidation_groups", "created_by", ""},
+	"consolidation_run":   {"consolidation_runs", "created_by", ""},
+	"tax_return":          {"tax_returns", "created_by", ""},
+	"itp":                 {"itps", "created_by", ""},
+	// Transmittals and submittals (0077).
+	"transmittal": {"transmittals", "created_by", ""},
+	"submittal":   {"submittals", "created_by", ""},
+	// Correspondence register (0085).
+	"correspondence": {"correspondence", "created_by", ""},
+	// Timesheets (0076).
+	"timesheet": {"timesheets", "created_by", ""},
 }
 
 // DocTypes reports whether a document type is known (for callers that must
@@ -361,6 +398,10 @@ var listSQL = map[string]string{
 	"stock_item":              `SELECT id::text, code, status, created_by, created_at, '', 0::numeric, name || ' (' || unit || ', ' || valuation_method || ')' FROM stock_items`,
 	"warehouse":               `SELECT id::text, code, status, created_by, created_at, COALESCE(project_id::text, ''), 0::numeric, name FROM warehouses`,
 	"stock_receipt":           `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, COALESCE(w.project_id::text, ''), r.amount, i.code || ' ' || r.quantity || ' ' || i.unit || ' into ' || w.code FROM stock_receipts r JOIN stock_items i ON i.id = r.stock_item_id JOIN warehouses w ON w.id = r.warehouse_id`,
+	"stock_return":            `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, x.project_id::text, COALESCE(x.amount, 0), i.code || ' ' || x.quantity || ' ' || i.unit || ' back to ' || w.code || ' from issue ' || s.number FROM stock_returns x JOIN stock_items i ON i.id = x.stock_item_id JOIN warehouses w ON w.id = x.warehouse_id JOIN stock_issues s ON s.id = x.issue_id`,
+	"resource_rate":           `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, '', x.rate, x.kind || ' ' || x.description || ' per ' || x.unit || ' (' || x.currency || ', ' || x.region || ', ' || x.valid_from || ' to ' || x.valid_to || ')' FROM resource_rates x`,
+	"rate_buildup":            `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, x.project_id::text, COALESCE(x.selling_rate, 0), x.description || ' per ' || x.unit || ' (' || x.currency || ')' FROM rate_buildups x`,
+	"stock_writeoff":          `SELECT o.id::text, o.number, o.status, o.created_by, o.created_at, COALESCE(w.project_id::text, ''), COALESCE(o.amount, 0), i.code || ' ' || o.quantity || ' ' || i.unit || ' from ' || w.code || ' — ' || o.reason FROM stock_writeoffs o JOIN stock_items i ON i.id = o.stock_item_id JOIN warehouses w ON w.id = o.warehouse_id`,
 	"stock_issue":             `SELECT s.id::text, s.number, s.status, s.created_by, s.created_at, s.project_id::text, COALESCE(s.amount, 0), i.code || ' ' || s.quantity || ' ' || i.unit || ' from ' || w.code FROM stock_issues s JOIN stock_items i ON i.id = s.stock_item_id JOIN warehouses w ON w.id = s.warehouse_id`,
 	"stock_count":             `SELECT c.id::text, c.number, c.status, c.created_by, c.created_at, COALESCE(c.project_id::text, ''), COALESCE(c.amount, 0), i.code || ' counted ' || c.counted_qty || ' (book ' || c.system_qty || ') in ' || w.code FROM stock_counts c JOIN stock_items i ON i.id = c.stock_item_id JOIN warehouses w ON w.id = c.warehouse_id`,
 	"schedule_version":        `SELECT s.id::text, 'v' || s.version, s.status, s.created_by, s.created_at, s.project_id::text, COALESCE((SELECT sum(budget) FROM schedule_activities a WHERE a.version_id = s.id), 0), s.description || COALESCE(' — finish ' || s.finish_date, '') FROM schedule_versions s`,
@@ -391,6 +432,29 @@ var listSQL = map[string]string{
 	"equipment_operator_auth": `SELECT a.id::text, a.number, a.status, a.created_by, a.created_at, '', 0::numeric, a.operator || ' — ' || lower(a.equipment_class) || ' until ' || a.valid_until || ' (' || a.certificate_ref || ')' FROM equipment_operator_auths a`,
 	"equipment_log":           `SELECT l.id::text, l.number, l.status, l.created_by, l.created_at, l.project_id::text, l.productive_hours, e.number || ' ' || e.name || ' — ' || l.log_date || ' shift ' || l.shift || ', operator ' || l.operator FROM equipment_logs l JOIN equipment e ON e.id = l.equipment_id`,
 	"equipment_meter_reset":   `SELECT m.id::text, m.number, m.status, m.created_by, m.created_at, COALESCE(e.current_project_id::text, ''), m.new_reading, e.number || ' ' || e.name || ' — ' || lower(m.kind) || ': ' || m.old_reading || ' to ' || m.new_reading FROM equipment_meter_resets m JOIN equipment e ON e.id = m.equipment_id`,
+	"maintenance_work_order":  `SELECT m.id::text, m.number, m.status, m.created_by, m.created_at, COALESCE(e.current_project_id::text, ''), COALESCE(m.labour_hours, 0), e.number || ' ' || e.name || ' — ' || lower(m.kind) || ': ' || left(m.description, 80) FROM maintenance_work_orders m JOIN equipment e ON e.id = m.equipment_id`,
+	"equipment_charge_rate":   `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, '', x.productive_rate, e.number || ' ' || e.name || ' — from ' || x.effective_from || ': ' || x.productive_rate || ' an hour working, ' || x.idle_rate || ' idle' FROM equipment_charge_rates x JOIN equipment e ON e.id = x.equipment_id`,
+	"equipment_charge_run":    `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, r.project_id::text, COALESCE((SELECT sum(amount) FROM equipment_charge_lines l WHERE l.run_id = r.id), 0), to_char(r.month, 'Month YYYY') || ' — ' || (SELECT count(*) FROM equipment_charge_lines l WHERE l.run_id = r.id) || ' log(s)' FROM equipment_charge_runs r`,
+	"fleet_policy":            `SELECT x.id::text, x.number, x.status, x.created_by, x.created_at, '', x.fuel_variance_tolerance, 'Fleet policy effective ' || x.effective_from::text FROM fleet_policies x`,
+	"revenue_policy":          `SELECT r.id::text, 'REV-v' || r.version, r.status, r.created_by, r.created_at, '', 0::numeric, (SELECT name FROM legal_entities WHERE id = r.legal_entity_id) || ': ' || CASE r.method WHEN 'INPUT_COST' THEN 'cost to cost' ELSE 'measured output' END FROM revenue_policies r`,
+	"subcontract_policy":      `SELECT p.id::text, 'SUBPOL-v' || p.version, p.status, p.created_by, p.created_at, '', 0::numeric, (SELECT name FROM legal_entities WHERE id = p.legal_entity_id) FROM subcontract_policies p`,
+	"subcontract":             `SELECT s.id::text, s.number, s.status, s.created_by, s.created_at, s.project_id::text, subcontract_value(s.id), s.title || ' — ' || (SELECT name FROM suppliers WHERE id = s.supplier_id) FROM subcontracts s`,
+	"subcontract_application": `SELECT a.id::text, a.number, a.status, a.created_by, a.created_at, s.project_id::text, COALESCE(a.net_payable, 0), s.number || ' to ' || a.period_to || COALESCE(' — gross ' || a.this_gross, '') FROM subcontract_applications a JOIN subcontracts s ON s.id = a.subcontract_id`,
+	"subcontract_backcharge":  `SELECT b.id::text, b.number, b.status, b.created_by, b.created_at, s.project_id::text, b.amount, s.number || ' — ' || b.reason || CASE WHEN b.deducted_in IS NOT NULL THEN ' (deducted)' ELSE '' END FROM subcontract_backcharges b JOIN subcontracts s ON s.id = b.subcontract_id`,
+	"subcontract_payment":     `SELECT p.id::text, p.number, p.status, p.created_by, p.created_at, s.project_id::text, p.amount, s.number || ' — ' || (SELECT name FROM suppliers WHERE id = s.supplier_id) || ' (value ' || p.value_date || ')' FROM subcontract_payments p JOIN subcontracts s ON s.id = p.subcontract_id`,
+	"fixed_asset":             `SELECT a.id::text, a.number, a.status, a.created_by, a.created_at, COALESCE(a.project_id::text, ''), a.cost, (SELECT code FROM asset_classes WHERE id = a.class_id) || ' — ' || a.description FROM fixed_assets a`,
+	"asset_disposal":          `SELECT d.id::text, d.number, d.status, d.created_by, d.created_at, '', d.proceeds, a.number || ' — ' || a.description || COALESCE(' (gain ' || d.gain || ')', '') FROM asset_disposals d JOIN fixed_assets a ON a.id = d.asset_id`,
+	"payroll_policy":          `SELECT p.id::text, 'PAYPOL-v' || p.version, p.status, p.created_by, p.created_at, '', 0::numeric, (SELECT name FROM legal_entities WHERE id = p.legal_entity_id) FROM payroll_policies p`,
+	"payroll_rule_set":        `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', 0::numeric, 'Effective ' || r.effective_from || ' — ' || r.source_ref FROM payroll_rule_sets r`,
+	"pay_run":                 `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', COALESCE((SELECT sum(net) FROM pay_lines l WHERE l.run_id = r.id), 0), r.period_start || ' to ' || r.period_end || ' (' || (SELECT count(*) FROM pay_inputs i WHERE i.run_id = r.id) || ' employees)' FROM pay_runs r`,
+	"consolidation_group":     `SELECT g.id::text, g.code || '-v' || g.version, g.status, g.created_by, g.created_at, '', 0::numeric, g.name || ' (' || g.presentation_currency || ', ' || (SELECT count(*) FROM consolidation_members m WHERE m.group_id = g.id) || ' members)' FROM consolidation_groups g`,
+	"consolidation_run":       `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', 0::numeric, (SELECT code FROM consolidation_groups WHERE id = r.group_id) || ' ' || r.period_start || ' to ' || r.period_end FROM consolidation_runs r`,
+	"tax_return":              `SELECT r.id::text, r.number, r.status, r.created_by, r.created_at, '', COALESCE((SELECT sum(amount) FROM tax_return_lines l WHERE l.return_id = r.id), 0), r.kind || ' ' || r.period_start || ' to ' || r.period_end FROM tax_returns r`,
+	"timesheet":               `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, COALESCE((SELECT sum(hours_normal + hours_ot) FROM timesheet_lines l WHERE l.timesheet_id = t.id), 0), t.work_date || ' — ' || (SELECT count(*) FROM timesheet_lines l WHERE l.timesheet_id = t.id) || ' people' FROM timesheets t`,
+	"transmittal":             `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, (SELECT count(*) FROM transmittal_items i WHERE i.transmittal_id = t.id)::numeric, t.subject || ' — to ' || t.to_party || ' (' || lower(replace(t.purpose, '_', ' ')) || ')' FROM transmittals t`,
+	"submittal":               `SELECT x.id::text, x.number, x.status || COALESCE('/' || x.review_code, ''), x.created_by, x.created_at, x.project_id::text, 0::numeric, x.spec_section || ' — ' || x.title FROM submittals x`,
+	"correspondence":          `SELECT c.id::text, c.number, c.status, c.created_by, c.created_at, c.project_id::text, 0::numeric, c.direction || ' ' || c.dated_on || ' — ' || c.counterparty || ': ' || c.subject || COALESCE(' (due ' || c.reply_due_on || ')', '') FROM correspondence c`,
+	"itp":                     `SELECT t.id::text, t.number, t.status, t.created_by, t.created_at, t.project_id::text, 0::numeric, t.title || COALESCE(' — activity ' || t.activity_code, '') FROM itps t`,
 	// Money-in statement lines not yet recorded as a receipt (AR worklist).
 	"money_in": `SELECT l.id::text, s.statement_no || '/' || l.line_no, CASE WHEN EXISTS (SELECT 1 FROM customer_receipts r WHERE r.statement_line_id = l.id AND r.status <> 'CANCELLED') THEN 'RECORDED' ELSE 'UNAPPLIED' END,
 	       s.imported_by, s.imported_at, '', l.amount, l.reference || ' — ' || l.counterparty FROM bank_statement_lines l JOIN bank_statements s ON s.id = l.statement_id WHERE l.amount > 0`,
@@ -409,17 +473,37 @@ type ListScope struct {
 
 // ListDocs lists documents of a type, newest first, optionally by status.
 func ListDocs(ctx context.Context, tx pgx.Tx, docType, status string, scope ListScope, limit int) ([]DocSummary, error) {
+	return ListDocsAfter(ctx, tx, docType, status, scope, limit, nil)
+}
+
+// ListPosition is a keyset position in a document list: the creation time and
+// id of the last row of the previous page. The order (created_at, id) is total,
+// so a page never repeats or skips a row that existed when the first page was
+// read, whatever is inserted meanwhile (new rows sort before the position).
+type ListPosition struct {
+	CreatedAt time.Time
+	ID        string
+}
+
+// ListDocsAfter is ListDocs from a position (nil: from the newest).
+func ListDocsAfter(ctx context.Context, tx pgx.Tx, docType, status string, scope ListScope, limit int, after *ListPosition) ([]DocSummary, error) {
 	q, ok := listSQL[docType]
 	if !ok {
 		return nil, ErrUnknownDocType
 	}
-	if limit <= 0 || limit > 500 {
+	if limit <= 0 || limit > 501 {
 		limit = 100
+	}
+	var at *time.Time
+	afterID := ""
+	if after != nil {
+		at, afterID = &after.CreatedAt, after.ID
 	}
 	rows, err := tx.Query(ctx, `SELECT * FROM (`+q+`) d(id, number, status, created_by, created_at, project_id, amount, label)
 		WHERE ($1 = '' OR d.status = $1 OR d.status LIKE $1 || '/%')
 		  AND ($3 OR (d.project_id <> '' AND d.project_id = ANY($4::text[])) OR (d.project_id = '' AND $5))
-		ORDER BY created_at DESC LIMIT $2`, status, limit, scope.TenantWide, scope.Projects, scope.EntityLevel)
+		  AND ($6::timestamptz IS NULL OR (d.created_at, d.id) < ($6::timestamptz, $7::text))
+		ORDER BY d.created_at DESC, d.id DESC LIMIT $2`, status, limit, scope.TenantWide, scope.Projects, scope.EntityLevel, at, afterID)
 	if err != nil {
 		return nil, err
 	}
@@ -447,16 +531,30 @@ type JournalSummary struct {
 	ApprovedBy  string          `json:"approved_by,omitempty"`
 	ProjectID   string          `json:"project_id,omitempty"`
 	Debits      decimal.Decimal `json:"debits"`
+	CreatedAt   time.Time       `json:"created_at"`
 }
 
 // ListJournals lists journals by status (and source type prefix).
 func ListJournals(ctx context.Context, tx pgx.Tx, status, sourcePrefix string, limit int) ([]JournalSummary, error) {
-	if limit <= 0 || limit > 500 {
+	return ListJournalsAfter(ctx, tx, status, sourcePrefix, limit, nil)
+}
+
+// ListJournalsAfter is ListJournals in a stable newest-first order (created_at,
+// then id), starting after a position (XCT-API.2.e).
+func ListJournalsAfter(ctx context.Context, tx pgx.Tx, status, sourcePrefix string, limit int, after *ListPosition) ([]JournalSummary, error) {
+	if limit <= 0 || limit > 501 {
 		limit = 200
 	}
+	var at *time.Time
+	afterID := ""
+	if after != nil {
+		at, afterID = &after.CreatedAt, after.ID
+	}
 	rows, err := tx.Query(ctx, `SELECT j.id::text, j.status, j.source_type, COALESCE(j.source_ref, ''), j.description, j.business_event_at, j.created_by,
-		COALESCE(j.approved_by, ''), COALESCE(j.project_id::text, ''), COALESCE((SELECT sum(amount) FROM journal_lines l WHERE l.journal_id = j.id AND l.side = 'DEBIT'), 0)
-		FROM journals j WHERE ($1 = '' OR j.status = $1) AND j.source_type LIKE $2 || '%' ORDER BY j.created_at DESC LIMIT $3`, status, sourcePrefix, limit)
+		COALESCE(j.approved_by, ''), COALESCE(j.project_id::text, ''), COALESCE((SELECT sum(amount) FROM journal_lines l WHERE l.journal_id = j.id AND l.side = 'DEBIT'), 0), j.created_at
+		FROM journals j WHERE ($1 = '' OR j.status = $1) AND j.source_type LIKE $2 || '%'
+		  AND ($4::timestamptz IS NULL OR (j.created_at, j.id::text) < ($4::timestamptz, $5::text))
+		ORDER BY j.created_at DESC, j.id::text DESC LIMIT $3`, status, sourcePrefix, limit, at, afterID)
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +562,7 @@ func ListJournals(ctx context.Context, tx pgx.Tx, status, sourcePrefix string, l
 	var out []JournalSummary
 	for rows.Next() {
 		var j JournalSummary
-		if err := rows.Scan(&j.ID, &j.Status, &j.SourceType, &j.SourceRef, &j.Description, &j.EventDate, &j.CreatedBy, &j.ApprovedBy, &j.ProjectID, &j.Debits); err != nil {
+		if err := rows.Scan(&j.ID, &j.Status, &j.SourceType, &j.SourceRef, &j.Description, &j.EventDate, &j.CreatedBy, &j.ApprovedBy, &j.ProjectID, &j.Debits, &j.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, j)

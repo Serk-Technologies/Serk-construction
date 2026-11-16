@@ -140,11 +140,11 @@ func TestS3AgainstARealServer(t *testing.T) {
 		t.Skip("SERK_TEST_S3_ENDPOINT is not set: the S3 client was not exercised against a server")
 	}
 	ctx := context.Background()
-	s := &S3{Endpoint: ep, Region: "us-east-1", Bucket: "serk-test-" + sha[:12], AccessKey: os.Getenv("SERK_TEST_S3_ACCESS_KEY"), SecretKey: os.Getenv("SERK_TEST_S3_SECRET_KEY"), PartSize: 5 << 20}
-	if resp, err := s.send(ctx, http.MethodPut, "/"+s.Bucket, nil, nil, nil); err != nil {
+	// A bucket of this test's own, created here: no other test and no earlier
+	// run has to have prepared it.
+	s := &S3{Endpoint: ep, Region: "us-east-1", Bucket: "serk-blobtest-" + sha[:12], AccessKey: os.Getenv("SERK_TEST_S3_ACCESS_KEY"), SecretKey: os.Getenv("SERK_TEST_S3_SECRET_KEY"), PartSize: 5 << 20}
+	if err := s.CreateBucket(ctx); err != nil {
 		t.Fatal(err)
-	} else {
-		resp.Body.Close() // 200, or 409 when the bucket is left from an earlier run
 	}
 	sealed := Sealed{Store: s, Master: master()}
 	for _, n := range []int{0, 1000, 5<<20 - 1, 12<<20 + 5} { // single request and multipart (three parts)

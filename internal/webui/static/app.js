@@ -60,8 +60,83 @@ function select(name, options, attrs = {}) {
   return s;
 }
 
+// ---------- form state (XCT-FORM) ----------
+// A form's state is held in plain objects, not in the DOM: a line grid keeps
+// its rows (with stable identities) in an array that the inputs write into, so
+// re-rendering a list of choices never loses what was typed. FORM tracks the
+// page's dependent loads (submission waits for them), whether anything was
+// typed (leaving asks first) and an AbortController that navigation trips.
+const FORM = { pending: 0, dirty: false, ctl: null, onPending: null };
+function resetForm() {
+  if (FORM.ctl) FORM.ctl.abort();
+  FORM.pending = 0; FORM.dirty = false; FORM.onPending = null;
+  FORM.ctl = typeof AbortController === 'function' ? new AbortController() : null;
+}
+function formPending(delta) {
+  FORM.pending = Math.max(0, FORM.pending + delta);
+  if (FORM.onPending) FORM.onPending(FORM.pending > 0);
+}
+// A form that reloads a list when another field changes can have two requests in
+// flight; the older answer must never overwrite the newer one (or the choice the
+// user has made since), and an older failure must not be reported after a newer
+// success. latestOnly() returns a runner that aborts the previous request, applies
+// only the result of the most recent call, drops stale answers and stale errors,
+// and counts as pending so the form cannot be submitted while choices load.
+function latestOnly() {
+  let seq = 0;
+  let ctl = null;
+  return async (fetchIt, apply) => {
+    const me = ++seq;
+    if (ctl) ctl.abort();
+    ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const page = FORM.ctl;
+    const signal = ctl ? ctl.signal : undefined;
+    const pageAbort = () => ctl && ctl.abort();
+    if (page) page.signal.addEventListener('abort', pageAbort, { once: true });
+    formPending(+1);
+    try {
+      const res = await fetchIt(signal);
+      if (me === seq && !(signal && signal.aborted)) apply(res);
+    } catch (e) {
+      // A stale or cancelled request's failure is not the user's concern.
+      if (me === seq && !(e && e.name === 'AbortError') && !(signal && signal.aborted)) throw e;
+    } finally {
+      if (page) page.signal.removeEventListener('abort', pageAbort);
+      formPending(-1);
+    }
+  };
+}
+// Refill a <select> and keep the current choice when it is still on offer. A
+// choice that is no longer offered is never silently replaced: the select is
+// marked unresolved and must be chosen again before the form can be sent.
+function refill(sel, options) {
+  // Only a choice the person made counts; a browser's default first option does not.
+  const keep = sel.dataset.wanted || (sel.dataset.chosen ? sel.value : '');
+  const before = sel.value;
+  sel.replaceChildren(...options);
+  if (!keep && [...sel.options].some((o) => o.value === before)) sel.value = before;
+  const offered = [...sel.options].some((o) => o.value === keep);
+  if (offered) { sel.value = keep; delete sel.dataset.wanted; sel.removeAttribute('aria-invalid'); sel.classList.remove('unresolved'); return; }
+  if (!keep) return;
+  sel.dataset.wanted = keep;
+  sel.prepend(h('option', { value: '', 'data-unresolved': '' }, 'Choose again: the earlier choice is not available here'));
+  sel.value = '';
+  sel.setAttribute('aria-invalid', 'true');
+  sel.classList.add('unresolved');
+}
+// A choice made by hand resolves an unresolved select.
+document.addEventListener('change', (ev) => {
+  const t = ev.target;
+  if (t && t.tagName === 'SELECT') t.dataset.chosen = '1';
+  if (t && t.tagName === 'SELECT' && t.dataset.wanted !== undefined && t.value) {
+    delete t.dataset.wanted; t.removeAttribute('aria-invalid'); t.classList.remove('unresolved');
+    const u = t.querySelector('option[data-unresolved]'); if (u) u.remove();
+  }
+});
 function say(msg) { const s = $('status'); s.textContent = ''; setTimeout(() => { s.textContent = msg; }, 30); }
 function showError(err) {
+  // An aborted read belongs to a page that was left: nothing to report.
+  if (err && err.name === 'AbortError') return;
   const a = $('alert');
   a.textContent = '';
   a.append(h('strong', {}, errorTitle(err)), ' ', err.message || String(err));
@@ -85,16 +160,22 @@ function errorTitle(e) {
 class ApiError extends Error {
   constructor(status, code, message, challenge) { super(message); this.status = status; this.code = code; this.challenge = challenge; }
 }
-async function api(method, path, body, raw) {
+async function api(method, path, body, raw, signal) {
   const init = { method, headers: { Authorization: 'Bearer ' + S.token } };
+  // A read belongs to the page that asked for it: the next navigation aborts it, so a slow
+  // render of a page the person has left can never paint over the one they went to. Writes
+  // are never aborted (one sent may already have been committed).
+  if (!signal && method === 'GET' && FORM.ctl) signal = FORM.ctl.signal;
+  if (signal) init.signal = signal;
   if (raw !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = raw; }
   else if (body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(body); }
   const r = await fetch(path, init);
   let data = null;
   try { data = await r.json(); } catch { /* empty body */ }
   if (!r.ok) {
+    // RFC 9457 problem details (code and detail); the older error object is the fallback.
     const e = (data && data.error) || {};
-    throw new ApiError(r.status, e.code || 'error', e.message || r.statusText, r.headers.get('WWW-Authenticate'));
+    throw new ApiError(r.status, (data && data.code) || e.code || 'error', (data && data.detail) || e.message || r.statusText, r.headers.get('WWW-Authenticate'));
   }
   return data;
 }
@@ -163,11 +244,38 @@ const DOCS = {
   contract_claim: { title: 'Claims', one: 'Claim', base: '/v1/claims', create: 'claim.manage', form: 'claim',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
+  subcontract: { title: 'Subcontracts', one: 'Subcontract', base: '/v1/subcontracts', create: 'subcontract.manage', form: 'subcontract',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CLOSED'],
+    actions: { DRAFT: [['submit', 'subcontract.manage']], SUBMITTED: [['approve', 'subcontract.approve', 'opt'], ['reject', 'subcontract.approve', 'req']] } },
+  subcontract_application: { title: 'Subcontract applications', one: 'Subcontract application', base: '/v1/subcontract-applications', create: null, form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'CERTIFIED', 'REJECTED'], actions: { DRAFT: [['submit', 'subcontract.apply']], SUBMITTED: [['reject', 'subcontract.certify', 'req']] } },
+  subcontract_backcharge: { title: 'Back-charges', one: 'Back-charge', base: '/v1/subcontract-backcharges', create: null, form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'subcontract.manage']], SUBMITTED: [['approve', 'subcontract.approve', 'opt'], ['reject', 'subcontract.approve', 'req']] } },
+  subcontract_payment: { title: 'Subcontract payments', one: 'Subcontract payment', base: '/v1/subcontract-payments', create: null, form: null,
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'RELEASED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'payment.prepare'], ['cancel', 'payment.prepare', 'req']], SUBMITTED: [['approve', 'payment.approve', 'opt'], ['reject', 'payment.approve', 'req']],
+      APPROVED: [['release', 'payment.release'], ['cancel', 'payment.approve', 'req']] } },
+  timesheet: { title: 'Timesheets', one: 'Timesheet', base: '/v1/timesheets', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'timesheet.record'], ['cancel', 'timesheet.record']], SUBMITTED: [['approve', 'timesheet.approve'], ['reject', 'timesheet.approve', 'req']] } },
+  equipment_usage: { title: 'Equipment usage', one: 'Usage record', base: '/v1/equipment-usage', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'equipment.record'], ['cancel', 'equipment.record']], SUBMITTED: [['approve', 'equipment.approve'], ['reject', 'equipment.approve', 'req']] } },
+  itp: { title: 'Inspection plans', one: 'Inspection plan', base: '/v1/itps', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'quality.manage'], ['cancel', 'quality.manage']], SUBMITTED: [['approve', 'quality.approve'], ['reject', 'quality.approve', 'req']] } },
+  fixed_asset: { title: 'Fixed assets', one: 'Fixed asset', base: '/v1/assets', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'ACTIVE', 'REJECTED', 'DISPOSED'],
+    actions: { DRAFT: [['submit', 'asset.manage']], SUBMITTED: [['approve', 'asset.approve', 'opt'], ['reject', 'asset.approve', 'req']] } },
+  asset_disposal: { title: 'Asset disposals', one: 'Asset disposal', base: '/v1/asset-disposals', create: null, form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'asset.manage']], SUBMITTED: [['approve', 'asset.approve', 'opt'], ['reject', 'asset.approve', 'req']] } },
+  subcontract_policy: { title: 'Subcontract policies', one: 'Subcontract policy', base: '/v1/subcontract-policies', create: null, form: null,
+    statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'RETIRED'], actions: { DRAFT: [['approve', 'contract.policy.approve', 'opt'], ['reject', 'contract.policy.approve', 'req']] } },
   ld_terms: { title: 'Damages terms', one: 'Damages terms', base: '/v1/ld-terms', create: 'claim.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'claim.manage']], SUBMITTED: [['approve', 'claim.approve', 'opt'], ['reject', 'claim.approve', 'req']] } },
   document_revision: { title: 'Document revisions', one: 'Document revision', base: '/v1/document-revisions', create: 'document.manage', form: 'document',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
     actions: { DRAFT: [['submit', 'document.manage']], SUBMITTED: [['approve', 'document.approve', 'opt'], ['reject', 'document.approve', 'req']] } },
+  transmittal: { title: 'Transmittals', one: 'Transmittal', base: '/v1/transmittals', create: 'document.manage', form: 'transmittal', statuses: ['SENT'], actions: {} },
+  submittal: { title: 'Submittals', one: 'Submittal', base: '/v1/submittals', create: 'document.manage', form: 'submittal', statuses: ['SUBMITTED', 'REVIEWED'], actions: {} },
+  correspondence: { title: 'Correspondence', one: 'Correspondence item', base: '/v1/correspondence', create: 'document.manage', form: 'correspondence', statuses: ['AWAITING_REPLY', 'ANSWERED', 'RECORDED'], actions: {} },
   rfi: { title: 'Requests for information', one: 'Request for information', base: '/v1/rfis', create: 'document.manage', form: 'rfi', statuses: ['OPEN', 'ANSWERED', 'CLOSED'], actions: {} },
   equipment_reservation: { title: 'Equipment reservations', one: 'Equipment reservation', base: '/v1/equipment-reservations', create: 'fleet.reserve', form: 'equipment_reservation',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED'],
@@ -178,6 +286,15 @@ const DOCS = {
     actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
   equipment_meter_reset: { title: 'Meter resets', one: 'Meter reset', base: '/v1/equipment-meter-resets', create: 'fleet.manage', form: null, statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.release', 'opt'], ['reject', 'fleet.release', 'req']] } },
+  fleet_policy: { title: 'Fleet policies', one: 'Fleet policy', base: '/v1/fleet-policies', create: 'fleet.manage', form: 'fleet_policy', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']] } },
+  equipment_charge_rate: { title: 'Charge-out rates', one: 'Charge-out rate', base: '/v1/equipment-charge-rates', create: 'fleet.manage', form: 'charge_rate', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
+    actions: { DRAFT: [['submit', 'fleet.manage']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']] } },
+  equipment_charge_run: { title: 'Equipment charge runs', one: 'Equipment charge run', base: '/v1/equipment-charge-runs', create: 'journal.create', form: 'charge_run', statuses: ['PREPARED', 'CANCELLED'],
+    actions: { PREPARED: [['cancel', 'journal.approve|journal.post', 'req']] } },
+  maintenance_work_order: { title: 'Work orders', one: 'Work order', base: '/v1/maintenance-work-orders', create: 'fleet.manage|fleet.operate', form: 'work_order', statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'COMPLETED', 'CLOSED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['submit', 'fleet.manage|fleet.operate'], ['cancel', 'fleet.manage|fleet.operate', 'req']], SUBMITTED: [['approve', 'fleet.approve', 'opt'], ['reject', 'fleet.approve', 'req']],
+      COMPLETED: [['close', 'fleet.release'], ['send-back', 'fleet.release', 'req']] } },
   guarantee: { title: 'Guarantees', one: 'Guarantee', base: '/v1/guarantees', create: 'bond.manage', form: null, statuses: ['ACTIVE', 'RELEASED', 'CALLED'], actions: {} },
   price_index_value: { title: 'Index values', one: 'Index value', base: '/v1/price-index-values', create: 'escalation.manage', form: null,
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
@@ -204,6 +321,12 @@ const DOCS = {
   contingency_drawdown: { title: 'Contingency drawdowns', one: 'Contingency drawdown', base: '/v1/budgets/drawdowns', create: 'budget.revise', form: 'contingency_drawdown',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'],
     actions: { DRAFT: [['submit', 'budget.revise']], SUBMITTED: [['approve', 'budget.approve', 'opt'], ['reject', 'budget.approve', 'req']] } },
+  // EST-06 (0094): the rate library and rate build-ups.
+  resource_rate: { title: 'Rate library', one: 'Resource rate', base: '/v1/resource-rates', create: 'boq.manage', form: 'resource_rate',
+    statuses: ['PENDING', 'APPROVED', 'REJECTED'], actions: { PENDING: [['approve', 'boq.approve', 'opt'], ['reject', 'boq.approve', 'req']] } },
+  rate_buildup: { title: 'Rate build-ups', one: 'Rate build-up', base: '/v1/rate-buildups', create: 'boq.manage', form: 'rate_buildup',
+    statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
+    actions: { DRAFT: [['submit', 'boq.manage']], SUBMITTED: [['approve', 'boq.approve', 'opt'], ['reject', 'boq.approve', 'req']] } },
   boq_version: { title: 'BOQ versions', one: 'BOQ version', base: '/v1/boqs', create: 'boq.manage', form: 'boq',
     statuses: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'SUPERSEDED'],
     actions: { DRAFT: [['submit', 'boq.manage']], SUBMITTED: [['approve', 'boq.approve', 'opt'], ['reject', 'boq.approve', 'req']] } },
@@ -284,6 +407,12 @@ const DOCS = {
     actions: { DRAFT: [['approve', 'stock.issue.approve'], ['reject', 'stock.issue.approve', 'req'], ['cancel', 'stock.issue', 'req']] } },
   stock_count: { title: 'Stock counts', one: 'Stock count', base: '/v1/stock-counts', create: 'stock.count', form: 'stockcount',
     statuses: ['DRAFT', 'APPROVED', 'REJECTED'], actions: { DRAFT: [['approve', 'stock.adjust.approve'], ['reject', 'stock.adjust.approve', 'req']] } },
+  stock_return: { title: 'Site returns', one: 'Site return', base: '/v1/stock-returns', create: 'stock.issue', form: 'stockreturn',
+    statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['approve', 'stock.issue.approve'], ['reject', 'stock.issue.approve', 'req'], ['cancel', 'stock.issue', 'req']] } },
+  stock_writeoff: { title: 'Stock write-offs', one: 'Stock write-off', base: '/v1/stock-writeoffs', create: 'stock.count', form: 'stockwriteoff',
+    statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'CANCELLED'],
+    actions: { DRAFT: [['approve', 'stock.adjust.approve'], ['reject', 'stock.adjust.approve', 'req'], ['cancel', 'stock.count', 'req']] } },
   stock_transfer: { title: 'Stock transfers', one: 'Stock transfer', base: '/v1/stock-transfers', create: 'stock.transfer', form: 'stocktransfer',
     statuses: ['DRAFT', 'APPROVED', 'REJECTED', 'CANCELLED'],
     actions: { DRAFT: [['approve', 'stock.transfer.approve'], ['reject', 'stock.transfer.approve', 'req'], ['cancel', 'stock.transfer', 'req']] } },
@@ -302,20 +431,21 @@ const DOCS = {
 };
 const ACTION_LABEL = { submit: 'Submit for approval', approve: 'Approve', reject: 'Reject', issue: 'Issue to suppliers', award: 'Award',
   evaluate: 'Record evaluation', confirm: 'Confirm receipt', release: 'Release payment', cancel: 'Cancel', block: 'Block supplier',
-  verify: 'Verify measurement', certify: 'Certify', invoice: 'Issue customer invoice', revoke: 'Revoke' };
+  verify: 'Verify measurement', certify: 'Certify', invoice: 'Issue customer invoice', revoke: 'Revoke',
+  close: 'Accept and close', 'send-back': 'Send back to the workshop' };
 
 // Sidebar: categories in the order work flows through a construction company.
 // Each category folds; the folded set is remembered per browser (NAV_KEY).
 const NAV = [
-  ['Overview', [['#/home', 'My work', null], ['#/me', 'My profile', null], ['#/setup', 'Company setup', 'p2p.read|tenant.settings.manage|org.manage'], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
-  ['Projects & planning', [['#/projects', 'Projects', 'p2p.read|project.create|project.update|project.gate.decide'], ['#/list/project_stage_gate', 'Stage gates', 'p2p.read|project.gate.submit|project.gate.decide'], ['#/budget', 'Budget overview', 'p2p.read'], ['#/list/forecast_cycle', 'Cost forecasts', 'p2p.read'], ['#/list/change_event', 'Change events', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/cost', 'Cost report', 'p2p.read'],
-    ['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read']]],
+  ['Overview', [['#/home', 'My work', null], ['#/tasks', 'Tasks', null], ['#/me', 'My profile', null], ['#/setup', 'Company setup', 'p2p.read|tenant.settings.manage|org.manage'], ['#/dashboard', 'Dashboard', 'p2p.read|intelligence.read|journal.read'], ['#/ask', 'Ask', 'intelligence.read'], ['#/risk', 'Risks', 'intelligence.read'], ['#/reports', 'Reports', null]]],
+  ['Projects & planning', [['#/projects', 'Projects', 'p2p.read|project.create|project.update|project.gate.decide'], ['#/list/project_stage_gate', 'Stage gates', 'p2p.read|project.gate.submit|project.gate.decide'], ['#/budget', 'Budget overview', 'p2p.read'], ['#/list/forecast_cycle', 'Cost forecasts', 'p2p.read'], ['#/list/change_event', 'Change events', 'p2p.read'], ['#/list/budget_version', 'Budget versions', 'p2p.read'], ['#/list/budget_transfer', 'Budget transfers', 'p2p.read'], ['#/list/contingency_drawdown', 'Contingency drawdowns', 'p2p.read'], ['#/list/boq_version', 'BOQ', 'p2p.read'], ['#/list/rate_buildup', 'Rate build-ups', 'boq.manage|boq.approve'], ['#/list/resource_rate', 'Rate library', 'boq.manage|boq.approve'], ['#/cost', 'Cost report', 'p2p.read'],
+    ['#/list/schedule_version', 'Schedules', 'p2p.read'], ['#/list/schedule_progress', 'Progress', 'p2p.read'], ['#/evm', 'Earned value', 'p2p.read'], ['#/riskreg', 'Risk register', 'p2p.read']]],
   ['Procurement', [['#/list/purchase_requisition', 'Requisitions', 'p2p.read'], ['#/list/rfq', 'RFQs', 'p2p.read'], ['#/list/rfq_quote', 'Quotes', 'p2p.read'],
     ['#/list/purchase_order', 'Purchase orders', 'p2p.read'], ['#/list/supplier', 'Suppliers', 'p2p.read']]],
   ['Site', [['#/list/site_diary', 'Site diaries', 'p2p.read'], ['#/list/grn', 'Goods receipts', 'p2p.read'],
     ['#/site/devices', 'Field devices', 'site.device.register|site.device.manage']]],
   ['Stores', [['#/stock', 'Stock on hand', 'p2p.read'], ['#/list/stock_issue', 'Stock issues', 'p2p.read'], ['#/list/stock_receipt', 'Put-aways', 'p2p.read'],
-    ['#/list/stock_transfer', 'Transfers', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'],
+    ['#/list/stock_transfer', 'Transfers', 'p2p.read'], ['#/list/stock_count', 'Stock counts', 'p2p.read'], ['#/list/stock_writeoff', 'Write-offs', 'p2p.read'], ['#/list/stock_return', 'Site returns', 'p2p.read'],
     ['#/reservations', 'Reservations', 'p2p.read'], ['#/report/low-stock', 'Low stock', 'p2p.read'], ['#/list/uom_conversion', 'Unit conversions', 'p2p.read'],
     ['#/list/stock_item', 'Stock items', 'p2p.read'], ['#/list/warehouse', 'Warehouses', 'p2p.read']]],
   ['Commercial & revenue', [['#/list/contract', 'Contracts', 'p2p.read'], ['#/list/contract_variation', 'Variations', 'p2p.read'], ['#/list/contract_notice', 'Contract notices', 'p2p.read'], ['#/list/contract_claim', 'Claims', 'p2p.read'],
@@ -326,21 +456,25 @@ const NAV = [
     ['#/list/retention_release', 'Retention releases', 'p2p.read'], ['#/list/money_in', 'Money received', 'ar.receipt.create|ar.receipt.confirm'],
     ['#/list/customer_receipt', 'Receipts', 'scope.tenant_wide'], ['#/aging/ar', 'Receivables aging', 'scope.tenant_wide'], ['#/list/customer', 'Customers', 'p2p.read']]],
   ['Fleet', [['#/fleet', 'Fleet command centre', 'p2p.read'], ['#/list/equipment_reservation', 'Reservations', 'p2p.read'], ['#/list/equipment_log', 'Daily logs', 'p2p.read'],
-    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read']]],
-  ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read']]],
+    ['#/list/equipment_operator_auth', 'Operator authorisations', 'p2p.read'], ['#/list/equipment_meter_reset', 'Meter resets', 'p2p.read'], ['#/list/maintenance_work_order', 'Work orders', 'p2p.read'], ['#/list/fleet_policy', 'Fleet policies', 'p2p.read'], ['#/list/equipment_charge_rate', 'Charge-out rates', 'p2p.read'], ['#/list/equipment_charge_run', 'Charge runs', 'journal.create|journal.approve|journal.post']]],
+  ['Documents', [['#/documents', 'Document register', 'p2p.read'], ['#/list/document_revision/SUBMITTED', 'Revisions in review', 'p2p.read'], ['#/list/rfi', 'Requests for information', 'p2p.read'], ['#/list/transmittal', 'Transmittals', 'p2p.read'], ['#/list/submittal', 'Submittals', 'p2p.read'], ['#/list/correspondence', 'Correspondence', 'p2p.read']]],
+  ['Site workforce, safety & quality', [['#/timesheets', 'Timesheets', 'timesheet.record|timesheet.approve'], ['#/hse', 'Health and safety', 'hse.report|hse.manage'], ['#/quality', 'Quality', 'quality.request|quality.manage|quality.approve'], ['#/siterecords', 'Punch lists, instructions, meetings', 'site.record|site.instruct'], ['#/credit', 'Progress credit', 'credit.manage|credit.approve|credit.record']]],
+  ['Subcontracts', [['#/list/subcontract', 'Subcontracts', 'p2p.read'], ['#/list/subcontract_application', 'Applications and certificates', 'p2p.read'], ['#/list/subcontract_backcharge', 'Back-charges', 'p2p.read'], ['#/list/subcontract_payment', 'Subcontract payments', 'p2p.read|payment.prepare|payment.approve|payment.release'], ['#/subpolicy', 'Subcontract accounts', 'contract.policy.manage|contract.policy.approve']]],
   ['Payables', [['#/list/supplier_invoice', 'Supplier invoices', 'p2p.read'], ['#/list/payment_instruction', 'Payments', 'p2p.read'],
     ['#/aging/ap', 'Payables aging', 'scope.tenant_wide']]],
-  ['Treasury & banking', [['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
+  ['Treasury & banking', [['#/cash', 'Cash forecast', '+wide:payment.prepare|intelligence.read'], ['#/bank', 'Bank statements', 'bank.import|bank.reconcile'], ['#/list/company_bank_account', 'Company banks', 'scope.tenant_wide'],
     ['#/list/supplier_bank_account', 'Supplier banks', 'p2p.read']]],
-  ['Accounting', [['#/journals', 'Journals', 'journal.read'], ['#/recon', 'Reconciliation', 'journal.read'], ['#/tb', 'Trial balance', 'journal.read']]],
-  ['Governance', [['#/people', 'People & access', 'user.manage|role.manage|audit.read'], ['#/org', 'Organisation & calendar', 'p2p.read|org.manage'], ['#/authority', 'Authority & duties', 'p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
+  ['Accounting', [['#/journals', 'Journals', '+wide:journal.read'], ['#/assets', 'Fixed assets', '+wide:asset.manage|asset.approve|journal.read'], ['#/periodend', 'Period end', '+wide:journal.create|journal.read|period.close'], ['#/tax', 'Tax returns & e-invoices', 'tax.prepare|tax.approve'], ['#/consolidation', 'Consolidation', 'consolidation.manage|consolidation.approve'], ['#/revenue', 'Revenue & WIP', '+wide:revenue.run|contract.policy.manage|contract.policy.approve|journal.approve'], ['#/recon', 'Reconciliation', '+wide:journal.read'], ['#/tb', 'Trial balance', '+wide:journal.read'], ['#/statements', 'Financial statements', '+wide:journal.read']]],
+  ['Workforce', [['#/payroll', 'Payroll', 'payroll.prepare|payroll.approve|payment.release|contract.policy.manage|contract.policy.approve']]],
+  ['Governance', [['#/people', 'People & access', 'user.manage|role.manage|audit.read'], ['#/org', 'Organisation & calendar', 'p2p.read|org.manage'], ['#/authority', 'Authority & duties', '+wide:p2p.read|authority.manage|authority.approve|delegation.create|delegation.approve'], ['#/list/authority_matrix', 'Authority matrices', 'authority.manage|authority.approve'],
     ['#/list/delegation', 'Delegations', 'delegation.create|delegation.approve'], ['#/list/sod_exception', 'Duty-conflict exceptions', 'authority.manage|authority.approve'],
     ['#/imports', 'Data imports', 'supplier.manage|customer.manage|stock.item.manage'], ['#/list/p2p_policy', 'P2P policies', 'scope.tenant_wide'], ['#/list/contract_policy', 'Contract policies', 'scope.tenant_wide'],
     ['#/controls', 'Control review', 'scope.tenant_wide'], ['#/automation', 'Automation rules', 'automation.manage|automation.activate|workflow.read'],
-    ['#/settings', 'Company settings', null]]],
+    ['#/workflows', 'Workflow map', null], ['#/settings', 'Company settings', null], ['#/branding', 'Brand & appearance', null]]],
 ];
 const NAV_KEY = 'serk.nav.folded';
-const allowed = (perm) => !perm || perm.split('|').some((p) => S.can.has(p));
+// A leading "+wide:" also requires tenant-wide scope (entity-level pages).
+const allowed = (perm) => { if (!perm) return true; const wide = perm.startsWith('+wide:'); if (wide && !S.can.has('scope.tenant_wide')) return false; return (wide ? perm.slice(6) : perm).split('|').some((p) => S.can.has(p)); };
 
 const QUEUES = [
   ['budget.approve', 'budget_version', 'SUBMITTED', 'Budget revisions to approve'],
@@ -357,6 +491,19 @@ const QUEUES = [
   ['fleet.log.approve', 'equipment_log', 'SUBMITTED', 'Equipment logs to approve'],
   ['fleet.release', 'equipment_operator_auth', 'SUBMITTED', 'Operator authorisations to approve'],
   ['fleet.release', 'equipment_meter_reset', 'SUBMITTED', 'Meter resets to approve'],
+  ['fleet.approve', 'maintenance_work_order', 'SUBMITTED', 'Work orders to authorise'],
+  ['fleet.approve', 'fleet_policy', 'SUBMITTED', 'Fleet policies to approve'],
+  ['fleet.approve', 'equipment_charge_rate', 'SUBMITTED', 'Charge-out rates to approve'],
+  ['document.approve', 'submittal', 'SUBMITTED', 'Submittals to review'],
+  ['fleet.release', 'maintenance_work_order', 'COMPLETED', 'Completed work to certify'],
+  ['subcontract.approve', 'subcontract', 'SUBMITTED', 'Subcontracts to approve'],
+  ['subcontract.certify', 'subcontract_application', 'SUBMITTED', 'Subcontractor applications to certify'],
+  ['subcontract.approve', 'subcontract_backcharge', 'SUBMITTED', 'Back-charges to approve'],
+  ['contract.policy.approve', 'subcontract_policy', 'DRAFT', 'Subcontract policies to approve'],
+  ['payment.approve', 'subcontract_payment', 'SUBMITTED', 'Subcontract payments to approve'],
+  ['asset.approve', 'fixed_asset', 'SUBMITTED', 'Assets to activate'],
+  ['asset.approve', 'asset_disposal', 'SUBMITTED', 'Asset disposals to approve'],
+  ['payment.release', 'subcontract_payment', 'APPROVED', 'Subcontract payments to release'],
   ['escalation.approve', 'price_index_value', 'SUBMITTED', 'Index values to approve'],
   ['escalation.approve', 'escalation_formula', 'SUBMITTED', 'Price adjustment formulas to approve'],
   ['escalation.approve', 'price_adjustment', 'SUBMITTED', 'Price adjustments to approve'],
@@ -403,6 +550,10 @@ const QUEUES = [
   ['schedule.approve', 'schedule_version', 'SUBMITTED', 'Schedules to approve'],
   ['schedule.approve', 'schedule_progress', 'DRAFT', 'Progress reports to approve'],
   ['site.diary.manage', 'site_diary', 'DRAFT', 'Site diaries to submit'],
+  ['quality.approve', 'itp', 'SUBMITTED', 'Inspection plans to approve'],
+  ['timesheet.record', 'timesheet', 'DRAFT', 'Timesheets to submit'],
+  ['timesheet.approve', 'timesheet', 'SUBMITTED', 'Timesheets to approve'],
+  ['equipment.approve', 'equipment_usage', 'SUBMITTED', 'Equipment usage to approve'],
   ['site.diary.approve', 'site_diary', 'SUBMITTED', 'Site diaries to approve'],
   ['stock.item.approve', 'stock_item', 'PENDING', 'Stock items to approve'],
   ['stock.receive', 'grn', 'CONFIRMED', 'Goods receipts to put away'],
@@ -551,9 +702,18 @@ function markNav() {
   }
 }
 
+let ROUTED_HASH = location.hash;
 async function route() {
+  // Leaving a form with unsaved input asks first; a refusal restores the form's address.
+  if (FORM.dirty && location.hash !== ROUTED_HASH && !window.confirm('Leave this form? What you typed has not been saved.')) {
+    history.replaceState(null, '', ROUTED_HASH);
+    return;
+  }
+  ROUTED_HASH = location.hash;
+  resetForm();
   clearError();
   closeSheet();
+  setAcct(false);
   if (!S.token) return renderSignin();
   markNav();
   const [, view, a, b] = location.hash.split('/');
@@ -566,7 +726,7 @@ async function route() {
       case 'bank': return await renderBank();
       case 'recon': return await renderRecon();
       case 'budget': return await renderBudget();
-      case 'report': return await renderCatalogueReport(a);
+      case 'report': return await renderCatalogueReport(a, b ? decodeURIComponent(b) : '');
       case 'reservations': return await renderReservations();
       case 'projects': return await renderProjects();
       case 'setup': return await renderSetup();
@@ -580,18 +740,36 @@ async function route() {
       case 'site': return await renderDevices();
       case 'reports': return await renderReports();
       case 'tb': return await renderTB();
+      case 'statements': return await renderStatements();
+      case 'riskreg': return await renderRiskRegister(a);
+      case 'tasks': return await renderTasks();
       case 'aging': return await renderAging(a === 'ar' ? 'ar' : 'ap');
       case 'ask': return await renderAsk();
       case 'risk': return await renderRisk(a);
       case 'controls': return await renderControls();
       case 'automation': return await renderAutomation();
       case 'settings': return await renderSettings();
+      case 'branding': return await renderBranding();
+      case 'workflows': return await renderWorkflows(a);
       case 'people': return await renderPeople(a);
       case 'me': return await renderMe();
       case 'bonds': return await renderBonds(a);
       case 'obligations': return await renderObligations();
       case 'documents': return await renderDocuments(a);
       case 'fleet': return await renderFleet(a);
+      case 'revenue': return await renderRevenue();
+      case 'subpolicy': return await renderSubPolicy();
+      case 'assets': return await renderAssets(a);
+      case 'periodend': return await renderPeriodEnd(a);
+      case 'cash': return await renderCash();
+      case 'payroll': return await renderPayroll(a);
+      case 'consolidation': return await renderConsolidation(a);
+      case 'tax': return await renderTax(a);
+      case 'timesheets': return await renderTimesheets(a);
+      case 'hse': return await renderHSE(a);
+      case 'quality': return await renderQuality(a);
+      case 'siterecords': return await renderSiteRecords(a);
+      case 'credit': return await renderCredit(a);
       default: return await renderHome();
     }
   } catch (e) {
@@ -601,51 +779,201 @@ async function route() {
 }
 
 // ---------- sign-in ----------
-function renderSignin(msg) {
-  $('nav').hidden = true;
-  $('who').hidden = true;
-  const ta = h('textarea', { name: 'token', autocomplete: 'off', spellcheck: 'false', required: true });
-  const form = h('form', { class: 'panel signin', on: { submit: async (ev) => {
+// Two panels: the company's own words and logo (GET /branding, the
+// deployment's configured company) and the sign-in. With the e-mail + PIN
+// sign-in offered (GET /auth/methods) it comes first; an access token from
+// the identity provider and, on test deployments, the staging personas are
+// the other options. Nothing here is stored: the session token lives in this
+// tab's memory only.
+async function publicBrand() {
+  try {
+    const r = await fetch('/branding');
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+async function signinMethods() {
+  try { const r = await fetch('/auth/methods'); return r.ok ? await r.json() : { pin: false, staging: false }; } catch { return { pin: false, staging: false }; }
+}
+function brandPanel(b) {
+  const logo = b && b.logo ? h('img', { class: 'brandlogo', src: `/branding/logo?v=${b.logo.sha256.slice(0, 12)}`, alt: `${b.brand_name || 'Company'} logo` })
+    : h('span', { class: 'brandtile', 'aria-hidden': 'true' }, (b && b.brand_name ? b.brand_name.trim()[0] : 's').toLowerCase(), h('span', { class: 'dot' }, '.'));
+  const name = (b && b.brand_name) || 'SERK';
+  const suffix = (b && b.brand_suffix) || (b && b.brand_name ? '' : 'GROUP');
+  return h('section', { class: 'signbrand', 'aria-label': `${name} ${suffix || ''}`.trim() },
+    h('div', { class: 'signbrandtop' }, logo, h('div', { class: 'brandword' }, h('span', { class: 'bn' }, name), suffix ? h('span', { class: 'bs' }, suffix) : null)),
+    h('div', { class: 'signbrandmid' },
+      h('p', { class: 'eyebrow' }, (b && b.eyebrow) || 'Calm software for focused teams'),
+      h('p', { class: 'motto' }, (b && b.motto) || 'Less noise. More done.'),
+      h('p', { class: 'desc' }, (b && b.description) || 'Projects, procurement, site, stores, commercial, finance and governance in one place, with every decision signed and traceable.'),
+      b && b.address ? h('address', {}, b.address) : null,
+      b && (b.phone || b.email || b.website) ? h('p', { class: 'contacts' }, [b.phone, b.email, b.website].filter(Boolean).join(' · ')) : null),
+    h('p', { class: 'signbrandfoot' }, h('span', {}, `${name.toUpperCase()} OFFICE OS`), h('span', { class: 'ring', 'aria-hidden': 'true' }), h('span', {}, 'SECURE WORKSPACE')));
+}
+
+// The session is a bearer token in memory: load who this is and open the console.
+async function finishSignin(token) {
+  S.token = token;
+  try {
+    S.me = await api('GET', '/v1/identity/me');
+    S.can = new Set(S.me.permissions);
+    S.ref = S.can.has('p2p.read') ? await api('GET', '/v1/p2p-reference') : { legal_entities: [], projects: [], accounts: [] };
+    try { S.company = await api('GET', '/v1/tenant/settings'); } catch { S.company = null; }
+    try { applyBrand(await api('GET', '/v1/branding')); } catch { applyBrand(null); }
+    brandCompany();
+    paintWho(S.me.user_id);
+    $('acct-id').textContent = S.me.user_id;
+    $('acct-roles').textContent = S.me.roles.length ? S.me.roles.map((r) => words(r.replace(/^custom:/, ''))).join(' · ') : 'No role';
+    $('acct-people').hidden = !['user.manage', 'role.manage', 'audit.read'].some((x) => S.can.has(x));
+    api('GET', '/v1/me/profile').then((pr) => { if (pr.display_name) paintWho(pr.display_name); }).catch(() => { /* the id is shown */ });
+    $('who-mfa').textContent = S.me.mfa ? 'Signed in with a second factor: approvals and releases are allowed (for 10 minutes after sign-in).' : 'Signed in without a second factor: approvals and releases need a sign-in with your authenticator code.';
+    $('who-mfa').className = `acctmfa ${S.me.mfa ? 'ok' : 'warn'}`;
+    $('who-mfa').hidden = false;
+    $('who').hidden = false;
+    buildNav();
+    startBell();
+    if (location.hash === '' || location.hash === '#/') location.hash = '#/home';
+    else route();
+    say(`Signed in as ${S.me.user_id}`);
+  } catch (e) {
+    S.token = null;
+    throw e;
+  }
+}
+
+// A 6-digit field: digits only, never offered to autocomplete as a password
+// of another site, with a show/hide button.
+function pinBox(name, label, attrs = {}) {
+  const el = input(name, { type: 'password', inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', minlength: '6', autocomplete: 'current-password', required: true, spellcheck: 'false', ...attrs });
+  el.addEventListener('input', () => { const d = el.value.replace(/\D/g, '').slice(0, 6); if (d !== el.value) el.value = d; });
+  const eye = h('button', { type: 'button', class: 'eye', 'aria-label': `Show ${label.toLowerCase()}`, 'aria-pressed': 'false' }, icon(EYE));
+  eye.addEventListener('click', () => {
+    const show = el.type === 'password';
+    el.type = show ? 'text' : 'password';
+    eye.setAttribute('aria-pressed', String(show));
+    eye.setAttribute('aria-label', `${show ? 'Hide' : 'Show'} ${label.toLowerCase()}`);
+    eye.replaceChildren(icon(show ? EYE_OFF : EYE));
+  });
+  const f = field(label, el);
+  f.classList.add('withbtn');
+  f.append(eye);
+  return { el, f };
+}
+const EYE = ['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z', 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z'];
+const EYE_OFF = ['M3 3l18 18', 'M10.6 5.1A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2', 'M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6', 'M9.9 9.9a3 3 0 0 0 4.2 4.2'];
+
+function pinForm(note) {
+  const email = input('email', { type: 'email', autocomplete: 'username', required: true, maxlength: '254', placeholder: 'you@company.com', spellcheck: 'false' });
+  const pin = pinBox('pin', 'Password');
+  pin.el.setAttribute('placeholder', '6-digit PIN');
+  const code = input('code', { type: 'text', inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', autocomplete: 'one-time-code', placeholder: '000000', spellcheck: 'false' });
+  code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 6); });
+  const fresh = pinBox('new_pin', 'New PIN', { autocomplete: 'new-password', required: false });
+  const again = pinBox('new_pin_again', 'New PIN again', { autocomplete: 'new-password', required: false });
+  const change = h('fieldset', { class: 'pinchange', hidden: true }, h('legend', {}, 'Choose your own PIN'),
+    h('p', { class: 'hint' }, 'The PIN you were given works once. Choose six digits that are not a run (123456), a repeat (111111) or a pattern (121212); nobody else will know it.'),
+    fresh.f, again.f);
+  const msg = h('p', { class: 'formmsg', role: 'alert', hidden: true });
+  const tell = (t, kind) => { msg.textContent = t; msg.className = `formmsg ${kind || 'bad'}`; msg.hidden = !t; };
+  const btn = h('button', { type: 'submit', class: 'signbtn' }, 'Sign in', h('span', { 'aria-hidden': 'true' }, ' →'));
+  const form = h('form', { class: 'signform', novalidate: true, on: { submit: async (ev) => {
     ev.preventDefault();
-    S.token = ta.value.trim();
-    try {
-      S.me = await api('GET', '/v1/identity/me');
-      S.can = new Set(S.me.permissions);
-      S.ref = S.can.has('p2p.read') ? await api('GET', '/v1/p2p-reference') : { legal_entities: [], projects: [], accounts: [] };
-      try { S.company = await api('GET', '/v1/tenant/settings'); } catch { S.company = null; }
-      brandCompany();
-      paintWho(S.me.user_id);
-      $('mebtn').title = `Your profile — ${S.me.roles.join(', ') || 'no role'}`;
-      api('GET', '/v1/me/profile').then((pr) => { if (pr.display_name) paintWho(pr.display_name); }).catch(() => { /* the id is shown */ });
-      $('who-mfa').hidden = !S.me.mfa;
-      $('who').hidden = false;
-      buildNav();
-      startBell();
-      if (location.hash === '' || location.hash === '#/') location.hash = '#/home';
-      else route();
-      say(`Signed in as ${S.me.user_id}`);
-    } catch (e) {
-      S.token = null;
-      showError(e);
+    clearError();
+    tell('');
+    if (!email.value.trim() || !/^\d{6}$/.test(pin.el.value)) { tell('Enter your e-mail address and your 6-digit PIN.'); (email.value.trim() ? pin.el : email).focus(); return; }
+    if (code.value && !/^\d{6}$/.test(code.value)) { tell('The authenticator code is 6 digits.'); code.focus(); return; }
+    const body = { email: email.value.trim(), pin: pin.el.value };
+    if (code.value) body.code = code.value;
+    if (!change.hidden) {
+      if (!/^\d{6}$/.test(fresh.el.value)) { tell('Your new PIN is 6 digits.'); fresh.el.focus(); return; }
+      if (fresh.el.value !== again.el.value) { tell('The two new PINs differ.'); again.el.focus(); return; }
+      body.new_pin = fresh.el.value;
     }
+    btn.disabled = true;
+    try {
+      const r = await fetch('/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        pin.el.value = ''; fresh.el.value = ''; again.el.value = ''; code.value = '';
+        await finishSignin(d.token);
+        return;
+      }
+      const why = d.detail || (d.error || {}).message || r.statusText;
+      if (d.code === 'pin_change_required') {
+        change.hidden = false; fresh.el.required = true; again.el.required = true;
+        tell('Your PIN is correct. Choose a new PIN of your own to finish signing in.', 'info');
+        fresh.el.focus();
+      } else if (d.code === 'code_required') {
+        tell('You turned on the authenticator: enter the 6-digit code from your app.', 'info');
+        code.focus();
+      } else if (d.code === 'invalid_credentials' && typeof d.attempts_left === 'number') {
+        tell(`${why} ${d.attempts_left} attempt${d.attempts_left === 1 ? '' : 's'} left before this sign-in locks for 15 minutes.`);
+        pin.el.select();
+      } else if (r.status === 423) {
+        tell(why);
+      } else if (r.status === 429) {
+        tell('Too many attempts from this address. Wait a few minutes and try again.');
+      } else if (r.status === 422 && !change.hidden) {
+        tell(why); fresh.el.select();
+      } else tell(why);
+    } catch (e) {
+      tell(e.message || 'The sign-in could not be completed.');
+    } finally { btn.disabled = false; }
   } } },
-  h('h1', { tabindex: '-1' }, 'Sign in'),
-  h('p', { class: 'lede' }, 'Paste the access token issued by your organisation’s identity provider. It is kept in this tab’s memory only and is forgotten when you sign out or close the tab.'),
-  msg ? h('p', { class: 'notice' }, msg) : null,
+  field('Email address', email),
+  pin.f,
+  field('Authenticator code (if enabled)', code),
+  change, msg,
+  btn,
+  note ? h('p', { class: 'hint' }, note) : null);
+  return { form, email };
+}
+
+function tokenForm() {
+  const ta = h('textarea', { name: 'token', autocomplete: 'off', spellcheck: 'false', required: true });
+  const form = h('form', { class: 'signform', on: { submit: async (ev) => {
+    ev.preventDefault();
+    clearError();
+    try { await finishSignin(ta.value.trim()); } catch (e) { showError(e); }
+  } } },
+  h('p', { class: 'hint' }, 'Paste the access token issued by your organisation’s identity provider. It is kept in this tab’s memory only and is forgotten when you sign out or close the tab.'),
   field('Access token', ta),
   h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Sign in')));
+  return { form, ta };
+}
+
+async function renderSignin(msg) {
+  $('nav').hidden = true;
+  $('who').hidden = true;
   const v = $('view');
   v.textContent = '';
-  v.append(form);
   document.title = 'Sign in — SERK Construction';
-  ta.focus();
-  stagingSignin(v, ta);
+  const [b, m] = await Promise.all([publicBrand(), signinMethods()]);
+  applyBrand(b);
+  const tok = tokenForm();
+  const side = h('section', { class: 'signside' });
+  const h1 = h('h1', { tabindex: '-1' }, 'Sign in to your space');
+  side.append(h('p', { class: 'eyebrow' }, 'Welcome back'), h1,
+    h('p', { class: 'lede' }, `Use your authorized ${(b && b.brand_name) || 'SERK'} account to continue.`),
+    msg ? h('p', { class: 'notice' }, msg) : '');
+  let first = tok.ta;
+  if (m.pin) {
+    const p = pinForm();
+    first = p.email;
+    side.append(p.form, h('details', { class: 'othersign' }, h('summary', {}, 'Other sign-in options'), tok.form));
+  } else side.append(tok.form);
+  side.append(h('p', { class: 'signfoot' }, 'Protected sessions · role-scoped data · audit records'));
+  const wrap = h('div', { class: 'signin2' }, brandPanel(b), side);
+  v.append(wrap);
+  h1.focus();
+  first.focus();
+  stagingSignin(m.pin ? side.querySelector('.othersign') : side, tok.ta);
 }
 
 // Test environments only: the server offers /staging/* when it runs with
 // SERK_ENV=staging and a staging passphrase (refused in production). The
 // minted token is an ordinary bearer token; it carries no extra authority.
-async function stagingSignin(v, ta) {
+async function stagingSignin(host, ta) {
   let data;
   try {
     const r = await fetch('/staging/personas');
@@ -657,7 +985,7 @@ async function stagingSignin(v, ta) {
   const co = h('select', { name: 'company', required: true });
   for (const c of data.companies || []) co.append(h('option', { value: c.id }, c.name));
   const pw = h('input', { type: 'password', name: 'passphrase', autocomplete: 'off', required: true });
-  const panel = h('form', { class: 'panel signin', on: { submit: async (ev) => {
+  const panel = h('form', { class: 'signform staging', on: { submit: async (ev) => {
     ev.preventDefault();
     clearError();
     try {
@@ -665,8 +993,7 @@ async function stagingSignin(v, ta) {
         body: JSON.stringify({ passphrase: pw.value, persona: sel.value, company: co.value || undefined }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new ApiError(r.status, (d.error || {}).code || 'error', (d.error || {}).message || r.statusText);
-      ta.value = d.token;
-      ta.form.requestSubmit();
+      await finishSignin(d.token);
     } catch (e) { showError(e); }
   } } },
   h('h2', {}, 'Test environment sign-in'),
@@ -675,7 +1002,7 @@ async function stagingSignin(v, ta) {
   field('Persona', sel),
   field('Staging passphrase', pw),
   h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Sign in as persona')));
-  v.prepend(panel);
+  host.append(panel);
 }
 async function signOut(msg) {
   if (S.token) { try { await api('POST', '/v1/identity/logout'); } catch { /* session may already be gone */ } }
@@ -694,17 +1021,36 @@ async function workQueues() {
   if (S.can.has('journal.approve')) jobs.push(Promise.all(['P2P_', 'AR_', 'STK_'].map((p) => api('GET', `/v1/journals?status=DRAFT&source_prefix=${p}`)))
     .then((rs) => rs.reduce((n, r) => n + r.journals.length, 0)).catch(() => null));
   if (S.can.has('journal.post')) jobs.push(api('GET', '/v1/journals?status=APPROVED').then((r) => r.journals.length).catch(() => null));
+  jobs.push(api('GET', '/v1/tasks?view=mine').then((r) => r.items.filter((x) => x.status === 'OPEN').length).catch(() => null));
   const counts = await Promise.all(jobs);
   const all = qs.map(([, type, status, label], i) => ({ label, href: `#/list/${type}/${status}`, n: counts[i] }));
   let k = qs.length;
   if (S.can.has('journal.approve')) all.push({ label: 'Subledger journals to approve', href: '#/journals', n: counts[k++] });
   if (S.can.has('journal.post')) all.push({ label: 'Approved journals to post', href: '#/journals', n: counts[k++] });
+  all.push({ label: 'Tasks assigned to you', href: '#/tasks', n: counts[k++] });
   return all;
 }
 function greeting() {
   const hr = new Date().getHours();
   return hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
 }
+// Ethiopian (Amete Mihret) calendar, by Julian Day Number: the same algorithm as
+// pkg/ethcal, whose Go tests check every day from 1900 to 2100; the forms journey
+// checks that this copy agrees with it (XCT-LOC.3).
+const ETH_MONTHS = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
+function ethiopianDate(d) {
+  const jdn = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000) + 2440588;
+  const mod = (a, b) => ((a % b) + b) % b;
+  const epoch = 1723856;
+  const r = mod(jdn - epoch, 1461);
+  const n = mod(r, 365) + 365 * Math.floor(r / 1460);
+  const year = 4 * Math.floor((jdn - epoch) / 1461) + Math.floor(r / 365) - Math.floor(r / 1460);
+  return { year, month: Math.floor(n / 30) + 1, day: mod(n, 30) + 1 };
+}
+function ethiopianText(d) { const e = ethiopianDate(d); return `${e.day} ${ETH_MONTHS[e.month - 1]} ${e.year}`; }
+// The pure conversion is published read-only so a page or a test can check it; it holds no data and grants nothing.
+window.serkCalendar = Object.freeze({ ethiopianText });
+
 async function renderHome() {
   const cards = h('div', { class: 'cards' });
   const hero = h('section', { class: 'hero', 'aria-label': 'Summary' });
@@ -712,7 +1058,9 @@ async function renderHome() {
     h('p', { class: 'foot-note' }, 'Counts include only the projects you can see. Every approval remains a human decision, checked again by the database.'));
   const all = await workQueues();
   const total = all.reduce((n, q) => n + (q.n || 0), 0);
-  hero.append(h('div', {}, h('p', { class: 'eyebrow' }, new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })),
+  const now = new Date();
+  hero.append(h('div', {}, h('p', { class: 'eyebrow' }, now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), ' · ',
+    h('span', { class: 'ethdate', title: 'Ethiopian calendar' }, `${ethiopianText(now)} (Ethiopian calendar)`)),
     h('h2', { class: 'hello' }, `${greeting()}, ${S.me.user_id}`), h('p', {}, `Signed in as ${S.me.roles.join(', ').replace(/_/g, ' ')}.`)),
   h('div', { class: 'big' }, String(total), h('small', {}, total === 1 ? 'item waiting' : 'items waiting')));
   if (!all.length) cards.append(h('p', { class: 'empty' }, 'No work queues for your roles.'));
@@ -741,7 +1089,7 @@ async function renderList(type, status) {
   filter.addEventListener('change', () => { location.hash = `#/list/${type}${filter.value ? '/' + filter.value : ''}`; });
   const listTitle = `${meta.title}${status ? ' — ' + words(status.toLowerCase()) : ''}`;
   const tools = h('div', { class: 'toolbar' }, field('Status', filter),
-    meta.form && S.can.has(meta.create) ? h('a', { class: 'btn', href: `#/new/${meta.form}` }, `New ${meta.one.toLowerCase()}`) : null,
+    meta.form && allowed(meta.create) ? h('a', { class: 'btn', href: `#/new/${meta.form}` }, `New ${meta.one.toLowerCase()}`) : null,
     h('span', { class: 'spacer' }), exportBar(`/v1/p2p/${type}${status ? '?status=' + encodeURIComponent(status) : ''}`, listTitle));
   page(meta.title, null, tools, table(`${meta.title}${status ? ' — ' + words(status.toLowerCase()) : ''} (${r.items.length})`, [
     { label: 'Reference', cell: (d) => {
@@ -835,9 +1183,35 @@ async function renderDoc(type, id) {
       h('p', {}, `Cost impact ${money(ce.total_cost_impact)} · revenue impact ${money(ce.revenue_impact)} · margin impact ${money(ce.margin_impact)} · schedule ${ce.schedule_impact_days} day(s).`),
       ce.budget_version_id ? h('p', {}, 'A budget revision for the cost lines was drafted. The budget moves only when it is submitted and approved: ', h('a', { href: `#/doc/budget_version/${ce.budget_version_id}` }, 'open the drafted revision'), '.')
         : h('p', { class: 'hint' }, 'This change event has no cost lines, so no budget revision was drafted.')));
+    const rec = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Recovered from the client'),
+      h('p', {}, `Revenue impact ${money(ce.revenue_impact)} · recovered through approved variations ${money(ce.recovered_value)}`,
+        Number(ce.revenue_impact) > 0 && Number(ce.recovered_value) < Number(ce.revenue_impact) ? h('span', { class: 'delta up' }, ` (${money(String((Number(ce.revenue_impact) - Number(ce.recovered_value)).toFixed(2)))} not yet recovered)`) : ''),
+      table('Variations carrying this change', [{ label: 'Variation', cell: (v) => h('a', { href: `#/doc/contract_variation/${v.id}` }, v.number) }, { label: 'Contract', cell: (v) => v.contract_number },
+        { label: 'Title', cell: (v) => v.title }, { label: 'Value change', num: true, cell: (v) => money(v.value_change) }, { label: 'Status', cell: (v) => chip(v.status) }], ce.variations, 'No variation linked yet.'));
+    if (S.can.has('change.manage')) {
+      const linked = new Set(ce.variations.map((v) => v.id));
+      const all = (await api('GET', '/v1/p2p/contract_variation')).items.filter((v) => v.project_id === ce.project_id && !linked.has(v.id) && !['REJECTED', 'CANCELLED'].includes(v.status));
+      if (all.length) {
+        const sel = select('variation_id', all.map((v) => ({ value: v.id, label: `${v.number} ${v.label} (${words(v.status.toLowerCase())})` })));
+        const b = h('button', { type: 'button' }, 'Link variation');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/change-events/${d.id}/variations`, { variation_id: sel.value }); say('Variation linked.'); route(); } catch (e) { showError(e); } });
+        rec.append(h('div', { class: 'actions' }, field('Variation of this project', sel), b));
+      }
+    }
+    parts.push(rec);
   }
+  if (type === 'maintenance_work_order') parts.push(await workOrderPanel(d));
+  if (type === 'timesheet') parts.push(await timesheetPanel(d));
   if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
-  if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); }
+  if (type === 'supplier') parts.push(await supplierStandingPanel(d));
+  if (type === 'rate_buildup') parts.push(await buildupPanel(d, head));
+  if (type === 'rfq') parts.push(await rfqDeclarationsPanel(d, det));
+  if (type === 'purchase_order' && ['APPROVED', 'CLOSED'].includes(d.status)) parts.push(supplierScorePanel(d));
+  if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); parts.push(await rfiImpactPanel(d)); }
+  if (type === 'submittal') { const p = submittalPanel(d, head); if (p) parts.push(p); parts.push(await submittalCyclePanel(d, head)); }
+  if (type === 'subcontract') parts.push(await subcontractPanel(d));
+  if (type === 'subcontract_application') parts.push(await applicationPanel(d));
+  if (type === 'fixed_asset') parts.push(await disposalPanel(d));
   if (type === 'contract_notice' && d.status === 'OPEN' && S.can.has('claim.manage')) {
     const on = input('sent_on', { type: 'date', required: true, value: new Date().toISOString().slice(0, 10) });
     const btn = h('button', { type: 'button', class: 'primary' }, 'Record as sent');
@@ -898,10 +1272,45 @@ function revealPanel(type, d) {
 // The forecast page: each cost code's budget, cost to date and commitments (frozen
 // by the database), the method that sets the estimate to complete, and the
 // resulting estimate at completion (EAC) and variance (VAC = budget - EAC).
+// Planned, earned and actual cost by month, with the forecast at completion.
+async function sCurvePanel(project) {
+  let sc;
+  try { sc = await api('GET', `/v1/projects/${project}/s-curve`); } catch { return null; }
+  const box = h('div', { class: 'scurve' }, h('h3', {}, 'S-curve: planned, earned and actual cost'));
+  if (!sc.baseline || !sc.points.length) { box.append(h('p', { class: 'hint' }, 'No baseline schedule yet: approve one under Schedules to see the planned and earned curves.')); return box; }
+  const W = 720; const H = 260; const L = 64; const B = 28; const T = 12; const R = 12;
+  const eac = sc.latest_eac ? Number(sc.latest_eac) : 0;
+  const all = sc.points.flatMap((p) => [Number(p.pv), Number(p.ev || 0), Number(p.ac || 0)]);
+  const top = Math.max(...all, Number(sc.bac), eac) * 1.08 || 1;
+  const n = sc.points.length;
+  const x = (i) => L + (n === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (n - 1));
+  const y = (v) => H - B - (Number(v) / top) * (H - B - T);
+  const line = (key, cls, label) => {
+    const pts = sc.points.map((p, i) => (p[key] == null ? null : `${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`)).filter(Boolean);
+    return pts.length ? svg('polyline', { points: pts.join(' '), class: `sc ${cls}` }, svg('title', {}, label)) : null;
+  };
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => {
+    const v = top * f; const yy = y(v);
+    return [svg('line', { x1: L, x2: W - R, y1: yy, y2: yy, class: 'grid' }), svg('text', { x: L - 6, y: yy + 4, class: 'ax', 'text-anchor': 'end' }, `${(v / 1e6).toFixed(1)}M`)];
+  }).flat();
+  const months = sc.points.map((p, i) => (n <= 12 || i % Math.ceil(n / 12) === 0 ? svg('text', { x: x(i), y: H - 8, class: 'ax', 'text-anchor': i === 0 && n > 1 ? 'start' : i === n - 1 && n > 1 ? 'end' : 'middle' }, monthName(p.month)) : null));
+  const flat = (v, cls, label) => (v ? [svg('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), class: `sc ${cls}` }), svg('text', { x: W - R, y: y(v) - 4, class: `ax ${cls}`, 'text-anchor': 'end' }, label)] : []);
+  const last = [...sc.points].reverse().find((p) => p.ev != null) || {};
+  const chart = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'schart', role: 'img',
+    'aria-label': `S-curve. Budget at completion ${money(sc.bac)}; planned ${money(last.pv)}, earned ${money(last.ev)}, actual ${money(last.ac)} at ${last.month || ''}${eac ? '; forecast at completion ' + money(sc.latest_eac) : ''}.` },
+    ...ticks, ...months, ...flat(Number(sc.bac), 'bac', 'Scheduled budget'), ...flat(eac, 'eacl', 'Forecast at completion (whole project)'),
+    line('pv', 'pv', 'Planned value'), line('ev', 'ev', 'Earned value'), line('ac', 'ac', 'Actual cost'));
+  const key = (cls, label) => h('span', { class: `sckey ${cls}` }, label);
+  box.append(h('div', { class: 'chartwrap' }, chart),
+    h('div', { class: 'flowlegend' }, key('pv', 'Planned value'), key('ev', 'Earned value'), key('ac', 'Actual cost'), key('bac', 'Scheduled budget (BAC)'), eac ? key('eacl', 'Latest approved forecast, whole project') : null),
+    h('p', { class: 'hint' }, `At ${sc.status_date}: CPI ${sc.cpi ?? '— (no posted cost yet)'} (earned ÷ actual), SPI ${sc.spi ?? '—'} (earned ÷ planned). Below 1 means over cost or behind plan. Planned and earned value cover the budget placed on the baseline schedule's activities; the forecast covers every cost code.`));
+  return box;
+}
+
 async function forecastPanel(d) {
   const c = await api('GET', `/v1/forecasts/${d.id}`);
   const edit = d.status === 'DRAFT' && c.created_by === S.me.user_id && S.can.has('forecast.prepare');
-  const METHODS = [['REMAINING_BUDGET', 'Remaining budget'], ['OPEN_COMMITMENTS', 'Open commitments only'], ['MANUAL', 'Manual estimate']];
+  const METHODS = [['REMAINING_BUDGET', 'Remaining budget'], ['OPEN_COMMITMENTS', 'Open commitments only'], ['CPI', 'Cost performance (CPI)'], ['MANUAL', 'Manual estimate']];
   const cols = [
     { label: 'Cost code', cell: (l) => l.cost_code },
     { label: 'Current budget', num: true, cell: (l) => money(l.budget) },
@@ -911,9 +1320,12 @@ async function forecastPanel(d) {
     { label: 'Estimate to complete', num: true, cell: (l) => money(l.etc) },
     { label: 'Estimate at completion', num: true, cell: (l) => money(l.eac) },
     { label: 'Variance (budget - EAC)', num: true, cell: (l) => money(l.vac) },
+    { label: 'Last approved EAC', num: true, cell: (l) => (l.prev_eac == null ? '—' : money(l.prev_eac)) },
+    { label: 'Change', num: true, cell: (l) => { if (l.prev_eac == null) return ''; const ch = Number(l.eac) - Number(l.prev_eac); const big = Math.abs(ch) > Math.max(Number(l.budget), 0) * 0.1;
+      return h('span', { class: big ? 'delta up' : '' }, `${ch > 0 ? '+' : ch < 0 ? '−' : ''}${money(String(Math.abs(ch).toFixed(2)))}`); } },
     { label: 'Why / note', cell: (l) => (l.total ? '' : edit ? noteCell(l) : l.note || '') },
   ];
-  const rows = !(c.lines || []).length ? [] : [...c.lines, { cost_code: 'Total', budget: c.total_budget, committed: '', cost_to_date: c.total_cost_to_date, method: '', etc: c.total_etc, eac: c.total_eac, vac: c.total_vac, note: '', total: true }];
+  const rows = !(c.lines || []).length ? [] : [...c.lines, { cost_code: 'Total', budget: c.total_budget, committed: '', cost_to_date: c.total_cost_to_date, method: '', etc: c.total_etc, eac: c.total_eac, vac: c.total_vac, prev_eac: c.total_prev_eac, note: '', total: true }];
   const cells = new Map();
   const save = async (l, method, manual, note) => {
     clearError();
@@ -943,7 +1355,9 @@ async function forecastPanel(d) {
     h('p', { class: 'hint' }, edit
       ? `Change a line's method or add a note; each change saves at once and the figures are recomputed by the database. ${over ? over + ' line(s) are forecast above budget and need an explanation before you can submit.' : ''}`
       : 'Figures are frozen by the database from the cost position when the line was last saved. A negative variance is a forecast overrun.'),
-    table('Estimate at completion by cost code', cols, rows, 'No cost codes have money on them yet.'));
+    table('Estimate at completion by cost code', cols, rows, 'No cost codes have money on them yet.'),
+    h('p', { class: 'hint' }, 'CPI method: the estimate to complete is the budget not yet earned divided by the project’s cost performance index (earned value ÷ actual cost from the baseline schedule). A line that moves by more than 10% of its budget since the last approved forecast needs an explanation before submission.'),
+    await sCurvePanel(c.project_id));
 }
 
 async function positionPanel(id) {
@@ -1056,15 +1470,26 @@ const plusDays = (n) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 
 
 function formPage(title, lede, fields, submitLabel, onSubmit) {
   const btn = h('button', { type: 'submit' }, submitLabel);
-  const form = h('form', { class: 'panel', novalidate: true }, fields, h('div', { class: 'actions' }, btn));
+  const wait = h('span', { class: 'hint', role: 'status', hidden: true }, 'Loading choices…');
+  const form = h('form', { class: 'panel', novalidate: true }, fields, h('div', { class: 'actions' }, btn, wait));
+  let sending = false;
+  // Submission waits for dependent choices: a form sent while its cost codes
+  // were still loading could carry a choice from the previous project.
+  FORM.onPending = (busy) => { btn.disabled = busy || sending; btn.setAttribute('aria-busy', String(busy)); wait.hidden = !busy; };
+  FORM.onPending(FORM.pending > 0);
+  form.addEventListener('input', () => { FORM.dirty = true; });
+  form.addEventListener('change', () => { FORM.dirty = true; });
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
+    if (sending || FORM.pending > 0) return;
     clearError();
-    for (const el of form.querySelectorAll('[required]')) el.setAttribute('aria-invalid', String(!el.value.trim()));
+    for (const el of form.querySelectorAll('[required]')) el.setAttribute('aria-invalid', String(!el.value.trim() || el.classList.contains('unresolved')));
+    const unresolved = form.querySelectorAll('select.unresolved');
     const bad = form.querySelector('[aria-invalid=true]');
+    if (unresolved.length) { showError(new Error(`${unresolved.length} choice(s) are no longer available after a change and must be chosen again.`)); unresolved[0].focus(); return; }
     if (bad) { showError(new Error('Fill in the highlighted fields.')); bad.focus(); return; }
-    btn.disabled = true;
-    try { await onSubmit(); } catch (e) { showError(e); } finally { btn.disabled = false; }
+    sending = true; btn.disabled = true;
+    try { await onSubmit(); FORM.dirty = false; } catch (e) { showError(e); } finally { sending = false; btn.disabled = FORM.pending > 0; }
   });
   page(title, lede, form);
   return form;
@@ -1074,30 +1499,62 @@ async function created(type, res, what) {
   location.hash = `#/doc/${type}/${res.id}`;
 }
 
-// Editable line grid: cols = [{key,label,make()}].
+// Editable line grid: cols = [{key,label,make()}]. The rows live in state (an
+// array of {id, values}); each input writes into its row, so rows() reads the
+// state, not the DOM. setChoices(key, options) refills one select column in
+// place — typed descriptions, quantities and amounts stay; a choice that the
+// new options do not offer is marked unresolved (never remapped or dropped).
 function lineGrid(legend, cols, initial, allowAdd) {
   const tbody = h('tbody');
+  const state = [];
+  let nextId = 1;
+  const choices = {};
+  const renumber = () => [...tbody.children].forEach((tr, i) => {
+    cols.forEach((c, j) => tr.children[j].firstChild.setAttribute('aria-label', `${c.label}, line ${i + 1}`));
+    const rm = tr.querySelector('button[data-remove]'); if (rm) rm.setAttribute('aria-label', `Remove line ${i + 1}`);
+  });
   const addRow = (vals = {}) => {
-    const tr = h('tr');
-    const n = tbody.children.length + 1;
+    const row = { id: `L${nextId++}`, values: {} };
+    state.push(row);
+    const tr = h('tr', { 'data-line': row.id });
     for (const c of cols) {
-      const el = c.make(vals, n);
-      el.setAttribute('aria-label', `${c.label}, line ${n}`);
+      const el = c.make(vals, state.length);
+      if (el.tagName === 'SELECT' && choices[c.key]) refill(el, choices[c.key].map((o) => h('option', { value: o.value }, o.label)));
       if (vals[c.key] != null && el.tagName !== 'SPAN') el.value = vals[c.key];
+      if (el.name) {
+        row.values[c.key] = el.value;
+        const sync = () => { row.values[c.key] = el.value; };
+        el.addEventListener('input', sync); el.addEventListener('change', sync);
+      }
       tr.append(h('td', {}, el));
     }
-    if (allowAdd) tr.append(h('td', {}, h('button', { type: 'button', class: 'ghost', 'aria-label': `Remove line ${n}`, on: { click: () => tr.remove() } }, 'Remove')));
+    if (allowAdd) tr.append(h('td', {}, h('button', { type: 'button', class: 'ghost', 'data-remove': '', on: { click: () => { state.splice(state.indexOf(row), 1); tr.remove(); renumber(); FORM.dirty = true; } } }, 'Remove')));
     tbody.append(tr);
+    renumber();
   };
   (initial.length ? initial : allowAdd ? [{}] : []).forEach(addRow);
   const fs = h('fieldset', {}, h('legend', {}, legend), h('div', { class: 'tablewrap' }, h('table', { class: 'lines' },
     h('thead', {}, h('tr', {}, cols.map((c) => h('th', { scope: 'col' }, c.label)), allowAdd ? h('th', { scope: 'col' }, h('span', { class: 'sr' }, 'Remove')) : null)), tbody)),
   allowAdd ? h('div', { class: 'actions' }, h('button', { type: 'button', class: 'ghost', on: { click: () => addRow() } }, 'Add line')) : null);
-  fs.rows = () => [...tbody.children].map((tr) => {
+  fs.rows = () => state.map((r) => {
     const o = {};
-    cols.forEach((c, i) => { const el = tr.children[i].firstChild; if (el.name) o[c.key] = el.value.trim(); });
+    for (const [k, v] of Object.entries(r.values)) o[k] = typeof v === 'string' ? v.trim() : v;
     return o;
   });
+  fs.lineIds = () => state.map((r) => r.id);
+  fs.setChoices = (key, options) => {
+    choices[key] = options;
+    const j = cols.findIndex((c) => c.key === key);
+    [...tbody.children].forEach((tr, i) => {
+      const sel = tr.children[j].firstChild;
+      // A line with something typed in it keeps its choice or is marked
+      // unresolved; an untouched line simply takes the new list.
+      const typed = cols.some((c, k) => k !== j && tr.children[k].firstChild.tagName === 'INPUT' && String(state[i].values[c.key] || '').trim() !== '');
+      if (typed && sel.value && sel.dataset.chosen === undefined) sel.dataset.chosen = '1';
+      refill(sel, options.map((o) => h('option', { value: o.value }, o.label)));
+      state[i].values[key] = sel.value;
+    });
+  };
   return fs;
 }
 const num = (key, attrs = {}) => () => input(key, { inputmode: 'decimal', autocomplete: 'off', ...attrs });
@@ -1115,17 +1572,17 @@ const FORMS = {
     const proj = select('project_id', projectOpts(), { required: true });
     const kind = select('kind', [{ value: 'REVISION', label: 'Revision' }, { value: 'ORIGINAL', label: 'Original' }], { required: true });
     const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
-    let grid;
-    const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
-      grid = lineGrid('Budget lines', [
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+    // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
+    const grid = lineGrid('Budget lines', [
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
         { key: 'amount', label: 'Amount', make: num('amount') },
         { key: 'contingency_flag', label: 'Contingency?', make: () => select('contingency_flag', [{ value: false, label: 'No' }, { value: true, label: 'Yes' }]) },
       ], [], true);
-      holder.replaceChildren(grid);
-    };
+    const holder = h('div', {}, grid);
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
+    });
     proj.addEventListener('change', load);
     formPage('New budget revision', 'Prepare the ORIGINAL baseline or a REVISION per cost code. A revision may reduce a code (negative amount). Mark a line as contingency to allow drawdowns from it. A different person approves.',
       [h('div', { class: 'grid' }, field('Project', proj), field('Kind', kind), field('Reason', reason)), holder], 'Create budget revision', async () => {
@@ -1142,12 +1599,12 @@ const FORMS = {
     const toCC = select('to_cost_code', [], { required: true });
     const amt = input('amount', { type: 'number', step: '0.01', min: '0.01', required: true });
     const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
-    const load = async () => {
-      const ccs = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (ccs) => {
       const opts = opt(ccs, (c) => `${c.code} ${c.name}`);
-      fromCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
-      toCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
-    };
+      refill(fromCC, opts.map((o) => h('option', { value: o.value }, o.label)));
+      refill(toCC, opts.map((o) => h('option', { value: o.value }, o.label)));
+    });
     proj.addEventListener('change', load);
     formPage('Request budget transfer', 'Transfer budget between cost codes within the same project with net-zero impact.',
       [h('div', { class: 'grid' }, field('Project', proj), field('From cost code', fromCC), field('To cost code', toCC), field('Amount', amt), field('Reason', reason))], 'Submit transfer request', async () => {
@@ -1169,15 +1626,18 @@ const FORMS = {
     const toCC = select('to_cost_code', [], { required: true });
     const amt = input('amount', { type: 'number', step: '0.01', min: '0.01', required: true });
     const reason = input('reason', { type: 'text', required: true, maxlength: '500' });
-    const load = async () => {
-      const ccs = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async () => {
+      if (!proj.value) return { ccs: [], pos: [] };
+      const [a, b] = await Promise.all([api('GET', `/v1/projects/${proj.value}/cost-codes`), api('GET', `/v1/projects/${proj.value}/budget`)]);
+      return { ccs: a.cost_codes, pos: (b.cost_codes || []).filter((r) => r.is_contingency) };
+    }, ({ ccs, pos }) => {
       const opts = opt(ccs, (c) => `${c.code} ${c.name}`);
-      toCC.replaceChildren(...opts.map((o) => h('option', { value: o.value }, o.label)));
+      refill(toCC, opts.map((o) => h('option', { value: o.value }, o.label)));
       // Source: the project's contingency code(s); empty = the only one.
-      const pos = proj.value ? ((await api('GET', `/v1/projects/${proj.value}/budget`)).cost_codes || []).filter((r) => r.is_contingency) : [];
-      fromCC.replaceChildren(h('option', { value: '' }, pos.length === 1 ? `${pos[0].cost_code} (the project's contingency)` : 'Choose the contingency code'),
-        ...pos.map((r) => h('option', { value: r.cost_code_id }, `${r.cost_code} — current ${r.current}`)));
-    };
+      refill(fromCC, [h('option', { value: '' }, pos.length === 1 ? `${pos[0].cost_code} (the project's contingency)` : 'Choose the contingency code'),
+        ...pos.map((r) => h('option', { value: r.cost_code_id }, `${r.cost_code} — current ${r.current}`))]);
+    });
     proj.addEventListener('change', load);
     formPage('Request contingency drawdown', 'Draw down from project contingency into a project cost code.',
       [h('div', { class: 'grid' }, field('Project', proj), field('From contingency code', fromCC, 'Money comes out of this code. It must hold contingency.'),
@@ -1321,29 +1781,65 @@ const FORMS = {
     });
   },
 
+  async subcontract() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const sup = select('supplier_id', await docOpts('supplier', 'ACTIVE'), { required: true });
+    const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '200', placeholder: 'Scope of the subcontract' });
+    const pct = (n, v) => input(n, { inputmode: 'decimal', value: v, autocomplete: 'off' });
+    const ret = pct('retention_pct', '0.05'); const cap = pct('retention_cap', '0'); const adv = pct('advance_amount', '0'); const rec = pct('advance_recovery_pct', '0'); const wht = pct('wht_rate', '0.02');
+    const expense = S.ref.accounts.filter((a) => a.kind === 'EXPENSE');
+    // Built once; a project change refills the cost codes in place (XCT-FORM).
+    const grid = lineGrid('Schedule of values (quantity × rate on a cost code and an expense account)', [
+      { key: 'description', label: 'Description', make: txt('description', { maxlength: '300' }) },
+      { key: 'unit', label: 'Unit', make: txt('unit', { maxlength: '20', size: '5' }) },
+      { key: 'quantity', label: 'Quantity', make: num('quantity') }, { key: 'rate', label: 'Rate', make: num('rate') },
+      { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
+      { key: 'account_id', label: 'Expense account', make: () => select('account_id', expense.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))) },
+    ], [], true);
+    const holder = h('div', {}, grid);
+    const latestSov = latestOnly();
+    const load = () => latestSov(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
+    });
+    proj.addEventListener('change', load);
+    formPage('Prepare a subcontract', 'A subcontractor (an approved supplier), its schedule of values, retention (as a fraction, e.g. 0.05, with an optional cap), the advance and how fast it is recovered, and withholding. Another person approves it; approval commits its value against the budget and is refused if a cost code has no room.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Subcontractor', sup), field('Title', title), field('Retention (fraction)', ret), field('Retention cap (0 = none)', cap),
+        field('Advance', adv), field('Advance recovery (fraction of each certificate)', rec), field('Withholding (fraction)', wht)), holder], 'Create subcontract', async () => {
+        const lines = grid.rows().filter((r) => r.description).map((r, i) => ({ line_no: i + 1, ...r }));
+        const res = await api('POST', '/v1/subcontracts', { project_id: proj.value, supplier_id: sup.value, title: title.value.trim(), retention_pct: ret.value || '0', retention_cap: cap.value || '0',
+          advance_amount: adv.value || '0', advance_recovery_pct: rec.value || '0', wht_rate: wht.value || '0', lines });
+        created('subcontract', res, 'Subcontract');
+      });
+    await load();
+  },
+
   async change_event() {
     const proj = select('project_id', projectOpts(), { required: true });
     const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '200' });
     const src = select('source', [['RFI', 'Request for information'], ['SITE_INSTRUCTION', 'Site instruction'], ['CLIENT', 'Client request'], ['DESIGN', 'Design change'], ['INTERNAL', 'Internal']].map(([value, label]) => ({ value, label })), { required: true });
     const desc = input('description', { type: 'text', required: true, minlength: '5', maxlength: '2000', placeholder: 'What changed and why' });
+    // CNX-03.2 (0090): a change raised from an RFI names the answered RFI.
+    const rfis = [...(await docOpts('rfi', 'ANSWERED')), ...(await docOpts('rfi', 'CLOSED'))];
+    const rfi = select('rfi_id', [{ value: '', label: 'Not from an RFI' }, ...rfis]);
+    rfi.addEventListener('change', () => { if (rfi.value) src.value = 'RFI'; });
     const rev = input('revenue_impact', { type: 'number', step: '0.01', value: '0' });
     const days = input('schedule_impact_days', { type: 'number', step: '1', value: '0' });
-    let grid;
-    const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
-      grid = lineGrid('Expected cost impact by cost code (more cost is positive, a saving is negative)', [
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+    // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
+    const grid = lineGrid('Expected cost impact by cost code (more cost is positive, a saving is negative)', [
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
         { key: 'cost_impact', label: 'Cost impact', make: num('cost_impact') },
         { key: 'note', label: 'Note', make: txt('note', { maxlength: '200' }) },
       ], [], true);
-      holder.replaceChildren(grid);
-    };
+    const holder = h('div', {}, grid);
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
+    });
     proj.addEventListener('change', load);
     formPage('Raise a change event', 'Record a change to the money or time of a project before it is agreed. A different person decides it with a fresh multi-factor sign-in; if it has cost lines, approval drafts the budget revision that carries them (a draft only: the budget moves when that revision is approved).',
-      [h('div', { class: 'grid' }, field('Project', proj), field('Title', title), field('Source', src), field('Description', desc), field('Revenue impact (what the client pays; signed)', rev), field('Schedule impact (days; signed)', days)), holder], 'Create change event', async () => {
+      [h('div', { class: 'grid' }, field('Project', proj), field('Title', title), field('Source', src), field('RFI (when raised from one)', rfi), field('Description', desc), field('Revenue impact (what the client pays; signed)', rev), field('Schedule impact (days; signed)', days)), holder], 'Create change event', async () => {
         const lines = grid.rows().filter((r) => r.cost_impact !== '' && Number(r.cost_impact) !== 0);
-        const res = await api('POST', '/v1/change-events', { project_id: proj.value, title: title.value.trim(), source: src.value, description: desc.value.trim(),
+        const res = await api('POST', '/v1/change-events', { project_id: proj.value, title: title.value.trim(), source: src.value, rfi_id: rfi.value || undefined, description: desc.value.trim(),
           revenue_impact: rev.value || '0', schedule_impact_days: Number(days.value || 0), lines });
         created('change_event', res, 'Change event');
       });
@@ -1430,6 +1926,172 @@ const FORMS = {
       });
   },
 
+  async fuel_dispense(eqId) {
+    const [all, fuels] = await Promise.all([api('GET', '/v1/equipment?limit=200'), api('GET', '/v1/fleet/fuel-items')]);
+    const machines = all.items.filter((e) => e.current_project_id);
+    const eq = select('equipment_id', machines.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    if (eqId) eq.value = eqId;
+    const tank = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const item = select('stock_item_id', fuels.items.map((f) => ({ value: f.stock_item_id, label: `${f.code} ${f.name} (${f.unit})` })), { required: true });
+    const litres = input('litres', { type: 'number', step: '0.01', min: '0.01', required: true });
+    const meter = input('meter_reading', { type: 'number', step: '0.01', min: '0' });
+    const operator = input('operator', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the operator who took the fuel' });
+    const date = input('dispensed_on', { type: 'date', required: true, value: today(), max: today() });
+    const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
+    const cc = select('cost_code_id', [], { required: true });
+    const note = input('note', { type: 'text', maxlength: '500' });
+    const latestCC = latestOnly();
+    const sync = () => {
+      const e = machines.find((x) => x.id === eq.value);
+      if (e) {
+        meter.disabled = e.meter_kind === 'NONE';
+        meter.required = !meter.disabled;
+        meter.value = meter.disabled ? '' : e.last_meter;
+      }
+      return latestCC(
+        async () => (e ? (await api('GET', `/v1/projects/${e.current_project_id}/cost-codes`)).cost_codes : []),
+        (list) => refill(cc, list.map((c) => h('option', { value: c.id }, `${c.code} ${c.name}`))));
+    };
+    eq.addEventListener('change', () => sync().catch(showError));
+    formPage('Dispense fuel to a machine', 'Fuel is stock: this prepares a stock issue from the tank and records which machine took it and at what meter reading. Nothing leaves the tank and nothing is charged until a different person approves the issue; its cost is then charged to the project the machine is working on.',
+      [fuels.items.length ? null : h('p', { class: 'hint' }, 'No stock item is designated as fuel yet. A plant manager designates fuel items.'),
+        h('div', { class: 'grid' }, field('Equipment', eq, 'Machines at a project.'), field('Tank or bowser', tank), field('Fuel', item), field('Litres', litres), field('Meter reading', meter, 'Not behind the last approved reading.'),
+          field('Operator', operator), field('Date', date), field('Cost code', cc), field('Expense account', acct)), field('Note', note)], 'Prepare issue', async () => {
+        const res = await api('POST', '/v1/fleet/fuel-dispenses', { equipment_id: eq.value, warehouse_id: tank.value, stock_item_id: item.value, cost_code_id: cc.value, expense_account_id: acct.value,
+          litres: litres.value, meter_reading: meter.disabled || !meter.value ? undefined : meter.value, operator: operator.value.trim(), dispensed_on: date.value, note: note.value.trim() || undefined });
+        say(`Stock issue ${res.issue_number} prepared for approval.`);
+        location.hash = `#/doc/stock_issue/${res.stock_issue_id}`;
+      });
+    await sync();
+  },
+
+  async work_order(eqId) {
+    const all = (await api('GET', '/v1/equipment?limit=200')).items.filter((e) => !['RETIRED', 'DISPOSED'].includes(e.status));
+    const eq = select('equipment_id', all.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    if (eqId) eq.value = eqId;
+    const plant = S.can.has('fleet.manage');
+    const kinds = plant ? [['CORRECTIVE', 'Corrective repair'], ['BREAKDOWN', 'Breakdown'], ['PREVENTIVE', 'Preventive service'], ['INSPECTION', 'Inspection']] : [['BREAKDOWN', 'Breakdown']];
+    const kind = select('kind', kinds.map(([value, label]) => ({ value, label })), { required: true });
+    const due = plant ? (await api('GET', '/v1/fleet/maintenance-due')).items.filter((x) => !x.open_work_order) : [];
+    const plan = select('plan_id', [{ value: '', label: 'None' }]);
+    const desc = h('textarea', { name: 'description', rows: '3', required: '', maxlength: '2000' });
+    const planned = input('planned_for', { type: 'date', min: today() }); // 0092: shown on the maintenance calendar
+    const sync = () => {
+      plan.textContent = '';
+      plan.append(h('option', { value: '' }, 'None'));
+      for (const x of due.filter((x) => x.equipment_id === eq.value)) plan.append(h('option', { value: x.plan_id }, `${x.title} (${words(x.state.toLowerCase())})`));
+      plan.disabled = kind.value !== 'PREVENTIVE';
+      if (plan.disabled) plan.value = '';
+    };
+    eq.addEventListener('change', sync); kind.addEventListener('change', sync); sync();
+    formPage('New work order', plant ? 'A plant manager authorises the work, plant staff report it complete, and a certifier closes it. A machine that has been under maintenance returns to service only after its work order is closed.'
+      : 'Report a breakdown of a machine at your project. Plant staff take it from there; stop the machine from its own page.',
+      [h('div', { class: 'grid' }, field('Equipment', eq), field('Kind', kind), plant ? field('Carries out plan', plan, 'For a preventive service that is due.') : null, field('Planned for (optional)', planned, 'Shown on the maintenance calendar; it cannot be moved later.')), field('What is wrong, or what is to be done', desc)], 'Save work order', async () => {
+        const res = await api('POST', '/v1/maintenance-work-orders', { equipment_id: eq.value, kind: kind.value, description: desc.value.trim(), plan_id: plan.value || undefined, planned_for: planned.value || undefined });
+        created('maintenance_work_order', res, 'Work order');
+      });
+  },
+
+  async work_order_part(woId) {
+    const wo = await api('GET', `/v1/p2p/maintenance_work_order/${woId}`);
+    const e = await api('GET', `/v1/equipment/${wo.detail.equipment_id}`);
+    const wh = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const item = select('stock_item_id', await docOpts('stock_item', 'ACTIVE'), { required: true });
+    const qty = input('quantity', { inputmode: 'decimal', required: true });
+    const proj = select('project_id', projectOpts(), { required: true });
+    if (e.current_project_id) { proj.value = e.current_project_id; proj.disabled = true; }
+    const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
+    const cc = select('cost_code_id', [], { required: true });
+    const note = input('note', { type: 'text', maxlength: '500' });
+    const latestCC = latestOnly();
+    const loadCC = () => latestCC(
+      async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []),
+      (list) => refill(cc, list.map((c) => h('option', { value: c.id }, `${c.code} ${c.name}`))));
+    proj.addEventListener('change', () => loadCC().catch(showError));
+    formPage(`Request a part for ${wo.number}`, 'This prepares a stock issue linked to the work order. A different person approves the issue; the part then leaves the store and its cost is charged to the project.',
+      [h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty, 'In the item\'s own unit.'), field('Project charged', proj, e.current_project_id ? 'The project the machine is at.' : 'The machine is not at a project: choose the project that bears the cost.'),
+        field('Cost code', cc), field('Expense account', acct)), field('Note', note)], 'Request part', async () => {
+        await api('POST', `/v1/maintenance-work-orders/${woId}/parts`, { warehouse_id: wh.value, stock_item_id: item.value, quantity: qty.value.trim(), project_id: e.current_project_id ? undefined : proj.value,
+          cost_code_id: cc.value, expense_account_id: acct.value, note: note.value.trim() || undefined });
+        say('Part requested. Its stock issue awaits approval.');
+        location.hash = `#/doc/maintenance_work_order/${woId}`;
+      });
+    await loadCC();
+  },
+
+  async maintenance_plan(eqId) {
+    const all = (await api('GET', '/v1/equipment?limit=200')).items.filter((e) => !['RETIRED', 'DISPOSED'].includes(e.status));
+    const eq = select('equipment_id', all.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    if (eqId) eq.value = eqId;
+    const title = input('title', { type: 'text', required: true, maxlength: '200', placeholder: 'e.g. 250 hour service' });
+    const units = input('every_units', { type: 'number', step: '1', min: '1' });
+    const days = input('every_days', { type: 'number', step: '1', min: '1', max: '3650' });
+    formPage('New maintenance plan', 'A service that recurs every so many metered hours or kilometres, every so many days, or whichever comes first. The interval counts from the machine\'s meter and the date today, and again from each certified service.',
+      [h('div', { class: 'grid' }, field('Equipment', eq), field('Title', title), field('Every (metered units)', units, 'Hours or km, by the machine\'s meter.'), field('Every (days)', days))], 'Save plan', async () => {
+        if (!units.value && !days.value) throw new Error('Give an interval in metered units, in days, or both.');
+        await api('POST', '/v1/maintenance-plans', { equipment_id: eq.value, title: title.value.trim(), every_units: units.value || undefined, every_days: days.value ? Number(days.value) : undefined });
+        say('Plan saved.');
+        location.hash = '#/fleet';
+      });
+  },
+
+  async charge_rate() {
+    const eqs = (await api('GET', '/v1/equipment?limit=200')).items || [];
+    const eq = select('equipment_id', eqs.map((e) => ({ value: e.id, label: `${e.number} ${e.name}` })), { required: true });
+    const from = input('effective_from', { type: 'date', required: true, value: today() });
+    const prod = input('productive_rate', { inputmode: 'decimal', required: true, autocomplete: 'off' });
+    const idle = input('idle_rate', { inputmode: 'decimal', value: '0', autocomplete: 'off' });
+    const basis = input('basis', { type: 'text', required: true, minlength: '5', maxlength: '500', placeholder: 'Where the rate comes from (policy, hire market, cost build-up)' });
+    formPage('New charge-out rate', 'The rate a project is charged for a machine, per working hour and per idle hour, from a date. A person with fleet approval who did not prepare it approves it with a fresh sign-in; a decided rate never changes.',
+      [h('div', { class: 'grid' }, field('Machine', eq), field('Effective from', from), field('Per working hour', prod), field('Per idle hour', idle), field('Basis', basis))], 'Prepare rate', async () => {
+        const res = await api('POST', '/v1/equipment-charge-rates', { equipment_id: eq.value, effective_from: from.value, productive_rate: prod.value.trim(), idle_rate: idle.value.trim() || '0', basis: basis.value.trim() });
+        created('equipment_charge_rate', res, 'Charge-out rate');
+      });
+  },
+
+  async charge_run() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const month = input('month', { type: 'month', required: true, value: today().slice(0, 7) });
+    const cost = select('cost_account_id', accountOpts(['EXPENSE']), { required: true });
+    const rec = select('recovery_account_id', accountOpts(['EXPENSE', 'REVENUE']), { required: true });
+    const prev = h('div');
+    const latestPrev = latestOnly();
+    const show = () => latestPrev(async (signal) => (proj.value && month.value ? api('GET', `/v1/fleet/charge-preview?project=${proj.value}&month=${month.value}`, undefined, undefined, signal) : null), (pv) => {
+      if (!pv) { prev.replaceChildren(); return; }
+      prev.replaceChildren(table('Logs to charge', [{ label: 'Log', cell: (l) => l.log_number }, { label: 'Day', cell: (l) => l.log_date }, { label: 'Machine', cell: (l) => l.equipment },
+        { label: 'Working h', num: true, cell: (l) => String(Number(l.productive_hours)) }, { label: 'Idle h', num: true, cell: (l) => String(Number(l.idle_hours)) },
+        { label: 'Charge', num: true, cell: (l) => money(l.amount) }], pv.lines || [], 'No approved log left to charge.'),
+      (pv.unpriced || []).length ? h('p', { class: 'callout' }, `No approved rate for: ${pv.unpriced.map((u) => `${u.log_number} (${u.equipment})`).join(', ')}. The run is refused until a rate is approved.`) : null,
+      h('p', {}, `Total ${money(pv.total)}`));
+    });
+    proj.addEventListener('change', () => show().catch(showError));
+    month.addEventListener('change', () => show().catch(showError));
+    formPage('Charge equipment to a project', 'Prices the project\'s approved equipment logs of the month at the approved rates in force on each day and creates a draft journal (Dr equipment cost / Cr recovery) for finance to approve and post. Each log is charged once.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Month', month), field('Equipment cost account', cost), field('Recovery account', rec)), prev], 'Prepare charge run', async () => {
+        const res = await api('POST', '/v1/equipment-charge-runs', { project_id: proj.value, month: month.value, cost_account_id: cost.value, recovery_account_id: rec.value });
+        created('equipment_charge_run', res, 'Equipment charge run');
+      });
+    await show();
+  },
+
+  async fleet_policy() {
+    const cur = await api('GET', '/v1/fleet/policy');
+    const from = input('effective_from', { type: 'date', required: true, value: today() });
+    const tol = input('fuel_variance_tolerance', { type: 'number', step: '0.01', min: '0.01', max: '99', required: true, value: String(Number(cur.fuel_variance_tolerance) * 100) });
+    const min = input('fuel_variance_min_litres', { type: 'number', step: '0.5', min: '0', required: true, value: cur.fuel_variance_min_litres });
+    const frac = input('due_soon_fraction', { type: 'number', step: '1', min: '1', max: '99', required: true, value: String(Number(cur.due_soon_fraction) * 100) });
+    const days = input('due_soon_days', { type: 'number', step: '1', min: '0', max: '365', required: true, value: String(cur.due_soon_days) });
+    const basis = h('textarea', { name: 'basis', rows: '3', required: '', maxlength: '1000' });
+    formPage('New fleet policy', 'The thresholds used when fuel is reconciled and maintenance is judged due. A plant manager other than you approves the policy with a fresh second factor; it applies from its effective date and replaces earlier policies from then on.',
+      [h('p', { class: 'hint' }, cur.source === 'APPROVED_POLICY' ? `In force now: ${cur.number}, effective ${cur.effective_from}.` : 'No policy has been approved yet: the figures shown are engineering defaults, not a decision of the company.'),
+        h('div', { class: 'grid' }, field('Effective from', from), field('Fuel difference listed above (%)', tol, 'Of the larger of the two figures compared.'), field('…and above (litres)', min),
+          field('Service due soon when this share of the interval is left (%)', frac), field('…or this many days', days)), field('Basis', basis, 'Who decided this and on what grounds.')], 'Save policy', async () => {
+        const res = await api('POST', '/v1/fleet-policies', { effective_from: from.value, fuel_variance_tolerance: String(Number(tol.value) / 100), fuel_variance_min_litres: min.value || '0',
+          due_soon_fraction: String(Number(frac.value) / 100), due_soon_days: Number(days.value || 0), basis: basis.value.trim() });
+        created('fleet_policy', res, 'Fleet policy');
+      });
+  },
+
   async equipment_operator() {
     const who = input('operator', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the operator' });
     const cls = select('equipment_class', FLEET_CLASSES.map((value) => ({ value, label: words(value.toLowerCase()) })), { required: true });
@@ -1471,6 +2133,67 @@ const FORMS = {
       });
   },
 
+  async transmittal() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const subject = input('subject', { type: 'text', required: true, minlength: '3', maxlength: '300' });
+    const party = input('to_party', { type: 'text', required: true, minlength: '2', maxlength: '200' });
+    const purpose = select('purpose', [['FOR_INFORMATION', 'For information'], ['FOR_REVIEW', 'For review'], ['FOR_APPROVAL', 'For approval'], ['FOR_CONSTRUCTION', 'For construction'], ['AS_BUILT', 'As built']].map(([value, label]) => ({ value, label })), { required: true });
+    const docs = h('fieldset', {}, h('legend', {}, 'Documents (their approved revision is sent)'));
+    const latestDocs = latestOnly();
+    const load = () => latestDocs(async (signal) => (proj.value ? (await api('GET', `/v1/documents?project=${proj.value}`, undefined, undefined, signal)).documents : []), (list) => {
+      const ok = (list || []).filter((x) => x.current);
+      docs.replaceChildren(h('legend', {}, 'Documents (their approved revision is sent)'), ...(ok.length ? ok.map((x) => {
+        const cb = h('input', { type: 'checkbox', name: 'document_ids', value: x.id, id: nextId('td') });
+        return h('div', { class: 'check' }, cb, h('label', { for: cb.id }, `${x.reference} rev ${x.current.revision} — ${x.title}`));
+      }) : [h('p', { class: 'empty' }, 'No document of this project has an approved revision.')]));
+    });
+    proj.addEventListener('change', () => load().catch(showError));
+    formPage('Send a transmittal', 'Records the approved revision of each chosen document as sent to a party. A transmittal never changes.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Subject', subject), field('To', party), field('Purpose', purpose)), docs], 'Send transmittal', async () => {
+        const ids = [...docs.querySelectorAll('input[name=document_ids]:checked')].map((c) => c.value);
+        if (!ids.length) throw new Error('Choose at least one document.');
+        const res = await api('POST', '/v1/transmittals', { project_id: proj.value, subject: subject.value.trim(), to_party: party.value.trim(), purpose: purpose.value, document_ids: ids });
+        created('transmittal', res, 'Transmittal');
+      });
+    await load();
+  },
+
+  async submittal(prevID) {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const section = input('spec_section', { type: 'text', required: true, minlength: '2', maxlength: '60', placeholder: '03 30 00' });
+    const title = input('title', { type: 'text', required: true, minlength: '3', maxlength: '300' });
+    if (prevID) { // a resubmission keeps the project and section of the submittal it answers (0090)
+      const doc = (await api('GET', `/v1/p2p/submittal/${prevID}`)).detail || {};
+      proj.value = doc.project_id || ''; section.value = doc.spec_section || ''; title.value = doc.title ? `${doc.title}, resubmitted` : '';
+      proj.disabled = true; section.readOnly = true;
+    }
+    formPage(prevID ? 'Resubmit' : 'New submittal', prevID ? 'Answers the review of the submittal named here; the review cycle is numbered by the system.' : 'A contractor submittal (shop drawing, sample, product data) for review. Someone other than you records the review code.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Specification section', section), field('Title', title))], 'Submit for review', async () => {
+        const res = await api('POST', '/v1/submittals', { project_id: proj.value, spec_section: section.value.trim(), title: title.value.trim(), resubmission_of: prevID || undefined });
+        created('submittal', res, 'Submittal');
+      });
+  },
+
+  // CNX-05.1 (0085): one letter, notice or e-mail in or out; a reply marks the item it answers ANSWERED.
+  async correspondence() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const dir = select('direction', [{ value: 'IN', label: 'Incoming' }, { value: 'OUT', label: 'Outgoing' }], { required: true });
+    const party = input('counterparty', { type: 'text', required: true, minlength: '2', maxlength: '200', placeholder: 'Who wrote it, or to whom it went' });
+    const subject = input('subject', { type: 'text', required: true, minlength: '3', maxlength: '300' });
+    const ref = input('reference', { type: 'text', maxlength: '120', placeholder: 'Their or our letter reference' });
+    const dated = input('dated_on', { type: 'date', required: true, value: today(), max: today() });
+    const due = input('reply_due_on', { type: 'date' });
+    const ctr = select('contract_id', [{ value: '', label: 'No particular contract' }, ...(await docOpts('contract', 'ACTIVE'))]);
+    const answers = select('in_reply_to', [{ value: '', label: 'Not a reply' }, ...(await docOpts('correspondence', 'AWAITING_REPLY'))]);
+    formPage('Record correspondence', 'Records a letter, notice or e-mail once; it never changes. Set an answer date when a reply is needed: the item waits until its reply is recorded here, and shows as overdue after that date.',
+      [h('div', { class: 'grid' }, field('Project', proj), field('Direction', dir), field('Counterparty', party), field('Subject', subject), field('Reference', ref),
+        field('Dated', dated), field('Answer due (optional)', due), field('Contract (optional)', ctr), field('Reply to (optional)', answers))], 'Record', async () => {
+        const res = await api('POST', '/v1/correspondence', { project_id: proj.value, direction: dir.value, counterparty: party.value.trim(), subject: subject.value.trim(),
+          reference: ref.value.trim(), dated_on: dated.value, reply_due_on: due.value, contract_id: ctr.value, in_reply_to: answers.value });
+        created('correspondence', res, 'Correspondence');
+      });
+  },
+
   async rfi() {
     const proj = select('project_id', projectOpts(), { required: true });
     const about = select('revision_id', [{ value: '', label: 'No particular document' }]);
@@ -1478,10 +2201,10 @@ const FORMS = {
     const question = h('textarea', { name: 'question', required: true, minlength: '10', maxlength: '4000', rows: '5' });
     const to = input('assigned_to', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the person expected to answer' });
     const due = input('due_on', { type: 'date', required: true, value: plusDays(7), min: today() });
-    const loadDocs = async () => {
-      const list = proj.value ? (await api('GET', `/v1/documents?project=${proj.value}`)).documents : [];
-      about.replaceChildren(h('option', { value: '' }, 'No particular document'), ...list.filter((x) => x.current).map((x) => h('option', { value: x.current.id }, `${x.reference} rev ${x.current.revision} — ${x.title}`)));
-    };
+    const latest = latestOnly();
+    const loadDocs = () => latest(
+      async () => (proj.value ? (await api('GET', `/v1/documents?project=${proj.value}`)).documents : []),
+      (list) => refill(about, [h('option', { value: '' }, 'No particular document'), ...list.filter((x) => x.current).map((x) => h('option', { value: x.current.id }, `${x.reference} rev ${x.current.revision} — ${x.title}`))]));
     proj.addEventListener('change', loadDocs);
     formPage('Raise a request for information', 'Ask a question about the works, optionally about the current revision of a document. Someone other than you answers it, once; then you close it. An answer that changes cost or time is followed by a change event.',
       [h('div', { class: 'grid' }, field('Project', proj), field('About', about), field('Subject', subject), field('Expected to answer', to), field('Answer due', due)), field('Question', question)], 'Raise the RFI', async () => {
@@ -1556,19 +2279,19 @@ const FORMS = {
     const proj = select('project_id', projectOpts(), { required: true });
     const just = input('justification', { type: 'text', required: true, maxlength: '500' });
     const need = input('needed_by', { type: 'date', value: plusDays(14) });
-    let grid;
-    const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
-      grid = lineGrid('Requested lines', [
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+    // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
+    const grid = lineGrid('Requested lines', [
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
         { key: 'description', label: 'Description', make: txt('description') },
         { key: 'unit', label: 'Unit', make: txt('unit', { size: '5' }) },
         { key: 'quantity', label: 'Quantity', make: num('quantity') },
         { key: 'est_unit_price', label: 'Estimated unit price', make: num('est_unit_price') },
       ], [], true);
-      holder.replaceChildren(grid);
-    };
+    const holder = h('div', {}, grid);
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
+    });
     proj.addEventListener('change', load);
     formPage('New requisition', 'Request materials or services against an approved cost code. Approval checks the project budget.',
       [h('div', { class: 'grid' }, field('Project', proj), field('Justification', just), field('Needed by', need)), holder], 'Create requisition', async () => {
@@ -1582,20 +2305,20 @@ const FORMS = {
   async boq() {
     const proj = select('project_id', projectOpts(), { required: true });
     const desc = input('description', { type: 'text', required: true });
-    let grid;
-    const holder = h('div');
-    const load = async () => {
-      const cc = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
-      grid = lineGrid('BOQ items', [
+    // The grid is built once; a project change refills its cost codes in place (XCT-FORM).
+    const grid = lineGrid('BOQ items', [
         { key: 'item_no', label: 'Item no.', make: txt('item_no', { size: '6' }) },
         { key: 'description', label: 'Description', make: txt('description') },
         { key: 'unit', label: 'Unit', make: txt('unit', { size: '5' }) },
         { key: 'quantity', label: 'Quantity', make: num('quantity') },
         { key: 'rate', label: 'Rate', make: num('rate') },
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`)) },
+        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', []) },
       ], [], true);
-      holder.replaceChildren(grid);
-    };
+    const holder = h('div', {}, grid);
+    const latestLoad = latestOnly();
+    const load = () => latestLoad(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (cc) => {
+      grid.setChoices('cost_code_id', opt(cc, (c) => `${c.code} ${c.name}`));
+    });
     proj.addEventListener('change', load);
     formPage('New BOQ version', 'Priced bill of quantities; once approved it is the budget for its cost codes.',
       [h('div', { class: 'grid' }, field('Project', proj), field('Description', desc)), holder], 'Create BOQ', async () => {
@@ -1796,6 +2519,56 @@ const FORMS = {
       created('payment_instruction', res, 'Payment instruction');
     });
     await load();
+  },
+
+  // EST-06 (0094): a priced resource with its provenance; someone else approves it.
+  async resource_rate() {
+    const ent = select('legal_entity_id', entityOpts(), { required: true });
+    const code = input('code', { type: 'text', required: true, maxlength: '40', placeholder: 'e.g. C25-MIX' });
+    const desc = input('description', { type: 'text', required: true, maxlength: '300' });
+    const kind = select('kind', [['MATERIAL', 'Material'], ['LABOUR', 'Labour'], ['EQUIPMENT', 'Equipment'], ['SUBCONTRACT', 'Subcontract']].map(([value, label]) => ({ value, label })), { required: true });
+    const unit = input('unit', { type: 'text', required: true, maxlength: '12', placeholder: 'm3, hr, t' });
+    const cur = input('currency', { type: 'text', value: 'ETB', maxlength: '3', required: true });
+    const rate = input('rate', { inputmode: 'decimal', required: true });
+    const src = input('source', { type: 'text', required: true, maxlength: '300', placeholder: 'Quotation, price list or historical project' });
+    const region = input('region', { type: 'text', required: true, maxlength: '100' });
+    const conf = select('confidence', [['HIGH', 'High'], ['MEDIUM', 'Medium'], ['LOW', 'Low']].map(([value, label]) => ({ value, label })), { required: true });
+    const fx = input('fx_date', { type: 'date' });
+    const from = input('valid_from', { type: 'date', value: today(), required: true });
+    const to = input('valid_to', { type: 'date', required: true });
+    formPage('New resource rate', 'A price for the rate library, with where it came from and how long it holds. Someone other than you approves it; once decided it never changes, and a new price is a new rate that starts after this one ends.', [
+      h('div', { class: 'grid' }, field('Legal entity', ent), field('Code', code), field('Description', desc), field('Kind', kind), field('Unit', unit), field('Currency', cur), field('Rate', rate),
+        field('Source', src), field('Region', region), field('Confidence', conf), field('Exchange-rate date', fx, 'Only for a currency other than the entity\u2019s own.'), field('Valid from', from), field('Valid to', to))], 'Record rate', async () => {
+      const res = await api('POST', '/v1/resource-rates', { legal_entity_id: ent.value, code: code.value.trim(), description: desc.value.trim(), kind: kind.value, unit: unit.value.trim(),
+        currency: cur.value.trim().toUpperCase(), rate: rate.value.trim(), source: src.value.trim(), region: region.value.trim(), confidence: conf.value, fx_date: fx.value || undefined, valid_from: from.value, valid_to: to.value });
+      created('resource_rate', res, 'Resource rate');
+    });
+  },
+
+  // EST-06 (0094): the price of one unit of work from approved rates; the database computes the figures.
+  async rate_buildup() {
+    const proj = select('project_id', projectOpts(), { required: true });
+    const code = input('code', { type: 'text', required: true, maxlength: '40', placeholder: 'e.g. C25-SLAB' });
+    const desc = input('description', { type: 'text', required: true, maxlength: '300' });
+    const unit = input('unit', { type: 'text', required: true, maxlength: '12', placeholder: 'm3' });
+    const cur = input('currency', { type: 'text', value: 'ETB', maxlength: '3', required: true });
+    const day = input('price_date', { type: 'date', value: today(), required: true });
+    const pct = (key) => input(key, { inputmode: 'decimal', value: '0', required: true });
+    const oh = pct('overhead_pct'), ct = pct('contingency_pct'), es = pct('escalation_pct'), mg = pct('margin_pct');
+    const rates = await docOpts('resource_rate', 'APPROVED');
+    const grid = lineGrid('Resources per unit of output', [
+      { key: 'resource_rate_id', label: 'Resource rate', make: () => select('resource_rate_id', rates) },
+      { key: 'quantity', label: 'Quantity', make: num('quantity') },
+      { key: 'wastage_pct', label: 'Wastage %', make: num('wastage_pct', { value: '0' }) },
+    ], [], true);
+    formPage('New rate build-up', 'Direct cost is the resources at their approved rates; overhead, contingency and escalation are percentages of it. The selling rate is full cost ÷ (1 − margin): margin is a share of the price, not a markup on cost. Someone other than you approves it, and it is then frozen.', [
+      h('div', { class: 'grid' }, field('Project', proj), field('Code', code), field('Description', desc), field('Unit of output', unit), field('Currency', cur), field('Price date', day, 'Every rate used must be valid on this day.'),
+        field('Overhead %', oh), field('Contingency %', ct), field('Escalation %', es), field('Margin %', mg, 'Below 100.')), grid], 'Create build-up', async () => {
+      const lines = grid.rows().map((r) => ({ resource_rate_id: r.resource_rate_id, quantity: r.quantity, wastage_pct: r.wastage_pct || '0' }));
+      const res = await api('POST', '/v1/rate-buildups', { project_id: proj.value, code: code.value.trim(), description: desc.value.trim(), unit: unit.value.trim(), currency: cur.value.trim().toUpperCase(),
+        price_date: day.value, overhead_pct: oh.value.trim(), contingency_pct: ct.value.trim(), escalation_pct: es.value.trim(), margin_pct: mg.value.trim(), lines });
+      created('rate_buildup', res, 'Rate build-up');
+    });
   },
 
   async supplier() {
@@ -2068,20 +2841,19 @@ const FORMS = {
       cb.checked = i >= 1 && i <= 6;
       return h('div', { class: 'check' }, cb, h('label', { for: cb.id }, name));
     });
-    let acts;
-    const actHolder = h('div');
-    const loadActs = async () => {
-      const ccs = proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : [];
-      const ccOpts = [{ value: '', label: '(none)' }, ...opt(ccs, (c) => `${c.code} ${c.name}`)];
-      acts = lineGrid('Activities', [
-        { key: 'code', label: 'Code', make: txt('code', { size: '8' }) },
-        { key: 'name', label: 'Name', make: txt('name') },
-        { key: 'duration', label: 'Duration (working days)', make: num('duration') },
-        { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', ccOpts) },
-        { key: 'budget', label: 'Budget', make: num('budget') },
-      ], [], true);
-      actHolder.replaceChildren(acts);
-    };
+    // Built once; a project change refills the cost codes in place (XCT-FORM).
+    const acts = lineGrid('Activities', [
+      { key: 'code', label: 'Code', make: txt('code', { size: '8' }) },
+      { key: 'name', label: 'Name', make: txt('name') },
+      { key: 'duration', label: 'Duration (working days)', make: num('duration') },
+      { key: 'cost_code_id', label: 'Cost code', make: () => select('cost_code_id', [{ value: '', label: '(none)' }]) },
+      { key: 'budget', label: 'Budget', make: num('budget') },
+    ], [], true);
+    const actHolder = h('div', {}, acts);
+    const latestLoadacts = latestOnly();
+    const loadActs = () => latestLoadacts(async (signal) => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`, undefined, undefined, signal)).cost_codes : []), (ccs) => {
+      acts.setChoices('cost_code_id', [{ value: '', label: '(none)' }, ...opt(ccs, (c) => `${c.code} ${c.name}`)]);
+    });
     proj.addEventListener('change', () => loadActs().catch(showError));
     await loadActs();
     const links = lineGrid('Dependencies', [
@@ -2202,9 +2974,11 @@ const FORMS = {
     const proj = select('project_id', [{ value: '', label: 'Central (no project)' }, ...projectOpts()]);
     const code = input('code', { type: 'text', required: true });
     const name = input('name', { type: 'text', required: true });
-    formPage('New warehouse', 'A project store holds stock for one project; a central warehouse serves the whole entity.', [
-      h('div', { class: 'grid' }, field('Legal entity', ent), field('Project', proj), field('Code', code), field('Name', name))], 'Create warehouse', async () => {
-      const res = await api('POST', '/v1/warehouses', { legal_entity_id: ent.value, project_id: proj.value || undefined, code: code.value.trim(), name: name.value.trim() });
+    const quar = h('input', { type: 'checkbox', name: 'quarantine', id: nextId('wq') });
+    formPage('New warehouse', 'A project store holds stock for one project; a central warehouse serves the whole entity. A quarantine store holds stock that may not be used: it is filled and emptied by approved transfers, and nothing is issued or reserved from it.', [
+      h('div', { class: 'grid' }, field('Legal entity', ent), field('Project', proj), field('Code', code), field('Name', name)),
+      h('div', { class: 'check' }, quar, h('label', { for: quar.id }, 'Quarantine store (cannot be changed later)'))], 'Create warehouse', async () => {
+      const res = await api('POST', '/v1/warehouses', { legal_entity_id: ent.value, project_id: proj.value || undefined, code: code.value.trim(), name: name.value.trim(), quarantine: quar.checked });
       created('warehouse', res, 'Warehouse');
     });
   },
@@ -2254,11 +3028,10 @@ const FORMS = {
     const date = input('issue_date', { type: 'date', value: today(), required: true });
     const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
     const cc = select('cost_code_id', [], { required: true });
-    const loadCC = async () => {
-      cc.textContent = '';
-      if (!proj.value) return;
-      for (const c of (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes) cc.append(h('option', { value: c.id }, `${c.code} ${c.name}`));
-    };
+    const latestCC = latestOnly();
+    const loadCC = () => latestCC(
+      async () => (proj.value ? (await api('GET', `/v1/projects/${proj.value}/cost-codes`)).cost_codes : []),
+      (list) => refill(cc, list.map((c) => h('option', { value: c.id }, `${c.code} ${c.name}`))));
     proj.addEventListener('change', () => loadCC().catch(showError));
     formPage('Issue stock to a project', 'The site engineer or project manager approves the issue; its cost (FIFO or average) is computed then and charged to the cost code.', [
       h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty), field('Unit (optional)', unit, 'Counted in another unit? It is converted with an approved conversion.'), field('Against a reservation', resv, 'An issue against a reservation uses it up when approved.'),
@@ -2285,6 +3058,38 @@ const FORMS = {
     });
   },
 
+  // SUP-05.4 (0089): unused material back from the project at the issue's cost.
+  async stockreturn() {
+    const iss = select('issue_id', await docOpts('stock_issue', 'APPROVED'), { required: true });
+    const wh = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const qty = input('quantity', { inputmode: 'decimal', required: true });
+    const date = input('return_date', { type: 'date', value: today(), max: today(), required: true });
+    const reason = input('reason', { type: 'text', required: true, minlength: '5', maxlength: '1000', placeholder: 'Why the material comes back' });
+    formPage('Return stock from site', 'Gives back part of an approved issue at that issue\'s cost: the store gets the quantity, the project and cost code are credited. Someone other than you approves it; never more than is still out.', [
+      h('div', { class: 'grid' }, field('Issue', iss), field('Back to warehouse', wh), field('Quantity', qty), field('Date', date), field('Reason', reason))],
+    'Prepare return', async () => {
+      const res = await api('POST', '/v1/stock-returns', { issue_id: iss.value, warehouse_id: wh.value, quantity: qty.value.trim(), return_date: date.value, reason: reason.value.trim() });
+      created('stock_return', res, 'Site return');
+    });
+  },
+
+  // SUP-05.4 (0088): scrap at cost with a reason; someone else approves and the STK_SCRAP journal follows.
+  async stockwriteoff() {
+    const wh = select('warehouse_id', await docOpts('warehouse', 'ACTIVE'), { required: true });
+    const item = select('stock_item_id', await docOpts('stock_item', 'ACTIVE'), { required: true });
+    const qty = input('quantity', { inputmode: 'decimal', required: true });
+    const date = input('writeoff_date', { type: 'date', value: today(), max: today(), required: true });
+    const acct = select('expense_account_id', accountOpts(['EXPENSE']), { required: true });
+    const reason = input('reason', { type: 'text', required: true, minlength: '5', maxlength: '1000', placeholder: 'Damaged, expired or lost: say what happened' });
+    formPage('Write off stock', 'Removes stock at its cost (the oldest layers first, or the moving average). Someone other than you approves it; the journal (Dr the expense account, Cr inventory) is then generated for finance.', [
+      h('div', { class: 'grid' }, field('Warehouse', wh), field('Stock item', item), field('Quantity', qty), field('Date', date), field('Write-off account', acct), field('Reason', reason))],
+    'Prepare write-off', async () => {
+      const res = await api('POST', '/v1/stock-writeoffs', { warehouse_id: wh.value, stock_item_id: item.value, quantity: qty.value.trim(), writeoff_date: date.value,
+        expense_account_id: acct.value, reason: reason.value.trim() });
+      created('stock_writeoff', res, 'Stock write-off');
+    });
+  },
+
   async policy() {
     const ent = select('legal_entity_id', entityOpts(), { required: true });
     const f = (n, v) => input(n, { inputmode: 'decimal', value: v, required: true });
@@ -2292,12 +3097,17 @@ const FORMS = {
     const hv = f('high_value_po_threshold', '5000000'), dual = f('dual_payment_threshold', '500000');
     const acc = (n, types) => select(n, accountOpts(types), { required: true });
     const grni = acc('grni_account_id', ['LIABILITY']), ap = acc('ap_account_id', ['LIABILITY']), vin = acc('vat_input_account_id', ['ASSET']), ppv = acc('ppv_account_id', ['EXPENSE']);
+    // SUP-03.3 (0093): two procurement rules the company switches on through this policy.
+    const box = (name, label) => { const cb = h('input', { type: 'checkbox', name, id: nextId('pc') }); return [cb, h('div', { class: 'check' }, cb, h('label', { for: cb.id }, label))]; };
+    const [conf, confRow] = box('require_conflict_declarations', 'Evaluators and awarders declare conflicts of interest on each RFQ first');
+    const [qual, qualRow] = box('require_supplier_qualification', 'Award only to suppliers with an approved qualification valid on the day');
     formPage('Propose P2P policy', 'Tolerances, thresholds and posting accounts. Takes effect only after another person approves it. Rates are tenant configuration, not tax advice.', [
       h('div', { class: 'grid' }, field('Legal entity', ent), field('Price tolerance (fraction)', tol, '0.02 = 2%'), field('Over-receipt allowance (fraction)', over),
         field('VAT rate (fraction)', vat), field('High-value PO threshold', hv), field('Dual-approval payment threshold', dual),
-        field('GRNI account', grni), field('Accounts payable account', ap), field('VAT input account', vin), field('Price variance account', ppv))], 'Propose policy', async () => {
+        field('GRNI account', grni), field('Accounts payable account', ap), field('VAT input account', vin), field('Price variance account', ppv)), confRow, qualRow], 'Propose policy', async () => {
       const res = await api('POST', '/v1/p2p/policies', { legal_entity_id: ent.value, price_tolerance_pct: tol.value, over_receipt_pct: over.value, vat_rate: vat.value,
-        high_value_po_threshold: hv.value, dual_payment_threshold: dual.value, grni_account_id: grni.value, ap_account_id: ap.value, vat_input_account_id: vin.value, ppv_account_id: ppv.value });
+        high_value_po_threshold: hv.value, dual_payment_threshold: dual.value, grni_account_id: grni.value, ap_account_id: ap.value, vat_input_account_id: vin.value, ppv_account_id: ppv.value,
+        require_conflict_declarations: conf.checked, require_supplier_qualification: qual.checked });
       created('p2p_policy', res, 'Policy');
     });
   },
@@ -2306,9 +3116,22 @@ const FORMS = {
 // ---------- journals ----------
 async function renderJournals() {
   const p2pOnly = h('input', { type: 'checkbox', id: nextId('c'), checked: true });
-  const fetchJ = async (status) => (p2pOnly.checked
-    ? (await Promise.all(['P2P_', 'AR_', 'STK_'].map((p) => api('GET', `/v1/journals?status=${status}&source_prefix=${p}`)))).flatMap((r) => r.journals)
-    : (await api('GET', `/v1/journals?status=${status}`)).journals);
+  // XCT-API.2.e: follow the cursor, at most 10 pages of 200 per list; say so when more remain.
+  const pages = async (path) => {
+    let items = [], next = '', n = 0;
+    do {
+      const r = await api('GET', path + (next ? `&cursor=${encodeURIComponent(next)}` : ''));
+      items = items.concat(r.journals); next = r.next || '';
+    } while (next && ++n < 10);
+    return { items, more: !!next };
+  };
+  const fetchJ = async (status) => {
+    const rs = p2pOnly.checked ? await Promise.all(['P2P_', 'AR_', 'STK_'].map((p) => pages(`/v1/journals?status=${status}&source_prefix=${p}`)))
+      : [await pages(`/v1/journals?status=${status}`)];
+    const js = rs.flatMap((r) => r.items);
+    js.more = rs.some((r) => r.more);
+    return js;
+  };
   const holder = h('div');
   page('Journals', 'Subledger documents create draft journals. A finance manager approves them and a controller posts them; neither can be the document’s creator.',
     h('div', { class: 'toolbar' }, h('div', { class: 'check' }, p2pOnly, h('label', { for: p2pOnly.id }, 'Subledger journals only (procure-to-pay, receivables, stock)'))), holder);
@@ -2349,7 +3172,8 @@ async function renderJournals() {
       });
       holder.append(h('div', { class: 'pagehead' }, h('h2', { class: 'section' }, status === 'DRAFT' ? 'Waiting for approval' : 'Approved, waiting to post'),
         exportBar(`/v1/journals?status=${status}`, `Journals — ${status === 'DRAFT' ? 'waiting for approval' : 'approved, waiting to post'}`)),
-        ...[table(`${status === 'DRAFT' ? 'Draft' : 'Approved'} journals (${js.length})`, cols, js, 'None.'), btn ? h('div', { class: 'actions' }, btn) : null, out].filter(Boolean));
+        ...[js.more ? h('p', { class: 'hint', role: 'status' }, `Showing the newest ${js.length}; more are waiting. Act on these first, then reload.`) : null,
+          table(`${status === 'DRAFT' ? 'Draft' : 'Approved'} journals (${js.length}${js.more ? '+' : ''})`, cols, js, 'None.'), btn ? h('div', { class: 'actions' }, btn) : null, out].filter(Boolean));
     }
   };
   p2pOnly.addEventListener('change', () => load().catch(showError));
@@ -2930,7 +3754,8 @@ async function renderReports() {
 // ---------- catalogue report page (#/report/<id>; WP-1.5) ----------
 // One generic page for every catalogue report: filters, the table with totals,
 // the data-as-of time and the filters used, and PDF / Word / Excel export.
-async function renderCatalogueReport(id) {
+// preset: a query string (entity, subject, from, to) that fills the filters, e.g. from a statement line (CAP-01.5.c).
+async function renderCatalogueReport(id, preset) {
   const cat = (await api('GET', '/v1/reports/catalogue')).reports || [];
   const def = cat.find((r) => r.id === id);
   if (!def) { page('Report', 'This report does not exist or is not available to your role.'); return; }
@@ -2943,6 +3768,11 @@ async function renderCatalogueReport(id) {
   if (def.subject === 'supplier') subject = select('subject', [{ value: '', label: 'Choose a supplier' }, ...(await docOpts('supplier', 'ACTIVE'))]);
   if (def.subject === 'customer') subject = select('subject', [{ value: '', label: 'Choose a customer' }, ...(await docOpts('customer', 'ACTIVE'))]);
   if (def.subject === 'account') subject = select('subject', [{ value: '', label: 'All accounts' }, ...S.ref.accounts.map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }))]);
+  const pre = new URLSearchParams(preset || '');
+  if (pre.get('entity')) ent.value = pre.get('entity');
+  if (subject && pre.get('subject')) subject.value = pre.get('subject');
+  if (pre.get('from')) from.value = pre.get('from');
+  if (pre.get('to')) to.value = pre.get('to');
   const out = h('div');
   const src = () => {
     const q = new URLSearchParams({ entity: ent.value });
@@ -3005,6 +3835,149 @@ async function renderTB() {
   await load();
 }
 
+// Project risk register (PLB-04.1): open exposure against the contingency left in the budget.
+// CNX-07.2 (0087): tasks assigned to me and tasks I asked of others. Only the assignee completes; only the creator cancels.
+async function renderTasks() {
+  const [mine, created] = await Promise.all([api('GET', '/v1/tasks?view=mine'), api('GET', '/v1/tasks?view=created')]);
+  const run = async (path, id, body, msg) => { try { clearError(); await api('POST', `/v1/tasks/${id}/${path}`, body); say(msg); renderTasks(); } catch (e) { showError(e); } };
+  const cols = (who, act) => [{ label: 'Number', cell: (x) => x.number }, { label: 'Task', cell: (x) => x.title }, { label: who[0], cell: (x) => x[who[1]] },
+    { label: 'Project', cell: (x) => x.project || '' }, { label: 'Due', cell: (x) => x.due_on }, { label: 'Priority', cell: (x) => words(x.priority.toLowerCase()) },
+    { label: 'Status', cell: (x) => chip(x.overdue ? 'OVERDUE' : x.status) }, { label: '', cell: act }];
+  const done = (x) => (x.status !== 'OPEN' ? (x.note || '') : h('button', { type: 'button', 'data-done': x.number, on: { click: () => run('done', x.id, { note: (prompt('Note (optional)') || '').trim() }, `${x.number} done.`) } }, 'Mark done'));
+  const cancel = (x) => (x.status !== 'OPEN' || x.assigned_to === S.me.user_id ? (x.status !== 'OPEN' ? x.note || '' : '') : h('button', { type: 'button', class: 'ghost', on: { click: () => {
+    const why = (prompt(`Why is ${x.number} cancelled?`) || '').trim(); if (why) run('cancel', x.id, { reason: why }, `${x.number} cancelled.`); } } }, 'Cancel…'));
+  const f = { project: select('project_id', [{ value: '', label: 'No project' }, ...projectOpts()]), title: input('title', { type: 'text', required: true, minlength: '3', maxlength: '200' }),
+    to: input('assigned_to', { type: 'text', required: true, maxlength: '200', placeholder: 'User id of the person', value: S.me.user_id }),
+    due: input('due_on', { type: 'date', required: true, value: plusDays(3), min: today() }),
+    prio: select('priority', [{ value: 'NORMAL', label: 'Normal' }, { value: 'HIGH', label: 'High' }, { value: 'LOW', label: 'Low' }]), detail: input('detail', { type: 'text', maxlength: '4000' }) };
+  const b = h('button', { type: 'button', class: 'primary' }, 'Assign task');
+  b.addEventListener('click', async () => {
+    try { clearError(); await api('POST', '/v1/tasks', { project_id: f.project.value, title: f.title.value.trim(), assigned_to: f.to.value.trim(), due_on: f.due.value, priority: f.prio.value, detail: f.detail.value.trim() }); say('Task assigned.'); renderTasks(); } catch (e) { showError(e); }
+  });
+  page('Tasks', 'Things people asked each other to do by a date. The person a task is assigned to marks it done; the person who asked can cancel it. Tasks are not approvals.',
+    table('Assigned to you', cols(['From', 'created_by'], done), mine.items, 'Nothing assigned to you.'),
+    h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Ask someone to do something'), h('div', { class: 'grid' }, field('Project', f.project), field('Task', f.title), field('Assigned to', f.to),
+      field('Due', f.due), field('Priority', f.prio), field('Detail', f.detail)), h('div', { class: 'actions' }, b)),
+    table('Asked by you', cols(['Assigned to', 'assigned_to'], cancel), created.items, 'You have not assigned a task.'));
+}
+
+async function renderRiskRegister(project) {
+  const proj = select('project_id', projectOpts(), { required: true });
+  if (project) proj.value = project;
+  const out = h('div');
+  const latest = latestOnly();
+  const load = () => latest(async (signal) => (proj.value ? api('GET', `/v1/projects/${proj.value}/risks`, undefined, undefined, signal) : null), (r) => {
+    out.textContent = '';
+    if (!r) return;
+    const manage = S.can.has('change.manage');
+    out.append(h('p', { class: r.shortfall ? 'alert' : 'notice', role: 'status' }, r.shortfall
+      ? `Open exposure ${money(r.open_exposure)} exceeds the contingency left (${money(r.contingency_remaining)}) by ${money(-Number(r.cover))}.`
+      : `Open exposure ${money(r.open_exposure)} is covered by the contingency left (${money(r.contingency_remaining)}); ${money(r.cover)} spare.`),
+    table('Risks', [{ label: 'Number', cell: (x) => x.number }, { label: 'Risk', cell: (x) => x.title }, { label: 'Category', cell: (x) => words(x.category.toLowerCase()) },
+      { label: 'Owner', cell: (x) => x.owner }, { label: 'Probability', num: true, cell: (x) => `${(Number(x.probability) * 100).toFixed(0)}%` },
+      { label: 'Cost impact', num: true, cell: (x) => money(x.cost_impact) }, { label: 'Days', num: true, cell: (x) => String(x.schedule_days) },
+      { label: 'Exposure', num: true, cell: (x) => money(x.exposure) }, { label: 'Status', cell: (x) => chip(x.status) },
+      { label: '', cell: (x) => (manage && x.status === 'OPEN' ? h('button', { type: 'button', class: 'ghost', on: { click: async () => {
+        const note = (prompt(`Why is ${x.number} closed?`) || '').trim(); if (!note) return;
+        try { await api('POST', `/v1/project-risks/${x.id}/close`, { reason: note }); say('Risk closed.'); load(); } catch (e) { showError(e); } } } }, 'Close…') : '') }], r.risks, 'No risk recorded.'));
+    if (manage) {
+      const f = { title: input('title', { type: 'text', required: true, minlength: '3' }), category: select('category', ['COST', 'SCHEDULE', 'SAFETY', 'QUALITY', 'COMMERCIAL', 'DESIGN', 'OTHER'].map((v) => ({ value: v, label: words(v.toLowerCase()) }))),
+        cause: input('cause', { type: 'text', required: true }), effect: input('effect', { type: 'text', required: true }), owner: input('owner', { type: 'text', required: true }),
+        response: input('response', { type: 'text', required: true }), probability: input('probability', { inputmode: 'decimal', required: true, placeholder: '0.25' }),
+        cost_impact: input('cost_impact', { inputmode: 'decimal', required: true }), schedule_days: input('schedule_days', { type: 'number', value: '0', min: '0' }) };
+      const btn = h('button', { type: 'button', class: 'primary' }, 'Record risk');
+      btn.addEventListener('click', async () => {
+        clearError();
+        try {
+          await api('POST', '/v1/project-risks', { project_id: proj.value, title: f.title.value.trim(), category: f.category.value, cause: f.cause.value.trim(), effect: f.effect.value.trim(),
+            owner: f.owner.value.trim(), response: f.response.value.trim(), probability: f.probability.value.trim(), cost_impact: f.cost_impact.value.trim(), schedule_days: Number(f.schedule_days.value || 0) });
+          say('Risk recorded.'); load();
+        } catch (e) { showError(e); }
+      });
+      out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a risk'), h('div', { class: 'grid' }, field('Risk', f.title), field('Category', f.category), field('Cause', f.cause),
+        field('Effect', f.effect), field('Owner', f.owner), field('Response', f.response), field('Probability (0 to 1)', f.probability), field('Cost impact', f.cost_impact), field('Schedule impact (days)', f.schedule_days)),
+      h('div', { class: 'actions' }, btn)));
+    }
+  });
+  proj.addEventListener('change', () => load().catch(showError));
+  page('Project risk register', 'Each risk at its latest assessment; exposure is probability times cost impact. Open exposure is compared with the contingency still in the approved budget.',
+    h('div', { class: 'toolbar' }, field('Project', proj)), out);
+  await load();
+}
+
+// Financial statements (CAP-01.5): income statement for the period, balance sheet at its end.
+async function renderStatements() {
+  const ent = select('legal_entity_id', entityOpts());
+  const from = input('from', { type: 'date', value: `${today().slice(0, 4)}-01-01` });
+  const to = input('to', { type: 'date', value: today() });
+  const out = h('div');
+  const latest = latestOnly();
+  // CAP-01.5.c: a line opens its account's journal lines for the period (income statement) or up to the date (balance sheet).
+  const drill = (a, period) => {
+    if (!a.account_id) return h('span', { class: 'ref' }, a.account_code);
+    const q = new URLSearchParams({ entity: ent.value, subject: a.account_id, to: to.value });
+    if (period) q.set('from', from.value);
+    return h('a', { class: 'ref', href: `#/report/gl-detail/${encodeURIComponent(q.toString())}`, title: `Journal lines of ${a.account_code}` }, a.account_code);
+  };
+  const lines = (title, rows, total, label, period) => table(title, [{ label: 'Code', cell: (a) => drill(a, period) }, { label: 'Account', cell: (a) => a.account_name },
+    { label: 'Amount', num: true, cell: (a) => money(a.amount) }], [...(rows || []), { _class: 'total', account_code: '', account_name: label, amount: total }], 'Nothing in this section.');
+  const load = () => latest(async (signal) => (ent.value && from.value && to.value ? Promise.all([
+    api('GET', `/v1/reports/financial-statements?entity=${ent.value}&from=${from.value}&to=${to.value}`, undefined, undefined, signal),
+    api('GET', `/v1/reports/cash-flow?entity=${ent.value}&from=${from.value}&to=${to.value}`, undefined, undefined, signal),
+    api('GET', `/v1/entities/${ent.value}/cash-flow-classes`, undefined, undefined, signal)]) : null), (all) => {
+    out.textContent = '';
+    if (!all) return;
+    const [r, cf, classes] = all;
+    out.append(h('h2', { class: 'section' }, `Income statement, ${r.from} to ${r.to}`),
+      lines('Revenue', r.revenue, r.total_revenue, 'Total revenue', true), lines('Expenses', r.expenses, r.total_expenses, 'Total expenses', true),
+      h('p', { class: 'kpi-line' }, h('strong', {}, `Profit for the period: ${money(r.net_profit)}`)),
+      h('h2', { class: 'section' }, `Balance sheet at ${r.to}`),
+      h('p', { class: r.balanced ? 'notice' : 'alert', role: 'status' }, r.balanced ? 'Assets equal liabilities, equity and unclosed earnings.' : `Out of balance by ${money(r.difference)}.`),
+      lines('Assets', r.assets, r.total_assets, 'Total assets'), lines('Liabilities', r.liabilities, r.total_liabilities, 'Total liabilities'),
+      lines('Equity', r.equity, r.total_equity, 'Total equity'),
+      h('p', {}, `Earnings not yet closed to equity: ${money(r.unclosed_earnings)}`));
+    out.append(cashFlowSection(cf, classes.accounts || []));
+  });
+  // CAP-01.5.b (0091): direct method, from movements of accounts approved as CASH.
+  const cashFlowSection = (cf, accts) => {
+    const box = h('div', {}, h('h2', { class: 'section' }, `Cash-flow statement, ${cf.from} to ${cf.to}`));
+    if (!cf.cash_accounts) box.append(h('p', { class: 'alert', role: 'status' }, 'No account is approved as cash yet: classify the cash and bank accounts below.'));
+    else box.append(h('p', { class: cf.reconciles ? 'notice' : 'alert', role: 'status' }, cf.reconciles
+      ? `Opening cash ${money(cf.opening_cash)} + net movement ${money(cf.net_change)} = closing cash ${money(cf.closing_cash)}.`
+      : `Opening plus movement differs from closing cash by ${money(cf.difference)}.`),
+      lines('Operating activities', cf.operating, cf.total_operating, 'Net cash from operating activities', true),
+      lines('Investing activities', cf.investing, cf.total_investing, 'Net cash from investing activities', true),
+      lines('Financing activities', cf.financing, cf.total_financing, 'Net cash from financing activities', true));
+    box.append(cashFlowClassesPanel(accts));
+    return box;
+  };
+  const cashFlowClassesPanel = (accts) => {
+    const propose = (a) => {
+      if (!S.can.has('account.manage') || a.pending) return '';
+      const sel = select('class', ['CASH', 'OPERATING', 'INVESTING', 'FINANCING'].map((v) => ({ value: v, label: words(v.toLowerCase()) })), { 'aria-label': `Class for ${a.code}` });
+      sel.value = a.class;
+      const b = h('button', { type: 'button', class: 'ghost' }, 'Propose');
+      b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/cash-flow-classes', { account_id: a.account_id, class: sel.value }); say(`Class proposed for ${a.code}.`); load(); } catch (e) { showError(e); } });
+      return h('span', { class: 'row-actions' }, sel, b);
+    };
+    const approve = (a) => {
+      if (!a.pending) return a.approved ? 'Approved' : 'Default by type';
+      if (!S.can.has('journal.approve') || a.pending.created_by === S.me.user_id) return `${words(a.pending.class.toLowerCase())} proposed by ${a.pending.created_by}`;
+      const b = h('button', { type: 'button', 'data-approve-class': a.code }, `Approve ${words(a.pending.class.toLowerCase())}`);
+      b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/cash-flow-classes/${a.pending.id}/approve`); say(`Class approved for ${a.code}.`); load(); } catch (e) { showError(e); } });
+      return b;
+    };
+    return h('details', { class: 'panel' }, h('summary', {}, 'Cash-flow classes of the accounts'),
+      h('p', { class: 'hint' }, 'Someone proposes a class; someone else approves it. Without an approved class an account counts by its type, and is never cash.'),
+      table('Cash-flow classes', [{ label: 'Code', cell: (a) => a.code }, { label: 'Account', cell: (a) => a.name }, { label: 'Class', cell: (a) => chip(a.class) },
+        { label: 'Change', cell: propose }, { label: 'Approval', cell: approve }], accts, 'No account.'));
+  };
+  for (const el of [ent, from, to]) el.addEventListener('change', () => load().catch(showError));
+  page('Financial statements', 'From posted journals only. Each line is an account: its code opens the journal lines of that account (for the period, or up to the date for the balance sheet). The cash-flow statement follows, from the accounts approved as cash.',
+    h('div', { class: 'toolbar' }, field('Company', ent), field('From', from), field('To', to)), out);
+  await load();
+}
+
 async function renderAging(kind) {
   const ar = kind === 'ar';
   const ent = select('legal_entity_id', entityOpts());
@@ -3059,8 +4032,10 @@ function setBell(items) {
 }
 async function pollBell() {
   if (!S.token || document.hidden) return;
+  const ctl = FORM.ctl;
   try {
     const [queues, server] = await Promise.all([workQueues(), api('GET', '/v1/notifications?limit=50').catch(() => ({ items: [] }))]);
+    if (ctl && ctl.signal.aborted) return; // the person navigated meanwhile: the next poll counts again
     BELL.server = server.items || [];
     setBell(queues);
   } catch { /* next poll */ }
@@ -3140,6 +4115,244 @@ function brandCompany() {
     name.textContent = 'SERK Construction OS';
     tag.textContent = 'Operations';
   }
+}
+
+// ---------- company branding and theme (0097) ----------
+// The company's colours override the stylesheet's tokens for the mode in
+// use, through CSSOM custom properties (allowed by the CSP, unlike inline
+// style). The same fifteen tokens, defaults and contrast pairs as pkg/brand:
+// the server refuses an unreadable theme, the editor warns before saving.
+const BRAND_TOKENS = [
+  ['bg', 'Page background'], ['panel', 'Cards and panels'], ['panel-2', 'Raised areas'], ['ink', 'Text'], ['muted', 'Secondary text'], ['line', 'Lines and borders'],
+  ['accent', 'Accent (buttons, links)'], ['accent-ink', 'Text on accent'], ['band', 'Top band'], ['band-ink', 'Text on top band'], ['band-muted', 'Quiet text on top band'],
+  ['ok', 'Success'], ['warn', 'Warning'], ['bad', 'Error'], ['info', 'Information']];
+const BRAND_DEFAULTS = {
+  light: { bg: '#f7f9f8', panel: '#ffffff', 'panel-2': '#eef3f0', ink: '#14201c', muted: '#52635d', line: '#e0e7e3', accent: '#103e32', 'accent-ink': '#ffffff',
+    band: '#103e32', 'band-ink': '#ffffff', 'band-muted': '#c9ddd3', ok: '#16794a', warn: '#946000', bad: '#b42318', info: '#175cd3' },
+  dark: { bg: '#0e1512', panel: '#151e1a', 'panel-2': '#1c2823', ink: '#eaf1ed', muted: '#a9b8b1', line: '#2a3a33', accent: '#8fd9b6', 'accent-ink': '#0e1512',
+    band: '#0a100e', 'band-ink': '#eaf1ed', 'band-muted': '#a9b8b1', ok: '#7fd6a4', warn: '#f2c879', bad: '#f7a59b', info: '#9cc2ff' } };
+const BRAND_PAIRS = [['ink', 'bg', 4.5], ['ink', 'panel', 4.5], ['ink', 'panel-2', 4.5], ['muted', 'panel', 4.5], ['muted', 'bg', 4.5],
+  ['accent-ink', 'accent', 4.5], ['band-ink', 'band', 4.5], ['band-muted', 'band', 3],
+  ['accent', 'panel', 3], ['ok', 'panel', 3], ['warn', 'panel', 3], ['bad', 'panel', 3], ['info', 'panel', 3]];
+const BRAND_FONTS = [['manrope', 'Manrope (default)', '"Manrope", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Ethiopic", sans-serif'],
+  ['system', 'System interface font', 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Ethiopic", sans-serif'],
+  ['serif', 'Serif', 'Georgia, "Times New Roman", "Noto Serif", "Noto Serif Ethiopic", serif'],
+  ['rounded', 'Rounded', 'ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif']];
+function lum(hex) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function contrast(a, b) { const x = lum(a); const y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+const effective = (theme, mode) => ({ ...BRAND_DEFAULTS[mode], ...((theme && theme[mode]) || {}) });
+function themeProblems(theme, mode) {
+  const e = effective(theme, mode);
+  return BRAND_PAIRS.map(([fg, bg, min]) => ({ fg, bg, min, r: contrast(e[fg], e[bg]) })).filter((p) => p.r < p.min);
+}
+// Paints a theme's tokens for one mode onto an element (the page or a preview).
+function paintTokens(el, theme, mode) {
+  const own = (theme && theme[mode]) || {};
+  for (const [k] of BRAND_TOKENS) {
+    if (own[k]) el.style.setProperty(`--${k}`, own[k]); else el.style.removeProperty(`--${k}`);
+  }
+  // The tinted backgrounds of the status colours follow them.
+  for (const k of ['ok', 'warn', 'bad', 'info']) {
+    if (own[k]) el.style.setProperty(`--${k}-bg`, `color-mix(in srgb, ${own[k]} 14%, ${effective(theme, mode).panel})`); else el.style.removeProperty(`--${k}-bg`);
+  }
+  if (own.band || own['band-ink']) el.style.setProperty('--band-focus', effective(theme, mode)['band-ink']); else el.style.removeProperty('--band-focus');
+  const font = theme && theme.font && BRAND_FONTS.find(([k]) => k === theme.font);
+  if (font && theme.font !== 'manrope') { el.style.setProperty('--text', font[2]); el.style.setProperty('--display', font[2]); } else { el.style.removeProperty('--text'); el.style.removeProperty('--display'); }
+  if (theme && theme.radius != null) el.style.setProperty('--radius', `${theme.radius}px`); else el.style.removeProperty('--radius');
+}
+let BRAND = null;
+function applyBrand(b) {
+  BRAND = b;
+  paintTokens(document.documentElement, b && b.theme, isNight() ? 'dark' : 'light');
+  paintBandLogo();
+}
+// The top band shows the company's logo once signed in (fetched with the
+// session, shown from a blob: address; never the bytes as markup).
+let BAND_LOGO = { sha: null, url: null };
+async function paintBandLogo() {
+  const mark = document.querySelector('.brand .mark');
+  const old = document.querySelector('.brand .bandlogo');
+  const sha = BRAND && BRAND.logo ? BRAND.logo.sha256 : null;
+  if (!sha || !S.token) { if (old) old.remove(); mark.hidden = false; return; }
+  if (BAND_LOGO.sha !== sha) {
+    try {
+      const r = await fetch('/v1/branding/logo', { headers: { Authorization: 'Bearer ' + S.token } });
+      if (!r.ok) return;
+      if (BAND_LOGO.url) URL.revokeObjectURL(BAND_LOGO.url);
+      BAND_LOGO = { sha, url: URL.createObjectURL(await r.blob()) };
+    } catch { return; }
+  }
+  const img = old || h('img', { class: 'bandlogo', alt: '' });
+  img.src = BAND_LOGO.url;
+  if (!old) mark.after(img);
+  mark.hidden = true;
+}
+
+async function renderBranding() {
+  const b = await api('GET', '/v1/branding');
+  const can = S.can.has('tenant.settings.manage') && S.can.has('scope.tenant_wide');
+  const theme = { light: { ...((b.theme && b.theme.light) || {}) }, dark: { ...((b.theme && b.theme.dark) || {}) }, font: (b.theme && b.theme.font) || 'manrope', radius: b.theme && b.theme.radius != null ? b.theme.radius : 10 };
+  let mode = isNight() ? 'dark' : 'light';
+  let logoURL = null;
+  let pendingLogo = null; // a file chosen but not yet uploaded
+  // Words
+  const W = [['brand_name', 'Brand name', 80, 'SERK'], ['brand_suffix', 'Brand suffix', 40, 'GROUP'], ['eyebrow', 'Eyebrow line', 80, 'Calm software for focused teams'],
+    ['motto', 'Motto (headline)', 120, 'Less noise. More done.'], ['description', 'Description', 300, ''], ['address', 'Address', 500, ''],
+    ['phone', 'Phone', 40, ''], ['email', 'Company e-mail', 254, ''], ['website', 'Website', 200, 'https://']];
+  const f = {};
+  for (const [k, , max, ph] of W) {
+    f[k] = (k === 'description' || k === 'address') ? h('textarea', { name: k, maxlength: String(max), rows: k === 'address' ? '3' : '2', placeholder: ph }) : input(k, { type: k === 'email' ? 'email' : k === 'website' ? 'url' : 'text', maxlength: String(max), placeholder: ph });
+    f[k].value = b[k] || '';
+    if (!can) f[k].disabled = true;
+  }
+  // Preview: the sign-in card and a slice of the console, painted with the edited theme.
+  const pv = h('div', { class: 'brandpreview', 'aria-label': 'Preview' });
+  const pvLogo = h('div', { class: 'pvlogo' });
+  const draw = () => {
+    pv.dataset.mode = mode;
+    paintTokens(pv, theme, mode);
+    // The preview shows every token for its mode, not only overrides.
+    const e = effective(theme, mode);
+    for (const [k] of BRAND_TOKENS) pv.style.setProperty(`--${k}`, e[k]);
+    pv.textContent = '';
+    pvLogo.textContent = '';
+    pvLogo.append(logoURL ? h('img', { src: logoURL, alt: 'Logo preview' }) : h('span', { class: 'brandtile', 'aria-hidden': 'true' }, (f.brand_name.value.trim()[0] || 's').toLowerCase(), h('span', { class: 'dot' }, '.')));
+    pv.append(
+      h('div', { class: 'pvband' }, h('span', { class: 'pvmark' }, logoURL ? h('img', { src: logoURL, alt: '' }) : null), h('strong', {}, f.brand_name.value || 'SERK'), h('span', { class: 'pvtag' }, f.brand_suffix.value || 'GROUP')),
+      h('div', { class: 'pvbody' },
+        h('div', { class: 'pvsign' }, pvLogo, h('p', { class: 'eyebrow' }, f.eyebrow.value || 'Calm software for focused teams'), h('p', { class: 'motto' }, f.motto.value || 'Less noise. More done.'),
+          h('p', { class: 'desc' }, f.description.value), f.address.value ? h('address', {}, f.address.value) : null),
+        h('div', { class: 'pvpanel' }, h('h4', {}, 'Purchase order PO-0042'), h('p', { class: 'muted' }, 'Secondary text reads like this.'),
+          h('div', { class: 'pvchips' }, h('span', { class: 'chip ok' }, 'Approved'), h('span', { class: 'chip warn' }, 'Awaiting'), h('span', { class: 'chip bad' }, 'Rejected'), h('span', { class: 'chip info' }, 'Note')),
+          h('div', { class: 'pvbtns' }, h('span', { class: 'pvbtn' }, 'Approve'), h('a', { href: '#/branding', tabindex: '-1' }, 'A link')),
+          h('div', { class: 'pvraised' }, 'A raised area'))));
+    // Contrast warnings for the mode shown.
+    const probs = themeProblems(theme, mode);
+    warn.textContent = '';
+    warn.className = probs.length ? 'callout bad' : 'callout ok';
+    warn.append(h('span', {}, probs.length ? [h('strong', {}, `Hard to read in ${mode} mode — the server will refuse this theme: `),
+      probs.map((p, i) => [i ? '; ' : '', `${tokenName(p.fg)} on ${tokenName(p.bg)} is ${p.r.toFixed(2)}:1 (needs ${p.min}:1)`])]
+      : `Every text and colour pair in ${mode} mode is readable (WCAG 2.2 AA).`));
+    for (const row of grid.querySelectorAll('[data-token]')) {
+      const k = row.dataset.token;
+      const val = effective(theme, mode)[k];
+      row.querySelector('input[type=color]').value = val;
+      const hx = row.querySelector('input[type=text]');
+      if (document.activeElement !== hx) hx.value = val;
+      row.classList.toggle('changed', !!theme[mode][k]);
+      row.classList.toggle('bad', probs.some((p) => p.fg === k || p.bg === k));
+    }
+  };
+  const tokenName = (k) => BRAND_TOKENS.find(([x]) => x === k)[1].toLowerCase();
+  const warn = h('div', { class: 'callout', 'aria-live': 'polite' });
+  const setTok = (k, v) => {
+    v = v.toLowerCase();
+    if (!/^#[0-9a-f]{6}$/.test(v)) return;
+    if (v === BRAND_DEFAULTS[mode][k]) delete theme[mode][k]; else theme[mode][k] = v;
+    draw();
+  };
+  const grid = h('div', { class: 'tokengrid' }, BRAND_TOKENS.map(([k, label]) => {
+    const pick = h('input', { type: 'color', 'aria-label': `${label} colour` });
+    const hex = h('input', { type: 'text', maxlength: '7', class: 'hex', 'aria-label': `${label} hex value`, spellcheck: 'false' });
+    const reset = h('button', { type: 'button', class: 'linkbtn', 'aria-label': `Reset ${label} to the default` }, 'Default');
+    if (!can) { pick.disabled = true; hex.disabled = true; reset.disabled = true; }
+    pick.addEventListener('input', () => setTok(k, pick.value));
+    hex.addEventListener('input', () => { if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) setTok(k, hex.value); });
+    hex.addEventListener('change', () => { hex.value = effective(theme, mode)[k]; });
+    reset.addEventListener('click', () => { delete theme[mode][k]; draw(); });
+    return h('div', { class: 'tokenrow', 'data-token': k }, pick, h('span', { class: 'tl' }, label, h('span', { class: 'tk' }, `--${k}`)), hex, reset);
+  }));
+  const modeBtns = h('div', { class: 'pills', role: 'group', 'aria-label': 'Colours for' }, [['light', 'Day (light) mode'], ['dark', 'Night (dark) mode']].map(([k, l]) =>
+    h('button', { type: 'button', 'data-k': k, 'aria-pressed': String(k === mode), on: { click: (ev) => { mode = k; for (const x of ev.currentTarget.parentNode.children) x.setAttribute('aria-pressed', String(x.dataset.k === k)); draw(); } } }, l)));
+  const font = select('font', BRAND_FONTS.map(([value, label]) => ({ value, label })));
+  font.value = theme.font;
+  font.addEventListener('change', () => { theme.font = font.value; draw(); });
+  const radius = input('radius', { type: 'range', min: '0', max: '24', step: '1', value: String(theme.radius) });
+  const radiusOut = h('output', { for: radius.id || (radius.id = nextId('f')) }, `${theme.radius}px`);
+  radius.addEventListener('input', () => { theme.radius = Number(radius.value); radiusOut.textContent = `${radius.value}px`; draw(); });
+  if (!can) { font.disabled = true; radius.disabled = true; }
+  for (const el of Object.values(f)) el.addEventListener('input', draw);
+  const resetAll = h('button', { type: 'button', class: 'ghost', disabled: !can, on: { click: () => { theme[mode] = {}; draw(); } } }, 'Reset this mode to the product colours');
+
+  // Logo: PNG, JPEG or WebP up to 10 MB; previewed before upload.
+  const file = h('input', { type: 'file', name: 'logo', accept: 'image/png,image/jpeg,image/webp', disabled: !can });
+  const logoInfo = h('p', { class: 'hint', 'aria-live': 'polite' });
+  const upBtn = h('button', { type: 'button', disabled: true }, 'Upload logo');
+  const rmBtn = h('button', { type: 'button', class: 'danger', hidden: !b.logo || !can }, 'Remove logo');
+  const describeLogo = () => {
+    logoInfo.textContent = pendingLogo ? `Chosen: ${pendingLogo.name}, ${(pendingLogo.size / 1048576).toFixed(2)} MB — previewed below, not yet uploaded.`
+      : b.logo ? `Current logo: ${b.logo.content_type.replace('image/', '').toUpperCase()}, ${b.logo.width}×${b.logo.height} px, ${(b.logo.bytes / 1048576).toFixed(2)} MB, SHA-256 ${b.logo.sha256.slice(0, 16)}…, by ${b.logo.updated_by} ${when(b.logo.updated_at)}.`
+        : 'No logo: the product mark is shown.';
+  };
+  if (b.logo) {
+    try { const r = await fetch('/v1/branding/logo', { headers: { Authorization: 'Bearer ' + S.token } }); if (r.ok) logoURL = URL.createObjectURL(await r.blob()); } catch { /* shown without */ }
+  }
+  file.addEventListener('change', () => {
+    const fl = file.files[0];
+    pendingLogo = null; upBtn.disabled = true;
+    if (!fl) { describeLogo(); return; }
+    if (fl.size > 10 * 1048576) { logoInfo.textContent = `${fl.name} is ${(fl.size / 1048576).toFixed(1)} MB; the limit is 10 MB.`; file.value = ''; return; }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(fl.type)) { logoInfo.textContent = 'Choose a PNG, JPEG or WebP image (SVG is refused because it can carry script).'; file.value = ''; return; }
+    pendingLogo = fl;
+    if (logoURL) URL.revokeObjectURL(logoURL);
+    logoURL = URL.createObjectURL(fl);
+    upBtn.disabled = false;
+    describeLogo();
+    draw();
+  });
+  upBtn.addEventListener('click', async () => {
+    clearError();
+    upBtn.disabled = true;
+    try {
+      const r = await fetch('/v1/branding/logo', { method: 'PUT', headers: { Authorization: 'Bearer ' + S.token, 'Content-Type': pendingLogo.type }, body: pendingLogo });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new ApiError(r.status, d.code || 'error', d.detail || (d.error || {}).message || r.statusText);
+      say('Logo uploaded.');
+      await renderBranding();
+      applyBrand(await api('GET', '/v1/branding'));
+    } catch (e) { upBtn.disabled = false; showError(e); }
+  });
+  rmBtn.addEventListener('click', async () => {
+    clearError();
+    try { await api('POST', '/v1/branding/logo/remove'); say('Logo removed.'); applyBrand(await api('GET', '/v1/branding')); await renderBranding(); } catch (e) { showError(e); }
+  });
+  describeLogo();
+
+  const form = h('form', { class: 'panel', novalidate: true, on: { submit: async (ev) => {
+    ev.preventDefault();
+    clearError();
+    const bad = [...themeProblems(theme, 'light').map(() => 'light'), ...themeProblems(theme, 'dark').map(() => 'dark')];
+    if (bad.length) { showError(new ApiError(422, 'validation', `The ${[...new Set(bad)].join(' and ')} mode colours are hard to read; fix the pairs marked in red first.`)); return; }
+    const body = {};
+    for (const [k] of W) body[k] = f[k].value.trim();
+    body.theme = { light: theme.light, dark: theme.dark };
+    if (theme.font !== 'manrope') body.theme.font = theme.font;
+    if (theme.radius !== 10) body.theme.radius = theme.radius;
+    try {
+      const saved = await api('PUT', '/v1/branding', body);
+      applyBrand(saved);
+      say(`Branding saved (version ${saved.version}).`);
+      await renderBranding();
+    } catch (e) { showError(e); }
+  } } },
+  h('h2', { class: 'section' }, 'Words'),
+  h('div', { class: 'grid' }, W.map(([k, label]) => field(label, f[k],
+    k === 'motto' ? 'The large line on the sign-in page.' : k === 'eyebrow' ? 'The small capitals above the motto.' : k === 'website' ? 'Starts with https://' : k === 'brand_suffix' ? 'Shown after the name, e.g. GROUP or PLC.' : null))),
+  h('h2', { class: 'section' }, 'Colours'),
+  h('div', { class: 'toolbar' }, modeBtns, h('span', { class: 'spacer' }), resetAll),
+  warn, grid,
+  h('div', { class: 'grid' }, field('Font', font), h('div', { class: 'field' }, h('label', { for: radius.id }, 'Corner radius'), h('div', { class: 'inline' }, radius, radiusOut))),
+  can ? h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Save branding')) : h('p', { class: 'hint' }, 'Only a company-wide settings administrator (system administrator or security administrator) can change the branding.'));
+  const logoPanel = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Logo'),
+    h('p', { class: 'hint' }, 'PNG, JPEG or WebP, up to 10 MB, 16 to 20,000 pixels on each side. The server identifies the file by its content and keeps its SHA-256; SVG is refused because it can carry script.'),
+    can ? [field('Logo file', file), h('div', { class: 'actions' }, upBtn, rmBtn)] : null, logoInfo);
+  page('Brand & appearance', `How ${(S.company && S.company.display_name) || 'the company'} appears on the sign-in page and in the console. Version ${b.version || 0}${b.updated_by ? `, last changed by ${b.updated_by} ${when(b.updated_at)}` : ''}. Every change is recorded in the audit log.`,
+    h('div', { class: 'twocol brandcols' }, h('div', {}, logoPanel, form), h('div', { class: 'stick' }, h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Preview'),
+      h('p', { class: 'hint' }, 'What people will see, before you save. Switch the mode above to check the night colours.'), pv))));
+  draw();
 }
 
 // ---------- ask ----------
@@ -3384,7 +4597,7 @@ const PEOPLE_EVENTS = {
   'people.person_added': 'was added to the directory', 'people.details_changed': 'had their details changed',
   'people.managed': 'had their access taken under management', 'people.disabled': 'was disabled and signed out everywhere',
   'people.enabled': 'was enabled again', 'people.role_granted': 'was given', 'people.role_removed': 'lost',
-  'people.role_created': 'was created', 'people.role_changed': 'was changed', 'people.role_retired': 'was retired',
+  'people.role_created': 'was created', 'people.role_changed': 'was changed', 'people.role_retired': 'was retired', 'people.role_adjusted': 'was adjusted for the company',
   'people.profile_changed': 'updated their own profile',
 };
 // Conflicting duties in a permission set, by the server's control catalogue.
@@ -3438,8 +4651,8 @@ const roleOf = (code) => (PV && PV.roles.find((r) => r.code === code)) || { code
 const labelOf = (code) => (PV && PV.permissions.find((p) => p.code === code)) || { code, label: code, area: 'Other', stage: 'prepare' };
 
 // Permissions grouped by area; tickable when `pick` is a Set to edit.
-function permGroups(codes, pick, onChange) {
-  const catalogue = pick ? PV.permissions : codes.map(labelOf);
+function permGroups(codes, pick, onChange, only) {
+  const catalogue = only ? only.map(labelOf) : pick ? PV.permissions : codes.map(labelOf);
   const areas = new Map();
   for (const p of catalogue) { if (!areas.has(p.area)) areas.set(p.area, []); areas.get(p.area).push(p); }
   const wrap = h('div', { class: 'permgroups' });
@@ -3478,7 +4691,7 @@ async function renderPeople(tab) {
     kpi(v.people.length - active.length, 'Disabled', true), kpi(active.filter((p) => p.conflicts.length).length, 'Holding conflicting duties', true),
     kpi(v.roles.filter((r) => r.kind === 'company' && r.status === 'ACTIVE').length, 'Company roles'));
 
-  const TABS = [['people', 'People', v.people.length], ['map', 'Duty map', null], ['roles', 'Roles', v.roles.filter((r) => r.status === 'ACTIVE').length], ['history', 'Access history', v.history.length]];
+  const TABS = [['people', 'People', v.people.length], ['signins', 'Sign-ins', null], ['map', 'Dependency graph', null], ['roles', 'Roles', v.roles.filter((r) => r.status === 'ACTIVE').length], ['history', 'Access history', v.history.length]];
   let cur = TABS.some(([k]) => k === tab) ? tab : 'people';
   const content = h('div', { role: 'tabpanel' });
   const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'People and access' });
@@ -3487,7 +4700,8 @@ async function renderPeople(tab) {
     for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
     history.replaceState(null, '', `#/people/${k}`);
     content.textContent = '';
-    content.append(k === 'map' ? dutyMap(v, nameOf) : k === 'roles' ? rolesTab(v) : k === 'history' ? historyTab(v, nameOf) : peopleTab(v));
+    if (k === 'signins') { signinsTab(v, nameOf).then((el) => content.append(el)); return; }
+    content.append(k === 'map' ? dutyView(v, nameOf) : k === 'roles' ? rolesTab(v) : k === 'history' ? historyTab(v, nameOf) : peopleTab(v));
   };
   for (const [k, label, n] of TABS) {
     tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label, n == null ? null : h('span', { class: 'n' }, String(n))));
@@ -3551,6 +4765,127 @@ function peopleTab(v) {
   return h('div', {}, h('div', { class: 'toolbar' }, find, pills, h('span', { class: 'spacer' }), viewp), out);
 }
 
+// Dependency graph (Serk Finance style): who hands work to whom. For every
+// control (two permissions that must be held by different people), each
+// person holding the earlier-stage half feeds each person holding the later
+// half. Columns are the stage of work.
+function dutyView(v, nameOf) {
+  let mode = 'graph';
+  const pills = h('div', { class: 'pills', role: 'group', 'aria-label': 'View' });
+  const body = h('div');
+  const draw = () => {
+    for (const b of pills.children) b.setAttribute('aria-pressed', String(b.dataset.k === mode));
+    body.textContent = '';
+    body.append(mode === 'graph' ? dependencyGraph(v, nameOf) : dutyMap(v, nameOf));
+  };
+  for (const [k, label] of [['graph', 'Dependency graph'], ['columns', 'Columns']]) pills.append(h('button', { type: 'button', 'data-k': k, on: { click: () => { mode = k; draw(); } } }, label));
+  draw();
+  return h('div', {}, h('div', { class: 'toolbar' }, pills), body);
+}
+
+function dependencyGraph(v, nameOf) {
+  const rank = Object.fromEntries(STAGES.map(([k], i) => [k, i]));
+  const people = v.people.filter((x) => x.status === 'ACTIVE' && x.stage && x.stage !== 'read');
+  const cols = STAGES.filter(([k]) => k !== 'read' && people.some((x) => x.stage === k));
+  if (!people.length) return h('p', { class: 'empty panel' }, 'Nobody prepares or approves anything yet.');
+  const NW = 186; const NH = 54; const GX = 78; const GY = 14; const PAD = 24; const HEAD = 44;
+  const pos = new Map();
+  cols.forEach(([k], ci) => people.filter((x) => x.stage === k).sort((a, b) => personName(a).localeCompare(personName(b)))
+    .forEach((x, ri) => pos.set(x.user_id, { x: PAD + ci * (NW + GX), y: HEAD + PAD + ri * (NH + GY), col: ci })));
+  const W = PAD * 2 + cols.length * NW + (cols.length - 1) * GX;
+  const H = HEAD + PAD * 2 + Math.max(...cols.map(([k]) => people.filter((x) => x.stage === k).length)) * (NH + GY);
+  // Edges from the controls.
+  const edges = new Map();
+  const holds = (x, perm) => (x.permissions || []).includes(perm);
+  for (const c of v.controls || []) {
+    if (c.Perms.length < 2) continue;
+    const [a, b] = [...c.Perms].sort((p1, p2) => (rank[labelOf(p1).stage] ?? 0) - (rank[labelOf(p2).stage] ?? 0));
+    for (const x of people) {
+      if (!holds(x, a)) continue;
+      for (const y of people) {
+        if (y.user_id === x.user_id || !holds(y, b)) continue;
+        const key = `${x.user_id}>${y.user_id}`;
+        if (!edges.has(key)) edges.set(key, { from: x.user_id, to: y.user_id, controls: [] });
+        edges.get(key).controls.push(c.Control);
+      }
+    }
+  }
+  const surface = h('div', { class: 'gsurface' });
+  surface.style.width = `${W}px`; surface.style.height = `${H}px`;
+  const lines = svg('svg', { class: 'glines', width: W, height: H, viewBox: `0 0 ${W} ${H}`, 'aria-hidden': 'true' },
+    svg('defs', {}, svg('marker', { id: 'garrow', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, svg('path', { d: 'M0 1 L10 5 L0 9 z', class: 'gtip' }))));
+  cols.forEach(([k, name, what], ci) => {
+    const x = PAD + ci * (NW + GX);
+    lines.append(svg('text', { x: x + 2, y: 22, class: `ghead st-${k}` }, name), svg('text', { x: x + 2, y: 38, class: 'gsub' }, what));
+    if (ci) lines.append(svg('line', { x1: x - GX / 2, y1: 8, x2: x - GX / 2, y2: H - 8, class: 'gdiv' }));
+  });
+  const paths = [];
+  for (const e of edges.values()) {
+    const a = pos.get(e.from); const b = pos.get(e.to);
+    if (!a || !b) continue;
+    let d;
+    if (a.col === b.col) {
+      const x = a.x + NW; const y1 = a.y + NH / 2; const y2 = b.y + NH / 2;
+      d = `M ${x} ${y1} C ${x + 60} ${y1}, ${x + 60} ${y2}, ${x} ${y2}`;
+    } else {
+      const forward = b.col > a.col;
+      const x1 = forward ? a.x + NW : a.x; const x2 = forward ? b.x : b.x + NW;
+      const y1 = a.y + NH / 2; const y2 = b.y + NH / 2; const dx = (x2 - x1) * 0.45;
+      d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+    }
+    const p = svg('path', { d, class: 'gedge', 'marker-end': 'url(#garrow)' }, svg('title', {}, `${nameOf(e.from)} → ${nameOf(e.to)}: ${e.controls.join(', ')}`));
+    p.dataset.from = e.from; p.dataset.to = e.to;
+    paths.push(p); lines.append(p);
+  }
+  surface.append(lines);
+  const nodes = [];
+  const side = h('aside', { class: 'gside', 'aria-live': 'polite' });
+  let selected = null;
+  const focus = (id) => {
+    for (const p of paths) {
+      const on = id && (p.dataset.from === id || p.dataset.to === id);
+      p.classList.toggle('on', !!on); p.classList.toggle('in', !!on && p.dataset.to === id); p.classList.toggle('dim', !!id && !on);
+    }
+    for (const n of nodes) {
+      const linked = id && (n.dataset.id === id || paths.some((p) => (p.dataset.from === id && p.dataset.to === n.dataset.id) || (p.dataset.to === id && p.dataset.from === n.dataset.id)));
+      n.classList.toggle('dim', !!id && !linked); n.classList.toggle('sel', n.dataset.id === id);
+    }
+  };
+  const describe = (id) => {
+    side.textContent = '';
+    if (!id) { side.append(h('p', { class: 'hint' }, 'Select a person to see whom they hand work to and whom they receive it from, control by control.')); return; }
+    const x = v.people.find((q) => q.user_id === id);
+    const out = [...edges.values()].filter((e) => e.from === id); const inn = [...edges.values()].filter((e) => e.to === id);
+    const list = (title, arr, key) => h('section', {}, h('h4', {}, `${title} (${arr.length})`), arr.length ? h('ul', {}, arr.map((e) => h('li', {}, h('strong', {}, nameOf(e[key])), ' — ', e.controls.join(', ')))) : h('p', { class: 'hint' }, 'Nobody.'));
+    side.append(...[h('div', { class: 'row' }, avatar(x.user_id, personName(x)), h('div', { class: 'pwho' }, h('div', { class: 'nm' }, personName(x)), h('div', { class: 'sub' }, x.roles.map((r) => roleOf(r).name).join(', ')))),
+      stageChip(x.stage), list('Hands work to', out, 'to'), list('Receives work from', inn, 'from'),
+      x.conflicts.length ? h('p', { class: 'callout bad' }, `Holds both halves of: ${x.conflicts.map((c) => c.Control).join(', ')}`) : null,
+      h('div', { class: 'actions' }, h('button', { type: 'button', on: { click: () => personSheet(id) } }, 'Open person'))].filter(Boolean));
+  };
+  for (const x of people) {
+    const pp = pos.get(x.user_id);
+    const n = h('button', { type: 'button', class: `gnode st-${x.stage}`, 'data-id': x.user_id, 'aria-label': `${personName(x)}, ${STAGE_NAME[x.stage]}: show hand-offs`,
+      on: { click: () => { selected = selected === x.user_id ? null : x.user_id; focus(selected); describe(selected); },
+            mouseenter: () => { if (!selected) focus(x.user_id); }, mouseleave: () => { if (!selected) focus(null); } } },
+      avatar(x.user_id, personName(x), 'sm'), h('span', { class: 'pwho' }, h('span', { class: 'nm' }, personName(x), x.conflicts.length ? ' ⚠' : ''), h('span', { class: 'sub' }, x.roles.map((r) => roleOf(r).name).join(', ') || 'No role')));
+    n.style.left = `${pp.x}px`; n.style.top = `${pp.y}px`; n.style.width = `${NW}px`; n.style.height = `${NH}px`;
+    nodes.push(n); surface.append(n);
+  }
+  describe(null);
+  let zoom = 1;
+  const zl = h('span', { class: 'zl' }, '100%');
+  const setZoom = (z) => { zoom = Math.min(1.3, Math.max(0.6, z)); surface.style.transform = `scale(${zoom})`; surface.style.transformOrigin = 'top left'; zl.textContent = `${Math.round(zoom * 100)}%`; vp.style.height = `${Math.ceil(H * zoom) + 4}px`; };
+  const vp = h('div', { class: 'gview' }, surface);
+  const tools = h('div', { class: 'gtools' },
+    h('span', { class: 'hint' }, `${people.length} people · ${edges.size} hand-offs across ${(v.controls || []).length} controls`),
+    h('span', { class: 'spacer' }),
+    h('button', { type: 'button', class: 'ghost', 'aria-label': 'Zoom out', on: { click: () => setZoom(zoom - 0.1) } }, '−'), zl,
+    h('button', { type: 'button', class: 'ghost', 'aria-label': 'Zoom in', on: { click: () => setZoom(zoom + 0.1) } }, '+'),
+    h('button', { type: 'button', class: 'ghost', on: { click: () => { selected = null; focus(null); describe(null); setZoom(1); } } }, 'Reset'));
+  setZoom(1);
+  return h('div', { class: 'gwrap' }, h('div', {}, tools, vp), side);
+}
+
 function dutyMap(v, nameOf) {
   const roles = v.roles.filter((r) => r.status === 'ACTIVE' && r.holders > 0);
   const hl = select('highlight', [{ value: '', label: 'Highlight who holds… (any role)' }, ...roles.map((r) => ({ value: r.code, label: `${r.name} (${r.holders})` }))]);
@@ -3609,7 +4944,7 @@ function rolesTab(v) {
     for (const r of rows) {
       out.append(h('button', { type: 'button', class: `rolecard st-${r.stage || 'none'}`, on: { click: () => roleSheet(r.code) } },
         h('h4', {}, r.name), h('p', {}, r.kind === 'company' ? (r.description || 'Company role') : 'Product role'),
-        h('div', { class: 'meta' }, stageChip(r.stage), h('span', {}, `${r.permissions.length} permissions`), h('span', {}, `${r.holders} ${r.holders === 1 ? 'person' : 'people'}`),
+        h('div', { class: 'meta' }, stageChip(r.stage), h('span', {}, `${r.permissions.length} permissions`), r.withheld && r.withheld.length ? h('span', { class: 'conflictflag' }, `${r.withheld.length} withheld`) : null, h('span', {}, `${r.holders} ${r.holders === 1 ? 'person' : 'people'}`),
           r.kind === 'company' ? h('span', { class: 'rolechip company' }, 'company') : null)));
     }
   };
@@ -3731,6 +5066,8 @@ async function personSheet(id) {
     parts.splice(1, 0, h('section', { class: 'panel' }, h('h3', {}, 'Change access'), field('Reason (kept in the access history)', reason, 'Every button on this sheet uses it.'),
       h('div', { class: 'actions' }, btns)));
   }
+  const signin = await loginSection(x, canEdit, nameOf);
+  if (signin) parts.push(signin);
   if (d.grant_history.length) {
     parts.push(h('section', {}, h('h3', {}, 'Role history'), h('ol', { class: 'timeline' }, d.grant_history.map((g) => h('li', {},
       h('div', {}, h('strong', {}, roleOf(g.role).name), g.revoked_at ? ' — removed' : ' — in force'),
@@ -3751,17 +5088,44 @@ function roleSheet(code) {
   const parts = [];
   if (r) {
     const holders = PV.people.filter((x) => x.status === 'ACTIVE' && x.roles.includes(r.code));
-    parts.push(h('p', { class: 'callout' }, r.kind === 'company' ? (r.description || 'A company role.') + (r.updated_by ? ` Last changed by ${nameOf(r.updated_by)} ${ago(r.updated_at)}.` : '') : 'A product role: fixed by SERK and tested never to hold both halves of a control. Give it to people; build a company role if it does not fit.'));
+    parts.push(h('p', { class: 'callout' }, r.kind === 'company' ? (r.description || 'A company role.') + (r.updated_by ? ` Last changed by ${nameOf(r.updated_by)} ${ago(r.updated_at)}.` : '') : (r.withheld && r.withheld.length ? `A product role, narrowed for this company: ${r.withheld.length} permission(s) withheld. ` : 'A product role, tested never to hold both halves of a control. ') + 'The company may withhold any of its permissions at any time; to give more, build a company role.'));
+    // 0096: what the company expects of a holder, beside what the permissions allow.
+    if (r.responsibilities) parts.push(h('section', {}, h('h3', {}, 'Responsibilities'), h('p', { class: 'responsibilities' }, r.responsibilities)));
     parts.push(h('section', {}, h('h3', {}, `Held by (${holders.length})`), holders.length
       ? h('div', { class: 'rolechips' }, holders.map((x) => h('button', { type: 'button', class: 'ghost', on: { click: () => personSheet(x.user_id) } }, avatar(x.user_id, personName(x), 'sm'), personName(x))))
       : h('p', { class: 'hint' }, 'Nobody holds this role.')));
   }
-  if (!editable) {
+  if (r && r.kind === 'seed' && me.can_manage_roles) {
+    // 0060: narrow a product role (untick to withhold); restore by ticking again.
+    const def = r.definition || r.permissions;
+    const keep = new Set(r.permissions);
+    const locked = new Set(['user.manage', 'role.manage']);
+    const summary = h('p', { class: 'hint' });
+    const paint = () => { const w = def.filter((x) => !keep.has(x)); summary.textContent = w.length ? `${w.length} of ${def.length} withheld from everyone holding this role in the company.` : `All ${def.length} permissions of the product role apply.`; };
+    const groups = permGroups(null, keep, paint, def);
+    for (const l of groups.querySelectorAll('label[data-perm]')) if (locked.has(l.dataset.perm)) { const cb = l.querySelector('input'); cb.disabled = true; l.title = 'User and role administration are never withheld'; }
+    paint();
+    const reason = reasonInput('Why? For example: purchase order approval moves to the CFO');
+    const save = h('button', { type: 'submit', class: 'primary' }, 'Save adjustment');
+    parts.push(h('form', { novalidate: true, on: { submit: async (ev) => {
+      ev.preventDefault();
+      try {
+        const why = needReason(reason);
+        await refreshAfter(async () => { await api('PUT', `/v1/roles/${encodeURIComponent(r.code)}/adjustment`, { withheld: def.filter((x) => !keep.has(x)), reason: why }); }, () => roleSheet(r.code));
+        say('Role adjusted; it applies from each holder\'s next action.');
+      } catch (e) { sheetError($('sheet').querySelector('.sheetbody'), e); }
+    } } },
+    h('h3', {}, 'Adjust this role for the company'),
+    h('p', { class: 'hint' }, 'Untick a permission to withhold it from everyone with this role, from their next action. Tick it again to restore it. To give more than the product role, build a company role.'),
+    r.adjusted_by ? h('p', { class: 'callout' }, `Last adjusted by ${nameOf(r.adjusted_by)}: ${r.adjustment_reason}`) : null,
+    summary, groups, field('Reason (kept in the access history)', reason), h('div', { class: 'actions' }, save)));
+  } else if (!editable) {
     parts.push(h('section', {}, h('h3', {}, `Permissions (${r.permissions.length})`), permGroups(r.permissions)));
   } else {
     const pick = new Set(r ? r.permissions : ['p2p.read']);
     const f = { code: input('code', { type: 'text', maxlength: '41', value: r ? r.code.replace(/^custom:/, '') : '', placeholder: 'site_buyer', disabled: !!r }),
-      name: input('name', { type: 'text', maxlength: '80', value: r ? r.name : '', required: true }), description: input('description', { type: 'text', maxlength: '500', value: r ? r.description : '' }) };
+      name: input('name', { type: 'text', maxlength: '80', value: r ? r.name : '', required: true }), description: input('description', { type: 'text', maxlength: '500', value: r ? r.description : '' }),
+      responsibilities: h('textarea', { name: 'responsibilities', maxlength: '4000', rows: '5', placeholder: 'Duties, reporting line and what this role answers for' }, r ? r.responsibilities || '' : '') };
     const reason = reasonInput('Why? For example: approved by the CFO, ticket ACC-12');
     const warn = h('div', { 'aria-live': 'polite' });
     const summary = h('p', { class: 'hint' });
@@ -3780,13 +5144,14 @@ function roleSheet(code) {
       ev.preventDefault();
       try {
         const why = needReason(reason);
-        const body = { code: f.code.value.trim(), name: f.name.value.trim(), description: f.description.value.trim(), permissions: [...pick].sort(), reason: why };
+        const body = { code: f.code.value.trim(), name: f.name.value.trim(), description: f.description.value.trim(), responsibilities: f.responsibilities.value.trim(), permissions: [...pick].sort(), reason: why };
         let saved;
         await refreshAfter(async () => { saved = r ? await api('PUT', `/v1/roles/${encodeURIComponent(r.code)}`, { ...body, version: r.version }) : await api('POST', '/v1/roles', body); }, () => roleSheet(saved.code));
         say('Role saved.');
       } catch (e) { sheetError($('sheet').querySelector('.sheetbody'), e); }
     } } },
     h('div', { class: 'grid' }, field('Code', f.code, r ? 'Fixed once created.' : 'Lowercase letters, digits, underscores.'), field('Name', f.name), field('Description', f.description)),
+    field('Responsibilities', f.responsibilities, 'What the company expects of a holder: duties, reporting line, what they answer for. Up to 4,000 characters.'),
     h('h3', {}, 'What people with this role may do'), summary, groups, warn,
     field('Reason (kept in the access history)', reason),
     h('div', { class: 'actions' }, h('button', { type: 'submit' }, r ? 'Save role' : 'Create role'),
@@ -3843,8 +5208,17 @@ function addPersonSheet(v) {
 
 function paintWho(name) {
   $('who-name').textContent = name;
-  const av = $('who-av');
-  av.textContent = initials(name);
+  $('who-av').textContent = initials(name);
+  $('acct-name').textContent = name;
+  $('acct-av').textContent = initials(name);
+}
+// The account menu in the top band.
+function setAcct(open) {
+  const m = $('acctmenu');
+  if (!m) return;
+  m.hidden = !open;
+  $('mebtn').setAttribute('aria-expanded', String(open));
+  if (open) (m.querySelector('[role=menuitem]') || m).focus();
 }
 
 // ---------- guarantees and price adjustment (0050) ----------
@@ -4328,11 +5702,39 @@ async function fleetOpts() {
   return r.items.filter((e) => !['REGISTERED', 'SAFETY_HOLD', 'RETIRED', 'DISPOSED'].includes(e.status)).map((e) => ({ value: e.id, label: `${e.number} ${e.name} (${FLEET_STATE[e.status].toLowerCase()})` }));
 }
 const projectCode = (pid) => { const p = (S.ref.projects || []).find((x) => x.id === pid); return p ? p.code : ''; };
+// Work order: its parts (ordinary stock issues), and for authorised work the two things plant and stores staff do next.
+async function workOrderPanel(d) {
+  const parts = (await api('GET', `/v1/maintenance-work-orders/${d.id}/parts`)).items;
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Parts'),
+    table('Parts requested for this work order', [
+      { label: 'Stock issue', cell: (x) => h('a', { href: `#/doc/stock_issue/${x.stock_issue_id}` }, x.issue_number) },
+      { label: 'Item', cell: (x) => `${x.item_code} ${x.item_name}` },
+      { label: 'Quantity', num: true, cell: (x) => `${money(x.quantity)} ${x.unit}` },
+      { label: 'Issue', cell: (x) => words(x.issue_status.toLowerCase()) },
+      { label: 'Cost', num: true, cell: (x) => (x.amount == null ? '' : `${money(x.amount)} ${x.currency}`) },
+    ], parts, 'No parts were requested.'),
+    h('p', { class: 'hint' }, 'A part is an ordinary stock issue: it leaves the store and is charged to the project when a second person approves the issue.'));
+  if (d.status === 'APPROVED' && S.can.has('stock.issue')) box.append(h('div', { class: 'actions' }, h('a', { class: 'btn', href: `#/new/work_order_part/${d.id}` }, 'Request a part')));
+  if (d.status === 'APPROVED' && S.can.has('fleet.manage')) {
+    const done = h('textarea', { name: 'work_done', rows: '3', required: '', maxlength: '4000' });
+    const hours = input('labour_hours', { type: 'number', step: '0.25', min: '0', required: true, value: '0' });
+    const btn = h('button', { type: 'button', class: 'primary' }, 'Report complete');
+    btn.addEventListener('click', async () => {
+      clearError();
+      try { await api('POST', `/v1/maintenance-work-orders/${d.id}/complete`, { work_done: done.value.trim(), labour_hours: hours.value || '0' }); say('Work reported complete. A certifier closes it.'); route(); } catch (e) { showError(e); }
+    });
+    box.append(h('h2', { class: 'section' }, 'Report the work complete'),
+      h('p', { class: 'hint' }, 'Say what was done. A certifier who is not you then accepts the work or sends it back; the machine returns to service only after that.'),
+      h('div', { class: 'grid' }, field('Work done', done), field('Labour hours', hours)), h('div', { class: 'actions' }, btn));
+  }
+  return box;
+}
 async function renderFleet(id) {
   closeSheet();
   if (id) return renderEquipment(id);
   const from = plusDays(-30);
-  const [sum, first] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50')]);
+  const [sum, first, fuel, due, cal] = await Promise.all([api('GET', `/v1/fleet/summary?from=${from}&to=${today()}`), api('GET', '/v1/equipment?limit=50'), api('GET', `/v1/fleet/fuel-reconciliation?from=${from}&to=${today()}`), api('GET', '/v1/fleet/maintenance-due'),
+    api('GET', `/v1/fleet/maintenance-calendar?from=${today()}&to=${plusDays(60)}`)]);
   const n = (...st) => st.reduce((a, k) => a + (sum.by_status[k] || 0), 0);
   const kpi = (v, k, warn) => h('div', { class: `kpi${warn && v ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(v)), h('div', { class: 'k' }, k));
   const rows = [...first.items];
@@ -4357,9 +5759,9 @@ async function renderFleet(id) {
     try { const p = await api('GET', `/v1/equipment?limit=50&cursor=${encodeURIComponent(next)}`); rows.push(...p.items); next = p.next || ''; draw(); } catch (e) { showError(e); } finally { more.disabled = false; }
   });
   draw();
-  const act = (perm, href, label) => (S.can.has(perm) ? h('a', { class: 'btn', href }, label) : null);
+  const act = (perm, href, label) => (allowed(perm) ? h('a', { class: 'btn', href }, label) : null);
   page('Fleet command centre', 'Every machine, plant item and tool: where it is, what state it is in, and what the approved daily logs of the last 30 days say it did. Figures are computed from the register and approved logs in your scope; nothing here is a sample.',
-    h('div', { class: 'toolbar' }, act('fleet.manage', '#/new/equipment', 'Register equipment'), act('fleet.reserve', '#/new/equipment_reservation', 'Reserve equipment'), act('fleet.operate', '#/new/equipment_log', 'Record a log')),
+    h('div', { class: 'toolbar' }, act('fleet.manage', '#/new/equipment', 'Register equipment'), act('fleet.reserve', '#/new/equipment_reservation', 'Reserve equipment'), act('fleet.operate', '#/new/equipment_log', 'Record a log'), act('stock.issue', '#/new/fuel_dispense', 'Dispense fuel'), act('fleet.manage|fleet.operate', '#/new/work_order', 'New work order'), act('fleet.manage', '#/new/maintenance_plan', 'New maintenance plan')),
     h('div', { class: 'kpis' }, kpi(sum.total, 'In the register'), kpi(n('AVAILABLE', 'RESERVED'), 'In the yard, in service'), kpi(n('MOBILIZING', 'ASSIGNED', 'OPERATING', 'IDLE', 'DEMOBILIZING'), 'At projects'),
       kpi(n('UNDER_INSPECTION', 'UNDER_MAINTENANCE', 'BREAKDOWN'), 'Out of service', true), kpi(n('SAFETY_HOLD'), 'On safety hold', true), kpi(n('REGISTERED'), 'Awaiting commissioning')),
     table(`Usage from approved logs, ${from} to ${today()}`, [
@@ -4373,7 +5775,53 @@ async function renderFleet(id) {
       { label: 'Fuel l/h', num: true, cell: (u) => (u.fuel_litres_per_hour == null ? '' : money(u.fuel_litres_per_hour)) },
       { label: 'Unlogged meter', num: true, cell: (u) => (Number(u.unlogged_meter_units) ? money(u.unlogged_meter_units) : '') },
     ], sum.usage, 'No approved logs in this period.'),
-    h('p', { class: 'hint' }, sum.basis), holder, h('div', { class: 'actions' }, more));
+    h('p', { class: 'hint' }, sum.basis),
+    table(`Fuel: dispensed, logged and expected, ${from} to ${today()}`, [
+      { label: 'Equipment', cell: (l) => h('a', { href: `#/fleet/${l.equipment_id}` }, `${l.number} ${l.name}`) },
+      { label: 'Dispensed L', num: true, cell: (l) => money(l.dispensed_litres) },
+      { label: 'Awaiting L', num: true, cell: (l) => (Number(l.pending_litres) ? money(l.pending_litres) : '') },
+      { label: 'Logged L', num: true, cell: (l) => money(l.logged_litres) },
+      { label: 'Units run', num: true, cell: (l) => money(l.metered_units) },
+      { label: 'Std L/unit', num: true, cell: (l) => (l.standard_litres_per_unit == null ? '' : money(l.standard_litres_per_unit)) },
+      { label: 'Expected L', num: true, cell: (l) => (l.expected_litres == null ? '' : money(l.expected_litres)) },
+      { label: 'Cost', num: true, cell: (l) => money(l.fuel_cost) },
+      { label: 'Questions', num: true, cell: (l) => (l.flags.length ? String(l.flags.length) : '') },
+    ], fuel.lines, 'No fuel was dispensed or logged in this period.'),
+    // The explanations are sentences: they read badly in a table cell, so they follow the table.
+    fuel.flagged ? h('div', { class: 'panel explain' }, h('h2', { class: 'section' }, 'Fuel differences to be explained'),
+      h('ul', { class: 'flags' }, ...fuel.lines.filter((l) => l.flags.length).flatMap((l) => l.flags.map((f) => h('li', {}, h('a', { href: `#/fleet/${l.equipment_id}` }, `${l.number} ${l.name}`), ': ', f.reason))))) : null,
+    h('p', { class: 'hint' }, 'Awaiting L: prepared and not yet approved, still in the tank. Units run: hours or km by the meter. Std L/unit: the standard in force at the end of the period. ', fuel.basis),
+    h('p', { class: 'hint' }, fuel.policy.source === 'APPROVED_POLICY' ? `Thresholds: fleet policy ${fuel.policy.number}, effective ${fuel.policy.effective_from} (${(Number(fuel.policy.fuel_variance_tolerance) * 100).toFixed(1)}% and ${fuel.policy.fuel_variance_min_litres} L).` : `Thresholds: ${fuel.policy.note}`),
+    table('Preventive maintenance, most urgent first', [
+      { label: 'Equipment', cell: (x) => h('a', { href: `#/fleet/${x.equipment_id}` }, `${x.number} ${x.name}`) },
+      { label: 'Service', cell: (x) => x.title },
+      { label: 'State', cell: (x) => ({ OVERDUE: 'Overdue', DUE_SOON: 'Due soon', OK: 'Not yet due' }[x.state] || x.state) },
+      { label: 'Meter units left', num: true, cell: (x) => (x.units_left == null ? '' : money(x.units_left)) },
+      { label: 'Days left', num: true, cell: (x) => (x.days_left == null ? '' : String(x.days_left)) },
+      { label: 'Last done', cell: (x) => `${x.last_done_on} at ${money(x.last_done_meter)}` },
+      { label: 'Work order', cell: (x) => (x.open_work_order ? h('a', { href: `#/doc/maintenance_work_order/${x.open_work_order}` }, 'Open') : '') },
+      { label: 'Plan', cell: (x) => {
+        if (!S.can.has('fleet.manage') || x.open_work_order) return '';
+        const b = h('button', { type: 'button', class: 'ghost', 'aria-label': `Retire the plan ${x.title} of ${x.number}` }, 'Retire');
+        b.addEventListener('click', async () => {
+          const reason = window.prompt(`Why is "${x.title}" of ${x.number} being retired? The plan is kept in the record.`);
+          if (!reason) return;
+          clearError();
+          try { await api('POST', `/v1/maintenance-plans/${x.plan_id}/retire`, { reason }); say('Plan retired.'); route(); } catch (e) { showError(e); }
+        });
+        return b;
+      } },
+    ], due.items, 'No preventive maintenance plans.'),
+    // FLT-03.1.d (0092): the next 60 days.
+    table('Maintenance calendar, next 60 days', [
+      { label: 'Date', cell: (x) => (x.overdue ? h('strong', {}, `${x.date} (overdue)`) : x.date) },
+      { label: 'Equipment', cell: (x) => h('a', { href: `#/fleet/${x.equipment_id}` }, x.equipment) },
+      { label: 'What', cell: (x) => x.title },
+      { label: 'Kind', cell: (x) => ({ PLAN_DUE: 'Service due (days)', PLAN_PROJECTED: 'Service due (meter, estimated)', WORK_ORDER: 'Planned work order' }[x.kind] || x.kind) },
+      { label: 'Basis', cell: (x) => x.basis },
+    ], cal.items, 'Nothing due or planned in the next 60 days.'),
+    h('p', { class: 'hint' }, 'Due from each machine\'s meter (advanced only by approved daily logs) and today\'s date. A plan moves on when a certifier closes the preventive work order raised from it.'),
+    holder, h('div', { class: 'actions' }, more));
 }
 async function renderEquipment(id) {
   const e = await api('GET', `/v1/equipment/${id}`);
@@ -4484,6 +5932,107 @@ function revisionPanel(d, head, doc) {
     h('p', {}, `${SCAN_STATE[scan] || scan}${head.scan_engine ? ' — ' + head.scan_engine : ''}`), scanNote ? h('p', { class: 'hint' }, scanNote) : null,
     h('p', { class: 'hint' }, `SHA-256 ${head.sha256}`), warn,
     h('div', { class: 'actions' }, acts, doc.id ? h('a', { href: `#/documents/${doc.id}` }, 'All revisions of this document') : null), discard);
+}
+// A submittal is reviewed once, with a code, by someone other than the submitter (0077, attested).
+function submittalPanel(d, head) {
+  const x = head || d;
+  if (x.status !== 'SUBMITTED' || !S.can.has('document.approve') || x.created_by === S.me.user_id) return null;
+  const code = select('code', [['A', 'A — approved'], ['B', 'B — approved as noted'], ['C', 'C — revise and resubmit'], ['D', 'D — rejected']].map(([value, label]) => ({ value, label })), { required: true });
+  const note = input('note', { type: 'text', maxlength: '2000', placeholder: 'Required for C and D' });
+  const btn = h('button', { type: 'button', class: 'primary' }, 'Record the review');
+  btn.addEventListener('click', async () => {
+    clearError();
+    try { await api('POST', `/v1/submittals/${d.id}/review`, { code: code.value, note: note.value.trim() }); say('Review recorded.'); route(); } catch (e) { showError(e); }
+  });
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Review'), h('p', { class: 'hint' }, 'The review is recorded once and attested in your name.'),
+    h('div', { class: 'grid' }, field('Review code', code), field('Note', note)), h('div', { class: 'actions' }, btn));
+}
+// SUP-03.3 (0093): qualifications and performance of a supplier.
+// EST-06 (0094): the database's figures for a build-up, and its next revision.
+async function buildupPanel(d, head) {
+  const f = await api('GET', `/v1/rate-buildups/${d.id}/figures`);
+  const rows = [['Materials', f.materials], ['Labour', f.labour], ['Equipment', f.equipment], ['Subcontract', f.subcontract], ['Direct cost', f.direct_cost],
+    [`Overhead (${head.overhead_pct}%)`, f.overhead], [`Contingency (${head.contingency_pct}%)`, f.contingency], [`Escalation (${head.escalation_pct}%)`, f.escalation],
+    ['Full cost', f.full_cost], [`Selling rate at ${head.margin_pct}% margin`, f.selling_rate]].map(([k, v]) => ({ k, v }));
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, `Price per ${head.unit} (${head.currency})`),
+    h('p', { class: 'hint' }, f.fixed ? 'Fixed when the build-up was submitted; an approved build-up never changes.' : 'A draft: these move with its lines and percentages until it is submitted.'),
+    table('Rate build-up', [{ label: 'Item', cell: (r) => r.k }, { label: 'Amount', num: true, cell: (r) => money(r.v) }], rows, ''),
+    f.markup_pct != null ? h('p', { class: 'hint' }, `Equivalent markup on full cost: ${f.markup_pct}% (the margin is ${head.margin_pct}% of the selling rate).`) : null);
+  if (['APPROVED', 'REJECTED'].includes(d.status) && S.can.has('boq.manage')) {
+    const day = input('price_date', { type: 'date', value: today() });
+    const b = h('button', { type: 'button' }, 'Start a revision');
+    b.addEventListener('click', async () => { try { clearError(); const res = await api('POST', `/v1/rate-buildups/${d.id}/revise`, { price_date: day.value }); say('Revision started.'); location.hash = `#/doc/rate_buildup/${res.id}`; } catch (e) { showError(e); } });
+    box.append(h('div', { class: 'actions' }, field('Price the revision on', day, 'Each resource takes the approved rate of its code valid on this day.'), b));
+  }
+  return box;
+}
+async function supplierStandingPanel(d) {
+  const st = await api('GET', `/v1/suppliers/${d.id}/standing`);
+  const decide = (q) => {
+    if (q.status !== 'PENDING' || !S.can.has('supplier.approve') || q.created_by === S.me.user_id) return '';
+    const go = async (approve, note) => { try { clearError(); await api('POST', `/v1/supplier-qualifications/${q.id}/decide`, { approve, note }); say('Qualification decided.'); route(); } catch (e) { showError(e); } };
+    const ok = h('button', { type: 'button', 'data-approve-qualification': q.reference }, 'Approve'); ok.addEventListener('click', () => go(true, ''));
+    const no = h('button', { type: 'button', class: 'ghost' }, 'Reject'); no.addEventListener('click', () => { const why = prompt('Why is it rejected?'); if (why) go(false, why); });
+    return h('span', { class: 'row-actions' }, ok, no);
+  };
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Qualification and performance'),
+    h('p', { class: st.qualified_today ? 'notice' : 'hint', role: 'status' }, st.qualified_today ? 'Qualified today.' : 'No approved qualification valid today.'),
+    h('p', { class: 'hint' }, st.scores ? `${st.scores} scored order(s): quality ${st.quality}, delivery ${st.delivery}, safety ${st.safety} (out of 5).` : 'No order of this supplier has been scored yet.'),
+    table('Qualifications', [{ label: 'Category', cell: (q) => q.category }, { label: 'Reference', cell: (q) => q.reference }, { label: 'Valid', cell: (q) => `${q.valid_from} to ${q.valid_to}` },
+      { label: 'Status', cell: (q) => chip(q.valid_today ? 'VALID' : q.status) }, { label: '', cell: decide }], st.qualifications, 'No qualification recorded.'));
+  if (S.can.has('supplier.manage')) {
+    const cat = input('category', { type: 'text', maxlength: '100' }); const ref = input('reference', { type: 'text', maxlength: '120', placeholder: 'Licence or registration number' });
+    const from = input('valid_from', { type: 'date', value: today() }); const to = input('valid_to', { type: 'date' });
+    const b = h('button', { type: 'button' }, 'Record qualification');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/supplier-qualifications', { supplier_id: d.id, category: cat.value.trim(), reference: ref.value.trim(), valid_from: from.value, valid_to: to.value }); say('Qualification recorded; it applies once someone else approves it.'); route(); } catch (e) { showError(e); } });
+    box.append(h('div', { class: 'grid' }, field('Category', cat), field('Reference', ref), field('Valid from', from), field('Valid to', to)), h('div', { class: 'actions' }, b));
+  }
+  return box;
+}
+// SUP-03.3 (0093): conflict-of-interest declarations on an RFQ.
+async function rfqDeclarationsPanel(d, det) {
+  const decl = (await api('GET', `/v1/rfqs/${d.id}/declarations`)).items || [];
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Conflict-of-interest declarations'),
+    table('Declarations', [{ label: 'Person', cell: (x) => x.declared_by }, { label: 'Conflict with', cell: (x) => x.supplier || 'No conflict' }, { label: 'Relationship', cell: (x) => x.relationship }], decl, 'Nobody has declared yet.'));
+  if (d.status === 'ISSUED' && !decl.some((x) => x.declared_by === S.me.user_id && !x.supplier)) {
+    const names = new Map((await docOpts('supplier', 'ACTIVE')).map((o) => [o.value, o.label]));
+    const sups = (det.suppliers || []).map((id) => ({ value: id, label: names.get(id) || id }));
+    const sup = select('supplier_id', [{ value: '', label: 'No conflict with any supplier on this RFQ' }, ...sups]);
+    const rel = input('relationship', { type: 'text', maxlength: '500', placeholder: 'Only for a conflict: the relationship' });
+    const b = h('button', { type: 'button' }, 'Declare');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/rfqs/${d.id}/declarations`, { supplier_id: sup.value || undefined, relationship: rel.value.trim() || undefined }); say('Declaration recorded.'); route(); } catch (e) { showError(e); } });
+    box.append(h('div', { class: 'grid' }, field('Declaration', sup), field('Relationship', rel)), h('div', { class: 'actions' }, b));
+  }
+  return box;
+}
+// SUP-03.3 (0093): score the supplier of an order once goods were received.
+function supplierScorePanel(d) {
+  const n = (name) => select(name, [5, 4, 3, 2, 1].map((v) => ({ value: String(v), label: String(v) })));
+  const q = n('quality'), dl = n('delivery'), sf = n('safety'); const note = input('note', { type: 'text', maxlength: '1000' });
+  const b = h('button', { type: 'button' }, 'Score the supplier');
+  b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/purchase-orders/${d.id}/score`, { quality: Number(q.value), delivery: Number(dl.value), safety: Number(sf.value), note: note.value.trim() }); say('Supplier scored.'); route(); } catch (e) { showError(e); } });
+  return h('details', { class: 'panel' }, h('summary', {}, 'Score the supplier (once, after receipt)'),
+    h('div', { class: 'grid' }, field('Quality', q), field('Delivery', dl), field('Safety', sf), field('Note', note)), h('div', { class: 'actions' }, b));
+}
+// CNX-03.2 (0090): what the RFI cost, through the change events raised from it.
+async function rfiImpactPanel(d) {
+  const r = await api('GET', `/v1/rfis/${d.id}/impact`);
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Cost and time impact'),
+    h('p', { class: 'hint' }, `From the change events raised from this RFI (rejected ones excluded): cost ${money(r.cost_impact)}, revenue ${money(r.revenue_impact)}, ${r.schedule_impact_days} day(s).`),
+    table('Change events from this RFI', [{ label: 'Change event', cell: (x) => h('a', { href: `#/doc/change_event/${x.id}` }, x.number) }, { label: 'Status', cell: (x) => chip(x.status) },
+      { label: 'Cost impact', num: true, cell: (x) => money(x.cost_impact) }, { label: 'Days', num: true, cell: (x) => String(x.schedule_impact_days) }], r.change_events, 'No change event has been raised from this RFI.'));
+}
+// CNX-04.1.b (0090): the review cycle; a submittal reviewed C or D is answered by a resubmission that names it.
+async function submittalCyclePanel(d, head) {
+  const x = head || d;
+  const cyc = await api('GET', `/v1/submittals/${d.id}/cycle`);
+  const items = cyc.items || [];
+  const last = items[items.length - 1];
+  const again = last && last.id === d.id && x.status === 'REVIEWED' && ['C', 'D'].includes(last.review_code) && S.can.has('document.manage')
+    ? h('div', { class: 'actions' }, h('a', { class: 'button', href: `#/new/submittal/${d.id}` }, 'Resubmit')) : null;
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Review cycle'),
+    table('Submissions', [{ label: 'Cycle', num: true, cell: (s) => String(s.cycle) }, { label: 'Submittal', cell: (s) => (s.id === d.id ? s.number : h('a', { href: `#/doc/submittal/${s.id}` }, s.number)) },
+      { label: 'Title', cell: (s) => s.title }, { label: 'Review', cell: (s) => (s.review_code ? chip(s.review_code) : chip(s.status)) }, { label: 'Note', cell: (s) => s.review_note }], items, 'Not yet reviewed.'), again);
 }
 function rfiPanel(d, head) {
   const manage = S.can.has('document.manage');
@@ -4615,6 +6164,1385 @@ async function timePanel(contract) {
   return box;
 }
 
+// ---------- revenue over time and the WIP adjustment (0053) ----------
+const REV_METHOD = { INPUT_COST: 'Cost to cost (cost to date ÷ forecast at completion)', OUTPUT_MEASURED: 'Measured output (verified work ÷ contract value)' };
+let REV_PROJECT = '';
+async function renderRevenue() {
+  closeSheet();
+  const parts = [];
+  const pol = (await api('GET', '/v1/revenue/policies')).policies;
+  S.ref.legal_entities = S.ref.legal_entities || [];
+  const kpi = (v, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k));
+  if (pol.length || S.can.has('contract.policy.manage')) {
+    const decide = async (x, ok) => {
+      try {
+        let reason = '';
+        if (!ok) { reason = (prompt('Why is this revenue policy rejected?') || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'A rejection needs a reason of at least 5 characters.'); }
+        await api('POST', `/v1/revenue/policies/${x.id}/${ok ? 'approve' : 'reject'}`, { reason }); say(ok ? 'Revenue policy approved.' : 'Revenue policy rejected.'); renderRevenue();
+      } catch (e) { showError(e); }
+    };
+    const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Revenue policy'),
+      h('p', { class: 'hint' }, 'Per legal entity: how progress is measured, and the accounts for revenue earned but not billed (contract asset) and billed ahead of the work (contract liability). A controller proposes; the CFO approves.'),
+      table('Policies', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Version', num: true, cell: (x) => String(x.version) }, { label: 'Progress measure', cell: (x) => REV_METHOD[x.method] },
+        { label: 'Contract asset', cell: (x) => x.contract_asset_account }, { label: 'Contract liability', cell: (x) => x.contract_liability_account }, { label: 'Status', cell: (x) => chip(x.status) },
+        { label: '', cell: (x) => (x.status === 'DRAFT' && S.can.has('contract.policy.approve') && x.created_by !== S.me.user_id ? h('div', { class: 'rowacts' },
+          h('button', { type: 'button', class: 'primary', 'aria-label': `Approve ${x.entity} version ${x.version}`, on: { click: () => decide(x, true) } }, 'Approve'),
+          h('button', { type: 'button', class: 'ghost', 'aria-label': `Reject ${x.entity} version ${x.version}`, on: { click: () => decide(x, false) } }, 'Reject')) : '') }], pol, 'No revenue policy yet.'));
+    if (S.can.has('contract.policy.manage')) {
+      const ent = select('legal_entity_id', S.ref.legal_entities.map((e) => ({ value: e.id, label: `${e.code} — ${e.name}` })));
+      const method = select('method', Object.entries(REV_METHOD).map(([value, label]) => ({ value, label })));
+      const accts = (kind) => S.ref.accounts.filter((a) => a.kind === kind).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+      const asset = select('contract_asset_account_id', accts('ASSET'));
+      const liab = select('contract_liability_account_id', accts('LIABILITY'));
+      const b = h('button', { type: 'button' }, 'Propose');
+      b.addEventListener('click', async () => {
+        try { clearError(); await api('POST', '/v1/revenue/policies', { legal_entity_id: ent.value, method: method.value, contract_asset_account_id: asset.value, contract_liability_account_id: liab.value }); say('Revenue policy proposed for approval.'); renderRevenue(); } catch (e) { showError(e); }
+      });
+      box.append(h('div', { class: 'grid' }, field('Legal entity', ent), field('Progress measure', method), field('Contract asset account', asset), field('Contract liability account', liab)), h('div', { class: 'actions' }, b));
+    }
+    parts.push(box);
+  }
+  const projects = (await api('GET', '/v1/revenue/projects')).projects;
+  if (!projects.length) { page('Revenue & WIP', '', ...parts, h('p', { class: 'empty panel' }, 'No project in your scope.')); return; }
+  if (!projects.some((p) => p.id === REV_PROJECT)) REV_PROJECT = projects[0].id;
+  const proj = select('project', projects.map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` })));
+  proj.value = REV_PROJECT;
+  const per = input('period_end', { type: 'date', value: today(), max: today() });
+  const body = h('div', { 'aria-live': 'polite' });
+  const load = async () => {
+    REV_PROJECT = proj.value;
+    body.textContent = '';
+    let pv = null; let perr = null;
+    try { pv = await api('GET', `/v1/projects/${proj.value}/revenue-preview?period_end=${per.value}`); } catch (e) { perr = e; }
+    let runs = [];
+    try { runs = (await api('GET', `/v1/projects/${proj.value}/revenue-runs`)).runs; } catch { runs = []; }
+    if (pv) {
+      const tot = pv;
+      body.append(h('div', { class: 'kpis' }, kpi(money(tot.contract_asset).replace(/\.00$/, ''), 'Contract asset (under-billed)'), kpi(money(tot.contract_liability).replace(/\.00$/, ''), 'Contract liability (over-billed)', Number(tot.contract_liability) > 0),
+        kpi(money(tot.revenue_movement).replace(/\.00$/, ''), 'Revenue adjustment this run')),
+        table(`Earned against billed at ${per.value} — ${REV_METHOD[pv.method]}`, [
+          { label: 'Contract', cell: (l) => h('a', { href: `#/doc/contract/${l.contract_id}` }, l.contract_number) }, { label: 'Contract value', num: true, cell: (l) => money(l.contract_value) },
+          { label: 'Progress', num: true, cell: (l) => `${(Number(l.progress) * 100).toFixed(2)}%` }, { label: 'Earned', num: true, cell: (l) => money(l.earned) },
+          { label: 'Billed', num: true, cell: (l) => money(l.billed) },
+          { label: 'Earned − billed', num: true, cell: (l) => h('span', { class: Number(l.cumulative) < 0 ? 'delta up' : '' }, money(l.cumulative)) },
+          { label: 'Already posted', num: true, cell: (l) => money(l.previous) }, { label: 'This run', num: true, cell: (l) => h('strong', {}, money(l.movement)) },
+        ], pv.lines, 'No active contract on this project.'),
+        h('p', { class: 'hint' }, 'Positive: revenue earned but not yet billed (contract asset). Negative: billed ahead of the work (contract liability). Computed by the database; the run posts only the change since the last posted run.'));
+      if (S.can.has('revenue.run')) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Prepare run and draft journal');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/projects/${proj.value}/revenue-runs`, { period_end: per.value }); say('Revenue run prepared; its journal waits for finance approval.'); load(); } catch (e) { showError(e); } });
+        body.append(h('div', { class: 'actions' }, b));
+      }
+    } else if (perr) {
+      body.append(h('p', { class: 'callout' }, perr.message || String(perr)));
+    }
+    const cancel = async (r) => {
+      try { const reason = (prompt(`Why cancel ${r.number}?`) || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); await api('POST', `/v1/revenue-runs/${r.id}/cancel`, { reason }); say('Run and its journal cancelled.'); load(); } catch (e) { showError(e); }
+    };
+    body.append(h('h3', {}, 'Runs'), table(`${runs.length} run(s)`, [
+      { label: 'Run', cell: (r) => r.number }, { label: 'Month end', cell: (r) => r.period_end }, { label: 'Measure', cell: (r) => words(r.method.toLowerCase()) },
+      { label: 'Contract asset', num: true, cell: (r) => money(r.contract_asset) }, { label: 'Contract liability', num: true, cell: (r) => money(r.contract_liability) },
+      { label: 'Adjustment', num: true, cell: (r) => money(r.revenue_movement) }, { label: 'Run', cell: (r) => chip(r.status) },
+      { label: 'Journal', cell: (r) => (r.journal_id ? [chip(r.journal_status), ' ', h('a', { href: '#/journals' }, 'journals')] : '') },
+      { label: '', cell: (r) => (r.status === 'PREPARED' && r.journal_status === 'DRAFT' && (S.can.has('journal.approve') || S.can.has('journal.post')) ? h('button', { type: 'button', class: 'ghost', on: { click: () => cancel(r) } }, 'Cancel…') : '') },
+    ], runs, 'No run yet.'));
+  };
+  proj.addEventListener('change', load); per.addEventListener('change', load);
+  page('Revenue & WIP', 'Revenue earned on each contract against what was billed, month by month. The run’s journal moves the difference into a contract asset or a contract liability; finance approves it and a different person posts it.',
+    ...parts, h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Month-end run'), h('div', { class: 'toolbar' }, field('Project', proj), field('Month end', per)), body));
+  await load();
+}
+
+// ---------- subcontracts (0055) ----------
+async function subcontractPanel(d) {
+  const v = await api('GET', `/v1/subcontracts/${d.id}`);
+  const sc = v.subcontract; const pos = v.position || {};
+  const kpi = (val, k) => h('div', { class: 'kpi' }, h('div', { class: 'v' }, val), h('div', { class: 'k' }, k));
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${sc.supplier}: schedule of values`),
+    h('div', { class: 'kpis' }, kpi(money(pos.value).replace(/\.00$/, ''), 'Subcontract value'), kpi(money(pos.certified).replace(/\.00$/, ''), 'Certified to date'),
+      kpi(money(pos.retention_held).replace(/\.00$/, ''), 'Retention held'), kpi(money(pos.advance_outstanding).replace(/\.00$/, ''), 'Advance outstanding'), kpi(money(pos.net_certified).replace(/\.00$/, ''), 'Net certified')),
+    h('p', { class: 'hint' }, `Retention ${(Number(sc.retention_pct) * 100).toFixed(2)}%${Number(sc.retention_cap) ? ', capped at ' + money(sc.retention_cap) : ''} · advance ${money(sc.advance_amount)} recovered at ${(Number(sc.advance_recovery_pct) * 100).toFixed(2)}% · withholding ${(Number(sc.wht_rate) * 100).toFixed(2)}%`),
+    table('Lines: certified to date', [{ label: 'Line', num: true, cell: (l) => String(l.line_no) }, { label: 'Description', cell: (l) => l.description }, { label: 'Cost code', cell: (l) => l.cost_code },
+      { label: 'Quantity', num: true, cell: (l) => `${l.quantity} ${l.unit}` }, { label: 'Rate', num: true, cell: (l) => money(l.rate) }, { label: 'Amount', num: true, cell: (l) => money(l.amount) },
+      { label: 'Certified qty', num: true, cell: (l) => String(l.certified_qty) }, { label: 'Certified value', num: true, cell: (l) => money(l.certified_value) },
+      { label: 'Progress', num: true, cell: (l) => `${((Number(l.certified_value) / Number(l.amount)) * 100).toFixed(1)}%` }], v.lines),
+    table('Applications and certificates', [{ label: 'Number', cell: (a) => h('a', { href: `#/doc/subcontract_application/${a.id}` }, a.number) }, { label: 'Period to', cell: (a) => a.period_to },
+      { label: 'Status', cell: (a) => chip(a.status) }, { label: 'This period', num: true, cell: (a) => (a.this_gross == null ? '' : money(a.this_gross)) },
+      { label: 'Retention', num: true, cell: (a) => (a.retention == null ? '' : money(a.retention)) }, { label: 'Advance', num: true, cell: (a) => (a.advance_recovery == null ? '' : money(a.advance_recovery)) },
+      { label: 'Back-charges', num: true, cell: (a) => (a.backcharges == null ? '' : money(a.backcharges)) }, { label: 'Withholding', num: true, cell: (a) => (a.wht == null ? '' : money(a.wht)) },
+      { label: 'Net payable', num: true, cell: (a) => (a.net_payable == null ? '' : h('strong', {}, money(a.net_payable))) }, { label: 'Journal', cell: (a) => (a.journal_status ? chip(a.journal_status) : '') }], v.applications, 'No application yet.'),
+    table('Back-charges', [{ label: 'Number', cell: (b) => h('a', { href: `#/doc/subcontract_backcharge/${b.id}` }, b.number) }, { label: 'Reason', cell: (b) => b.reason }, { label: 'Evidence', cell: (b) => b.evidence_ref },
+      { label: 'Amount', num: true, cell: (b) => money(b.amount) }, { label: 'Status', cell: (b) => chip(b.status) }, { label: 'Deducted', cell: (b) => (b.deducted_in ? 'Yes' : '') }], v.backcharges, 'No back-charge.'));
+  if (sc.status !== 'APPROVED') return box;
+  if (S.can.has('subcontract.apply') && !v.applications.some((a) => a.status === 'DRAFT' || a.status === 'SUBMITTED')) {
+    const to = input('period_to', { type: 'date', value: today(), max: today() });
+    const grid = lineGrid('Cumulative quantity claimed by the subcontractor', [
+      { key: 'line_no', label: 'Line', make: (vals) => h('span', {}, String(vals.line_no)) }, { key: 'desc', label: 'Description', make: (vals) => h('span', {}, vals.desc) },
+      { key: 'cumulative_qty', label: 'Cumulative quantity', make: num('cumulative_qty') }], v.lines.map((l) => ({ line_no: l.line_no, desc: `${l.description} (${l.quantity} ${l.unit})`, cumulative_qty: l.certified_qty })), false);
+    const b = h('button', { type: 'button', class: 'primary' }, 'Enter application and submit');
+    b.addEventListener('click', async () => {
+      try {
+        clearError();
+        const lines = grid.rows().map((r, i) => ({ line_no: v.lines[i].line_no, cumulative_qty: r.cumulative_qty || '0' })).filter((r) => Number(r.cumulative_qty) > 0);
+        const res = await api('POST', `/v1/subcontracts/${d.id}/applications`, { period_to: to.value, lines });
+        await api('POST', `/v1/subcontract-applications/${res.id}/submit`, {});
+        say('Application entered and submitted for certification.'); route();
+      } catch (e) { showError(e); }
+    });
+    box.append(h('h3', {}, 'New application'), field('Period to', to), grid, h('div', { class: 'actions' }, b));
+  }
+  // Subcontractor documents (insurance, tax clearance...): an expired required one blocks payment.
+  const docs = (await api('GET', `/v1/suppliers/${sc.supplier_id}/subcontractor-documents`)).documents;
+  const DST = { VALID: 'active', EXPIRING: 'expiring', EXPIRED: 'expired' };
+  box.append(table(`Subcontractor documents — an expired required one blocks payment`, [{ label: 'Type', cell: (x) => words(x.doc_type.toLowerCase()) }, { label: 'Reference', cell: (x) => x.reference },
+    { label: 'Expires', cell: (x) => x.expires_on }, { label: 'Required', cell: (x) => (x.required ? 'Yes' : 'No') },
+    { label: 'Standing', cell: (x) => h('span', { class: `gstand gs-${DST[x.standing]}` }, words(x.standing.toLowerCase())) }], docs, 'No document registered.'));
+  if (S.can.has('subcontract.manage')) {
+    const dt = select('doc_type', ['INSURANCE', 'TAX_CLEARANCE', 'LICENSE', 'BOND', 'OTHER'].map((v) => ({ value: v, label: words(v.toLowerCase()) })));
+    const ref = input('reference', { type: 'text', maxlength: '200' }); const iss = input('issued_on', { type: 'date', value: today() }); const exp = input('expires_on', { type: 'date', value: plusDays(365) });
+    const b = h('button', { type: 'button', class: 'ghost' }, 'Register document');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/subcontractor-documents', { supplier_id: sc.supplier_id, doc_type: dt.value, reference: ref.value.trim(), issued_on: iss.value, expires_on: exp.value, required: true }); say('Document registered.'); route(); } catch (e) { showError(e); } });
+    box.append(h('div', { class: 'grid' }, field('Document', dt), field('Reference', ref), field('Issued', iss), field('Expires', exp)), h('div', { class: 'actions' }, b));
+  }
+  const open = v.applications.filter((a) => a.status === 'CERTIFIED' && Number(a.open_amount) > 0);
+  if (S.can.has('payment.prepare') && open.length) {
+    const allSb = (await api('GET', '/v1/p2p/supplier_bank_account?status=APPROVED')).items;
+    const sb = allSb.filter((x) => (x.label || '').startsWith(`${sc.supplier_code} `));
+    const cb = (await api('GET', '/v1/p2p/company_bank_account?status=ACTIVE')).items;
+    const sbank = select('supplier_bank_id', sb.map((x) => ({ value: x.id, label: `${x.number || ''} ${x.label}` })));
+    const cbank = select('company_bank_id', cb.map((x) => ({ value: x.id, label: `${x.number || ''} ${x.label}` })));
+    const vd = input('value_date', { type: 'date', value: today() });
+    const amts = open.map((a) => input('amount', { inputmode: 'decimal', value: a.open_amount, 'aria-label': `Amount for ${a.number}` }));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Prepare and submit payment');
+    b.addEventListener('click', async () => {
+      try {
+        clearError();
+        const allocations = open.map((a, i) => ({ application_id: a.id, amount: amts[i].value.trim() })).filter((x) => Number(x.amount) > 0);
+        const res = await api('POST', '/v1/subcontract-payments', { subcontract_id: d.id, supplier_bank_id: sbank.value, company_bank_id: cbank.value, value_date: vd.value, allocations });
+        await api('POST', `/v1/subcontract-payments/${res.id}/submit`, {});
+        say('Payment submitted for approval.'); route();
+      } catch (e) { showError(e); }
+    });
+    if (!sb.length) box.append(h('p', { class: 'callout' }, 'The subcontractor has no approved bank account: procurement adds one on the supplier and finance approves it before a payment can be prepared.'));
+    box.append(h('h3', {}, 'Pay certificates'), h('div', { class: 'grid' }, field('Pay to (subcontractor bank)', sbank), field('From', cbank), field('Value date', vd)),
+      table('Open certificates', [{ label: 'Certificate', cell: (a) => a.number }, { label: 'Net payable', num: true, cell: (a) => money(a.net_payable) }, { label: 'Still open', num: true, cell: (a) => money(a.open_amount) },
+        { label: 'Pay now', cell: (a) => amts[open.indexOf(a)] }], open),
+      h('p', { class: 'hint' }, sc.pay_when_certified ? 'Pay when certified: approval and release wait until the client has certified this period.' : 'Finance approves; a different treasury officer releases.'),
+      h('div', { class: 'actions' }, b));
+  }
+  if (S.can.has('subcontract.manage')) {
+    const reason = input('reason', { type: 'text', maxlength: '500', placeholder: 'What is charged back' });
+    const ev = input('evidence_ref', { type: 'text', maxlength: '200', placeholder: 'Photo set, letter, delivery note' });
+    const amt = input('amount', { inputmode: 'decimal', autocomplete: 'off' });
+    const b = h('button', { type: 'button' }, 'Raise and submit back-charge');
+    b.addEventListener('click', async () => {
+      try { clearError(); const res = await api('POST', `/v1/subcontracts/${d.id}/backcharges`, { reason: reason.value.trim(), evidence_ref: ev.value.trim(), amount: amt.value.trim() });
+        await api('POST', `/v1/subcontract-backcharges/${res.id}/submit`, {}); say('Back-charge submitted for approval.'); route(); } catch (e) { showError(e); }
+    });
+    box.append(h('h3', {}, 'Back-charge'), h('div', { class: 'grid' }, field('Reason', reason), field('Evidence', ev), field('Amount', amt)), h('div', { class: 'actions' }, b));
+  }
+  return box;
+}
+
+async function applicationPanel(d) {
+  const det = (d.detail || {});
+  const head = det.h || {};
+  const v = await api('GET', `/v1/subcontracts/${head.subcontract_id}`);
+  const claimed = new Map((det.lines || []).map((l) => [l.line_no, l]));
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, `Certificate of ${v.subcontract.number} — ${v.subcontract.supplier}`));
+  if (d.status === 'CERTIFIED') {
+    const kv2 = [['This period', head.this_gross], ['Retention', head.retention], ['Advance recovery', head.advance_recovery], ['Back-charges', head.backcharges], ['Withholding', head.wht], ['Net payable', head.net_payable]];
+    box.append(h('div', { class: 'adjsum' }, kv2.map(([k, x]) => h('div', {}, h('span', { class: 'k' }, k), h('span', { class: 'v' }, money(x))))),
+      h('p', { class: 'hint' }, 'Computed by the database at certification; the certificate journal waits for finance under Accounting → Journals.'));
+    return box;
+  }
+  const can = d.status === 'SUBMITTED' && S.can.has('subcontract.certify') && d.created_by !== S.me.user_id;
+  const rows = v.lines.map((l) => ({ line_no: l.line_no, desc: `${l.description} (${l.quantity} ${l.unit})`, prev: l.certified_qty, claimed: claimed.get(l.line_no)?.claimed_cum_qty ?? '', cumulative_qty: claimed.get(l.line_no)?.claimed_cum_qty ?? '' }));
+  const grid = lineGrid('Cumulative quantities: previous certified, claimed, and certified now', [
+    { key: 'line_no', label: 'Line', make: (x) => h('span', {}, String(x.line_no)) }, { key: 'desc', label: 'Description', make: (x) => h('span', {}, x.desc) },
+    { key: 'prev', label: 'Previously certified', make: (x) => h('span', {}, String(x.prev)) }, { key: 'claimed', label: 'Claimed (to date)', make: (x) => h('span', {}, String(x.claimed)) },
+    ...(can ? [{ key: 'cumulative_qty', label: 'Certify (to date)', make: num('cumulative_qty') }] : [])], rows, false);
+  box.append(grid);
+  if (can) {
+    const b = h('button', { type: 'button', class: 'primary' }, 'Certify');
+    b.addEventListener('click', async () => {
+      try {
+        clearError();
+        const lines = grid.rows().map((r, i) => ({ line_no: rows[i].line_no, cumulative_qty: r.cumulative_qty })).filter((r, i) => r.cumulative_qty !== '' && claimed.has(rows[i].line_no));
+        await api('POST', `/v1/subcontract-applications/${d.id}/certify`, { lines });
+        say('Certified; the certificate journal waits for finance.'); route();
+      } catch (e) { showError(e); }
+    });
+    box.append(h('p', { class: 'hint' }, 'Certify cumulative quantities, never above the subcontract quantity. Retention (up to its cap), advance recovery, approved back-charges and withholding are deducted by the database. Needs a recent second-factor sign-in.'),
+      h('div', { class: 'actions' }, b));
+  }
+  return box;
+}
+
+async function renderSubPolicy() {
+  const list = (await api('GET', '/v1/p2p/subcontract_policy')).items;
+  const parts = [table('Subcontract policies', [{ label: 'Version', cell: (x) => h('a', { href: `#/doc/subcontract_policy/${x.id}` }, x.number) }, { label: 'Entity', cell: (x) => x.label }, { label: 'Status', cell: (x) => chip(x.status) }], list, 'No policy yet.')];
+  if (S.can.has('contract.policy.manage')) {
+    const ent = select('legal_entity_id', S.ref.legal_entities.map((e) => ({ value: e.id, label: e.name })));
+    const acc = (kinds) => S.ref.accounts.filter((a) => kinds.includes(a.kind)).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+    const sels = { payable_account_id: ['Subcontractor payable', ['LIABILITY']], retention_account_id: ['Retention payable', ['LIABILITY']], advance_account_id: ['Advances to subcontractors', ['ASSET']],
+      wht_account_id: ['Withholding tax payable', ['LIABILITY']], backcharge_account_id: ['Back-charge recoveries', ['EXPENSE', 'REVENUE']] };
+    const ctl = Object.fromEntries(Object.entries(sels).map(([k, [, kinds]]) => [k, select(k, acc(kinds))]));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Propose');
+    b.addEventListener('click', async () => {
+      try { clearError(); const body = { legal_entity_id: ent.value }; for (const k of Object.keys(ctl)) body[k] = ctl[k].value; await api('POST', '/v1/subcontract-policies', body); say('Subcontract accounts proposed for approval.'); renderSubPolicy(); } catch (e) { showError(e); }
+    });
+    parts.push(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Propose subcontract accounts'), h('div', { class: 'grid' }, field('Legal entity', ent), Object.entries(sels).map(([k, [label]]) => field(label, ctl[k]))), h('div', { class: 'actions' }, b)));
+  }
+  page('Subcontract accounts', 'The accounts a subcontract certificate posts to: what is owed to the subcontractor, retention held, advances recovered, withholding tax and back-charges. A controller proposes; the CFO approves on the policy page.', ...parts);
+}
+
+// ---------- fixed assets (0057) ----------
+const FA_METHOD = { SL: 'Straight line', DB: 'Double declining balance' };
+async function renderAssets(tab) {
+  closeSheet();
+  const reg = await api('GET', '/v1/assets');
+  const ent = (S.ref.legal_entities || [])[0] || {};
+  const acc = (kinds) => (S.ref.accounts || []).filter((a) => kinds.includes(a.kind)).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+  const sum = (k) => reg.assets.filter((a) => a.status === 'ACTIVE').reduce((t, a) => t + Number(a[k] || 0), 0);
+  const kpi = (v, k) => h('div', { class: 'kpi' }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k));
+  const TABS = [['register', 'Register'], ['depreciation', 'Depreciation'], ['classes', 'Classes']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'register';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Fixed assets' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/assets/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'depreciation' ? await faDepTab(reg, ent) : k === 'classes' ? faClassTab(reg, ent, acc) : faRegTab(reg, acc)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Fixed assets', 'Plant, vehicles and equipment the company owns: what each cost, how it is depreciated month by month, and what happens when it is sold. An accountant registers and runs depreciation; the CFO activates assets and approves disposals; finance approves and posts every journal.',
+    h('div', { class: 'kpis' }, kpi(String(reg.assets.filter((a) => a.status === 'ACTIVE').length), 'Assets in use'), kpi(money(sum('cost')).replace(/\.00$/, ''), 'Cost'),
+      kpi(money(sum('accumulated')).replace(/\.00$/, ''), 'Accumulated depreciation'), kpi(money(sum('nbv')).replace(/\.00$/, ''), 'Net book value')), tabs, content);
+  await show(cur);
+}
+
+function faRegTab(reg, acc) {
+  const out = h('div');
+  if (S.can.has('asset.manage') && reg.classes.length) {
+    const b = h('button', { type: 'button' }, 'Register an asset');
+    b.addEventListener('click', () => {
+      const cls = select('class_id', reg.classes.map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` })));
+      const desc = input('description', { type: 'text', maxlength: '300' });
+      const loc = input('location', { type: 'text', maxlength: '120', placeholder: 'Site or yard' });
+      const svc = input('in_service_on', { type: 'date', value: today(), max: today() });
+      const cost = input('cost', { inputmode: 'decimal' }); const res = input('residual', { inputmode: 'decimal', value: '0' });
+      const life = input('life_months', { inputmode: 'numeric', placeholder: 'class default' });
+      const meth = select('method', [{ value: '', label: 'Class default' }, ...Object.entries(FA_METHOD).map(([value, label]) => ({ value, label }))]);
+      const from = select('capitalised_from_account_id', acc(['ASSET', 'EXPENSE', 'LIABILITY']));
+      const save = h('button', { type: 'button', class: 'primary' }, 'Register and submit');
+      const sheet = openSheet('Register an asset', h('div', {}, h('h2', {}, 'Register an asset'), h('p', { class: 'hint' }, 'The CFO activates it; activation moves the cost from the account it was booked to (for example assets under construction) to the class’s cost account.')),
+        h('div', { class: 'grid' }, field('Class', cls), field('Description', desc), field('Location', loc), field('In service on', svc), field('Cost', cost), field('Residual value', res),
+          field('Useful life (months)', life), field('Method', meth), field('Capitalised from', from)), h('div', { class: 'actions' }, save));
+      save.addEventListener('click', async () => {
+        try {
+          const r = await api('POST', '/v1/assets', { class_id: cls.value, description: desc.value.trim(), location: loc.value.trim(), in_service_on: svc.value, cost: cost.value.trim(),
+            residual: res.value.trim() || '0', life_months: Number(life.value || 0), method: meth.value, capitalised_from_account_id: from.value });
+          await api('POST', `/v1/assets/${r.id}/submit`, {});
+          closeSheet(); say('Asset registered and submitted for activation.'); renderAssets('register');
+        } catch (e) { sheetError(sheet, e); }
+      });
+    });
+    out.append(h('div', { class: 'toolbar' }, b));
+  } else if (S.can.has('asset.manage')) out.append(h('p', { class: 'callout' }, 'Create an asset class first (Classes tab).'));
+  out.append(table('Asset register', [{ label: 'Number', cell: (a) => h('a', { href: `#/doc/fixed_asset/${a.id}` }, a.number) }, { label: 'Description', cell: (a) => a.description },
+    { label: 'Class', cell: (a) => a.class }, { label: 'In service', cell: (a) => a.in_service_on }, { label: 'Method', cell: (a) => `${a.method} · ${a.life_months} m` },
+    { label: 'Cost', num: true, cell: (a) => money(a.cost) }, { label: 'Accumulated', num: true, cell: (a) => money(a.accumulated) }, { label: 'Net book value', num: true, cell: (a) => h('strong', {}, money(a.nbv)) },
+    { label: 'Status', cell: (a) => chip(a.status) }], reg.assets, 'No asset registered.'));
+  return out;
+}
+
+async function faDepTab(reg, ent) {
+  const out = h('div');
+  const m = input('month', { type: 'month', value: today().slice(0, 7), max: today().slice(0, 7) });
+  const body = h('div', { 'aria-live': 'polite' });
+  const load = async () => {
+    body.textContent = '';
+    try {
+      const pv = (await api('GET', `/v1/depreciation/preview?entity=${ent.id}&month=${m.value}`)).lines;
+      const tot = pv.reduce((t, l) => t + Number(l.amount), 0);
+      body.append(table(`Charges for ${monthName(m.value)}: ${money(String(tot.toFixed(2)))}`, [{ label: 'Asset', cell: (l) => `${l.number} — ${l.description}` }, { label: 'Class', cell: (l) => l.class },
+        { label: 'Net book value before', num: true, cell: (l) => money(l.nbv_before) }, { label: 'This month', num: true, cell: (l) => h('strong', {}, money(l.amount)) }], pv, 'Nothing to depreciate this month.'));
+      if (S.can.has('asset.manage') && pv.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Prepare run and draft journal');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/depreciation-runs', { legal_entity_id: ent.id, month: m.value }); say('Depreciation run prepared; its journal waits for finance.'); renderAssets('depreciation'); } catch (e) { showError(e); } });
+        body.append(h('div', { class: 'actions' }, b));
+      }
+    } catch (e) { body.append(h('p', { class: 'callout' }, e.message || String(e))); }
+  };
+  m.addEventListener('change', load);
+  await load();
+  const cancel = async (r) => { try { const reason = (prompt(`Why cancel ${r.number}?`) || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); await api('POST', `/v1/depreciation-runs/${r.id}/cancel`, { reason }); say('Run and its journal cancelled.'); renderAssets('depreciation'); } catch (e) { showError(e); } };
+  out.append(h('div', { class: 'toolbar' }, field('Month', m)), body,
+    h('p', { class: 'hint' }, 'Straight line: (cost − residual) ÷ life each month. Double declining: net book value × 2 ÷ life. Never below the residual value; one run per month, in order; a run waits until its journal is posted before the next one.'),
+    table('Runs', [{ label: 'Run', cell: (r) => r.number }, { label: 'Month end', cell: (r) => r.period_end }, { label: 'Assets', num: true, cell: (r) => String(r.assets) },
+      { label: 'Total', num: true, cell: (r) => money(r.total) }, { label: 'Run', cell: (r) => chip(r.status) }, { label: 'Journal', cell: (r) => (r.journal_status ? chip(r.journal_status) : '') },
+      { label: '', cell: (r) => (r.status === 'PREPARED' && r.journal_status === 'DRAFT' && (S.can.has('journal.approve') || S.can.has('journal.post')) ? h('button', { type: 'button', class: 'ghost', on: { click: () => cancel(r) } }, 'Cancel…') : '') }],
+    reg.runs, 'No run yet.'));
+  return out;
+}
+
+function faClassTab(reg, ent, acc) {
+  const out = h('div', {}, table('Asset classes', [{ label: 'Code', cell: (c) => c.code }, { label: 'Name', cell: (c) => c.name }, { label: 'Method', cell: (c) => FA_METHOD[c.default_method] },
+    { label: 'Life (months)', num: true, cell: (c) => String(c.default_life_months) }, { label: 'Cost account', cell: (c) => c.cost_account }, { label: 'Accumulated', cell: (c) => c.accum_account },
+    { label: 'Expense', cell: (c) => c.expense_account }], reg.classes, 'No class yet.'));
+  if (S.can.has('asset.manage')) {
+    const code = input('code', { type: 'text', maxlength: '20', placeholder: 'e.g. PLANT' }); const name = input('name', { type: 'text', maxlength: '120' });
+    const cost = select('cost_account_id', acc(['ASSET'])); const accum = select('accum_account_id', acc(['ASSET'])); const exp = select('expense_account_id', acc(['EXPENSE'])); const gl = select('gain_loss_account_id', acc(['REVENUE', 'EXPENSE']));
+    const meth = select('default_method', Object.entries(FA_METHOD).map(([value, label]) => ({ value, label }))); const life = input('default_life_months', { inputmode: 'numeric', value: '60' });
+    const b = h('button', { type: 'button', class: 'primary' }, 'Add class');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/asset-classes', { legal_entity_id: ent.id, code: code.value.trim().toUpperCase(), name: name.value.trim(), cost_account_id: cost.value, accum_account_id: accum.value,
+        expense_account_id: exp.value, gain_loss_account_id: gl.value, default_method: meth.value, default_life_months: Number(life.value) }); say('Class added.'); renderAssets('classes'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Add a class'), h('div', { class: 'grid' }, field('Code', code), field('Name', name), field('Cost account', cost), field('Accumulated depreciation', accum),
+      field('Depreciation expense', exp), field('Gain or loss on disposal', gl), field('Method', meth), field('Useful life (months)', life)), h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+async function disposalPanel(d) {
+  if (d.status !== 'ACTIVE' || !S.can.has('asset.manage')) return null;
+  const date = input('disposed_on', { type: 'date', value: today(), max: today() });
+  const proceeds = input('proceeds', { inputmode: 'decimal', value: '0' });
+  const accts = (S.ref.accounts || []).filter((a) => a.kind === 'ASSET').map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+  const to = select('proceeds_account_id', accts); const why = input('reason', { type: 'text', maxlength: '500', placeholder: 'Sold, scrapped, written off…' });
+  const b = h('button', { type: 'button' }, 'Propose disposal');
+  b.addEventListener('click', async () => {
+    try { clearError(); const r = await api('POST', '/v1/asset-disposals', { asset_id: d.id, disposed_on: date.value, proceeds: proceeds.value.trim() || '0', proceeds_account_id: to.value, reason: why.value.trim() });
+      await api('POST', `/v1/asset-disposals/${r.id}/submit`, {}); say('Disposal submitted to the CFO.'); route(); } catch (e) { showError(e); }
+  });
+  return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Dispose of this asset'), h('p', { class: 'hint' }, 'The database computes net book value and the gain or loss when the CFO approves; the disposal journal then waits for finance.'),
+    h('div', { class: 'grid' }, field('Date', date), field('Proceeds', proceeds), field('Proceeds to', to), field('Reason', why)), h('div', { class: 'actions' }, b));
+}
+
+// ---------- workforce and payroll (0061) ----------
+let PR_FLASH = '';
+function prDone(msg) { say(msg); PR_FLASH = msg; }
+const PAY_KIND = { SALARIED: 'Salaried (per month)', DAILY: 'Daily rate', HOURLY: 'Hourly rate' };
+async function renderPayroll(tab) {
+  closeSheet();
+  const v = await api('GET', '/v1/payroll');
+  const ent = (v.entities || [])[0] || (S.ref.legal_entities || [])[0] || {};
+  const kpi = (val, k) => h('div', { class: 'kpi' }, h('div', { class: 'v' }, val), h('div', { class: 'k' }, k));
+  const payPerm = S.can.has('payroll.prepare') || S.can.has('payroll.approve') || S.can.has('payment.release');
+  const TABS = payPerm ? [['runs', 'Pay runs'], ['employees', 'Employees'], ['rules', 'Tax and pension rules'], ['accounts', 'Accounts']] : [['accounts', 'Accounts']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : TABS[0][0];
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Payroll' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/payroll/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'employees' ? prEmployees(v, ent) : k === 'rules' ? prRules(v, ent) : k === 'accounts' ? prAccounts(v, ent) : await prRuns(v, ent)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  const runs = v.runs || [];
+  const last = runs.find((r) => ['APPROVED', 'PAID'].includes(r.status));
+  page('Payroll', 'Employees, the tax and pension rules in force, and the monthly pay run. A payroll officer prepares; the HR manager approves with fresh MFA; treasury pays — three different people. The database computes every pay line and the journals per project.',
+    payPerm ? h('div', { class: 'kpis' }, kpi(String((v.employees || []).filter((e) => e.status === 'ACTIVE').length), 'Active employees'),
+      kpi(String(runs.filter((r) => ['DRAFT', 'CALCULATED', 'SUBMITTED'].includes(r.status)).length), 'Runs in progress'),
+      kpi(last ? money(last.gross || '0').replace(/\.00$/, '') : '—', last ? `Gross, ${last.number}` : 'Last approved gross')) : null, tabs, content);
+  await show(cur);
+  if (PR_FLASH) { $('view').insertBefore(h('p', { class: 'notice', role: 'status' }, PR_FLASH), $('view').children[1]); PR_FLASH = ''; }
+}
+
+async function prRuns(v, ent) {
+  const out = h('div');
+  if (S.can.has('payroll.prepare')) {
+    const start = input('period_start', { type: 'date' }); const end = input('period_end', { type: 'date' }); const pay = input('pay_date', { type: 'date' });
+    const d = new Date(); const y = d.getFullYear(); const m = d.getMonth();
+    const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    start.value = iso(new Date(y, m - 1, 1)); end.value = iso(new Date(y, m, 0)); pay.value = end.value;
+    const b = h('button', { type: 'button', class: 'primary' }, 'Open a pay run');
+    b.addEventListener('click', async () => {
+      try { clearError(); const r = await api('POST', '/v1/pay-runs', { legal_entity_id: ent.id, period_start: start.value, period_end: end.value, pay_date: pay.value }); await renderPayroll('runs'); await prOpenRun(r.id, ent, 'Pay run opened; add the inputs.'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'New pay run'), h('div', { class: 'grid' }, field('Period from', start), field('Period to', end), field('Pay date', pay)), h('div', { class: 'actions' }, b)));
+  }
+  out.append(table('Pay runs', [{ label: 'Run', cell: (r) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); prOpenRun(r.id, ent); } } }, r.number) },
+    { label: 'Period', cell: (r) => `${r.period_start} – ${r.period_end}` }, { label: 'Pay date', cell: (r) => r.pay_date }, { label: 'Employees', num: true, cell: (r) => String(r.employees) },
+    { label: 'Gross', num: true, cell: (r) => (r.gross == null ? '' : money(r.gross)) }, { label: 'Net', num: true, cell: (r) => (r.net == null ? '' : money(r.net)) },
+    { label: 'Status', cell: (r) => chip(r.status) }, { label: 'Prepared by', cell: (r) => r.created_by }, { label: 'Approved by', cell: (r) => r.approved_by || '' }], v.runs || [], 'No pay run yet.'));
+  return out;
+}
+
+async function prOpenRun(id, ent, msg) {
+  const v = await api('GET', `/v1/payroll?run=${id}`);
+  const r = (v.runs || []).find((x) => x.id === id) || {};
+  const lines = v.lines || [];
+  const act = h('div', { class: 'actions' });
+  const body = h('div', {}, h('h2', {}, `Pay run ${r.number}`), h('p', { class: 'hint' }, `${r.period_start} – ${r.period_end} · pay date ${r.pay_date} · `, chip(r.status)));
+  const sheet = openSheet(`Pay run ${r.number}`, body);
+  if (msg) { say(msg); body.append(h('p', { class: 'notice', role: 'status' }, msg)); }
+  const go = async (path, payload, msg) => { try { await api('POST', `/v1/pay-runs/${id}/${path}`, payload || {}); prDone(msg); closeSheet(); renderPayroll('runs'); } catch (e) { sheetError(sheet, e); } };
+  const reason = (what) => { const t = (prompt(`Why ${what}?`) || '').trim(); if (t.length < 5) { sheetError(sheet, new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return t; };
+  if (r.status === 'DRAFT' && S.can.has('payroll.prepare')) {
+    const emps = (v.employees || []).filter((e) => e.status === 'ACTIVE' && e.approval === 'APPROVED').map((e) => ({ value: e.id, label: `${e.number} ${e.name}` }));
+    const projs = [{ value: '', label: 'Head office (no project)' }, ...opt(v.projects || S.ref.projects || [], (p) => `${p.code} — ${p.name}`)];
+    const grid = lineGrid('Inputs', [
+      { key: 'employee_id', label: 'Employee', make: () => select('employee_id', emps) },
+      { key: 'units', label: 'Months / days / hours', make: num('units', { value: '1' }) },
+      { key: 'overtime_hours', label: 'Overtime hours', make: num('overtime_hours', { value: '0' }) },
+      { key: 'allowances', label: 'Allowances', make: num('allowances', { value: '0' }) },
+      { key: 'project_id', label: 'Charged to', make: () => select('project_id', projs) }], lines.length ? [] : emps.map((e) => ({ employee_id: e.value })), true);
+    const add = h('button', { type: 'button' }, 'Save inputs');
+    add.addEventListener('click', async () => {
+      try { const rows = grid.rows().filter((x) => x.employee_id); await api('POST', `/v1/pay-runs/${id}/inputs`, { inputs: rows.map((x) => ({ ...x, units: x.units || '0', overtime_hours: x.overtime_hours || '0', allowances: x.allowances || '0' })) });
+        closeSheet(); prOpenRun(id, ent, 'Inputs saved; press Calculate.'); } catch (e) { sheetError(sheet, e); }
+    });
+    if (!lines.length) {
+      const imp = h('button', { type: 'button', class: 'ghost' }, 'Import approved timesheet hours');
+      imp.addEventListener('click', async () => { try { const r = await api('POST', `/v1/pay-runs/${id}/import-timesheets`, {}); closeSheet(); prOpenRun(id, ent, `${r.imported} people imported from approved timesheets; add salaried staff and allowances, then Calculate.`); } catch (e) { sheetError(sheet, e); } });
+      body.append(h('div', { class: 'actions' }, imp), grid, h('div', { class: 'actions' }, add));
+    }
+    if (lines.length) act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('calculate', null, 'Run calculated by the database.') } }, 'Calculate'));
+  }
+  if (lines.length) {
+    const tot = (k) => lines.reduce((t, l) => t + Number(l[k] || 0), 0).toFixed(2);
+    body.append(table('Pay lines', [{ label: 'Employee', cell: (l) => `${l.number} ${l.name}` }, { label: 'Charged to', cell: (l) => l.project || 'Head office' },
+      { label: 'Units', num: true, cell: (l) => String(Number(l.units)) }, { label: 'Basic', num: true, cell: (l) => (l.basic == null ? '' : money(l.basic)) },
+      { label: 'Overtime', num: true, cell: (l) => (l.overtime == null ? '' : money(l.overtime)) }, { label: 'Allowances', num: true, cell: (l) => (l.allowances == null ? '' : money(l.allowances)) },
+      { label: 'Gross', num: true, cell: (l) => (l.gross == null ? '' : h('strong', {}, money(l.gross))) }, { label: 'Income tax', num: true, cell: (l) => (l.income_tax == null ? '' : money(l.income_tax)) },
+      { label: 'Pension (employee)', num: true, cell: (l) => (l.pension_ee == null ? '' : money(l.pension_ee)) }, { label: 'Pension (employer)', num: true, cell: (l) => (l.pension_er == null ? '' : money(l.pension_er)) },
+      { label: 'Net pay', num: true, cell: (l) => (l.net == null ? '' : h('strong', {}, money(l.net))) }], lines, ''),
+    lines[0].gross == null ? h('p', { class: 'hint' }, 'Not calculated yet.') : h('p', { class: 'hint' }, `Totals: gross ${money(tot('gross'))} · tax ${money(tot('income_tax'))} · net ${money(tot('net'))} · employer pension ${money(tot('pension_er'))}.`));
+  }
+  if (r.status === 'CALCULATED' && S.can.has('payroll.prepare')) act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('submit', null, 'Submitted to the HR manager.') } }, 'Submit for approval'));
+  if (['DRAFT', 'CALCULATED'].includes(r.status) && S.can.has('payroll.prepare')) act.append(h('button', { type: 'button', class: 'ghost', on: { click: () => { const t = reason('cancel this run'); if (t) go('cancel', { reason: t }, 'Run cancelled.'); } } }, 'Cancel…'));
+  if (r.status === 'SUBMITTED' && S.can.has('payroll.approve')) {
+    act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('approve', null, 'Approved; one payroll journal per project waits for finance.') } }, 'Approve'),
+      h('button', { type: 'button', class: 'ghost', on: { click: () => { const t = reason('reject this run'); if (t) go('reject', { reason: t }, 'Run rejected.'); } } }, 'Reject…'));
+  }
+  if (r.status === 'APPROVED' && S.can.has('payment.release')) {
+    const cbanks = (await api('GET', '/v1/p2p/company_bank_account?status=ACTIVE')).items;
+    const bank = select('company_bank_id', cbanks.map((b) => ({ value: b.id, label: b.label })));
+    body.append(h('div', { class: 'grid' }, field('Pay from', bank)));
+    act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('release', { company_bank_id: bank.value }, 'Payroll paid; the payment journal waits for finance.') } }, 'Release payment'));
+  }
+  if (['APPROVED', 'PAID'].includes(r.status) && S.can.has('payment.release')) {
+    act.append(h('button', { type: 'button', class: 'ghost', on: { click: async () => {
+      try {
+        const res = await fetch(`/v1/pay-runs/${id}/bank-file`, { headers: { Authorization: 'Bearer ' + S.token } });
+        if (!res.ok) { const d = await res.json().catch(() => ({})); const e = d.error || {}; throw new ApiError(res.status, e.code || 'error', e.message || res.statusText, res.headers.get('WWW-Authenticate')); }
+        const url = URL.createObjectURL(await res.blob());
+        const a = h('a', { href: url, download: `payroll-${r.number}.csv`, hidden: true });
+        document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+        prDone('Bank file downloaded (recorded in the audit trail).');
+      } catch (e) { sheetError(sheet, e); }
+    } } }, 'Download bank file'));
+  }
+  body.append(act);
+}
+
+function prEmployees(v, ent) {
+  const out = h('div');
+  if (S.can.has('payroll.prepare')) {
+    const b = h('button', { type: 'button' }, 'Add an employee');
+    b.addEventListener('click', () => {
+      const no = input('number', { type: 'text', maxlength: '30', placeholder: 'E-001' }); const name = input('name', { type: 'text', maxlength: '200' });
+      const kind = select('kind', Object.entries(PAY_KIND).map(([value, label]) => ({ value, label }))); const trade = input('trade', { type: 'text', maxlength: '80' });
+      const rate = input('base_rate', { inputmode: 'decimal' }); const tin = input('tin', { type: 'text', maxlength: '20' }); const pen = input('pension_no', { type: 'text', maxlength: '30' });
+      const bank = input('bank_name', { type: 'text', maxlength: '80' }); const acct = input('account_number', { type: 'text', inputmode: 'numeric', autocomplete: 'off', maxlength: '34' });
+      const start = input('starts_on', { type: 'date', value: today() });
+      const save = h('button', { type: 'button', class: 'primary' }, 'Save');
+      const sheet = openSheet('Add an employee', h('div', {}, h('h2', {}, 'Add an employee'), h('p', { class: 'hint' }, 'The bank account number is encrypted; screens show only its last four digits. The base rate is per month, per day or per hour depending on the pay type.')),
+        h('div', { class: 'grid' }, field('Employee number', no), field('Name', name), field('Pay type', kind), field('Trade or position', trade), field('Base rate', rate), field('TIN', tin),
+          field('Pension number', pen), field('Bank', bank), field('Account number', acct), field('Starts on', start)), h('div', { class: 'actions' }, save));
+      save.addEventListener('click', async () => {
+        try { await api('POST', '/v1/employees', { legal_entity_id: ent.id, number: no.value.trim().toUpperCase(), name: name.value.trim(), kind: kind.value, trade: trade.value.trim(), base_rate: rate.value.trim(),
+          tin: tin.value.trim(), pension_no: pen.value.trim(), bank_name: bank.value.trim(), account_number: acct.value.trim(), starts_on: start.value }); closeSheet(); prDone('Employee added.'); renderPayroll('employees'); } catch (e) { sheetError(sheet, e); }
+      });
+    });
+    out.append(h('div', { class: 'toolbar' }, b));
+  }
+  const approveEmp = async (e) => { try { await api('POST', `/v1/employees/${e.id}/approve`); prDone(`${e.name}'s record approved.`); renderPayroll('employees'); } catch (x) { showError(x); } };
+  const leave = async (e) => { try { const d = (prompt(`Last working day of ${e.name} (YYYY-MM-DD)`, today()) || '').trim(); if (!d) return; await api('POST', `/v1/employees/${e.id}/leave`, { ends_on: d }); prDone('Leaving date recorded.'); renderPayroll('employees'); } catch (x) { showError(x); } };
+  out.append(table('Employees', [{ label: 'Number', cell: (e) => e.number }, { label: 'Name', cell: (e) => e.name }, { label: 'Pay type', cell: (e) => PAY_KIND[e.kind] || e.kind },
+    { label: 'Trade', cell: (e) => e.trade || '' }, { label: 'Base rate', num: true, cell: (e) => money(e.base_rate) }, { label: 'Bank', cell: (e) => [e.bank_name, e.account].filter(Boolean).join(' ') },
+    { label: 'Since', cell: (e) => e.starts_on }, { label: 'Status', cell: (e) => chip(e.status) },
+    // An employee is paid only after a second person approves the record, pay rate and bank account included (0074).
+    { label: 'Record', cell: (e) => (e.approval === 'APPROVED' ? chip('APPROVED') : chip('PENDING')) },
+    { label: '', cell: (e) => [
+      e.approval === 'PENDING' && S.can.has('payroll.approve') && e.created_by !== S.me.user_id ? h('button', { type: 'button', class: 'ghost', on: { click: () => approveEmp(e) } }, 'Approve record') : '',
+      e.status === 'ACTIVE' && S.can.has('payroll.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => leave(e) } }, 'Leaves…') : ''] }], v.employees || [], 'No employee yet.'));
+  return out;
+}
+
+function prRules(v, ent) {
+  const out = h('div');
+  const bandText = (bs) => (bs || []).map((b) => `${b.upto == null ? 'above' : 'to ' + Number(b.upto).toLocaleString()}: ${(Number(b.rate) * 100).toFixed(0)}%${Number(b.deduction) ? ' less ' + Number(b.deduction).toLocaleString() : ''}`).join(' · ');
+  const decide = async (rs, path, msg, why) => { try { const body = {}; if (why) { const t = (prompt('Why reject?') || '').trim(); if (t.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); body.reason = t; }
+    await api('POST', `/v1/payroll-rule-sets/${rs.id}/${path}`, body); prDone(msg); renderPayroll('rules'); } catch (e) { showError(e); } };
+  out.append(table('Rule sets', [{ label: 'Number', cell: (r) => r.number }, { label: 'In force from', cell: (r) => r.effective_from }, { label: 'Income tax bands', cell: (r) => bandText(r.tax_bands) },
+    { label: 'Pension', cell: (r) => `${(Number(r.pension_ee_rate) * 100).toFixed(1)}% + ${(Number(r.pension_er_rate) * 100).toFixed(1)}%` }, { label: 'Overtime', cell: (r) => `× ${Number(r.overtime_multiplier)}` },
+    { label: 'Source', cell: (r) => r.source_ref }, { label: 'Status', cell: (r) => chip(r.status) },
+    { label: '', cell: (r) => h('span', {}, r.status === 'DRAFT' && S.can.has('payroll.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => decide(r, 'submit', 'Submitted to the HR manager.') } }, 'Submit') : '',
+      r.status === 'SUBMITTED' && S.can.has('payroll.approve') ? h('button', { type: 'button', class: 'ghost', on: { click: () => decide(r, 'approve', 'Rule set approved.') } }, 'Approve') : '',
+      r.status === 'SUBMITTED' && S.can.has('payroll.approve') ? h('button', { type: 'button', class: 'ghost', on: { click: () => decide(r, 'reject', 'Rule set rejected.', true) } }, 'Reject…') : '') }], v.rule_sets || [], 'No rule set yet.'));
+  if (S.can.has('payroll.prepare')) {
+    const from = input('effective_from', { type: 'date', value: today() });
+    const ee = input('pension_ee_rate', { inputmode: 'decimal', value: '0.07' }); const er = input('pension_er_rate', { inputmode: 'decimal', value: '0.11' });
+    const ot = input('overtime_multiplier', { inputmode: 'decimal', value: '1.5' }); const src = input('source_ref', { type: 'text', maxlength: '300', placeholder: 'Proclamation or directive the rates come from' });
+    const grid = lineGrid('Income tax bands (ascending; leave "up to" empty on the last band)', [
+      { key: 'upto', label: 'Monthly gross up to', make: num('upto') }, { key: 'rate', label: 'Rate (e.g. 0.15)', make: num('rate') }, { key: 'deduction', label: 'Deduction', make: num('deduction', { value: '0' }) }],
+    [{ upto: '600', rate: '0', deduction: '0' }, { upto: '1650', rate: '0.10', deduction: '60' }, { upto: '3200', rate: '0.15', deduction: '142.50' }, { upto: '5250', rate: '0.20', deduction: '302.50' },
+      { upto: '7800', rate: '0.25', deduction: '565' }, { upto: '10900', rate: '0.30', deduction: '955' }, { upto: '', rate: '0.35', deduction: '1500' }], true);
+    const b = h('button', { type: 'button', class: 'primary' }, 'Prepare rule set');
+    b.addEventListener('click', async () => {
+      try { clearError(); const bands = grid.rows().filter((x) => x.rate !== '').map((x) => ({ upto: x.upto === '' ? null : x.upto, rate: x.rate, deduction: x.deduction || '0' }));
+        await api('POST', '/v1/payroll-rule-sets', { legal_entity_id: ent.id, effective_from: from.value, tax_bands: bands, pension_ee_rate: ee.value.trim(), pension_er_rate: er.value.trim(), overtime_multiplier: ot.value.trim(), source_ref: src.value.trim() });
+        prDone('Rule set prepared; submit it to the HR manager.'); renderPayroll('rules'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Prepare a rule set'), h('p', { class: 'hint' }, 'The prefilled bands are an example to edit, not a statement of current law. A rule set cannot take effect inside a period whose pay run is already approved.'),
+      h('div', { class: 'grid' }, field('In force from', from), field('Employee pension rate', ee), field('Employer pension rate', er), field('Overtime multiplier', ot), field('Source', src)), grid, h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+function prAccounts(v, ent) {
+  const out = h('div');
+  const decide = async (p, ok) => { try { const body = {}; if (!ok) { const t = (prompt('Why reject?') || '').trim(); if (t.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); body.reason = t; }
+    await api('POST', `/v1/payroll-policies/${p.id}/${ok ? 'approve' : 'reject'}`, body); prDone(ok ? 'Payroll accounts approved.' : 'Rejected.'); renderPayroll('accounts'); } catch (e) { showError(e); } };
+  out.append(table('Payroll accounts', [{ label: 'Version', num: true, cell: (p) => String(p.version) }, { label: 'Salaries', cell: (p) => p.salary }, { label: 'Employer pension', cell: (p) => p.pension_expense },
+    { label: 'Net pay payable', cell: (p) => p.net_payable }, { label: 'Income tax payable', cell: (p) => p.tax_payable }, { label: 'Pension payable', cell: (p) => p.pension_payable }, { label: 'Status', cell: (p) => chip(p.status) },
+    { label: '', cell: (p) => (p.status === 'DRAFT' && S.can.has('contract.policy.approve') ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: () => decide(p, true) } }, 'Approve'),
+      h('button', { type: 'button', class: 'ghost', on: { click: () => decide(p, false) } }, 'Reject…')) : '') }], v.policies || [], 'No payroll accounts yet.'));
+  if (S.can.has('contract.policy.manage')) {
+    const acc = (kind) => (S.ref.accounts || []).filter((a) => a.kind === kind).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+    const sal = select('salary_account_id', acc('EXPENSE')); const pe = select('pension_expense_account_id', acc('EXPENSE'));
+    const net = select('net_payable_account_id', acc('LIABILITY')); const tax = select('tax_payable_account_id', acc('LIABILITY')); const pp = select('pension_payable_account_id', acc('LIABILITY'));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Propose');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/payroll-policies', { legal_entity_id: ent.id, salary_account_id: sal.value, pension_expense_account_id: pe.value, net_payable_account_id: net.value, tax_payable_account_id: tax.value, pension_payable_account_id: pp.value });
+        prDone('Proposed; the CFO approves it.'); renderPayroll('accounts'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Propose payroll accounts'), h('div', { class: 'grid' }, field('Salaries and wages', sal), field('Employer pension expense', pe),
+      field('Net pay payable', net), field('Income tax payable', tax), field('Pension payable', pp)), h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+// ---------- consolidation and intercompany (0062) ----------
+let CON_FLASH = '';
+function conDone(msg) { say(msg); CON_FLASH = msg; }
+const CON_METHOD = { FULL: 'Full (line by line)', PROPORTIONATE: 'Proportionate share', EQUITY: 'Equity method' };
+async function renderConsolidation(tab) {
+  closeSheet();
+  const v = await api('GET', '/v1/consolidation');
+  const TABS = [['runs', 'Runs'], ['groups', 'Groups'], ['intercompany', 'Intercompany accounts']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'runs';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Consolidation' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/consolidation/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'groups' ? conGroups(v) : k === 'intercompany' ? conIC(v) : conRuns(v)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Consolidation', 'Group accounts across the legal entities: each member translated to the group currency, minority interests and associates, and intercompany balances eliminated. A controller prepares; the CFO approves with fresh MFA. Nothing is posted to any entity’s books.', tabs, content);
+  await show(cur);
+  if (CON_FLASH) { $('view').insertBefore(h('p', { class: 'notice', role: 'status' }, CON_FLASH), $('view').children[1]); CON_FLASH = ''; }
+}
+
+function conRuns(v) {
+  const out = h('div');
+  const groups = (v.groups || []).filter((g) => g.status === 'APPROVED');
+  if (S.can.has('consolidation.manage') && groups.length) {
+    const grp = select('group_id', groups.map((g) => ({ value: g.id, label: `${g.code} — ${g.name} (${g.presentation_currency})` })));
+    const d = new Date(); const y = d.getFullYear(); const q = Math.floor(d.getMonth() / 3);
+    const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    const start = input('period_start', { type: 'date', value: iso(new Date(y, q * 3 - 3, 1)) }); const end = input('period_end', { type: 'date', value: iso(new Date(y, q * 3, 0)) });
+    const src = input('rate_source', { type: 'text', maxlength: '300', placeholder: 'e.g. NBE closing rate and quarter average' });
+    const rates = h('div', { class: 'grid' });
+    const paint = () => {
+      rates.textContent = '';
+      const g = groups.find((x) => x.id === grp.value) || {};
+      const ccys = [...new Set((g.members || []).map((m) => m.currency).filter((c) => c && c !== g.presentation_currency))];
+      for (const c of ccys) rates.append(field(`${c} closing rate (${g.presentation_currency} per ${c})`, input(`closing_${c}`, { inputmode: 'decimal', 'data-ccy': c, 'data-k': 'closing' })),
+        field(`${c} average rate`, input(`average_${c}`, { inputmode: 'decimal', 'data-ccy': c, 'data-k': 'average' })));
+      if (!ccys.length) rates.append(h('p', { class: 'hint' }, 'Every member reports in the group currency: no rates needed.'));
+    };
+    grp.addEventListener('change', paint); paint();
+    const b = h('button', { type: 'button', class: 'primary' }, 'Prepare consolidation');
+    b.addEventListener('click', async () => {
+      try {
+        clearError();
+        const r = {};
+        for (const el of rates.querySelectorAll('input')) { const c = el.dataset.ccy; r[c] = r[c] || {}; r[c][el.dataset.k] = el.value.trim(); }
+        const res = await api('POST', '/v1/consolidation-runs', { group_id: grp.value, period_start: start.value, period_end: end.value, rates: r, rate_source: src.value.trim() });
+        conDone('Consolidation prepared; the CFO approves it.'); await renderConsolidation('runs'); await conOpenRun(res.id);
+      } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Prepare a consolidation'), h('div', { class: 'grid' }, field('Group', grp), field('Period from', start), field('Period to', end), field('Rate source', src)), rates,
+      h('p', { class: 'hint' }, 'Balance-sheet accounts at the closing rate, income and expense at the average rate, earlier results at the closing rate; the difference is the translation reserve.'), h('div', { class: 'actions' }, b)));
+  } else if (S.can.has('consolidation.manage')) out.append(h('p', { class: 'callout' }, 'Propose a group first (Groups tab); the CFO approves it.'));
+  out.append(table('Runs', [{ label: 'Run', cell: (r) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); conOpenRun(r.id); } } }, r.number) }, { label: 'Group', cell: (r) => r.group_code },
+    { label: 'Period', cell: (r) => `${r.period_start} – ${r.period_end}` }, { label: 'Rates', cell: (r) => Object.entries(r.rates || {}).map(([c, x]) => `${c} ${x.closing} / ${x.average}`).join(' · ') || '—' },
+    { label: 'Unmatched intercompany', num: true, cell: (r) => (Number(r.ic_difference) ? h('strong', {}, money(r.ic_difference)) : '0.00') }, { label: 'Status', cell: (r) => chip(r.status) },
+    { label: 'Prepared by', cell: (r) => r.created_by }, { label: 'Approved by', cell: (r) => r.approved_by || '' }], v.runs || [], 'No consolidation yet.'));
+  return out;
+}
+
+async function conOpenRun(id) {
+  const rep = await api('GET', `/v1/consolidation-runs/${id}`);
+  const t = rep.totals || {};
+  const kpi = (val, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, val), h('div', { class: 'k' }, k));
+  const ents = rep.entities || [];
+  const body = h('div', {}, h('h2', {}, `Consolidation ${rep.number}`), h('p', { class: 'hint' }, `Amounts in ${rep.currency}, debit positive · `, chip(rep.status)));
+  const sheet = openSheet(`Consolidation ${rep.number}`, body);
+  sheet.classList.add('wide');
+  body.append(h('div', { class: 'kpis' }, kpi(money(t.assets), 'Assets'), kpi(money(t.liabilities), 'Liabilities'), kpi(money(t.equity), 'Equity'), kpi(money(t.profit), 'Profit for the period'),
+    kpi(money(String(Math.abs(Number(t.suspense || 0)).toFixed(2))), 'Unmatched intercompany', Number(t.suspense || 0) !== 0)));
+  body.append(table('Consolidated trial balance', [{ label: 'Account', cell: (r) => `${r.account_code} ${r.account_name}` }, { label: 'Type', cell: (r) => words(r.account_type) },
+    ...ents.map((e) => ({ label: e, num: true, cell: (r) => (r.by_entity && r.by_entity[e] != null ? money(r.by_entity[e]) : '') })),
+    { label: 'Adjustments', num: true, cell: (r) => (Number(r.adjustments) ? money(r.adjustments) : '') }, { label: 'Eliminations', num: true, cell: (r) => (Number(r.eliminations) ? money(r.eliminations) : '') },
+    { label: 'Group', num: true, cell: (r) => h('strong', {}, money(r.total)) }], rep.trial_balance || [], 'No balances.'));
+  const act = h('div', { class: 'actions' });
+  const go = async (path, payload, msg) => { try { await api('POST', `/v1/consolidation-runs/${id}/${path}`, payload || {}); conDone(msg); closeSheet(); renderConsolidation('runs'); } catch (e) { sheetError(sheet, e); } };
+  const why = (w) => { const x = (prompt(`Why ${w}?`) || '').trim(); if (x.length < 5) { sheetError(sheet, new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return x; };
+  if (rep.status === 'PREPARED' && S.can.has('consolidation.approve')) act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('approve', null, 'Consolidation approved.') } }, 'Approve'),
+    h('button', { type: 'button', class: 'ghost', on: { click: () => { const x = why('reject'); if (x) go('reject', { reason: x }, 'Consolidation rejected.'); } } }, 'Reject…'));
+  if (rep.status === 'PREPARED' && S.can.has('consolidation.manage')) act.append(h('button', { type: 'button', class: 'ghost', on: { click: () => { const x = why('cancel'); if (x) go('cancel', { reason: x }, 'Run cancelled; prepare it again.'); } } }, 'Cancel…'));
+  body.append(h('details', {}, h('summary', {}, 'Every computed line'), table('Lines', [{ label: 'Entity', cell: (l) => l.entity || 'Group' }, { label: 'Account', cell: (l) => `${l.account_code} ${l.account_name}` },
+    { label: 'Kind', cell: (l) => words(l.kind) }, { label: 'Local', num: true, cell: (l) => (Number(l.local_amount) ? money(l.local_amount) : '') }, { label: 'Rate', num: true, cell: (l) => l.rate || '' },
+    { label: 'Amount', num: true, cell: (l) => money(l.amount) }], rep.lines || [], '')), act);
+}
+
+function conGroups(v) {
+  const out = h('div');
+  const decide = async (g, ok) => { try { const body = {}; if (!ok) { const x = (prompt('Why reject?') || '').trim(); if (x.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); body.reason = x; }
+    await api('POST', `/v1/consolidation-groups/${g.id}/${ok ? 'approve' : 'reject'}`, body); conDone(ok ? 'Group approved.' : 'Group rejected.'); renderConsolidation('groups'); } catch (e) { showError(e); } };
+  out.append(table('Groups', [{ label: 'Group', cell: (g) => `${g.code} v${g.version} — ${g.name}` }, { label: 'Currency', cell: (g) => g.presentation_currency },
+    { label: 'Members', cell: (g) => (g.members || []).map((m) => `${m.entity} ${(Number(m.ownership_pct) * 100).toFixed(2).replace(/\.00$/, '')}% ${words(m.method)}`).join(' · ') },
+    { label: 'Status', cell: (g) => chip(g.status) }, { label: 'Proposed by', cell: (g) => g.created_by },
+    { label: '', cell: (g) => (g.status === 'DRAFT' && S.can.has('consolidation.approve') ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: () => decide(g, true) } }, 'Approve'),
+      h('button', { type: 'button', class: 'ghost', on: { click: () => decide(g, false) } }, 'Reject…')) : '') }], v.groups || [], 'No group yet.'));
+  if (S.can.has('consolidation.manage')) {
+    const ents = (v.entities || []).map((e) => ({ value: e.id, label: `${e.name} (${e.functional_currency})` }));
+    const code = input('code', { type: 'text', maxlength: '20', placeholder: 'e.g. SERK' }); const name = input('name', { type: 'text', maxlength: '200' });
+    const ccy = input('presentation_currency', { type: 'text', maxlength: '3', value: ((v.entities || [])[0] || {}).functional_currency || 'ETB' });
+    const parent = select('parent_entity_id', ents);
+    const grid = lineGrid('Members', [{ key: 'legal_entity_id', label: 'Entity', make: () => select('legal_entity_id', ents) },
+      { key: 'ownership_pct', label: 'Ownership (e.g. 0.8)', make: num('ownership_pct', { value: '1' }) },
+      { key: 'method', label: 'Method', make: () => select('method', Object.entries(CON_METHOD).map(([value, label]) => ({ value, label }))) }], ents.map((e) => ({ legal_entity_id: e.value })), true);
+    const b = h('button', { type: 'button', class: 'primary' }, 'Propose group');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/consolidation-groups', { code: code.value.trim().toUpperCase(), name: name.value.trim(), presentation_currency: ccy.value.trim().toUpperCase(), parent_entity_id: parent.value,
+        members: grid.rows().filter((m) => m.legal_entity_id).map((m) => ({ ...m, ownership_pct: m.ownership_pct || '1' })) }); conDone('Group proposed; the CFO approves it.'); renderConsolidation('groups'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Propose a group (or its next version)'), h('p', { class: 'hint' }, 'The parent is a member at 100%, fully consolidated. Approving a new version retires the one in force.'),
+      h('div', { class: 'grid' }, field('Code', code), field('Name', name), field('Group currency', ccy), field('Parent entity', parent)), grid, h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+function conIC(v) {
+  const out = h('div', {}, table('Intercompany accounts', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Account', cell: (x) => `${x.code} ${x.name}` }, { label: 'Role', cell: (x) => words(x.role) },
+    { label: 'Counterparty', cell: (x) => x.counterparty }, { label: 'Status', cell: (x) => chip(x.status || 'PENDING') },
+    { label: '', cell: (x) => (x.status === 'PENDING' && S.can.has('consolidation.approve') && x.created_by !== S.me.user_id ? h('button', { type: 'button', class: 'ghost', on: { click: async () => {
+      try { clearError(); await api('POST', `/v1/intercompany-accounts/${x.id}/approve`); say('Designation approved.'); renderConsolidation('intercompany'); } catch (e) { showError(e); } } } }, 'Approve') : '') }],
+    v.intercompany || [], 'No intercompany account designated.'));
+  if (S.can.has('consolidation.manage')) {
+    const acc = select('account_id', (v.accounts || []).map((a) => ({ value: a.id, label: `${a.entity} · ${a.code} ${a.name} (${words(a.type)})` })));
+    const cp = select('counterparty_entity_id', (v.entities || []).map((e) => ({ value: e.id, label: e.name })));
+    const role = select('role', [['RECEIVABLE', 'Receivable (due from)'], ['PAYABLE', 'Payable (due to)'], ['REVENUE', 'Revenue from the counterparty'], ['EXPENSE', 'Expense to the counterparty']].map(([value, label]) => ({ value, label })));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Designate');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/intercompany-accounts', { account_id: acc.value, counterparty_entity_id: cp.value, role: role.value }); conDone('Account designated.'); renderConsolidation('intercompany'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Designate an intercompany account'), h('p', { class: 'hint' }, 'Balances on these accounts between members are eliminated; what does not match between a pair of entities is shown as an intercompany difference.'),
+      h('div', { class: 'grid' }, field('Account', acc), field('Counterparty', cp), field('Role', role)), h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+// ---------- tax returns and e-invoicing (0063) ----------
+let TAX_FLASH = '';
+function taxDone(msg) { say(msg); TAX_FLASH = msg; }
+const TAX_KIND = { OUTPUT_VAT: 'Output VAT (payable)', INPUT_VAT: 'Input VAT (recoverable)', WHT_PAYABLE: 'Withholding tax payable' };
+async function renderTax(tab) {
+  closeSheet();
+  const v = await api('GET', '/v1/tax');
+  const TABS = [['returns', 'Returns'], ['einvoice', 'E-invoices'], ['accounts', 'Tax accounts']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'returns';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Tax' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/tax/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'accounts' ? taxAccounts(v) : k === 'einvoice' ? taxEInvoices(v) : taxReturns(v)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Tax', 'VAT and withholding returns computed from posted journals, and e-invoice submissions. An accountant prepares and files; the CFO approves with fresh MFA. Amounts are always what the ledger holds.', tabs, content);
+  await show(cur);
+  if (TAX_FLASH) { $('view').insertBefore(h('p', { class: 'notice', role: 'status' }, TAX_FLASH), $('view').children[1]); TAX_FLASH = ''; }
+}
+
+function taxReturns(v) {
+  const out = h('div');
+  const ents = (v.entities || []).map((e) => ({ value: e.id, label: e.name }));
+  if (S.can.has('tax.prepare')) {
+    const ent = select('legal_entity_id', ents); const kind = select('kind', [{ value: 'VAT', label: 'VAT return' }, { value: 'WHT', label: 'Withholding return' }]);
+    const d = new Date(); const iso = (x) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+    const start = input('period_start', { type: 'date', value: iso(new Date(d.getFullYear(), d.getMonth() - 1, 1)) }); const end = input('period_end', { type: 'date', value: iso(new Date(d.getFullYear(), d.getMonth(), 0)) });
+    const b = h('button', { type: 'button', class: 'primary' }, 'Prepare return');
+    b.addEventListener('click', async () => {
+      try { clearError(); const r = await api('POST', '/v1/tax-returns', { legal_entity_id: ent.value, kind: kind.value, period_start: start.value, period_end: end.value }); taxDone('Return prepared; the CFO approves it.'); await renderTax('returns'); await taxOpen(r.id); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Prepare a return'), h('div', { class: 'grid' }, field('Entity', ent), field('Return', kind), field('Period from', start), field('Period to', end)),
+      h('p', { class: 'hint' }, 'Designate the entity’s tax accounts first (Tax accounts tab). Output VAT and withholding are payable; input VAT is recoverable and shown negative.'), h('div', { class: 'actions' }, b)));
+  }
+  out.append(table('Returns', [{ label: 'Return', cell: (r) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); taxOpen(r.id); } } }, r.number) }, { label: 'Entity', cell: (r) => r.entity },
+    { label: 'Type', cell: (r) => r.kind }, { label: 'Period', cell: (r) => `${r.period_start} – ${r.period_end}` }, { label: 'Net payable', num: true, cell: (r) => h('strong', {}, money(r.net)) },
+    { label: 'Status', cell: (r) => chip(r.status) }, { label: 'Filing reference', cell: (r) => r.filing_ref || '' }, { label: 'Prepared by', cell: (r) => r.created_by }], v.returns || [], 'No return yet.'));
+  return out;
+}
+
+async function taxOpen(id) {
+  const v = await api('GET', `/v1/tax?return=${id}`);
+  const r = (v.returns || []).find((x) => x.id === id) || {};
+  const body = h('div', {}, h('h2', {}, `${r.kind} return ${r.number}`), h('p', { class: 'hint' }, `${r.entity} · ${r.period_start} – ${r.period_end} · `, chip(r.status)));
+  const sheet = openSheet(`Tax return ${r.number}`, body);
+  body.append(table('Computed from posted journals', [{ label: 'Account', cell: (l) => `${l.account_code} ${l.account_name}` }, { label: 'Kind', cell: (l) => TAX_KIND[l.tax_kind] || l.tax_kind },
+    { label: 'Amount', num: true, cell: (l) => money(l.amount) }], v.lines || [], ''), h('p', { class: 'hint' }, `Net payable to the authority: ${money(r.net)}.`));
+  const act = h('div', { class: 'actions' });
+  const go = async (path, payload, msg) => { try { await api('POST', `/v1/tax-returns/${id}/${path}`, payload || {}); taxDone(msg); closeSheet(); renderTax('returns'); } catch (e) { sheetError(sheet, e); } };
+  const why = (w) => { const x = (prompt(`Why ${w}?`) || '').trim(); if (x.length < 5) { sheetError(sheet, new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return x; };
+  if (r.status === 'PREPARED' && S.can.has('tax.approve')) act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('approve', null, 'Return approved.') } }, 'Approve'),
+    h('button', { type: 'button', class: 'ghost', on: { click: () => { const x = why('reject'); if (x) go('reject', { reason: x }, 'Return rejected.'); } } }, 'Reject…'));
+  if (r.status === 'PREPARED' && S.can.has('tax.prepare')) act.append(h('button', { type: 'button', class: 'ghost', on: { click: () => { const x = why('cancel'); if (x) go('cancel', { reason: x }, 'Return cancelled.'); } } }, 'Cancel…'));
+  if (r.status === 'APPROVED' && S.can.has('tax.prepare')) {
+    const ref = input('filing_reference', { type: 'text', maxlength: '100', placeholder: 'The authority’s receipt or reference' });
+    body.append(h('div', { class: 'grid' }, field('Filing reference', ref)));
+    act.append(h('button', { type: 'button', class: 'primary', on: { click: () => go('file', { note: ref.value.trim() }, 'Return recorded as filed.') } }, 'Record filing'));
+  }
+  body.append(act);
+}
+
+function taxEInvoices(v) {
+  const submit = async (i) => { try { clearError(); const r = await api('POST', `/v1/customer-invoices/${i.id}/e-invoice`, {}); taxDone(r.status === 'ACCEPTED' ? `Accepted: ${r.reference}` : `Rejected: ${r.response}`); renderTax('einvoice'); } catch (e) { showError(e); } };
+  return h('div', {}, h('p', { class: 'hint' }, 'Approved customer invoices are sent through the e-invoicing adapter. Until the authority’s format is confirmed the adapter is a stand-in that accepts invoices whose customer has a TIN; what was sent is recorded with its hash.'),
+    table('Approved customer invoices', [{ label: 'Invoice', cell: (i) => i.number }, { label: 'Date', cell: (i) => i.invoice_date }, { label: 'Customer', cell: (i) => `${i.customer}${i.tax_id ? '' : ' (no TIN)'}` },
+      { label: 'VAT', num: true, cell: (i) => money(i.vat_amount) }, { label: 'Total', num: true, cell: (i) => money(i.total) }, { label: 'E-invoice', cell: (i) => (i.e_status ? chip(i.e_status) : '') },
+      { label: 'Reference', cell: (i) => i.e_reference || '' }, { label: '', cell: (i) => (i.e_status !== 'ACCEPTED' && S.can.has('tax.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => submit(i) } }, 'Send') : '') }], v.invoices || [], 'No approved invoice.'));
+}
+
+function taxAccounts(v) {
+  // A designation is used only once someone other than its author approved it (0081).
+  const approveTA = async (x) => { try { clearError(); await api('POST', `/v1/tax-accounts/${x.id}/approve`); taxDone('Designation approved.'); renderTax('accounts'); } catch (e) { showError(e); } };
+  const out = h('div', {}, table('Designated tax accounts', [{ label: 'Entity', cell: (x) => x.entity }, { label: 'Account', cell: (x) => `${x.code} ${x.name}` }, { label: 'Kind', cell: (x) => TAX_KIND[x.kind] || x.kind },
+    { label: 'Status', cell: (x) => chip(x.status || 'PENDING') },
+    { label: '', cell: (x) => (x.status === 'PENDING' && S.can.has('tax.approve') && x.created_by !== S.me.user_id ? h('button', { type: 'button', class: 'ghost', on: { click: () => approveTA(x) } }, 'Approve') : '') }], v.tax_accounts || [], 'None designated.'));
+  if (S.can.has('tax.prepare')) {
+    const acc = select('account_id', (v.accounts || []).map((a) => ({ value: a.id, label: `${a.entity} · ${a.code} ${a.name} (${words(a.type)})` })));
+    const kind = select('kind', Object.entries(TAX_KIND).map(([value, label]) => ({ value, label })));
+    const b = h('button', { type: 'button', class: 'primary' }, 'Designate');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/tax-accounts', { account_id: acc.value, kind: kind.value }); taxDone('Account designated.'); renderTax('accounts'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Designate a tax account'), h('p', { class: 'hint' }, 'Output VAT and withholding payable are liability accounts; input VAT is an asset account.'),
+      h('div', { class: 'grid' }, field('Account', acc), field('Kind', kind)), h('div', { class: 'actions' }, b)));
+  }
+  return out;
+}
+
+// ---------- shared page helpers (new-version; its field pages are rebuilt on this branch's tables, ADR 0025) ----------
+let PG_FLASH = '';
+function flash(msg) { say(msg); PG_FLASH = msg; }
+// A page of tabs; the confirmation notice is added after the tab has rendered.
+async function tabbedPage(hashKey, title, lede, TABS, tab, build, head) {
+  closeSheet();
+  let cur = TABS.some(([k]) => k === tab) ? tab : TABS[0][0];
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': title });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/${hashKey}/${k}`);
+    content.textContent = '';
+    try { content.append(await build(k)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page(title, lede, head, tabs, content);
+  await show(cur);
+  if (PG_FLASH) { $('view').insertBefore(h('p', { class: 'notice', role: 'status' }, PG_FLASH), $('view').children[1]); PG_FLASH = ''; }
+}
+const fkpi = (val, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(val)), h('div', { class: 'k' }, k));
+const reasonPrompt = (what) => { const t = (prompt(`Why ${what}?`) || '').trim(); if (t.length < 5) { showError(new ApiError(422, 'validation', 'Give a reason of at least 5 characters.')); return null; } return t; };
+const nowLocal = (plusH = 0) => { const d = new Date(Date.now() + plusH * 3600000); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+
+// ---------- timesheets and health and safety (0076; carried from new-version) ----------
+// ---- timesheets
+async function renderTimesheets(tab) {
+  const TABS = [['record', 'Record a day'], ['list', 'Timesheets']];
+  await tabbedPage('timesheets', 'Timesheets', 'Hours worked per person and day on each project. The site records and submits; a project manager approves; approved hours feed payroll. Nobody is paid for more than 16 approved hours a day or twice for the same project and day.', TABS, tab, async (k) => {
+    if (k === 'list') {
+      const items = (await api('GET', '/v1/p2p/timesheet')).items || [];
+      return table('Timesheets', [{ label: 'Number', cell: (t) => h('a', { href: `#/doc/timesheet/${t.id}` }, t.number) }, { label: 'Day and people', cell: (t) => t.label }, { label: 'Hours', num: true, cell: (t) => String(Number(t.amount)) },
+        { label: 'Status', cell: (t) => chip(t.status) }, { label: 'Recorded by', cell: (t) => t.created_by }], items, 'No timesheet yet.');
+    }
+    const out = h('div');
+    if (!S.can.has('timesheet.record')) return h('p', { class: 'callout' }, 'Recording hours is done by site engineers. Open the Timesheets tab to review and approve.');
+    const proj = select('project_id', opt(S.ref.projects || [], (p) => `${p.code} — ${p.name}`));
+    const date = input('work_date', { type: 'date', value: new Date(Date.now() - 86400000).toISOString().slice(0, 10), max: today() });
+    const notes = input('notes', { type: 'text', maxlength: '300' });
+    const slot = h('div');
+    let roster = [];
+    const paint = async () => {
+      slot.textContent = '';
+      roster = (await api('GET', `/v1/roster?project=${proj.value}`)).employees || [];
+      const emps = roster.map((e) => ({ value: e.id, label: `${e.number} ${e.name}${e.trade ? ' (' + e.trade + ')' : ''}` }));
+      slot.append(slot.grid = lineGrid('Hours', [{ key: 'employee_id', label: 'Person', make: () => select('employee_id', emps) }, { key: 'hours_normal', label: 'Normal hours', make: num('hours_normal', { value: '8' }) },
+        { key: 'hours_ot', label: 'Overtime hours', make: num('hours_ot', { value: '0' }) }], [{}], true));
+    };
+    proj.addEventListener('change', () => paint().catch(showError));
+    await paint();
+    const save = (submit) => async () => {
+      try {
+        clearError();
+        const lines = slot.grid.rows().filter((l) => l.employee_id).map((l) => ({ employee_id: l.employee_id, hours_normal: l.hours_normal || '0', hours_ot: l.hours_ot || '0' }));
+        const r = await api('POST', '/v1/timesheets', { project_id: proj.value, work_date: date.value, notes: notes.value.trim(), lines });
+        if (submit) await api('POST', `/v1/timesheets/${r.id}/submit`, {});
+        flash(submit ? 'Timesheet submitted for approval.' : 'Timesheet saved as a draft.'); renderTimesheets('list');
+      } catch (e) { showError(e); }
+    };
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a day'), h('div', { class: 'grid' }, field('Project', proj), field('Day', date), field('Notes', notes)), slot,
+      h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: save(true) } }, 'Save and submit'), h('button', { type: 'button', class: 'ghost', on: { click: save(false) } }, 'Save as draft'))));
+    return out;
+  });
+}
+
+async function timesheetPanel(d) {
+  const t = await api('GET', `/v1/timesheets/${d.id}`);
+  return table('Hours', [{ label: 'Person', cell: (l) => `${l.number} ${l.name}` }, { label: 'Trade', cell: (l) => l.trade || '' }, { label: 'Cost code', cell: (l) => l.cost_code || '' },
+    { label: 'Normal', num: true, cell: (l) => String(Number(l.hours_normal)) }, { label: 'Overtime', num: true, cell: (l) => String(Number(l.hours_ot)) }], t.lines || [], '');
+}
+
+// ---- health, safety and environment
+async function renderHSE(tab) {
+  const v = await api('GET', '/v1/hse');
+  const k = v.kpi || {};
+  const mgr = S.can.has('hse.manage');
+  const projOpts = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const TABS = [['incidents', 'Incidents'], ['permits', 'Permits to work'], ['people', 'Inductions and talks'], ['certs', 'Certifications'], ['inspections', 'Inspections']];
+  const head = h('div', { class: 'kpis' }, fkpi(k.ltifr == null ? '—' : Number(k.ltifr).toLocaleString(), 'LTIFR (12 months)'), fkpi(k.lost_time_injuries_12m || 0, 'Lost-time injuries', (k.lost_time_injuries_12m || 0) > 0),
+    fkpi((v.incidents || []).filter((i) => i.status !== 'CLOSED').length, 'Open incidents', (v.incidents || []).some((i) => i.status !== 'CLOSED')), fkpi((v.actions || []).filter((a) => a.overdue).length, 'Overdue actions', (v.actions || []).some((a) => a.overdue)),
+    fkpi((v.permits || []).filter((p) => p.in_force).length, 'Permits in force'));
+  await tabbedPage('hse', 'Health, safety and environment', 'Incidents with investigation and verified corrective actions, permits to work that need three different people, site inductions, toolbox talks and inspections. LTIFR = lost-time injuries × 1,000,000 ÷ hours worked (approved timesheets).', TABS, tab, async (t) => {
+    const out = h('div');
+    if (t === 'incidents') {
+      if (S.can.has('hse.report') && projOpts.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Report an incident');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projOpts); const kind = select('kind', ['NEAR_MISS', 'FIRST_AID', 'MEDICAL', 'LOST_TIME', 'FATALITY', 'ENVIRONMENTAL', 'PROPERTY'].map((x) => ({ value: x, label: words(x.toLowerCase()) })));
+          const sev = select('severity', ['MINOR', 'MAJOR', 'CRITICAL'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const at = input('occurred_at', { type: 'datetime-local', value: nowLocal(-1), max: nowLocal(0) });
+          const loc = input('location', { type: 'text', maxlength: '200' }); const desc = input('description', { type: 'text', maxlength: '1000' }); const ppl = input('people_involved', { inputmode: 'numeric', value: '0' }); const lost = input('lost_days', { inputmode: 'numeric', value: '0' });
+          const save = h('button', { type: 'button', class: 'primary' }, 'Report');
+          const sheet = openSheet('Report an incident', h('div', {}, h('h2', {}, 'Report an incident'), h('p', { class: 'hint' }, 'A major or critical incident notifies the HSE officers and project managers at once.')),
+            h('div', { class: 'grid' }, field('Project', pr), field('Kind', kind), field('Severity', sev), field('When', at), field('Where', loc), field('What happened', desc), field('People involved', ppl), field('Days lost', lost)), h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => {
+            try { await api('POST', '/v1/incidents', { project_id: pr.value, kind: kind.value, severity: sev.value, occurred_at: new Date(at.value).toISOString(), location: loc.value.trim(), description: desc.value.trim(), people_involved: Number(ppl.value || 0), lost_days: Number(lost.value || 0) });
+              closeSheet(); flash('Incident reported.'); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); }
+          });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      const open = (i) => {
+        const body = h('div', {}, h('h2', {}, `${i.number} — ${words(i.kind.toLowerCase())}`), h('p', { class: 'hint' }, `${i.project} · ${i.severity.toLowerCase()} · `, chip(i.status)), h('p', {}, i.description));
+        const sheet = openSheet(`Incident ${i.number}`, body);
+        const go = async (path, payload, msg) => { try { await api('POST', `/v1/incidents/${i.id}/${path}`, payload); flash(msg); closeSheet(); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); } };
+        if (i.investigation) body.append(h('p', { class: 'callout' }, `Root cause: ${i.investigation.root_cause}. Findings: ${i.investigation.findings}`));
+        const acts = (v.actions || []).filter((a) => a.incident === i.number);
+        if (acts.length) body.append(table('Corrective actions', [{ label: 'Action', cell: (a) => a.description }, { label: 'Owner', cell: (a) => a.owner_name }, { label: 'Due', cell: (a) => a.due_on }, { label: 'Status', cell: (a) => chip(a.status) },
+          { label: '', cell: (a) => (mgr && ['OPEN', 'DONE'].includes(a.status) ? h('button', { type: 'button', class: 'ghost', on: { click: async () => { try { await api('POST', `/v1/capas/${a.id}/${a.status === 'OPEN' ? 'done' : 'verify'}`, {}); flash(a.status === 'OPEN' ? 'Action marked done.' : 'Action verified.'); closeSheet(); renderHSE('incidents'); } catch (e) { sheetError(sheet, e); } } } }, a.status === 'OPEN' ? 'Mark done' : 'Verify') : '') }], acts, ''));
+        if (mgr && i.status === 'REPORTED') {
+          const rc = input('root_cause', { type: 'text', maxlength: '1000' }); const fi = input('findings', { type: 'text', maxlength: '1000' });
+          body.append(h('div', { class: 'grid' }, field('Root cause', rc), field('Findings', fi)), h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: () => go('investigate', { root_cause: rc.value.trim(), findings: fi.value.trim() }, 'Investigation recorded.') } }, 'Record investigation')));
+        }
+        if (mgr && i.status === 'INVESTIGATING') {
+          const ds = input('description', { type: 'text', maxlength: '500' }); const ow = input('owner_name', { type: 'text', maxlength: '120' }); const du = input('due_on', { type: 'date', value: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10) });
+          const note = input('note', { type: 'text', maxlength: '500' });
+          body.append(h('div', { class: 'grid' }, field('New corrective action', ds), field('Owner', ow), field('Due', du)), h('div', { class: 'actions' }, h('button', { type: 'button', on: { click: () => go('actions', { description: ds.value.trim(), owner_name: ow.value.trim(), due_on: du.value }, 'Action raised.') } }, 'Raise action')),
+            h('div', { class: 'grid' }, field('Closing note', note)), h('div', { class: 'actions' }, h('button', { type: 'button', class: 'primary', on: { click: () => go('close', { note: note.value.trim() }, 'Incident closed.') } }, 'Close incident')),
+            h('p', { class: 'hint' }, 'The reporter cannot close their own incident; every action must be done and verified by a different person first.'));
+        }
+      };
+      out.append(table('Incidents', [{ label: 'Incident', cell: (i) => h('a', { href: '#', on: { click: (e) => { e.preventDefault(); open(i); } } }, i.number) }, { label: 'Project', cell: (i) => i.project }, { label: 'Kind', cell: (i) => words(i.kind.toLowerCase()) },
+        { label: 'Severity', cell: (i) => chip(i.severity) }, { label: 'When', cell: (i) => String(i.occurred_at).slice(0, 16).replace('T', ' ') }, { label: 'Days lost', num: true, cell: (i) => String(i.lost_days) },
+        { label: 'Open actions', num: true, cell: (i) => `${i.open_actions} of ${i.actions}` }, { label: 'Status', cell: (i) => chip(i.status) }], v.incidents || [], 'No incident recorded.'));
+    } else if (t === 'permits') {
+      if (S.can.has('hse.report') && projOpts.length) {
+        const pr = select('project_id', projOpts); const kind = select('kind', ['HOT_WORK', 'CONFINED_SPACE', 'WORK_AT_HEIGHT', 'EXCAVATION', 'ELECTRICAL', 'LIFTING'].map((x) => ({ value: x, label: words(x.toLowerCase()) })));
+        const loc = input('location', { type: 'text', maxlength: '200' }); const desc = input('description', { type: 'text', maxlength: '1000' }); const from = input('valid_from', { type: 'datetime-local', value: nowLocal(0) }); const to = input('valid_to', { type: 'datetime-local', value: nowLocal(8) });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Request permit');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/permits', { project_id: pr.value, kind: kind.value, location: loc.value.trim(), description: desc.value.trim(), valid_from: new Date(from.value).toISOString(), valid_to: new Date(to.value).toISOString() }); flash('Permit requested.'); renderHSE('permits'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Request a permit to work'), h('div', { class: 'grid' }, field('Project', pr), field('Kind', kind), field('Where', loc), field('Work to be done', desc), field('Valid from', from), field('Valid to', to)),
+          h('p', { class: 'hint' }, 'A permit lasts at most 31 days. The requester, the issuer (HSE officer) and the person who accepts it are three different people.'), h('div', { class: 'actions' }, b)));
+      }
+      const step = async (w, path, msg, body) => { try { await api('POST', `/v1/permits/${w.id}/${path}`, body || {}); flash(msg); renderHSE('permits'); } catch (e) { showError(e); } };
+      out.append(table('Permits', [{ label: 'Permit', cell: (w) => w.number }, { label: 'Project', cell: (w) => w.project }, { label: 'Kind', cell: (w) => words(w.kind.toLowerCase()) }, { label: 'Where', cell: (w) => w.location }, { label: 'Work', cell: (w) => w.description },
+        { label: 'Valid', cell: (w) => `${String(w.valid_from).slice(0, 16).replace('T', ' ')} → ${String(w.valid_to).slice(0, 16).replace('T', ' ')}` }, { label: 'Status', cell: (w) => h('span', {}, chip(w.status), w.in_force ? chip('IN FORCE') : '') },
+        { label: '', cell: (w) => h('span', {}, w.status === 'REQUESTED' && mgr ? h('button', { type: 'button', class: 'ghost', on: { click: () => { const c = prompt('Conditions for the work (optional)') || ''; step(w, 'issue', 'Permit issued.', { note: c }); } } }, 'Issue…') : '',
+          w.status === 'ISSUED' && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'accept', 'Permit accepted.') } }, 'Accept') : '',
+          w.status === 'ACCEPTED' && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'close', 'Permit closed.') } }, 'Close') : '',
+          ['REQUESTED', 'ISSUED'].includes(w.status) && S.can.has('hse.report') ? h('button', { type: 'button', class: 'ghost', on: { click: () => step(w, 'cancel', 'Permit cancelled.') } }, 'Cancel') : '') }], v.permits || [], 'No permit yet.'));
+    } else if (t === 'people') {
+      if (mgr) {
+        const gate = h('input', { type: 'checkbox', id: 'gate', checked: k.induction_gate ? 'checked' : null });
+        gate.checked = !!k.induction_gate;
+        gate.addEventListener('change', async () => { try { clearError(); await api('POST', '/v1/hse/induction-gate', { on: gate.checked }); flash(gate.checked ? 'Induction gate on: nobody without a valid induction is submitted on a timesheet.' : 'Induction gate off.'); renderHSE('people'); } catch (e) { showError(e); } });
+        const pr = select('project_id', projOpts); const emp = select('employee_id', []); const roster = async () => { emp.textContent = ''; for (const e of ((await api('GET', `/v1/roster?project=${pr.value}`)).employees || [])) emp.append(h('option', { value: e.id }, `${e.number} ${e.name}`)); };
+        pr.addEventListener('change', () => roster().catch(showError)); await roster();
+        const on = input('inducted_on', { type: 'date', value: today(), max: today() }); const to = input('valid_to', { type: 'date', value: new Date(Date.now() + 365 * 86400000).toISOString().slice(0, 10) }); const tp = input('topics', { type: 'text', maxlength: '300', placeholder: 'Site rules, PPE, emergency…' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record induction');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/inductions', { employee_id: emp.value, project_id: pr.value, inducted_on: on.value, valid_to: to.value, topics: tp.value.trim() }); flash('Induction recorded.'); renderHSE('people'); } catch (e) { showError(e); } });
+        const tpr = select('project_id', projOpts); const th = input('held_on', { type: 'date', value: today(), max: today() }); const tt = input('topic', { type: 'text', maxlength: '300' }); const ta = input('attendees', { inputmode: 'numeric', value: '10' });
+        const tb = h('button', { type: 'button' }, 'Record toolbox talk');
+        tb.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/toolbox-talks', { project_id: tpr.value, held_on: th.value, topic: tt.value.trim(), attendees: Number(ta.value || 0) }); flash('Toolbox talk recorded.'); renderHSE('people'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('label', { class: 'check', for: 'gate' }, gate, ' Induction gate: a timesheet cannot be submitted for anyone without a valid induction on the project')),
+          h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record an induction'), h('div', { class: 'grid' }, field('Project', pr), field('Person', emp), field('Inducted on', on), field('Valid to', to), field('Topics', tp)), h('div', { class: 'actions' }, b)),
+          h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a toolbox talk'), h('div', { class: 'grid' }, field('Project', tpr), field('Held on', th), field('Topic', tt), field('Attendees', ta)), h('div', { class: 'actions' }, tb)));
+      }
+      out.append(table('Inductions', [{ label: 'Person', cell: (i) => `${i.number} ${i.name}` }, { label: 'Project', cell: (i) => i.project }, { label: 'Inducted', cell: (i) => i.inducted_on }, { label: 'Valid to', cell: (i) => i.valid_to },
+        { label: 'Valid', cell: (i) => chip(i.valid ? 'VALID' : 'EXPIRED') }], v.inductions || [], 'No induction recorded.'),
+      table('Toolbox talks', [{ label: 'Project', cell: (i) => i.project }, { label: 'Held on', cell: (i) => i.held_on }, { label: 'Topic', cell: (i) => i.topic }, { label: 'Attendees', num: true, cell: (i) => String(i.attendees) }], v.talks || [], 'No toolbox talk recorded.'));
+    } else if (t === 'certs') {
+      // PPL-05.1 (0086): recorded from the document issued; counts once someone else verified it; expiry shown.
+      const list = (await api('GET', '/v1/certifications')).items || [];
+      if (S.can.has('hse.report') && projOpts.length) {
+        const pr = select('project_id', projOpts); const emp = select('employee_id', []);
+        const roster = async () => { emp.textContent = ''; for (const e of ((await api('GET', `/v1/roster?project=${pr.value}`)).employees || [])) emp.append(h('option', { value: e.id }, `${e.number} ${e.name}`)); };
+        pr.addEventListener('change', () => roster().catch(showError)); await roster();
+        const cat = select('category', [{ value: 'TRAINING', label: 'Safety training' }, { value: 'CERTIFICATE', label: 'Certificate' }]);
+        const kind = input('kind', { type: 'text', maxlength: '40', placeholder: 'e.g. WORKING_AT_HEIGHT', list: 'cert-kinds' });
+        const kinds = h('datalist', { id: 'cert-kinds' }, ...['WORKING_AT_HEIGHT', 'CONFINED_SPACE', 'FIRST_AID', 'FIRE_WARDEN', 'CRANE_OPERATOR', 'RIGGER', 'ELECTRICIAN', 'SCAFFOLDER', 'HOT_WORK'].map((x) => h('option', { value: x })));
+        const title = input('title', { type: 'text', maxlength: '200' }); const issuer = input('issuer', { type: 'text', maxlength: '200' }); const no = input('certificate_no', { type: 'text', maxlength: '80' });
+        const iss = input('issued_on', { type: 'date', max: today() }); const exp = input('expires_on', { type: 'date' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record certification');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/certifications', { employee_id: emp.value, category: cat.value, kind: kind.value.trim(), title: title.value.trim(), issuer: issuer.value.trim(), certificate_no: no.value.trim(), issued_on: iss.value, expires_on: exp.value }); flash('Certification recorded; it counts once someone else verifies it.'); renderHSE('certs'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a certification or training'), kinds,
+          h('div', { class: 'grid' }, field('Project (for the people list)', pr), field('Person', emp), field('Category', cat), field('Kind', kind), field('Title', title), field('Issuer', issuer), field('Certificate number', no), field('Issued on', iss), field('Expires on (optional)', exp)), h('div', { class: 'actions' }, b)));
+      }
+      const act = (c) => {
+        if (!mgr || c.created_by === S.me?.user_id || !['RECORDED', 'VERIFIED'].includes(c.status)) return '';
+        const go = async (path, body, msg) => { try { clearError(); await api('POST', `/v1/certifications/${c.id}/${path}`, body); flash(msg); renderHSE('certs'); } catch (e) { showError(e); } };
+        if (c.status === 'VERIFIED') {
+          const rv = h('button', { type: 'button', 'data-revoke': c.number }, 'Revoke');
+          rv.addEventListener('click', () => { const why = prompt('Why is it revoked?'); if (why) go('revoke', { reason: why }, `${c.number} revoked.`); });
+          return rv;
+        }
+        const ok = h('button', { type: 'button', 'data-verify': c.number }, 'Verify'); const no2 = h('button', { type: 'button' }, 'Reject');
+        ok.addEventListener('click', () => go('verify', { accept: true }, `${c.number} verified.`));
+        no2.addEventListener('click', () => { const why = prompt('Why is it rejected?'); if (why) go('verify', { accept: false, note: why }, `${c.number} rejected.`); });
+        return h('span', { class: 'row-actions' }, ok, no2);
+      };
+      out.append(table('Certifications and training', [{ label: 'Number', cell: (c) => c.number }, { label: 'Person', cell: (c) => `${c.employee_number} ${c.employee}` }, { label: 'Kind', cell: (c) => words(c.kind.toLowerCase()) },
+        { label: 'Title', cell: (c) => c.title }, { label: 'Issuer', cell: (c) => c.issuer }, { label: 'Issued', cell: (c) => c.issued_on }, { label: 'Expires', cell: (c) => c.expires_on || 'No expiry' },
+        { label: 'Standing', cell: (c) => chip(c.standing) }, { label: '', cell: act }], list, 'No certification recorded.'));
+    } else {
+      if (mgr) {
+        const pr = select('project_id', projOpts); const on = input('inspected_on', { type: 'date', value: today(), max: today() }); const ar = input('area', { type: 'text', maxlength: '200' }); const sc = input('score', { inputmode: 'numeric', value: '80' }); const fi = input('findings', { type: 'text', maxlength: '1000' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record inspection');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/safety-inspections', { project_id: pr.value, inspected_on: on.value, area: ar.value.trim(), score: Number(sc.value || 0), findings: fi.value.trim() }); flash('Inspection recorded.'); renderHSE('inspections'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a safety inspection'), h('div', { class: 'grid' }, field('Project', pr), field('Date', on), field('Area', ar), field('Score (0–100)', sc), field('Findings', fi)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Inspections', [{ label: 'Project', cell: (i) => i.project }, { label: 'Date', cell: (i) => i.inspected_on }, { label: 'Area', cell: (i) => i.area }, { label: 'Score', num: true, cell: (i) => String(i.score) }, { label: 'Findings', cell: (i) => i.findings || '' }], v.inspections || [], 'No inspection recorded.'));
+    }
+    return out;
+  }, head);
+}
+
+
+// ---------- quality and site records (0065) ----------
+async function renderQuality(tab) {
+  const v = await api('GET', '/v1/quality');
+  const mgr = S.can.has('quality.manage');
+  const projects = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const openN = (v.ncrs || []).filter((n) => n.status !== 'CLOSED').length;
+  const head = h('div', { class: 'kpis' }, fkpi((v.plans || []).filter((p) => p.status === 'APPROVED').length, 'Approved plans'), fkpi((v.inspections || []).filter((i) => i.status === 'REQUESTED').length, 'Inspections waiting'),
+    fkpi(openN, 'Open non-conformances', openN > 0), fkpi((v.tests || []).filter((t) => !t.passed).length, 'Failed tests', (v.tests || []).some((t) => !t.passed)));
+  const TABS = [['plans', 'Inspection plans'], ['inspections', 'Inspections'], ['ncrs', 'Non-conformances'], ['tests', 'Material tests']];
+  await tabbedPage('quality', 'Quality', 'Inspection and test plans with hold points, inspections, non-conformance reports and material tests. Work on an activity cannot be reported above a hold point until its inspection has passed.', TABS, tab, async (k) => {
+    const out = h('div');
+    const done = (path, msg, body, why) => async () => { try { clearError(); const b = body ? { ...body } : {}; if (why) { const t = reasonPrompt(why); if (!t) return; b.reason = t; } await api('POST', path, b); flash(msg); renderQuality(k); } catch (e) { showError(e); } };
+    if (k === 'plans') {
+      if (mgr && projects.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Prepare a plan');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projects); const title = input('title', { type: 'text', maxlength: '300' }); const act = input('activity_code', { type: 'text', maxlength: '32', placeholder: 'Schedule activity code (for hold points)' });
+          const grid = lineGrid('Items', [{ key: 'description', label: 'What is inspected', make: txt('description', { maxlength: '400' }) },
+            { key: 'kind', label: 'Kind', make: () => select('kind', [{ value: 'HOLD', label: 'Hold point' }, { value: 'WITNESS', label: 'Witness' }, { value: 'REVIEW', label: 'Review' }]) },
+            { key: 'hold_at_percent', label: 'Hold above % progress', make: num('hold_at_percent', { value: '0' }) }], [{}], true);
+          const save = h('button', { type: 'button', class: 'primary' }, 'Save and submit');
+          const sheet = openSheet('Prepare an inspection and test plan', h('div', {}, h('h2', {}, 'Inspection and test plan'), h('p', { class: 'hint' }, 'A hold point stops progress on the activity above the percentage until an inspection of it has passed. A project manager approves the plan.')),
+            h('div', { class: 'grid' }, field('Project', pr), field('Title', title), field('Activity code', act)), grid, h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => {
+            try { const r = await api('POST', '/v1/itps', { project_id: pr.value, title: title.value.trim(), activity_code: act.value.trim(), items: grid.rows().filter((i) => i.description).map((i) => ({ description: i.description, kind: i.kind, hold_at_percent: i.hold_at_percent || '0' })) });
+              await api('POST', `/v1/itps/${r.id}/submit`, {}); closeSheet(); flash('Plan submitted for approval.'); renderQuality('plans'); } catch (e) { sheetError(sheet, e); }
+          });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      out.append(table('Plans', [{ label: 'Plan', cell: (p) => `${p.number}` }, { label: 'Project', cell: (p) => p.project }, { label: 'Title', cell: (p) => p.title }, { label: 'Activity', cell: (p) => p.activity_code || '' },
+        { label: 'Items', cell: (p) => (p.items || []).map((i) => `${i.seq}. ${i.description} (${i.kind.toLowerCase()}${i.kind === 'HOLD' ? (i.passed ? ', released' : ', held') : ''})`).join(' · ') }, { label: 'Status', cell: (p) => chip(p.status) },
+        { label: '', cell: (p) => h('span', {}, p.status === 'SUBMITTED' && S.can.has('quality.approve') ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: done(`/v1/itps/${p.id}/approve`, 'Plan approved.') } }, 'Approve'),
+          h('button', { type: 'button', class: 'ghost', on: { click: done(`/v1/itps/${p.id}/reject`, 'Plan rejected.', null, 'reject') } }, 'Reject…')) : '') }], v.plans || [], 'No plan yet.'));
+    } else if (k === 'inspections') {
+      const approved = (v.plans || []).filter((p) => p.status === 'APPROVED');
+      if ((S.can.has('quality.request') || mgr) && approved.length) {
+        const plan = select('itp_id', approved.map((p) => ({ value: p.id, label: `${p.number} — ${p.title} (${p.project})` }))); const item = select('item_seq', []); const day = input('requested_for', { type: 'date', value: today() }); const loc = input('location', { type: 'text', maxlength: '200' });
+        const paint = () => { item.textContent = ''; const p = approved.find((x) => x.id === plan.value) || { items: [] }; for (const i of p.items || []) item.append(h('option', { value: String(i.seq) }, `${i.seq}. ${i.description} (${i.kind.toLowerCase()})`)); };
+        plan.addEventListener('change', paint); paint();
+        const b = h('button', { type: 'button', class: 'primary' }, 'Request inspection');
+        b.addEventListener('click', async () => { try { clearError(); const p = approved.find((x) => x.id === plan.value); await api('POST', '/v1/inspection-requests', { project_id: p.project_id, itp_id: plan.value, item_seq: Number(item.value), requested_for: day.value, location: loc.value.trim() }); flash('Inspection requested.'); renderQuality('inspections'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Request an inspection'), h('div', { class: 'grid' }, field('Plan', plan), field('Item', item), field('For', day), field('Where', loc)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Inspections', [{ label: 'Request', cell: (i) => i.number }, { label: 'Project', cell: (i) => i.project }, { label: 'Item', cell: (i) => `${i.plan} · ${i.item_seq}. ${i.item} (${i.kind.toLowerCase()})` }, { label: 'For', cell: (i) => i.requested_for },
+        { label: 'Where', cell: (i) => i.location || '' }, { label: 'Status', cell: (i) => chip(i.status) }, { label: 'Result', cell: (i) => i.result_note || '' },
+        { label: '', cell: (i) => (i.status === 'REQUESTED' && mgr ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: done(`/v1/inspection-requests/${i.id}/pass`, 'Inspection passed.') } }, 'Pass'),
+          h('button', { type: 'button', class: 'ghost', on: { click: async () => { const t = reasonPrompt('fail this inspection'); if (!t) return; try { await api('POST', `/v1/inspection-requests/${i.id}/fail`, { note: t }); flash('Inspection failed.'); renderQuality('inspections'); } catch (e) { showError(e); } } } }, 'Fail…')) : '') }], v.inspections || [], 'No inspection yet.'));
+    } else if (k === 'ncrs') {
+      if ((S.can.has('quality.request') || mgr) && projects.length) {
+        const pr = select('project_id', projects); const sev = select('severity', ['MINOR', 'MAJOR', 'CRITICAL'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const loc = input('location', { type: 'text', maxlength: '200' }); const ds = input('description', { type: 'text', maxlength: '1000' });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Raise non-conformance');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/ncrs', { project_id: pr.value, severity: sev.value, location: loc.value.trim(), description: ds.value.trim() }); flash('Non-conformance raised.'); renderQuality('ncrs'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Raise a non-conformance'), h('div', { class: 'grid' }, field('Project', pr), field('Severity', sev), field('Where', loc), field('What is wrong', ds)), h('div', { class: 'actions' }, b)));
+      }
+      const action = (n) => {
+        const rc = input('root_cause', { type: 'text', maxlength: '1000' }); const ca = input('corrective_action', { type: 'text', maxlength: '1000' }); const co = input('cost_impact', { inputmode: 'decimal', value: '0' });
+        const save = h('button', { type: 'button', class: 'primary' }, 'Record action');
+        const sheet = openSheet('Corrective action', h('div', {}, h('h2', {}, `${n.number}`), h('p', {}, n.description)), h('div', { class: 'grid' }, field('Root cause', rc), field('Corrective action', ca), field('Cost impact', co)), h('div', { class: 'actions' }, save));
+        save.addEventListener('click', async () => { try { await api('POST', `/v1/ncrs/${n.id}/action`, { root_cause: rc.value.trim(), corrective_action: ca.value.trim(), cost_impact: co.value.trim() || '0' }); closeSheet(); flash('Action recorded.'); renderQuality('ncrs'); } catch (e) { sheetError(sheet, e); } });
+      };
+      out.append(table('Non-conformances', [{ label: 'Report', cell: (n) => n.number }, { label: 'Project', cell: (n) => n.project }, { label: 'Severity', cell: (n) => chip(n.severity) }, { label: 'What', cell: (n) => `${n.description}${n.from_test ? ' (from a failed test)' : ''}` },
+        { label: 'Action', cell: (n) => n.corrective_action || '' }, { label: 'Cost', num: true, cell: (n) => (Number(n.cost_impact) ? money(n.cost_impact) : '') }, { label: 'Status', cell: (n) => chip(n.status) },
+        { label: '', cell: (n) => h('span', {}, n.status === 'OPEN' && mgr ? h('button', { type: 'button', class: 'ghost', on: { click: () => action(n) } }, 'Record action…') : '',
+          n.status === 'ACTIONED' && S.can.has('quality.approve') ? h('button', { type: 'button', class: 'ghost', on: { click: async () => { const t = reasonPrompt('close — how was it verified'); if (!t) return; try { await api('POST', `/v1/ncrs/${n.id}/close`, { note: t }); flash('Non-conformance closed.'); renderQuality('ncrs'); } catch (e) { showError(e); } } } }, 'Close…') : '') }], v.ncrs || [], 'No non-conformance.'));
+    } else {
+      if (mgr && projects.length) {
+        const pr = select('project_id', projects); const bt = input('batch_ref', { type: 'text', maxlength: '100' }); const tt = input('test_type', { type: 'text', maxlength: '100', placeholder: 'Cube strength 28 days' }); const val = input('value', { inputmode: 'decimal' }); const un = input('unit', { type: 'text', maxlength: '20', value: 'N/mm2' });
+        const mn = input('spec_min', { inputmode: 'decimal' }); const mx = input('spec_max', { inputmode: 'decimal' }); const on = input('tested_on', { type: 'date', value: today(), max: today() });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record test');
+        b.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/material-tests', { project_id: pr.value, batch_ref: bt.value.trim(), test_type: tt.value.trim(), value: val.value.trim(), unit: un.value.trim(), spec_min: mn.value.trim() || null, spec_max: mx.value.trim() || null, tested_on: on.value });
+          flash(r.passed ? 'Test recorded: pass.' : 'Test recorded: FAILED — a non-conformance was raised.'); renderQuality('tests'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record a material test'), h('div', { class: 'grid' }, field('Project', pr), field('Batch', bt), field('Test', tt), field('Result', val), field('Unit', un), field('Specified minimum', mn), field('Specified maximum', mx), field('Tested on', on)),
+          h('p', { class: 'hint' }, 'The database decides pass or fail against the specification; a failure raises a non-conformance automatically.'), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Tests', [{ label: 'Project', cell: (t) => t.project }, { label: 'Batch', cell: (t) => t.batch_ref }, { label: 'Test', cell: (t) => t.test_type }, { label: 'Result', num: true, cell: (t) => `${Number(t.value)} ${t.unit}` },
+        { label: 'Specification', cell: (t) => [t.spec_min != null ? `min ${Number(t.spec_min)}` : '', t.spec_max != null ? `max ${Number(t.spec_max)}` : ''].filter(Boolean).join(' · ') }, { label: 'Tested', cell: (t) => t.tested_on }, { label: 'Outcome', cell: (t) => chip(t.passed ? 'PASSED' : 'FAILED') }], v.tests || [], 'No test recorded.'));
+    }
+    return out;
+  }, head);
+}
+
+async function renderSiteRecords(tab) {
+  const v = await api('GET', '/v1/site-records');
+  const projects = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const head = h('div', { class: 'kpis' }, fkpi((v.punch || []).filter((p) => p.status !== 'CLOSED').length, 'Open punch items'), fkpi((v.punch || []).filter((p) => p.overdue).length, 'Overdue', (v.punch || []).some((p) => p.overdue)),
+    fkpi((v.instructions || []).filter((i) => i.status === 'ISSUED').length, 'Instructions to acknowledge'), fkpi((v.meetings || []).flatMap((m) => m.actions || []).filter((a) => a.overdue).length, 'Overdue meeting actions'));
+  const TABS = [['punch', 'Punch list'], ['instructions', 'Site instructions'], ['meetings', 'Meetings']];
+  await tabbedPage('siterecords', 'Site records', 'Punch lists, instructions to the site and meeting minutes with their actions. Whoever fixes a punch item cannot close it; whoever issues an instruction cannot acknowledge it; issued minutes never change.', TABS, tab, async (k) => {
+    const out = h('div');
+    const act = (path, msg, tabName) => async () => { try { clearError(); await api('POST', path, {}); flash(msg); renderSiteRecords(tabName); } catch (e) { showError(e); } };
+    if (k === 'punch') {
+      if (S.can.has('site.record') && projects.length) {
+        const pr = select('project_id', projects); const loc = input('location', { type: 'text', maxlength: '200' }); const ds = input('description', { type: 'text', maxlength: '1000' }); const as = input('assignee', { type: 'text', maxlength: '120' });
+        const pri = select('priority', ['LOW', 'MEDIUM', 'HIGH'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const due = input('due_on', { type: 'date', value: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Raise item');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/punch-items', { project_id: pr.value, location: loc.value.trim(), description: ds.value.trim(), assignee: as.value.trim(), priority: pri.value, due_on: due.value }); flash('Punch item raised.'); renderSiteRecords('punch'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Raise a punch item'), h('div', { class: 'grid' }, field('Project', pr), field('Where', loc), field('What', ds), field('Assigned to', as), field('Priority', pri), field('Due', due)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Punch list', [{ label: 'Item', cell: (p) => p.number }, { label: 'Project', cell: (p) => p.project }, { label: 'Where', cell: (p) => p.location }, { label: 'What', cell: (p) => p.description }, { label: 'Assigned', cell: (p) => p.assignee || '' },
+        { label: 'Priority', cell: (p) => chip(p.priority) }, { label: 'Due', cell: (p) => (p.due_on ? p.due_on : '') + (p.overdue ? ' — overdue' : '') }, { label: 'Status', cell: (p) => chip(p.status) },
+        { label: '', cell: (p) => h('span', {}, p.status === 'OPEN' ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/punch-items/${p.id}/fix`, 'Marked as fixed.', 'punch') } }, 'Mark fixed') : '',
+          p.status === 'FIXED' ? h('span', {}, h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/punch-items/${p.id}/close`, 'Item closed.', 'punch') } }, 'Close'), h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/punch-items/${p.id}/reopen`, 'Item reopened.', 'punch') } }, 'Reopen')) : '') }], v.punch || [], 'No punch item.'));
+    } else if (k === 'instructions') {
+      if (S.can.has('site.instruct') && projects.length) {
+        const pr = select('project_id', projects); const ti = input('title', { type: 'text', maxlength: '300' }); const bo = input('body', { type: 'text', maxlength: '4000' });
+        const ce = select('change_event_id', [{ value: '', label: 'No change event' }, ...(v.change_events || []).map((c) => ({ value: c.id, label: `${c.number} — ${c.title}` }))]);
+        const b = h('button', { type: 'button', class: 'primary' }, 'Issue instruction');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/site-instructions', { project_id: pr.value, title: ti.value.trim(), body: bo.value.trim(), change_event_id: ce.value }); flash('Instruction issued.'); renderSiteRecords('instructions'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Issue a site instruction'), h('div', { class: 'grid' }, field('Project', pr), field('Title', ti), field('Instruction', bo), field('Linked change event', ce)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Site instructions', [{ label: 'Instruction', cell: (i) => i.number }, { label: 'Project', cell: (i) => i.project }, { label: 'Title', cell: (i) => i.title }, { label: 'Instruction', cell: (i) => i.body }, { label: 'Change event', cell: (i) => i.change_event || '' },
+        { label: 'Issued by', cell: (i) => i.issued_by }, { label: 'Status', cell: (i) => chip(i.status) }, { label: '', cell: (i) => h('span', {}, i.status === 'ISSUED' && S.can.has('site.record') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/site-instructions/${i.id}/acknowledge`, 'Instruction acknowledged.', 'instructions') } }, 'Acknowledge') : '',
+          i.status === 'ACKNOWLEDGED' && S.can.has('site.instruct') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/site-instructions/${i.id}/close`, 'Instruction closed.', 'instructions') } }, 'Close') : '') }], v.instructions || [], 'No instruction.'));
+    } else {
+      if (S.can.has('site.record') && projects.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record a meeting');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projects); const kind = select('kind', ['PROGRESS', 'DESIGN', 'SAFETY', 'CLIENT', 'COORDINATION'].map((x) => ({ value: x, label: words(x.toLowerCase()) }))); const ti = input('title', { type: 'text', maxlength: '300' });
+          const on = input('held_on', { type: 'date', value: today(), max: today() }); const at = input('attendees', { type: 'text', maxlength: '500' }); const mi = input('minutes', { type: 'text', maxlength: '4000' });
+          const grid = lineGrid('Actions', [{ key: 'description', label: 'Action', make: txt('description', { maxlength: '400' }) }, { key: 'owner_name', label: 'Owner', make: txt('owner_name', { maxlength: '120' }) }, { key: 'due_on', label: 'Due', make: () => input('due_on', { type: 'date', value: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10) }) }], [{}], true);
+          const save = h('button', { type: 'button', class: 'primary' }, 'Save and issue');
+          const sheet = openSheet('Record a meeting', h('div', {}, h('h2', {}, 'Meeting minutes'), h('p', { class: 'hint' }, 'Issued minutes never change; correct them with a new meeting record.')), h('div', { class: 'grid' }, field('Project', pr), field('Kind', kind), field('Title', ti), field('Held on', on), field('Attendees', at), field('Minutes', mi)), grid, h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => { try { const r = await api('POST', '/v1/meetings', { project_id: pr.value, kind: kind.value, title: ti.value.trim(), held_on: on.value, attendees: at.value.trim(), minutes: mi.value.trim(), actions: grid.rows().filter((a) => a.description && a.owner_name) });
+            await api('POST', `/v1/meetings/${r.id}/issue`, {}); closeSheet(); flash('Minutes issued.'); renderSiteRecords('meetings'); } catch (e) { sheetError(sheet, e); } });
+        });
+        out.append(h('div', { class: 'toolbar' }, b));
+      }
+      for (const m of v.meetings || []) {
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${m.number} — ${m.title}`), h('p', { class: 'hint' }, `${m.project} · ${words(m.kind.toLowerCase())} · ${m.held_on} · `, chip(m.status)), h('p', {}, m.minutes),
+          (m.actions || []).length ? table('Actions', [{ label: 'Action', cell: (a) => a.description }, { label: 'Owner', cell: (a) => a.owner_name }, { label: 'Due', cell: (a) => a.due_on + (a.overdue ? ' — overdue' : '') }, { label: 'Status', cell: (a) => chip(a.status) },
+            { label: '', cell: (a) => (a.status === 'OPEN' && S.can.has('site.record') ? h('button', { type: 'button', class: 'ghost', on: { click: act(`/v1/meeting-actions/${a.id}/done`, 'Action done.', 'meetings') } }, 'Mark done') : '') }], m.actions, '') : null));
+      }
+      if (!(v.meetings || []).length) out.append(h('p', { class: 'callout' }, 'No meeting recorded.'));
+    }
+    return out;
+  }, head);
+}
+
+// ---------- rules of credit and installed quantities (0067) ----------
+async function renderCredit(tab) {
+  const v = await api('GET', '/v1/credit');
+  const projects = (v.projects || []).map((p) => ({ value: p.id, label: `${p.code} — ${p.name}` }));
+  const rules = v.rules || [];
+  const head = h('div', { class: 'kpis' }, fkpi(rules.filter((r) => r.status === 'APPROVED').length, 'Rules in force'), fkpi(rules.filter((r) => r.status === 'DRAFT').length, 'Rules to approve'),
+    fkpi((v.installed || []).length, 'Installed records'));
+  const TABS = [['rules', 'Rules of credit'], ['installed', 'Installed quantities']];
+  await tabbedPage('credit', 'Progress credit', 'Each activity is split into weighted steps. The site ticks off steps as they are finished; the database computes the percent complete, and the planner turns the percentages into a progress record. Quantities actually installed are kept alongside.', TABS, tab, async (k) => {
+    const out = h('div');
+    if (k === 'rules') {
+      if (S.can.has('credit.manage') && projects.length) {
+        const b = h('button', { type: 'button', class: 'primary' }, 'Prepare a rule');
+        b.addEventListener('click', () => {
+          const pr = select('project_id', projects); const act = input('activity_code', { type: 'text', maxlength: '32', placeholder: 'Schedule activity code' }); const nm = input('name', { type: 'text', maxlength: '200' });
+          const grid = lineGrid('Steps (weights add up to 100)', [{ key: 'name', label: 'Step', make: txt('name', { maxlength: '200' }) }, { key: 'weight', label: 'Weight', make: num('weight') }],
+            [{ name: 'Formwork', weight: '20' }, { name: 'Reinforcement', weight: '30' }, { name: 'Concrete pour', weight: '40' }, { name: 'Curing', weight: '10' }], true);
+          const save = h('button', { type: 'button', class: 'primary' }, 'Save');
+          const sheet = openSheet('Prepare a rule of credit', h('div', {}, h('h2', {}, 'Rule of credit'), h('p', { class: 'hint' }, 'A project manager approves the rule. Steps are completed in order.')), h('div', { class: 'grid' }, field('Project', pr), field('Activity code', act), field('Name', nm)), grid, h('div', { class: 'actions' }, save));
+          save.addEventListener('click', async () => { try { await api('POST', '/v1/credit-rules', { project_id: pr.value, activity_code: act.value.trim(), name: nm.value.trim(), steps: grid.rows().filter((s) => s.name).map((s) => ({ name: s.name, weight: s.weight || '0' })) }); closeSheet(); flash('Rule prepared; a project manager approves it.'); renderCredit('rules'); } catch (e) { sheetError(sheet, e); } });
+        });
+        const pbtn = h('button', { type: 'button' }, 'Create progress record from the steps');
+        pbtn.addEventListener('click', async () => { try { clearError(); const pr = projects[0]; const r = await api('POST', '/v1/progress-from-rules', { project_id: (rules.find((x) => x.status === 'APPROVED') || { project_id: pr.value }).project_id, status_date: today() }); flash('Draft progress record created; approve it under Schedules.'); renderCredit('rules'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'toolbar' }, b, pbtn));
+      }
+      const approve = async (r) => { try { clearError(); await api('POST', `/v1/credit-rules/${r.id}/approve`, {}); flash('Rule approved.'); renderCredit('rules'); } catch (e) { showError(e); } };
+      const tick = async (r, st) => { try { clearError(); await api('POST', `/v1/credit-rules/${r.id}/steps/${st.seq}/complete`, { completed_on: today() }); flash(`Step “${st.name}” recorded as complete.`); renderCredit('rules'); } catch (e) { showError(e); } };
+      for (const r of rules) {
+        const nextStep = (r.steps || []).find((s) => !s.completed_on);
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, `${r.project} · ${r.activity_code} — ${r.name}`), h('p', { class: 'hint' }, chip(r.status), ` ${Number(r.percent)}% complete`),
+          table('Steps', [{ label: '#', cell: (s) => String(s.seq) }, { label: 'Step', cell: (s) => s.name }, { label: 'Weight', num: true, cell: (s) => `${Number(s.weight)}%` }, { label: 'Done', cell: (s) => s.completed_on || '' }], r.steps || [], ''),
+          h('div', { class: 'actions' }, r.status === 'DRAFT' && S.can.has('credit.approve') ? h('button', { type: 'button', class: 'primary', on: { click: () => approve(r) } }, 'Approve rule') : '',
+            r.status === 'APPROVED' && nextStep && S.can.has('credit.record') ? h('button', { type: 'button', class: 'primary', on: { click: () => tick(r, nextStep) } }, `Complete “${nextStep.name}”`) : '')));
+      }
+      if (!rules.length) out.append(h('p', { class: 'callout' }, 'No rule of credit yet.'));
+    } else {
+      if (S.can.has('credit.record') && projects.length) {
+        const pr = select('project_id', projects); const act = input('activity_code', { type: 'text', maxlength: '32' }); const ds = input('description', { type: 'text', maxlength: '300' }); const q = input('quantity', { inputmode: 'decimal' }); const un = input('unit', { type: 'text', maxlength: '20', value: 'm3' }); const on = input('installed_on', { type: 'date', value: today(), max: today() });
+        const b = h('button', { type: 'button', class: 'primary' }, 'Record');
+        b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/installed-quantities', { project_id: pr.value, activity_code: act.value.trim(), description: ds.value.trim(), quantity: q.value.trim(), unit: un.value.trim(), installed_on: on.value }); flash('Installed quantity recorded.'); renderCredit('installed'); } catch (e) { showError(e); } });
+        out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Record installed quantity'), h('div', { class: 'grid' }, field('Project', pr), field('Activity code', act), field('What', ds), field('Quantity', q), field('Unit', un), field('Installed on', on)), h('div', { class: 'actions' }, b)));
+      }
+      out.append(table('Installed quantities', [{ label: 'Project', cell: (i) => i.project }, { label: 'Activity', cell: (i) => i.activity_code }, { label: 'What', cell: (i) => i.description }, { label: 'Quantity', num: true, cell: (i) => `${Number(i.quantity)} ${i.unit}` },
+        { label: 'Cumulative', num: true, cell: (i) => `${Number(i.cumulative)} ${i.unit}` }, { label: 'On', cell: (i) => i.installed_on }, { label: 'By', cell: (i) => i.recorded_by }], v.installed || [], 'Nothing recorded.'));
+    }
+    return out;
+  }, head);
+}
+
+// ---------- period end (0058) ----------
+function journalLinesGrid(legend) {
+  const accts = (S.ref.accounts || []).map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+  return lineGrid(legend, [
+    { key: 'account_id', label: 'Account', make: () => select('account_id', accts) },
+    { key: 'side', label: 'Side', make: () => select('side', [{ value: 'DEBIT', label: 'Debit' }, { value: 'CREDIT', label: 'Credit' }]) },
+    { key: 'amount', label: 'Amount', make: num('amount') }, { key: 'memo', label: 'Memo', make: txt('memo', { maxlength: '200' }) }], [{ side: 'DEBIT' }, { side: 'CREDIT' }], true);
+}
+
+async function renderPeriodEnd(tab) {
+  closeSheet();
+  const ent = (S.ref.legal_entities || [])[0] || {};
+  const v = await api('GET', '/v1/period-end');
+  const TABS = [['calendar', 'Fiscal calendar'], ['recurring', 'Recurring journals'], ['accruals', 'Accruals'], ['overhead', 'Overhead allocation']];
+  let cur = TABS.some(([k]) => k === tab) ? tab : 'calendar';
+  const content = h('div', { role: 'tabpanel' });
+  const tabs = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Period end' });
+  const show = async (k) => {
+    cur = k;
+    for (const b of tabs.children) b.setAttribute('aria-selected', String(b.dataset.k === k));
+    history.replaceState(null, '', `#/periodend/${k}`);
+    content.textContent = '';
+    try { content.append(k === 'recurring' ? peRecurring(v, ent) : k === 'accruals' ? peAccruals(v, ent) : k === 'overhead' ? peOverhead(v, ent) : await peCalendar(ent)); } catch (e) { showError(e); }
+  };
+  for (const [k, label] of TABS) tabs.append(h('button', { type: 'button', role: 'tab', 'data-k': k, on: { click: () => show(k) } }, label));
+  page('Period end', 'The fiscal calendar, journals that repeat every month, accruals that reverse themselves, and overhead spread over projects. Every journal made here is a draft that finance approves and a different person posts.', tabs, content);
+  await show(cur);
+}
+
+async function peCalendar(ent) {
+  const ps = (await api('GET', `/v1/fiscal-periods?entity=${ent.id}`)).periods;
+  const out = h('div');
+  if (S.can.has('period.close')) {
+    const cal = select('calendar', [{ value: 'ETHIOPIAN', label: 'Ethiopian (Hamle to Sene)' }, { value: 'GREGORIAN', label: 'Gregorian (January to December)' }]);
+    const year = input('year', { inputmode: 'numeric', value: '2020' });
+    const hint = h('p', { class: 'hint' });
+    const paint = () => { hint.textContent = cal.value === 'ETHIOPIAN' ? `EFY ${year.value} runs from 1 Hamle ${Number(year.value) - 1} to 30 Sene ${year.value}; Pagume is part of Nehase.` : `FY ${year.value}: twelve calendar months.`; };
+    cal.addEventListener('change', paint); year.addEventListener('input', paint); paint();
+    const b = h('button', { type: 'button', class: 'primary' }, 'Generate the year');
+    b.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/fiscal-years', { legal_entity_id: ent.id, calendar: cal.value, year: Number(year.value) }); say(`${r.periods.length} periods created.`); renderPeriodEnd('calendar'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Generate a fiscal year'), h('div', { class: 'grid' }, field('Calendar', cal), field('Year', year)), hint, h('div', { class: 'actions' }, b)));
+  }
+  out.append(table(`${ps.length} periods`, [{ label: 'Period', cell: (x) => x.name }, { label: 'From', cell: (x) => x.starts_on }, { label: 'To', cell: (x) => x.ends_on }, { label: 'Status', cell: (x) => chip(x.status) }], ps, 'No period.'));
+  return out;
+}
+
+function peRecurring(v, ent) {
+  const out = h('div');
+  if (S.can.has('journal.create')) {
+    const name = input('name', { type: 'text', maxlength: '200', placeholder: 'e.g. Yard rent' });
+    const first = input('first_run_on', { type: 'date', value: today() }); const ends = input('ends_on', { type: 'date' });
+    const grid = journalLinesGrid('Lines (debits equal credits)');
+    const b = h('button', { type: 'button', class: 'primary' }, 'Save recurring journal');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/recurring-journals', { legal_entity_id: ent.id, name: name.value.trim(), first_run_on: first.value, ends_on: ends.value, lines: grid.rows().filter((r) => r.amount) }); say('Recurring journal saved.'); renderPeriodEnd('recurring'); } catch (e) { showError(e); }
+    });
+    const run = h('button', { type: 'button' }, 'Create the journals due today');
+    run.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/recurring-journals/run', { as_of: today() }); say(`${r.journals.length} journal(s) created as drafts.`); renderPeriodEnd('recurring'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'toolbar' }, run), h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'New recurring journal'),
+      h('p', { class: 'hint' }, 'The first date sets the day of the month (1 to 28). Someone other than you approves the template, with a fresh second factor; then each date creates one draft journal, once.'),
+      h('div', { class: 'grid' }, field('Name', name), field('First date', first), field('Ends on (optional)', ends)), grid, h('div', { class: 'actions' }, b)));
+  }
+  out.append(table('Recurring journals', [{ label: 'Number', cell: (x) => x.number }, { label: 'Name', cell: (x) => x.name }, { label: 'Amount', num: true, cell: (x) => money(x.amount) },
+    { label: 'Next date', cell: (x) => x.next_run_on }, { label: 'Ends', cell: (x) => x.ends_on || '' }, { label: 'Journals made', num: true, cell: (x) => String(x.runs) }, { label: 'Status', cell: (x) => chip(x.status) },
+    { label: 'Approval', cell: (x) => recurringApproval(x) }], v.recurring, 'No recurring journal.'));
+  return out;
+}
+
+// DEF-013: a template runs only once someone other than its maker approved it (journal.approve, fresh MFA).
+function recurringApproval(x) {
+  if (x.approved_by) return h('span', {}, `Approved by ${x.approved_by}`);
+  if (!S.can.has('journal.approve') || x.status !== 'ACTIVE' || x.created_by === S.me?.user_id) return chip('PENDING');
+  const b = h('button', { type: 'button', 'data-approve-recurring': x.number }, 'Approve');
+  b.addEventListener('click', async () => {
+    try { clearError(); b.disabled = true; await api('POST', `/v1/recurring-journals/${x.id}/approve`, {}); say(`${x.number} approved.`); renderPeriodEnd('recurring'); } catch (e) { b.disabled = false; showError(e); }
+  });
+  return b;
+}
+
+function peAccruals(v, ent) {
+  const out = h('div');
+  if (S.can.has('journal.create')) {
+    const desc = input('description', { type: 'text', maxlength: '200', placeholder: 'What was received or incurred and not yet invoiced' });
+    const d = input('date', { type: 'date', value: today() }); const rev = input('reverse_on', { type: 'date', value: plusDays(1) });
+    const grid = journalLinesGrid('Lines (debits equal credits)');
+    const b = h('button', { type: 'button', class: 'primary' }, 'Create accrual');
+    b.addEventListener('click', async () => {
+      try { clearError(); await api('POST', '/v1/accruals', { legal_entity_id: ent.id, description: desc.value.trim(), date: d.value, reverse_on: rev.value, lines: grid.rows().filter((r) => r.amount) }); say('Accrual created as a draft journal.'); renderPeriodEnd('accruals'); } catch (e) { showError(e); }
+    });
+    out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'New accrual'), h('p', { class: 'hint' }, 'Once the accrual is posted, its reversal is created on the reversal date (normally the first day of the next period).'),
+      h('div', { class: 'grid' }, field('Description', desc), field('Date', d), field('Reverse on', rev)), grid, h('div', { class: 'actions' }, b)));
+  }
+  if (S.can.has('journal.reverse')) {
+    const run = h('button', { type: 'button' }, 'Create the reversals due today');
+    run.addEventListener('click', async () => { try { clearError(); const r = await api('POST', '/v1/accruals/reverse-due', { as_of: today() }); say(`${r.journals.length} reversal(s) created as drafts.`); renderPeriodEnd('accruals'); } catch (e) { showError(e); } });
+    out.append(h('div', { class: 'toolbar' }, run));
+  }
+  out.append(table('Accruals', [{ label: 'Description', cell: (x) => x.description }, { label: 'Date', cell: (x) => x.date }, { label: 'Amount', num: true, cell: (x) => money(x.amount) },
+    { label: 'Journal', cell: (x) => chip(x.journal_status) }, { label: 'Reverses on', cell: (x) => x.reverse_on }, { label: 'Reversal', cell: (x) => (x.reversal_status ? chip(x.reversal_status) : h('span', { class: 'hint' }, 'not yet')) }], v.accruals, 'No accrual.'));
+  return out;
+}
+
+function peOverhead(v, ent) {
+  const out = h('div');
+  const exp = (S.ref.accounts || []).filter((a) => a.kind === 'EXPENSE').map((a) => ({ value: a.id, label: `${a.code} ${a.name}` }));
+  const pool = select('pool_account_id', exp); const target = select('target_account_id', exp);
+  const from = input('from', { type: 'date', value: today().slice(0, 8) + '01' }); const to = input('to', { type: 'date', value: today() });
+  const body = h('div', { 'aria-live': 'polite' });
+  const preview = h('button', { type: 'button' }, 'Preview');
+  preview.addEventListener('click', async () => {
+    try {
+      clearError(); body.textContent = '';
+      const r = await api('GET', `/v1/overhead/preview?entity=${ent.id}&from=${from.value}&to=${to.value}&pool=${pool.value}&target=${target.value}`);
+      const total = r.shares.reduce((t, x) => t + Number(x.share), 0);
+      body.append(table(`Shares of ${money(String(total.toFixed(2)))}`, [{ label: 'Project', cell: (x) => x.project }, { label: 'Posted direct cost', num: true, cell: (x) => money(x.direct_cost) }, { label: 'Share', num: true, cell: (x) => h('strong', {}, money(x.share)) }], r.shares, 'Nothing to allocate in this range.'));
+      if (r.shares.length && S.can.has('journal.create')) {
+        const go = h('button', { type: 'button', class: 'primary' }, 'Allocate (one draft journal per project)');
+        go.addEventListener('click', async () => { try { await api('POST', '/v1/overhead-allocations', { legal_entity_id: ent.id, from: from.value, to: to.value, pool_account_id: pool.value, target_account_id: target.value }); say('Overhead allocated; the journals wait for finance.'); renderPeriodEnd('overhead'); } catch (e) { showError(e); } });
+        body.append(h('div', { class: 'actions' }, go));
+      }
+    } catch (e) { showError(e); }
+  });
+  out.append(h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Allocate overhead'), h('p', { class: 'hint' }, 'The pool’s posted balance in the range is spread over projects in proportion to their posted direct cost (other expense accounts). Each project receives a draft journal: Dr the overhead-applied account / Cr the pool.'),
+    h('div', { class: 'grid' }, field('Overhead pool', pool), field('Overhead applied (project cost)', target), field('From', from), field('To', to)), h('div', { class: 'actions' }, preview), body),
+  table('Allocations', [{ label: 'Number', cell: (x) => x.number }, { label: 'From', cell: (x) => x.period_from }, { label: 'To', cell: (x) => x.period_to }, { label: 'Pool', cell: (x) => x.pool },
+    { label: 'Amount', num: true, cell: (x) => money(x.amount) }, { label: 'Projects', num: true, cell: (x) => String(x.projects) }], v.overhead, 'No allocation yet.'));
+  return out;
+}
+
+// ---------- cash forecast (0059) ----------
+async function renderCash() {
+  closeSheet();
+  const ent = (S.ref.legal_entities || [])[0] || {};
+  const fc = await api('GET', `/v1/cash-forecast?entity=${ent.id}`);
+  const n = (x) => Number(x || 0);
+  const kpi = (v, k, warn) => h('div', { class: `kpi${warn ? ' warnk' : ''}` }, h('div', { class: 'v' }, v), h('div', { class: 'k' }, k));
+  const short = (x) => money(String(Math.round(n(x)))).replace(/\.00$/, '');
+  const last = fc.weeks[fc.weeks.length - 1] || {};
+  const kpis = h('div', { class: 'kpis' }, kpi(short(fc.opening_cash), `Cash now (${fc.currency})`), kpi(short(last.closing), 'In 13 weeks'),
+    kpi(short(fc.lowest_closing), `Lowest (week ${fc.lowest_week + 1})`, n(fc.lowest_closing) < 0), kpi(short(fc.net_after_horizon), 'After 13 weeks (net)'));
+  // Chart: inflows up, outflows down (confirmed solid, forecast light), closing balance line.
+  const W = 760; const H = 260; const L = 60; const R = 12; const T = 14; const B = 30;
+  const mid = (H - B + T) / 2;
+  const maxBar = Math.max(1, ...fc.weeks.flatMap((w) => [n(w.in_confirmed) + n(w.in_forecast), n(w.out_confirmed) + n(w.out_forecast)]));
+  const bals = fc.weeks.map((w) => n(w.closing));
+  const bmin = Math.min(0, n(fc.opening_cash), ...bals); const bmax = Math.max(n(fc.opening_cash), ...bals, 1);
+  const bw = (W - L - R) / fc.weeks.length;
+  const ybar = (v) => (v / maxBar) * (mid - T - 4);
+  const ybal = (v) => H - B - ((v - bmin) / (bmax - bmin || 1)) * (H - B - T);
+  const g = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'cchart', role: 'img', 'aria-label': `Cash forecast: ${short(fc.opening_cash)} now, ${short(last.closing)} in 13 weeks, lowest ${short(fc.lowest_closing)} in week ${fc.lowest_week + 1}.` });
+  g.append(svg('line', { x1: L, x2: W - R, y1: mid, y2: mid, class: 'axis' }));
+  fc.weeks.forEach((w, i) => {
+    const x = L + i * bw + bw * 0.18; const wd = bw * 0.64;
+    let y = mid;
+    for (const [v, cls] of [[n(w.in_confirmed), 'inc'], [n(w.in_forecast), 'inf']]) { const hgt = ybar(v); if (hgt > 0) g.append(svg('rect', { x, y: y - hgt, width: wd, height: hgt, class: cls }, svg('title', {}, `Week ${i + 1} in: ${money(String(v))}`))); y -= hgt; }
+    y = mid;
+    for (const [v, cls] of [[n(w.out_confirmed), 'outc'], [n(w.out_forecast), 'outf']]) { const hgt = ybar(v); if (hgt > 0) g.append(svg('rect', { x, y, width: wd, height: hgt, class: cls }, svg('title', {}, `Week ${i + 1} out: ${money(String(v))}`))); y += hgt; }
+    if (i % 2 === 0) g.append(svg('text', { x: L + i * bw + bw / 2, y: H - 10, class: 'ax', 'text-anchor': 'middle' }, w.start.slice(5)));
+  });
+  const pts = fc.weeks.map((w, i) => `${(L + i * bw + bw / 2).toFixed(1)},${ybal(n(w.closing)).toFixed(1)}`).join(' ');
+  g.append(svg('polyline', { points: pts, class: 'bal' }, svg('title', {}, 'Closing cash balance')));
+  if (bmin < 0) g.append(svg('line', { x1: L, x2: W - R, y1: ybal(0), y2: ybal(0), class: 'zero' }));
+  for (const v of [...new Set([bmax, 0, bmin])]) g.append(svg('text', { x: L - 6, y: ybal(v) + 4, class: 'ax', 'text-anchor': 'end' }, `${(v / 1e6).toFixed(1)}M`));
+  const key = (cls, label) => h('span', { class: `ckey ${cls}` }, label);
+  const weeks = table('Week by week', [{ label: 'Week', cell: (w) => `${fc.weeks.indexOf(w) + 1} · ${w.start}` },
+    { label: 'In: confirmed', num: true, cell: (w) => money(w.in_confirmed) }, { label: 'In: forecast', num: true, cell: (w) => money(w.in_forecast) },
+    { label: 'Out: confirmed', num: true, cell: (w) => money(w.out_confirmed) }, { label: 'Out: forecast', num: true, cell: (w) => money(w.out_forecast) },
+    { label: 'Net', num: true, cell: (w) => h('span', { class: n(w.net) < 0 ? 'delta up' : '' }, money(w.net)) }, { label: 'Closing', num: true, cell: (w) => h('strong', { class: n(w.closing) < 0 ? 'delta up' : '' }, money(w.closing)) }], fc.weeks);
+  const items = table('What makes up the forecast', [{ label: 'Date', cell: (it) => it.date }, { label: 'Week', num: true, cell: (it) => (it.week < 0 ? 'later' : String(it.week + 1)) },
+    { label: 'Source', cell: (it) => it.source }, { label: 'Item', cell: (it) => (it.href ? h('a', { href: it.href }, it.label) : it.label) },
+    { label: 'Confidence', cell: (it) => chip(it.confidence) }, { label: 'In', num: true, cell: (it) => (it.direction === 'IN' ? money(it.amount) : '') }, { label: 'Out', num: true, cell: (it) => (it.direction === 'OUT' ? money(it.amount) : '') }],
+    [...fc.items].sort((a, b) => a.date.localeCompare(b.date)), 'Nothing expected.');
+  const plan = [];
+  if (S.can.has('payment.prepare')) {
+    const d = input('due_on', { type: 'date', value: plusDays(14) });
+    const dir = select('direction', [{ value: 'OUT', label: 'Out' }, { value: 'IN', label: 'In' }]);
+    const cat = select('category', ['LOAN', 'TAX', 'PAYROLL', 'CAPEX', 'OTHER'].map((v) => ({ value: v, label: words(v.toLowerCase()) })));
+    const amt = input('amount', { inputmode: 'decimal' }); const desc = input('description', { type: 'text', maxlength: '300' });
+    const conf = select('confidence', [{ value: 'FORECAST', label: 'Forecast' }, { value: 'CONFIRMED', label: 'Confirmed (contract, assessment, loan agreement)' }]);
+    const b = h('button', { type: 'button', class: 'primary' }, 'Add planned item');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/cash-plan', { legal_entity_id: ent.id, due_on: d.value, direction: dir.value, category: cat.value, amount: amt.value.trim(), description: desc.value.trim(), confidence: conf.value }); say('Planned item added.'); renderCash(); } catch (e) { showError(e); } });
+    plan.push(h('div', { class: 'grid' }, field('Date', d), field('Direction', dir), field('Category', cat), field('Amount', amt), field('Description', desc), field('Confidence', conf)), h('div', { class: 'actions' }, b));
+  }
+  const cancel = async (x) => { try { const reason = (prompt('Why cancel this planned item?') || '').trim(); if (reason.length < 5) throw new ApiError(422, 'validation', 'Give a reason of at least 5 characters.'); await api('POST', `/v1/cash-plan/${x.id}/cancel`, { reason }); say('Planned item cancelled.'); renderCash(); } catch (e) { showError(e); } };
+  page('Cash forecast', 'The next 13 weeks of cash for the company: what is confirmed by a document, what is expected, and what treasury plans. Overdue items appear in the first week.',
+    kpis, h('div', { class: 'panel' }, h('div', { class: 'chartwrap' }, g), h('div', { class: 'flowlegend' }, key('inc', 'In, confirmed'), key('inf', 'In, forecast'), key('outc', 'Out, confirmed'), key('outf', 'Out, forecast'), key('bal', 'Closing balance (left scale)')), h('p', { class: 'hint' }, 'Bars: money in (up) and out (down) each week. Line: the cash balance at the end of each week, on the left scale; the dashed line is zero.')),
+    weeks, items,
+    h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Planned items'), h('p', { class: 'hint' }, 'Loans, tax payments, payroll and other flows the system does not yet record. Never edited; cancelled with a reason.'), ...plan,
+      table('Planned items', [{ label: 'Date', cell: (x) => x.due_on }, { label: 'Direction', cell: (x) => words(String(x.direction).toLowerCase()) }, { label: 'Category', cell: (x) => words(String(x.category).toLowerCase()) },
+        { label: 'Description', cell: (x) => x.description }, { label: 'Amount', num: true, cell: (x) => money(x.amount) }, { label: 'Status', cell: (x) => chip(x.status) },
+        { label: '', cell: (x) => (x.status === 'ACTIVE' && S.can.has('payment.prepare') ? h('button', { type: 'button', class: 'ghost', on: { click: () => cancel(x) } }, 'Cancel…') : '') }], fc.plan, 'No planned item.')));
+}
+
 async function renderMe() {
   const pr = await api('GET', '/v1/me/profile');
   const name = pr.display_name || pr.user_id;
@@ -4666,14 +7594,264 @@ async function renderMe() {
       h('button', { type: 'button', class: 'danger', on: { click: async () => {
         try { await api('POST', '/v1/identity/sessions/revoke', { subject: pr.user_id, reason: 'Signed out everywhere from my profile' }); signOut('You were signed out on every device.'); } catch (e) { showError(e); }
       } } }, 'Sign out everywhere')));
+  const security = await mySecurityPanel();
   page('My profile', 'Who you are in this company, what you may do and why, and what you did last.', hero, kpis,
-    h('div', { class: 'twocol' }, h('div', {}, roles, can, activity), h('div', {}, details, where, lent, exc, session)));
+    h('div', { class: 'twocol' }, h('div', {}, roles, can, activity), h('div', {}, details, security, where, lent, exc, session)));
 }
 function permGroupsFrom(infos) {
   const areas = new Map();
   for (const p of infos) { if (!areas.has(p.area)) areas.set(p.area, []); areas.get(p.area).push(p); }
   return h('div', { class: 'permgroups' }, [...areas.entries()].map(([a, list]) => h('div', { class: 'permgroup' }, h('h4', {}, a, h('span', { class: 'count' }, String(list.length))),
     h('ul', {}, list.map((p) => h('li', { class: `st-${p.stage}`, title: p.code }, h('span', { class: 'dot' }), p.label))))));
+}
+
+// ---------- e-mail + PIN sign-in: my security, administration (0095) ----------
+const LOGIN_OUTCOME = { SUCCESS: 'Signed in', WRONG_PIN: 'Wrong PIN', WRONG_CODE: 'Wrong authenticator code', CODE_REPLAYED: 'Authenticator code used twice',
+  LOCKED: 'Refused: locked', NOW_LOCKED: 'Locked after 15 failures', UNKNOWN_EMAIL: 'Unknown e-mail', DISABLED: 'Refused: sign-in disabled',
+  PIN_CHANGED: 'PIN changed', PIN_ISSUED: 'PIN issued by an administrator', UNLOCKED: 'Unlocked', AUTHENTICATOR_ON: 'Authenticator turned on',
+  AUTHENTICATOR_OFF: 'Authenticator turned off', AUTHENTICATOR_RESET: 'Authenticator reset by an administrator', LOGIN_DISABLED: 'Sign-in disabled', LOGIN_ENABLED: 'Sign-in enabled' };
+const outcomeChip = (o) => h('span', { class: `chip ${/SUCCESS|CHANGED|ISSUED|UNLOCKED|_ON$|ENABLED/.test(o) ? 'ok' : /WRONG|LOCK|UNKNOWN|DISABLED|REPLAYED/.test(o) ? 'bad' : 'info'}` }, LOGIN_OUTCOME[o] || words(o.toLowerCase()));
+function trailList(items, nameOf) {
+  return items.length ? h('ol', { class: 'timeline' }, items.map((e) => h('li', {}, h('div', {}, outcomeChip(e.outcome), ' ', e.email),
+    h('div', { class: 'when' }, `${when(e.at)} · ${ago(e.at)}${e.actor && e.actor !== e.user_id ? ` · by ${nameOf ? nameOf(e.actor) : e.actor}` : ''}`),
+    e.detail ? h('div', { class: 'why' }, `“${e.detail}”`) : null)))
+    : h('p', { class: 'hint' }, 'Nothing recorded yet.');
+}
+
+// My profile: change my PIN, turn the authenticator on or off, my trail.
+async function mySecurityPanel() {
+  let acct;
+  try { acct = await api('GET', '/v1/me/login'); } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Sign-in & security'),
+      h('p', { class: 'hint' }, 'You sign in through your organisation’s identity provider (or e-mail and PIN sign-in is not offered here): your password and second factor are managed there.'));
+    throw e;
+  }
+  const trail = await api('GET', `/v1/login-trail?user=${encodeURIComponent(S.me.user_id)}&limit=20`).then((r) => r.items).catch(() => []);
+  const panel = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Sign-in & security'));
+  panel.append(h('dl', { class: 'kv' }, h('dt', {}, 'E-mail'), h('dd', {}, acct.email),
+    h('dt', {}, 'PIN'), h('dd', {}, `set ${when(acct.pin_set_at)}${acct.pin_set_by && acct.pin_set_by !== S.me.user_id ? ' by an administrator' : ' by you'}`),
+    h('dt', {}, 'Authenticator'), h('dd', {}, acct.authenticator ? h('span', { class: 'chip ok' }, 'On — every sign-in asks for a code') : h('span', { class: 'chip warn' }, 'Off')),
+    h('dt', {}, 'Last sign-in'), h('dd', {}, acct.last_success_at ? `${when(acct.last_success_at)} (${ago(acct.last_success_at)})` : '—'),
+    h('dt', {}, 'Failed attempts'), h('dd', {}, `${acct.failed_attempts} of 15${acct.last_failure_at ? `, last ${ago(acct.last_failure_at)}` : ''}`)));
+  // Change PIN
+  const cur = pinBox('current_pin', 'Current PIN');
+  const nx = pinBox('new_pin', 'New PIN', { autocomplete: 'new-password' });
+  const nx2 = pinBox('new_pin_again', 'New PIN again', { autocomplete: 'new-password' });
+  panel.append(h('form', { class: 'subform', novalidate: true, on: { submit: async (ev) => {
+    ev.preventDefault(); clearError();
+    if (nx.el.value !== nx2.el.value) { showError(new ApiError(422, 'validation', 'The two new PINs differ.')); return; }
+    try { await api('POST', '/v1/me/pin', { current_pin: cur.el.value, new_pin: nx.el.value }); say('Your PIN was changed.'); await renderMe(); } catch (e) { showError(e); }
+  } } }, h('h3', {}, 'Change my PIN'), h('div', { class: 'grid' }, cur.f, nx.f, nx2.f),
+  h('p', { class: 'hint' }, 'Six digits; not a run (123456), a repeat (111111) or a pattern (121212).'),
+  h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'ghost' }, 'Change PIN'))));
+  // Authenticator
+  const auth = h('div', { class: 'subform' }, h('h3', {}, 'Authenticator app (optional)'),
+    h('p', { class: 'hint' }, 'With an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password …) each sign-in also asks for a 6-digit code. Approvals, payments, postings and access changes need a sign-in with the code.'));
+  if (acct.authenticator) {
+    const pin = pinBox('pin', 'Your PIN to turn it off');
+    auth.append(h('form', { novalidate: true, on: { submit: async (ev) => {
+      ev.preventDefault(); clearError();
+      try { await api('POST', '/v1/me/authenticator/off', { pin: pin.el.value }); say('Authenticator turned off.'); await renderMe(); } catch (e) { showError(e); }
+    } } }, pin.f, h('div', { class: 'actions' }, h('button', { type: 'submit', class: 'danger' }, 'Turn off the authenticator'))));
+  } else {
+    const box = h('div');
+    auth.append(h('div', { class: 'actions' }, h('button', { type: 'button', on: { click: async () => {
+      clearError();
+      try {
+        const s = await api('POST', '/v1/me/authenticator/begin');
+        const code = input('code', { type: 'text', inputmode: 'numeric', pattern: '[0-9]{6}', maxlength: '6', autocomplete: 'one-time-code', placeholder: '000000' });
+        box.textContent = '';
+        box.append(h('ol', { class: 'steps' },
+          h('li', {}, 'In your authenticator app choose “add account” and “enter a setup key”.'),
+          h('li', {}, 'Enter this key (time-based, 6 digits, 30 seconds): ', h('code', { class: 'secret' }, s.secret.replace(/(.{4})/g, '$1 ').trim())),
+          h('li', {}, 'Or, where the app accepts a link, use: ', h('code', { class: 'secret uri' }, s.otpauth_uri)),
+          h('li', {}, 'Type the code the app now shows.')),
+        h('form', { novalidate: true, on: { submit: async (ev) => {
+          ev.preventDefault(); clearError();
+          try { await api('POST', '/v1/me/authenticator/confirm', { secret: s.secret, code: code.value }); say('Authenticator turned on. Sign in again with a code to approve and release.'); await renderMe(); } catch (e) { showError(e); }
+        } } }, field('Code from the app', code), h('div', { class: 'actions' }, h('button', { type: 'submit' }, 'Turn on'))));
+        code.focus();
+      } catch (e) { showError(e); }
+    } } }, 'Set up an authenticator')), box);
+  }
+  panel.append(auth, h('div', { class: 'subform' }, h('h3', {}, 'My recent sign-ins'), trailList(trail)));
+  return panel;
+}
+
+// People: a person's e-mail + PIN sign-in, for user administrators.
+async function loginSection(x, canEdit, nameOf) {
+  let acct = null;
+  try { acct = ((await api('GET', '/v1/logins')).items || []).find((a) => a.user_id === x.user_id) || null; } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null; // the deployment offers no PIN sign-in
+    return null;
+  }
+  const trail = acct ? await api('GET', `/v1/login-trail?user=${encodeURIComponent(x.user_id)}&limit=25`).then((r) => r.items).catch(() => []) : [];
+  const sec = h('section', {}, h('h3', {}, 'E-mail and PIN sign-in'));
+  const once = h('div', { 'aria-live': 'polite' });
+  if (acct) {
+    const locked = acct.locked_until && new Date(acct.locked_until) > new Date();
+    sec.append(h('dl', { class: 'kv' }, h('dt', {}, 'E-mail'), h('dd', {}, acct.email),
+      h('dt', {}, 'State'), h('dd', {}, acct.disabled ? chip('DISABLED') : locked ? h('span', { class: 'chip bad' }, `Locked until ${when(acct.locked_until)}`) : acct.must_change ? h('span', { class: 'chip warn' }, 'Must choose a PIN at first sign-in') : h('span', { class: 'chip ok' }, 'Active')),
+      h('dt', {}, 'Authenticator'), h('dd', {}, acct.authenticator ? 'on' : 'off'),
+      h('dt', {}, 'Failed attempts'), h('dd', {}, `${acct.failed_attempts} of 15`),
+      h('dt', {}, 'Last sign-in'), h('dd', {}, acct.last_success_at ? `${when(acct.last_success_at)} (${ago(acct.last_success_at)})` : 'never'),
+      h('dt', {}, 'PIN set'), h('dd', {}, `${when(acct.pin_set_at)} by ${nameOf(acct.pin_set_by)}`)));
+  } else sec.append(h('p', { class: 'hint' }, 'No e-mail and PIN sign-in yet.'));
+  if (canEdit && x.managed && x.status === 'ACTIVE') {
+    const email = input('login_email', { type: 'email', maxlength: '254', value: (acct && acct.email) || x.email || '', autocomplete: 'off' });
+    const reason = reasonInput('Why? For example: locked out after a holiday, HR ticket 52');
+    const run = (fn, done) => async () => {
+      clearError(); once.textContent = '';
+      try { const r = await fn(); if (done) done(r); else { say('Saved.'); await personSheet(x.user_id); } } catch (e) { sheetError(sec, e); }
+    };
+    const issue = h('button', { type: 'button', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login`, { email: email.value.trim() }), (r) => {
+      once.append(h('div', { class: 'callout ok pinonce' }, h('strong', {}, 'One-time PIN: '), h('code', { class: 'secret' }, r.pin),
+        h('p', {}, `Give it to ${personName(x)} in person or by phone; it is shown only now and never stored readable. At the first sign-in they must choose their own PIN.`)));
+      say('Sign-in issued.');
+    }) } }, acct ? 'Issue a new one-time PIN' : 'Issue sign-in');
+    const btns = [issue];
+    if (acct) {
+      if (acct.failed_attempts || acct.locked_until) btns.push(h('button', { type: 'button', class: 'ghost', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login/unlock`, { reason: reason.value.trim() })) } }, 'Unlock'));
+      if (acct.authenticator) btns.push(h('button', { type: 'button', class: 'ghost', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login/reset-authenticator`, { reason: needReason(reason) })) } }, 'Reset authenticator'));
+      btns.push(acct.disabled
+        ? h('button', { type: 'button', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login/enable`, { reason: reason.value.trim() })) } }, 'Enable sign-in')
+        : h('button', { type: 'button', class: 'danger', on: { click: run(() => api('POST', `/v1/people/${encodeURIComponent(x.user_id)}/login/disable`, { reason: needReason(reason) })) } }, 'Disable sign-in'));
+    }
+    sec.append(h('div', { class: 'grid' }, field('Sign-in e-mail', email), field('Reason (kept in the sign-in trail)', reason, 'Needed to disable or reset the authenticator.')),
+      h('div', { class: 'actions' }, btns), once,
+      h('p', { class: 'hint' }, 'Issuing, unlocking and resetting need your own sign-in with an authenticator code within the last 10 minutes. You cannot change your own sign-in here.'));
+  }
+  if (acct) sec.append(h('h4', {}, 'Sign-in trail'), trailList(trail, nameOf));
+  return sec;
+}
+
+// People › Sign-ins: everyone's sign-in state at a glance.
+async function signinsTab(v, nameOf) {
+  const box = h('div', {}, h('p', { class: 'hint' }, 'Loading…'));
+  (async () => {
+    let items;
+    try { items = (await api('GET', '/v1/logins')).items || []; } catch (e) {
+      box.textContent = '';
+      box.append(h('p', { class: 'empty panel' }, e instanceof ApiError && e.status === 404 ? 'This deployment does not offer e-mail and PIN sign-in.' : e.message));
+      return;
+    }
+    const trail = await api('GET', '/v1/login-trail?limit=100').then((r) => r.items).catch(() => []);
+    const locked = items.filter((a) => a.locked_until && new Date(a.locked_until) > new Date());
+    const kpi = (n, k, w) => h('div', { class: `kpi${w && n ? ' warnk' : ''}` }, h('div', { class: 'v' }, String(n)), h('div', { class: 'k' }, k));
+    box.textContent = '';
+    box.append(h('div', { class: 'kpis' }, kpi(items.length, 'People with a sign-in'), kpi(items.filter((a) => a.authenticator).length, 'With an authenticator'),
+      kpi(items.filter((a) => a.must_change).length, 'Not yet signed in'), kpi(locked.length, 'Locked now', true), kpi(items.filter((a) => a.disabled).length, 'Disabled', true),
+      kpi(v.people.filter((p) => p.status === 'ACTIVE' && !items.some((a) => a.user_id === p.user_id)).length, 'Active people without one')),
+    table(`${items.length} sign-ins`, [
+      { label: 'Person', cell: (a) => h('button', { type: 'button', class: 'linkbtn', on: { click: () => personSheet(a.user_id) } }, nameOf(a.user_id)) },
+      { label: 'E-mail', cell: (a) => a.email },
+      { label: 'State', cell: (a) => (a.disabled ? chip('DISABLED') : a.locked_until && new Date(a.locked_until) > new Date() ? h('span', { class: 'chip bad' }, 'Locked') : a.must_change ? h('span', { class: 'chip warn' }, 'First sign-in pending') : h('span', { class: 'chip ok' }, 'Active')) },
+      { label: 'Authenticator', cell: (a) => (a.authenticator ? 'on' : 'off') },
+      { label: 'Failures', num: true, cell: (a) => String(a.failed_attempts) },
+      { label: 'Last sign-in', cell: (a) => (a.last_success_at ? ago(a.last_success_at) : 'never') },
+    ], items, 'Nobody has an e-mail and PIN sign-in yet. Open a person to issue one.'),
+    h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Recent sign-in activity'), trailList(trail, nameOf)));
+  })();
+  return box;
+}
+
+// ---------- workflow map with authorities ----------
+// Every document workflow of the console (DOCS), step by step, with the
+// roles that may take each step: product roles from the role catalogue and,
+// for people who may read the directory, the company's own roles. Amount
+// bands come from the authority matrix in force; controls that keep two
+// steps apart come from the duty-conflict catalogue. Read-only: it shows
+// the rules the server enforces, it changes nothing.
+const STEP_WORD = { create: 'Prepare', submit: 'Submit', approve: 'Approve', reject: 'Reject', release: 'Release', post: 'Post', cancel: 'Cancel', issue: 'Issue',
+  award: 'Award', certify: 'Certify', confirm: 'Confirm', close: 'Close', activate: 'Activate', settle: 'Settle', receive: 'Receive' };
+async function renderWorkflows(focus) {
+  await loadRoles();
+  let company = [];
+  let controls = [];
+  const names = {};
+  if (['user.manage', 'role.manage', 'audit.read'].some((p) => S.can.has(p))) {
+    try {
+      const pv = await api('GET', '/v1/people');
+      company = pv.roles.filter((r) => r.kind === 'company' && r.status === 'ACTIVE');
+      controls = pv.controls || [];
+      for (const r of pv.roles) names[r.code] = r.name;
+    } catch { /* product roles only */ }
+  }
+  const roleName = (c) => names[c] || words(c);
+  let matrix = null;
+  try { matrix = (await api('GET', '/v1/authority/matrix')).matrix; } catch { /* not readable */ }
+  const holders = (perm) => {
+    const out = Object.entries(ROLES || {}).filter(([, ps]) => ps.includes(perm)).map(([code]) => ({ code, name: roleName(code), company: false }));
+    for (const r of company) if (r.permissions.includes(perm)) out.push({ code: r.code, name: r.name, company: true });
+    return out;
+  };
+  const groupOf = (type) => { for (const [g, items] of NAV) if (items.some(([href]) => href === `#/list/${type}` || href.startsWith(`#/list/${type}/`))) return g; return 'Other'; };
+  const flows = Object.entries(DOCS).filter(([, d]) => d.actions && Object.keys(d.actions).length).map(([type, d]) => {
+    const steps = [];
+    if (d.create) steps.push({ verb: 'create', perm: d.create, from: null });
+    for (const [st, acts] of Object.entries(d.actions)) for (const [verb, perm, why] of acts) steps.push({ verb, perm, from: st, why });
+    return { type, d, steps, group: groupOf(type) };
+  });
+  const roleFilter = h('select', { name: 'role', 'aria-label': 'Show the steps of a role' }, h('option', { value: '' }, 'Every role'),
+    h('optgroup', { label: 'Product roles' }, Object.keys(ROLES || {}).sort().map((c) => h('option', { value: c }, roleName(c)))),
+    company.length ? h('optgroup', { label: 'Company roles' }, company.map((r) => h('option', { value: r.code }, r.name))) : null);
+  const find = h('input', { type: 'search', class: 'findbox', placeholder: 'Find a workflow', 'aria-label': 'Find a workflow', autocomplete: 'off' });
+  const groups = [...new Set(flows.map((f) => f.group))];
+  const area = select('area', [{ value: '', label: 'Every area' }, ...groups.map((g) => ({ value: g, label: g }))], { 'aria-label': 'Area' });
+  if (focus && groups.includes(decodeURIComponent(focus))) area.value = decodeURIComponent(focus);
+  const out = h('div');
+  const conflictOf = (a, b) => controls.find((c) => c.Perms && c.Perms.includes(a) && c.Perms.includes(b));
+  const draw = () => {
+    out.textContent = '';
+    const q = find.value.trim().toLowerCase();
+    const rf = roleFilter.value;
+    const rperms = rf ? new Set(rf.startsWith('custom:') ? (company.find((r) => r.code === rf) || { permissions: [] }).permissions : (ROLES[rf] || [])) : null;
+    let n = 0;
+    for (const g of groups) {
+      if (area.value && area.value !== g) continue;
+      const list = flows.filter((f) => f.group === g && (!q || `${f.d.title} ${f.d.one}`.toLowerCase().includes(q)) && (!rperms || f.steps.some((s) => rperms.has(s.perm))));
+      if (!list.length) continue;
+      out.append(h('h2', { class: 'section' }, g));
+      for (const f of list) {
+        n++;
+        const bands = matrix && matrix.rules ? matrix.rules.filter((r) => r.doc_type === f.type) : [];
+        const approver = f.steps.find((s) => s.verb === 'approve');
+        const preparer = f.steps.find((s) => s.verb === 'create' || s.verb === 'submit');
+        const kept = approver && preparer ? conflictOf(preparer.perm, approver.perm) : null;
+        out.append(h('article', { class: 'flowcard' },
+          h('header', {}, h('h3', {}, h('a', { href: `#/list/${f.type}` }, f.d.title)), h('div', { class: 'flowstates' }, (f.d.statuses || []).map((s) => chip(s)))),
+          h('ol', { class: 'flowsteps' }, f.steps.map((s) => {
+            const who = holders(s.perm);
+            const mine = rperms && rperms.has(s.perm);
+            return h('li', { class: `flowstep v-${s.verb}${mine ? ' mine' : ''}${rperms && !mine ? ' dim' : ''}` },
+              h('div', { class: 'fsh' }, h('strong', {}, STEP_WORD[s.verb] || words(s.verb)), s.from ? h('span', { class: 'from' }, `from ${words(s.from.toLowerCase())}`) : h('span', { class: 'from' }, 'new record'),
+                s.why === 'req' ? h('span', { class: 'chip warn' }, 'reason required') : null),
+              h('div', { class: 'perm' }, h('code', {}, s.perm), S.can.has(s.perm) ? h('span', { class: 'chip ok' }, 'you may') : null),
+              who.length ? h('div', { class: 'rolechips' }, who.map((r) => h('span', { class: `rolechip${r.company ? ' company' : ''}` }, r.name)))
+                : h('p', { class: 'hint' }, 'No role holds this permission yet.'));
+          })),
+          kept ? h('p', { class: 'callout' }, h('strong', {}, 'Kept apart: '), `the person who prepares cannot approve (${kept.Control}). The server refuses it, whatever roles they hold.`) : null,
+          bands.length ? table('Approval authority by amount (matrix in force)', [
+            { label: 'From', num: true, cell: (r) => money(r.min_amount) },
+            { label: 'Below', num: true, cell: (r) => (r.max_amount ? money(r.max_amount) : 'no limit') },
+            { label: 'Currency', cell: (r) => r.currency },
+            { label: 'Approver needs', cell: (r) => h('span', {}, h('code', {}, r.required_perm), ' — ', holders(r.required_perm).map((x) => x.name).join(', ') || 'no role') },
+            { label: 'Fresh second factor', cell: (r) => (r.requires_mfa ? 'yes' : '') },
+          ], bands) : null));
+      }
+    }
+    if (!n) out.append(h('p', { class: 'empty panel' }, 'No workflow matches.'));
+  };
+  find.addEventListener('input', draw);
+  roleFilter.addEventListener('change', draw);
+  area.addEventListener('change', draw);
+  const legend = h('div', { class: 'panel flowlegend' }, h('p', {}, 'Each card is one kind of record. Its steps run left to right; under each step are the roles that may take it. ',
+    'Every step is also checked by the server for project scope, separation of duties, amount limits and, for approvals, payments and postings, a sign-in with a second factor in the last 10 minutes. ',
+    matrix ? `Amount bands come from authority matrix version ${matrix.version}.` : 'No authority matrix is readable for you, so amount bands are not shown.',
+    company.length ? '' : ' Company roles appear for people who may read the directory.'));
+  page('Workflow map', 'Who prepares, approves and releases each kind of record, with the authority limits in force.', legend,
+    h('div', { class: 'toolbar' }, find, area, roleFilter), out);
+  draw();
 }
 
 // ---------- theme: day (green on cream) / night (cream on green) ----------
@@ -4705,13 +7883,24 @@ function paintThemeButton() {
     document.documentElement.dataset.theme = next;
     try { localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable */ }
     paintThemeButton();
+    if (BRAND) paintTokens(document.documentElement, BRAND.theme, next);
     say(next === 'dark' ? 'Night theme' : 'Day theme');
   });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintThemeButton);
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { paintThemeButton(); if (BRAND) paintTokens(document.documentElement, BRAND.theme, isNight() ? 'dark' : 'light'); });
 }());
 
 // ---------- boot ----------
 $('signout').addEventListener('click', () => signOut());
+$('mebtn').addEventListener('click', (e) => { e.stopPropagation(); setAcct($('acctmenu').hidden); });
+$('acctmenu').addEventListener('click', (e) => { if (e.target.closest('[role=menuitem]')) setAcct(false); });
+$('acctmenu').addEventListener('keydown', (e) => {
+  const items = [...$('acctmenu').querySelectorAll('[role=menuitem]:not([hidden])')];
+  const i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape') { setAcct(false); $('mebtn').focus(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+});
+document.addEventListener('click', (e) => { if (!$('acctmenu').hidden && !e.target.closest('#who')) setAcct(false); });
 window.addEventListener('hashchange', route);
 route();
 

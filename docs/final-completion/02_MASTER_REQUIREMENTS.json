@@ -1,0 +1,3804 @@
+{
+ "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
+ "results_file": "docs/engineering/evidence/2026-11-16-auth2345-9cfe480.tests.txt",
+ "register_commit": "9cfe480",
+ "requirement_counts": {
+  "VERIFIED": 123,
+  "NOT_STARTED": 62,
+  "IMPLEMENTING": 23,
+  "BLOCKED": 9,
+  "IMPLEMENTED_UNVERIFIED": 1
+ },
+ "criteria_counts": {
+  "IMPLEMENTING": 7,
+  "NOT_STARTED": 42,
+  "BLOCKED": 12,
+  "VERIFIED": 51
+ },
+ "requirements": [
+  {
+   "id": "CMD-01.1",
+   "domain": "CMD-01",
+   "product": "COMMAND",
+   "text": "A tenant's data is reachable only through that tenant's database login and row-level security",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSC04_CompromisedTenantCredentialCannotReachOtherTenant",
+    "TestTenantIsolation",
+    "TestPrivileges_OwnerMaintenancePolicyEverywhere"
+   ],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-01.2",
+   "domain": "CMD-01",
+   "product": "COMMAND",
+   "text": "Legal entities, regions and business units are master data with roll-ups",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestOrg_MasterDataRegionsAndRollups"
+   ],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-01.3",
+   "domain": "CMD-01",
+   "product": "COMMAND",
+   "text": "Group → entity → book/branch hierarchy with effective-dated joint-venture and intercompany relationships",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-02.1",
+   "domain": "CMD-02",
+   "product": "COMMAND",
+   "text": "A project moves through phases only by an approved stage gate (maker/checker, fresh MFA)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestOrg_ProjectLifecycleThroughGates"
+   ],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-02.2",
+   "domain": "CMD-02",
+   "product": "COMMAND",
+   "text": "Portfolio roll-up across projects and entities with FX as-of rates (no naive sum of currencies)",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-03.1",
+   "domain": "CMD-03",
+   "product": "COMMAND",
+   "text": "Programs group projects with a dependency graph and investment gates",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-04.1",
+   "domain": "CMD-04",
+   "product": "COMMAND",
+   "text": "Rule-based risk assessments are recorded as snapshots with their inputs",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPlatform_IntelligenceAndAssistant"
+   ],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-04.2",
+   "domain": "CMD-04",
+   "product": "COMMAND",
+   "text": "OKRs, decision log and risk register with owners and due dates",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-05.1",
+   "domain": "CMD-05",
+   "product": "COMMAND",
+   "text": "Every dashboard tile equals the report it drills into; the KPI catalogue documents formula and source",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDashboard_TilesEqualTheirReports",
+    "TestDashboard_ScopeAndPermissions",
+    "TestKPICatalogueDocumentIsCurrent"
+   ],
+   "criteria": [],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-05.2",
+   "domain": "CMD-05",
+   "product": "COMMAND",
+   "text": "13-week cash projection separating certified, billed and collected amounts",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CMD-05.2.a",
+     "text": "Certified, billed and collected amounts are separate lines of the projection",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "note": "new-version 13-week forecast (TestCashForecast_ThirteenWeeks); no collected line"
+    },
+    {
+     "id": "CMD-05.2.b",
+     "text": "Supplier payment schedule from approved invoices and open purchase orders by due date",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "note": "new-version forecast; due-date week placement not asserted"
+    },
+    {
+     "id": "CMD-05.2.c",
+     "text": "Payroll schedule from approved payroll runs (synthetic rules in test)",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CMD-05.2.d",
+     "text": "Tax payment schedule from posted tax liabilities",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CMD-05.2.e",
+     "text": "Collection schedule from issued customer invoices by due date",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "note": "new-version forecast; due-date week placement not asserted"
+    },
+    {
+     "id": "CMD-05.2.f",
+     "text": "A reference dataset with independently calculated weekly cash positions matches the projection to the cent",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CMD-05.3",
+   "domain": "CMD-05",
+   "product": "COMMAND",
+   "text": "Daily exception digest by e-mail or Telegram",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CMD-05.3.a",
+     "text": "Messaging-provider interface, templates, delivery queue, idempotency and retry",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CMD-05.3.b",
+     "text": "Delivery audit, user preferences and approved recipients, verified against a local test provider",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CMD-05.3.c",
+     "text": "Real delivery through an authorised e-mail or Telegram provider",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-007",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-01.1",
+   "domain": "EST-01",
+   "product": "ESTIMATE",
+   "text": "Lead and opportunity pipeline",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-02.1",
+   "domain": "EST-02",
+   "product": "ESTIMATE",
+   "text": "Feasibility and discounted cash-flow scenarios with documented assumptions",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-03.1",
+   "domain": "EST-03",
+   "product": "ESTIMATE",
+   "text": "Land and permit records",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-04.1",
+   "domain": "EST-04",
+   "product": "ESTIMATE",
+   "text": "Tender calendar, confidential bid room, eligibility checklist, bid approval and submission record",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-05.1",
+   "domain": "EST-05",
+   "product": "ESTIMATE",
+   "text": "BOQ versions are approved by a second person; the approved version supersedes the previous one and is never overwritten",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_BOQToBankReconciliationToGL",
+    "TestJourneyA_SegregationOfDutiesAndBudget"
+   ],
+   "criteria": [],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-05.2",
+   "domain": "EST-05",
+   "product": "ESTIMATE",
+   "text": "Spreadsheet import is staged, reviewed and committed explicitly, with row errors reported",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestImports_StageReviewCommit"
+   ],
+   "criteria": [],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-05.3",
+   "domain": "EST-05",
+   "product": "ESTIMATE",
+   "text": "PDF and IFC take-off arrive as reviewed suggestions, never as authoritative quantities",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-06.1",
+   "domain": "EST-06",
+   "product": "ESTIMATE",
+   "text": "Rate build-up: resources × rates + overhead, contingency and escalation; selling rate = full cost / (1 − margin); markup kept distinct",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestRateBuildup_GoldenCaseFreezeAndRevision",
+    "TestAPIRateBuildups",
+    "TestConsoleBrowserForms"
+   ],
+   "criteria": [
+    {
+     "id": "EST-06.1.a",
+     "text": "The Bible's example reproduces exactly: 5,800 + 950 + 650 = 7,400 direct, 740 overhead, 8,140 full, 9,576.47 selling at 15% margin, markup 17.6471% reported separately",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestConsoleBrowserForms"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.1.b",
+     "text": "Wastage scales a resource's quantity; repeated calculation gives identical results; a margin of 100% or more is refused",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.1.c",
+     "text": "A line's kind, unit, rate and amount are the rate's and the database's, never the client's; figures are fixed on submission",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.1.d",
+     "text": "Only approved rates of the build-up's own legal entity and currency, valid on its price date, are used (no currency conversion is built)",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups"
+     ],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-06.2",
+   "domain": "EST-06",
+   "product": "ESTIMATE",
+   "text": "Every rate carries source, region, currency, FX date, validity and approval; rates freeze at bid submission",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [
+    "TestRateBuildup_GoldenCaseFreezeAndRevision",
+    "TestRateBuildup_ConcurrentOverlappingApprovals",
+    "TestAPIRateBuildups"
+   ],
+   "criteria": [
+    {
+     "id": "EST-06.2.a",
+     "text": "A rate records source, region, currency, confidence, validity and, outside the functional currency, its exchange-rate date",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.2.b",
+     "text": "A rate is approved or rejected by someone other than its recorder, attested; a decided rate never changes",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.2.c",
+     "text": "No two approved rates of one code overlap in validity, including under concurrent approval",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestRateBuildup_ConcurrentOverlappingApprovals"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.2.d",
+     "text": "An approved build-up is frozen; repricing is a new revision priced at the rates valid on its date, which supersedes it when approved",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups",
+      "TestConsoleBrowserForms"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.2.e",
+     "text": "Rates freeze at bid submission (tender submission record, EST-04)",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "EST-07.1",
+   "domain": "EST-07",
+   "product": "ESTIMATE",
+   "text": "Bid scenarios and comparison of estimate against actual historical rates",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-008",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-01.1",
+   "domain": "PLB-01",
+   "product": "PLAN / BUILD",
+   "text": "Original, revised and current budget; revisions and transfers need a second person and cannot overspend under concurrency",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestBudget_ArithmeticAndControls",
+    "TestBudget_DatabaseRefusesBypass",
+    "TestBudget_ConcurrentTransfersCannotOverspend"
+   ],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-01.2",
+   "domain": "PLB-01",
+   "product": "PLAN / BUILD",
+   "text": "Available budget is checked when a commitment is approved; consumed commitments are not counted twice",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_OverBudgetHighValuePOEscalation",
+    "TestR7_BudgetDoubleCount",
+    "TestR8_BudgetNettingByCount"
+   ],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-02.1",
+   "domain": "PLB-02",
+   "product": "PLAN / BUILD",
+   "text": "CPM with FS/SS/FF/SF links, lags and calendars; cycles and invalid networks are refused",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestCPMTextbook",
+    "TestCPMLinkTypesAndLags",
+    "TestCPMRefusesInvalidNetworks",
+    "TestCalendarSixDayWeekWithHoliday"
+   ],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-02.2",
+   "domain": "PLB-02",
+   "product": "PLAN / BUILD",
+   "text": "Approved baselines, progress at a status date and earned value; undefined ratios are null, not zero",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestScheduleBaselineProgressEVM",
+    "TestComputeAndZeroDenominatorPolicy",
+    "TestR9_ScheduleEVMHand"
+   ],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-02.3",
+   "domain": "PLB-02",
+   "product": "PLAN / BUILD",
+   "text": "Monte Carlo delay forecast (P50/P80) with reproducible seeds and stated distributions",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-02.4",
+   "domain": "PLB-02",
+   "product": "PLAN / BUILD",
+   "text": "Look-ahead and Last Planner constraint tracking",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-03.1",
+   "domain": "PLB-03",
+   "product": "PLAN / BUILD",
+   "text": "Resource- and cost-loaded schedules; levelling proposals never alter an approved schedule silently",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-04.1",
+   "domain": "PLB-04",
+   "product": "PLAN / BUILD",
+   "text": "Project risk register with quantified exposure feeding contingency",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "PLB-04.1.a",
+     "text": "Risks with owner, cause, effect and response; assessments kept as history; exposure = probability x cost impact",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRisks_RegisterAgainstContingency"
+     ],
+     "note": ""
+    },
+    {
+     "id": "PLB-04.1.b",
+     "text": "Open exposure compared with the contingency left in the approved budget; a shortfall is shown",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRisks_RegisterAgainstContingency"
+     ],
+     "note": ""
+    },
+    {
+     "id": "PLB-04.1.c",
+     "text": "A contingency revision drafted from the exposure for a person to approve",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-05.1",
+   "domain": "PLB-05",
+   "product": "PLAN / BUILD",
+   "text": "Work packages released only with approved drawings, permits, ITP, resources and predecessor acceptance",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-06.1",
+   "domain": "PLB-06",
+   "product": "PLAN / BUILD",
+   "text": "Daily site diaries (labour, equipment, notes) are versioned, approved by a project manager and corrected, never overwritten",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestOffline_DiaryLifecycleOnline",
+    "TestSync_APIDeviceDiaryApproval",
+    "TestOffline_DatabaseRules"
+   ],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-06.2",
+   "domain": "PLB-06",
+   "product": "PLAN / BUILD",
+   "text": "Photographs, weather, delays and instructions on the daily report",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-07.1",
+   "domain": "PLB-07",
+   "product": "PLAN / BUILD",
+   "text": "Measurements are prepared by one person and verified by another; certified quantity cannot be counted twice",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_ContractToCashToGL",
+    "TestR6_15_ConcurrentMeasurementVerification",
+    "TestCreditQuantityCorrection_NoDoubleDeduction"
+   ],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-07.2",
+   "domain": "PLB-07",
+   "product": "PLAN / BUILD",
+   "text": "Measurement book lines carry method, chainage/location, drawing revision, dimensions and evidence",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-08.1",
+   "domain": "PLB-08",
+   "product": "PLAN / BUILD",
+   "text": "Progress reports against the approved baseline are approved before they count",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestR9_ScheduleProgressAndRaw"
+   ],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-08.2",
+   "domain": "PLB-08",
+   "product": "PLAN / BUILD",
+   "text": "Installed, measured, certified, billed and collected quantities are reported side by side",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "PLB-08.2.a",
+     "text": "Installed quantities come from work packages, not typed onto the report",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": "new-version rules of credit take installed quantities as typed entries by activity code, which this criterion excludes"
+    },
+    {
+     "id": "PLB-08.2.b",
+     "text": "Measured, certified and billed quantities trace to measurement lines, certificates and invoices",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "PLB-08.2.c",
+     "text": "Collected amounts trace to receipts applied to those invoices; physical progress never counts as collected",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PLB-09.1",
+   "domain": "PLB-09",
+   "product": "PLAN / BUILD",
+   "text": "Engineering deliverables register linked to RFIs and submittals",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-009",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "DSN-01.1",
+   "domain": "DSN-01",
+   "product": "DESIGN",
+   "text": "IFC import in an isolated parser; object identity by model revision + GlobalId; mapping to BOQ/WBS",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-010",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "DSN-02.1",
+   "domain": "DSN-02",
+   "product": "DESIGN",
+   "text": "Installed-asset records with measured/estimated/reported/certified data classes",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-010",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "DSN-03.1",
+   "domain": "DSN-03",
+   "product": "DESIGN",
+   "text": "PostGIS spatial objects with explicit coordinate reference system and chainage",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-010",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-01.1",
+   "domain": "SUP-01",
+   "product": "SUPPLY / STOCK",
+   "text": "Reorder rules flag items below their level",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestStockPlus_ReservationsIssuesAndReorder"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-01.2",
+   "domain": "SUP-01",
+   "product": "SUPPLY / STOCK",
+   "text": "Material demand generated from schedule and BOQ, netted against stock",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-02.1",
+   "domain": "SUP-02",
+   "product": "SUPPLY / STOCK",
+   "text": "Requisition → RFQ → award → purchase order → goods receipt → three-way match → payment, reconciled to the ledger",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_BOQToBankReconciliationToGL",
+    "TestAPIJourneyA_EndToEnd"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-02.2",
+   "domain": "SUP-02",
+   "product": "SUPPLY / STOCK",
+   "text": "No self-approval, no split-order bypass; authority limits apply to purchase orders",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_SegregationOfDutiesAndBudget",
+    "TestJourneyA_ProcurementRules",
+    "TestAuthority_MatrixLimitsPurchaseOrders"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-02.3",
+   "domain": "SUP-02",
+   "product": "SUPPLY / STOCK",
+   "text": "Receipt and matching tolerances; duplicate supplier invoices are refused",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_ReceiptAndMatchingControls"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-03.1",
+   "domain": "SUP-03",
+   "product": "SUPPLY / STOCK",
+   "text": "Supplier bank details are dual-controlled, masked, encrypted at rest and revealed only with MFA and a purpose",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestBankAtRest_CiphertextOnlyInTheDatabase",
+    "TestIA04001_PrivilegedRevealIsPermissionedFreshAndAudited",
+    "TestR5_02_MaskingAcrossAllDetailTypesAndStores"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-03.2",
+   "domain": "SUP-03",
+   "product": "SUPPLY / STOCK",
+   "text": "Supplier-level exposure triggers dual payment approval",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSupplierExposureNeedsDualApproval",
+    "TestSupplierExposureWindowAndConcurrency"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-03.3",
+   "domain": "SUP-03",
+   "product": "SUPPLY / STOCK",
+   "text": "Supplier qualification, conflict disclosure and performance scoring",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSupplierGovernance_QualificationConflictsScores",
+    "TestConsoleBrowserJourneyA"
+   ],
+   "criteria": [
+    {
+     "id": "SUP-03.3.a",
+     "text": "A qualification is approved or rejected by someone other than its recorder, through an attestation; a raw status write is refused",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores",
+      "TestConsoleBrowserJourneyA"
+     ],
+     "note": ""
+    },
+    {
+     "id": "SUP-03.3.b",
+     "text": "With the policy on, nobody evaluates quotes or awards an RFQ without a declaration on it, and nobody who declared a conflict with a supplier evaluates its quote or awards to it",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores"
+     ],
+     "note": ""
+    },
+    {
+     "id": "SUP-03.3.c",
+     "text": "With the policy on, an RFQ is awarded only to a supplier with an approved qualification valid on the award day",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores"
+     ],
+     "note": ""
+    },
+    {
+     "id": "SUP-03.3.d",
+     "text": "A supplier is scored once per purchase order, only after a confirmed receipt, by someone other than the order approver; scores are immutable",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestSupplierGovernance_QualificationConflictsScores",
+      "TestConsoleBrowserJourneyA"
+     ],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-04.1",
+   "domain": "SUP-04",
+   "product": "SUPPLY / STOCK",
+   "text": "Subcontracts: scope/BOQ, security, measured work, retention, deductions",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-05.1",
+   "domain": "SUP-05",
+   "product": "SUPPLY / STOCK",
+   "text": "Stock quantity and value move together (FIFO or weighted average) and reconcile to the inventory account",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyC_StockValuationToGL",
+    "TestR7_FIFOManyLayersSmallIssues",
+    "TestR7_WACFractionalToZero",
+    "TestAPIJourneyC_StockValuation"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-05.2",
+   "domain": "SUP-05",
+   "product": "SUPPLY / STOCK",
+   "text": "Stock cannot go negative, including by raw SQL and under concurrent movements",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyC_Controls",
+    "TestR8_RawSQL_Stock",
+    "TestR7_ConcurrentPutAwayAndCount",
+    "TestR10_StockStateTenantWrites"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-05.3",
+   "domain": "SUP-05",
+   "product": "SUPPLY / STOCK",
+   "text": "Reservations reduce what can be issued",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestStockPlus_ReservationsIssuesAndReorder"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-05.4",
+   "domain": "SUP-05",
+   "product": "SUPPLY / STOCK",
+   "text": "Returns, scrap and quarantine",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestStock_QuarantineAndWriteoff",
+    "TestStock_SiteReturns",
+    "TestConsoleBrowserJourneyC"
+   ],
+   "criteria": [
+    {
+     "id": "SUP-05.4.a",
+     "text": "Quarantine stores: filled and emptied by approved transfers; nothing is issued or reserved from them; the flag is fixed at creation",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestStock_QuarantineAndWriteoff",
+      "TestConsoleBrowserJourneyC"
+     ],
+     "note": ""
+    },
+    {
+     "id": "SUP-05.4.b",
+     "text": "Scrap write-offs at FIFO or average cost with a reason, approved by another person (attested), with a bound STK_SCRAP journal; the inventory reconciliation counts them",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestStock_QuarantineAndWriteoff",
+      "TestConsoleBrowserJourneyC"
+     ],
+     "note": ""
+    },
+    {
+     "id": "SUP-05.4.c",
+     "text": "Site returns: material returned from a project to a store at the issue's cost, crediting the project",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestStock_SiteReturns",
+      "TestConsoleBrowserJourneyC"
+     ],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-06.1",
+   "domain": "SUP-06",
+   "product": "SUPPLY / STOCK",
+   "text": "Transfers between warehouses pass through in-transit and leave no value residue",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyC_StockTransfer",
+    "TestR8_TransferLifecycleAndRaces",
+    "TestR8_TransferFractionalNoResidue"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-06.2",
+   "domain": "SUP-06",
+   "product": "SUPPLY / STOCK",
+   "text": "Bins, lots/batches and serial numbers",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-07.1",
+   "domain": "SUP-07",
+   "product": "SUPPLY / STOCK",
+   "text": "Delivery tracking, haulage and inland logistics",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-08.1",
+   "domain": "SUP-08",
+   "product": "SUPPLY / STOCK",
+   "text": "Import file: pro forma, LC, customs, freight and landed-cost allocation by a documented basis",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-09.1",
+   "domain": "SUP-09",
+   "product": "SUPPLY / STOCK",
+   "text": "Unit conversions are approved data; incompatible conversions are refused",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestStockPlus_ConversionsAreControlled"
+   ],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "SUP-09.2",
+   "domain": "SUP-09",
+   "product": "SUPPLY / STOCK",
+   "text": "BOQ theoretical quantity against actual issues and installation (waste)",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-011",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.1",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Asset register, assignment, utilisation and monotonic meter readings",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_RegisterAndLifecycle",
+    "TestFleet_DailyLogsAndMeter",
+    "TestAPIFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.2",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "A fourteen-state lifecycle enforced identically in Go and in the database; every move is an attested human decision with a reason; history is written by the database and cannot be edited",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_StateMachineGoAndSQLAgree",
+    "TestLifecycleRules",
+    "TestFleet_RegisterAndLifecycle"
+   ],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.3",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Equipment on safety hold, broken down, under maintenance or under inspection cannot be put to work or reserved, and returns to service only through a certifier with fresh MFA",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_RegisterAndLifecycle",
+    "TestLifecycleRules",
+    "TestAPIFleet",
+    "TestConsoleBrowserFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.4",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Approved reservations of one machine never overlap, also under concurrent approval; a machine reaches a project only through that project's approved reservation",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_ReservationsNeverDoubleBook",
+    "TestFleet_RegisterAndLifecycle",
+    "TestAPIFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.5",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Daily logs: one per machine, day and shift; an authorised operator; hours fit the meter and the day; the machine is at the project; approved by a second person; an offline repeat is recorded once",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_DailyLogsAndMeter",
+    "TestAPIFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.6",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "A meter never runs backwards and moves only through an approved log or an approved, two-person meter reset; replacement and rollover are recorded",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_DailyLogsAndMeter"
+   ],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.7",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Fleet data is invisible to other tenants; project hours are visible only inside the project scope; the register pages by cursor",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_TenantIsolationAndPaging",
+    "TestFleet_DailyLogsAndMeter",
+    "TestAPIFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.8",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Fleet Command Centre figures (counts by state, hours, utilization, availability, fuel per hour) equal the register and the approved logs; a ratio with no data is absent, not zero",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleet_DailyLogsAndMeter",
+    "TestHoursRatios",
+    "TestConsoleBrowserFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.9",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Work-package assignment, capacity planning, cross-project requests, availability forecasting, rental agreements, standby periods",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.10",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Attachments, equipment documents and photographs, fixed-asset linkage, warranty and insurance expiry alerts",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.11",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Daily logs captured offline through the field device command log",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "FLT-01.11.a",
+     "text": "An equipment daily log is accepted as a signed, idempotent field-device command",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "FLT-01.11.b",
+     "text": "A duplicate or replayed command applies once; a conflict is returned, never merged",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.12",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Telematics ingestion (GPS, engine hours, fuel level) with authenticated devices and replay protection, stored apart from accounting data",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.13",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Deterministic allocation and transfer recommendations with explainable constraints",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-01.14",
+   "domain": "FLT-01",
+   "product": "FLEET",
+   "text": "Equipment costing and charge-out: operating cost per machine (fuel, parts, labour, workshop), internal charge-out and rental to projects as a management allocation kept apart from statutory postings, idle-time and utilisation rules, external rental, equipment profitability; rates and rules as approved, effective-dated policy",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "FLT-01.14.a",
+     "text": "Internal charge-out rates per machine are effective-dated documents approved by another person with a fresh second factor, attested; none is shipped",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_ChargeOut"
+     ],
+     "note": ""
+    },
+    {
+     "id": "FLT-01.14.b",
+     "text": "A charge run prices a project's approved logs of a month at the rate in force on each day; a log without a rate stops the run; each log is charged once",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_ChargeOut"
+     ],
+     "note": ""
+    },
+    {
+     "id": "FLT-01.14.c",
+     "text": "The run's EQP_CHG journal (Dr project equipment cost per cost code, Cr recovery) equals the run when approved or posted, and is cancelled only with the run while a draft",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFleet_ChargeOut"
+     ],
+     "note": ""
+    },
+    {
+     "id": "FLT-01.14.d",
+     "text": "Operating cost per machine (fuel, parts, labour, workshop) reported against its charge-out recovery",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-02.1",
+   "domain": "FLT-02",
+   "product": "FLEET",
+   "text": "Fuel issues linked to asset, operator, meter and stock movement; variance review",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "FLT-02.1.a",
+     "text": "Each dispense is a stock issue linked to machine, operator and meter",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestFuel_DispenseIsAStockIssue"
+     ],
+     "note": ""
+    },
+    {
+     "id": "FLT-02.1.b",
+     "text": "A variance is investigated in a recorded document with findings, reviewed and approved by someone other than the investigator",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "FLT-02.1.c",
+     "text": "Tank dip readings are reconciled to the stock ledger and the difference is explained or adjusted through an approved count",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-003",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-02.2",
+   "domain": "FLT-02",
+   "product": "FLEET",
+   "text": "Fuel is ordinary stock: a dispense is a stock issue of a designated fuel item, prepared with the machine, meter reading and operator, and takes effect (tank quantity, value, journal, project cost) only when a second person approves the issue; there is no second fuel ledger",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFuel_DispenseIsAStockIssue",
+    "TestAPIFuel"
+   ],
+   "criteria": [],
+   "work_package": "WP-003",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-02.3",
+   "domain": "FLT-02",
+   "product": "FLEET",
+   "text": "A dispense is refused for an item not designated as fuel, a machine not at the project, a meter reading behind the last approved one, or more than the tank holds; an offline retry records once; a tenant database login cannot write or alter a dispense around the kernel",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFuel_DispenseIsAStockIssue"
+   ],
+   "criteria": [],
+   "work_package": "WP-003",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-02.4",
+   "domain": "FLT-02",
+   "product": "FLEET",
+   "text": "Fuel items and fuel standards (litres per metered unit, effective-dated, append-only) are set only by a person with fleet.approve, attested",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFuel_DispenseIsAStockIssue",
+    "TestFuel_StandardsAndReconciliation",
+    "TestAPIFuel"
+   ],
+   "criteria": [],
+   "work_package": "WP-003",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-02.5",
+   "domain": "FLT-02",
+   "product": "FLEET",
+   "text": "Per machine and period, dispensed, logged and expected fuel are compared and differences beyond a stated threshold are listed with both figures, in the API and the console, limited to the reader's projects",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFuel_StandardsAndReconciliation",
+    "TestFuelFlags",
+    "TestAPIFuel",
+    "TestConsoleBrowserFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-003",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-02.6",
+   "domain": "FLT-02",
+   "product": "FLEET",
+   "text": "Recorded investigation and approved closure of a fuel variance; tank dip readings reconciled to the stock ledger; fuel sensors (telematics)",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-003",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-02.7",
+   "domain": "FLT-02",
+   "product": "FLEET",
+   "text": "The thresholds for listing a fuel difference and for a service being due soon are an approved, versioned, effective-dated fleet policy (prepared by fleet.manage, approved by another person with fleet.approve and a fresh second factor); reports name the policy applied, and say so when only engineering defaults exist",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleetPolicy_ApprovedThresholdsApply",
+    "TestAPIMaintenance",
+    "TestFuelFlags",
+    "TestDueState"
+   ],
+   "criteria": [],
+   "work_package": "WP-003",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-02.8",
+   "domain": "FLT-02",
+   "product": "FLEET",
+   "text": "Expected fuel for a period that spans several effective-dated standards is the sum of each approved log's metered units at the standard in force on that log's date; days logged with no standard in force predict nothing and are reported",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestFleetPolicy_ApprovedThresholdsApply",
+    "TestFuel_StandardsAndReconciliation",
+    "TestFuelFlags"
+   ],
+   "criteria": [],
+   "work_package": "WP-003",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.1",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "Maintenance plans, work orders, parts and downtime",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "FLT-03.1.a",
+     "text": "Plans, work orders, parts as stock issues and downtime",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_WorkOrderAndReturnToService",
+      "TestMaintenance_PlansAndDue"
+     ],
+     "note": ""
+    },
+    {
+     "id": "FLT-03.1.b",
+     "text": "Labour hours on a work order priced by an approved labour-rate policy",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "FLT-03.1.c",
+     "text": "Workshop cost centres for machines not at a project",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "FLT-03.1.d",
+     "text": "Fleet maintenance calendar of due and scheduled work",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestMaintenance_PlansAndDue",
+      "TestConsoleBrowserFleet"
+     ],
+     "note": "0092: day-based plans on their due day, meter-based plans projected from 30 days of approved logs (labelled estimates), work orders on their planned day (fixed at creation)."
+    }
+   ],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.2",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "A work order is prepared (plant staff; site staff for a breakdown of a machine at their project), authorised by fleet.approve with a fresh second factor, reported complete by plant staff and closed or sent back by a certifier who did not report it; a decided work order never changes; none of these decisions can be taken by an AI or service principal",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestAPIMaintenance",
+    "TestConsoleBrowserFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.3",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "A machine that has been under maintenance returns to service only after a work order for it was closed after it entered maintenance, never while a work order is open, and not by passing through inspection; an earlier work order does not release a later spell",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestFleet_RegisterAndLifecycle",
+    "TestAPIMaintenance"
+   ],
+   "criteria": [],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.4",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "A part used on a work order is an ordinary stock issue linked to the work order: approved by a second person, valued by the stock ledger, charged to the machine's project; a work order is not reported complete while a part awaits approval",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestAPIMaintenance"
+   ],
+   "criteria": [],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.5",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "Preventive plans by metered units and/or days show what is due; a plan is raised as one work order at a time and moves on only when a certifier closes that work order",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_PlansAndDue",
+    "TestDueState",
+    "TestAPIMaintenance",
+    "TestConsoleBrowserFleet"
+   ],
+   "criteria": [],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.6",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "Maintenance history per machine (work orders, labour hours, parts cost from the stock ledger) and hours out of service by state from the lifecycle history; a tenant database login cannot write work orders, parts or plans around the kernel",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestAPIMaintenance"
+   ],
+   "criteria": [],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.7",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "Labour cost of maintenance, workshop cost centres for machines not at a project, parts reservation per work order, retiring or changing a plan, safety inspection checklists",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.8",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "Separation on a work order as enforced in the kernel and in the database: the authoriser is not the preparer; the certifier is none of the preparer, the authoriser or the reporter; authorising and certifying each need a fresh second factor at the database boundary; an attestation serves one decision on one record once; forged session settings and direct writes are refused; other projects and tenants reach nothing",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_SeparationAsEnforced",
+    "TestMaintenance_WorkOrderAndReturnToService",
+    "TestAPIMaintenance"
+   ],
+   "criteria": [],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-03.9",
+   "domain": "FLT-03",
+   "product": "FLEET",
+   "text": "A preventive plan is revised by a new version that retires the old one in the same transaction and continues from its last service, or retired with a reason; retired plans are kept, are not due and take no work orders; neither is possible while a work order of the plan is open",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestMaintenance_PlanRevisionAndRetirement",
+    "TestAPIMaintenance"
+   ],
+   "criteria": [],
+   "work_package": "WP-004",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "FLT-04.1",
+   "domain": "FLT-04",
+   "product": "FLEET",
+   "text": "Capitalisation, depreciation and disposal posted through the ledger",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-005",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PPL-01.1",
+   "domain": "PPL-01",
+   "product": "PEOPLE",
+   "text": "Employee and contractor records with protected personal data",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-012",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PPL-02.1",
+   "domain": "PPL-02",
+   "product": "PEOPLE",
+   "text": "Attendance and timesheets with approval, duplicate and overlap detection",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "PPL-02.1.a",
+     "text": "Daily timesheets recorded by the site and approved by a different person, attested",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE",
+      "TestConsoleBrowserField"
+     ],
+     "note": ""
+    },
+    {
+     "id": "PPL-02.1.b",
+     "text": "Duplicate and overlapping hours refused (one approved line per person, project and day; at most 16 hours a day across projects)",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE"
+     ],
+     "note": ""
+    },
+    {
+     "id": "PPL-02.1.c",
+     "text": "Approved hours imported into a pay run once",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE"
+     ],
+     "note": ""
+    },
+    {
+     "id": "PPL-02.1.d",
+     "text": "Clock-in/clock-out attendance capture, including offline from the field device",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-012",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PPL-03.1",
+   "domain": "PPL-03",
+   "product": "PEOPLE",
+   "text": "Payroll preview → approval → locked run → posting → payment, on effective-dated reviewed rules",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "PPL-03.1.a",
+     "text": "Effective-dated, versioned payroll rule sets; an unapproved rule set cannot be activated",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "note": "new-version payroll (TestPayroll_RunApprovePay); activation of an unapproved set is not tested"
+    },
+    {
+     "id": "PPL-03.1.b",
+     "text": "Preview, independent approval, locked run, journal and payment record with synthetic test rules",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "note": "new-version payroll; the locked run is not tested; employee records approved by a second person since 0074"
+    },
+    {
+     "id": "PPL-03.1.c",
+     "text": "Reversal and reconciliation of a payroll run",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "PPL-03.1.d",
+     "text": "Statutory rules supplied and approved by a named professional",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-012",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PPL-04.1",
+   "domain": "PPL-04",
+   "product": "PEOPLE",
+   "text": "Crew output and labour cost by work package",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-012",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "PPL-05.1",
+   "domain": "PPL-05",
+   "product": "PEOPLE",
+   "text": "Certifications and safety training with expiry",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestCertifications_VerifyExpireRevoke",
+    "TestConsoleBrowserField"
+   ],
+   "criteria": [],
+   "work_package": "WP-012",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CON-01.1",
+   "domain": "CON-01",
+   "product": "CONTRACT",
+   "text": "Contracts with approved lines, advance, retention and policy; the signed version is never overwritten",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_ContractToCashToGL",
+    "TestJourneyB_Controls",
+    "TestR6_09_ContractPolicySuccession"
+   ],
+   "criteria": [],
+   "work_package": "WP-013",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CON-01.2",
+   "domain": "CON-01",
+   "product": "CONTRACT",
+   "text": "Guarantees register, liquidated-damages terms and contract obligations",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestBonds_GuaranteeRegister",
+    "TestContractTime_DamagesExtensionsObligations"
+   ],
+   "criteria": [],
+   "work_package": "WP-013",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CON-02.1",
+   "domain": "CON-02",
+   "product": "CONTRACT",
+   "text": "Variations are approved by a second person before they change contract value; pending and approved stay separate",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_Variation",
+    "TestR9_VariationRaces",
+    "TestR9_VariationRawSQLAndScope"
+   ],
+   "criteria": [],
+   "work_package": "WP-013",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CON-02.2",
+   "domain": "CON-02",
+   "product": "CONTRACT",
+   "text": "Change events carry cost impact into a draft budget revision",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestChange_EventToBudgetDraft"
+   ],
+   "criteria": [],
+   "work_package": "WP-013",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CON-03.1",
+   "domain": "CON-03",
+   "product": "CONTRACT",
+   "text": "Notices with a computed time bar; claims prepared and approved by different people; the client's answer recorded once",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestClaims_NoticesAndClaims"
+   ],
+   "criteria": [],
+   "work_package": "WP-013",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CON-04.1",
+   "domain": "CON-04",
+   "product": "CONTRACT",
+   "text": "Payment certificate = cumulative certified − previous, less retention and advance recovery; never negative; no duplicate certification",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_ContractToCashToGL",
+    "TestR6_01_NegativeAmountDue",
+    "TestR6_03_AdvanceRecoveryEdges",
+    "TestJourneyB_CertificateHashConstant"
+   ],
+   "criteria": [],
+   "work_package": "WP-013",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CON-04.2",
+   "domain": "CON-04",
+   "product": "CONTRACT",
+   "text": "Retention release, credit notes and price adjustment are separate approved documents",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_RetentionRelease",
+    "TestJourneyB_CreditNote",
+    "TestBonds_PriceAdjustment"
+   ],
+   "criteria": [],
+   "work_package": "WP-013",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CON-04.3",
+   "domain": "CON-04",
+   "product": "CONTRACT",
+   "text": "Certification, invoice, revenue recognition and collection are distinct states",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CON-04.3.a",
+     "text": "Certification, invoicing and collection are distinct, separately evidenced states",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CON-04.3.b",
+     "text": "Revenue recognition follows a contract-specific, approved policy and is not triggered by invoicing alone",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "note": "new-version revenue runs (TestRevenue_RunAndWIPJournal): policy per legal entity, not per contract"
+    },
+    {
+     "id": "CON-04.3.c",
+     "text": "A recognition change is reviewed by someone other than its preparer",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-013",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-01.1",
+   "domain": "CAP-01",
+   "product": "CAPITAL",
+   "text": "A journal posts only if balanced, in an open period, with valid accounts; enforced in Go and in the database",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestHappyPathPostsAndBalancesAccounts",
+    "TestUnbalancedRejectedInGoAndInDatabase",
+    "TestClosedPeriodBlocksPosting",
+    "TestSC14_DatabaseEnforcesCurrencyPrecision"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-01.2",
+   "domain": "CAP-01",
+   "product": "CAPITAL",
+   "text": "Posted journals are immutable; correction is by reversal",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPostedJournalIsImmutable",
+    "TestSC01_PostedLineCannotBeReassignedOrMutated",
+    "TestReversalFlow"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-01.3",
+   "domain": "CAP-01",
+   "product": "CAPITAL",
+   "text": "The same source posts once: replay returns the original, a changed payload conflicts",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestIdempotentReplayAndConflict",
+    "TestConcurrentIdenticalCreatesAreIdempotent"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-01.4",
+   "domain": "CAP-01",
+   "product": "CAPITAL",
+   "text": "Posting and period close cannot race",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSC08_PostWaitsForInFlightCloseThenRefuses",
+    "TestSC08_CloseWaitsForInFlightPostAndIncludesIt"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-01.5",
+   "domain": "CAP-01",
+   "product": "CAPITAL",
+   "text": "Balance sheet, income statement and cash-flow statement",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestAPIFinancialStatements",
+    "TestCashFlow_DirectMethodReference",
+    "TestConsoleBrowserFinance"
+   ],
+   "criteria": [
+    {
+     "id": "CAP-01.5.a",
+     "text": "Income statement for a period and balance sheet at its end, from posted journals only, balancing against equity and unclosed earnings, checked against a hand-computed reference",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestAPIFinancialStatements"
+     ],
+     "note": ""
+    },
+    {
+     "id": "CAP-01.5.b",
+     "text": "Cash-flow statement (needs operating/investing/financing classification of accounts)",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestCashFlow_DirectMethodReference",
+      "TestConsoleBrowserFinance"
+     ],
+     "note": "0091: account classes proposed and approved by different people (attested); direct method; opening + movement = closing, against a hand-computed reference."
+    },
+    {
+     "id": "CAP-01.5.c",
+     "text": "One-step drill-down from a statement line to its journal lines",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestAPIFinancialStatements",
+      "TestConsoleBrowserFinance"
+     ],
+     "note": "Each line carries its account; the general-ledger detail report for that account and period adds up to the line."
+    }
+   ],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-01.6",
+   "domain": "CAP-01",
+   "product": "CAPITAL",
+   "text": "Period end: fiscal years in the Gregorian or Ethiopian calendar; recurring journals only from templates approved by another person with a fresh second factor; accruals reversed once on their date; overhead spread by posted direct cost; the database refuses an overhead or recurring journal that differs from its computation (DEF-012, DEF-013; 0064, 0075, 0083)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPeriodEnd_FiscalYearRecurringAccrualOverhead",
+    "TestEthiopianFiscalYear",
+    "TestAPIRecurringJournalApproval"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-02.1",
+   "domain": "CAP-02",
+   "product": "CAPITAL",
+   "text": "Supplier invoices post through bound draft journals; payables reconcile to the control account",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_SubledgerJournalIntegrity",
+    "TestJourneyA_BOQToBankReconciliationToGL",
+    "TestR3_01_SubledgerJournalLinesAppendedAfterBinding"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-03.1",
+   "domain": "CAP-03",
+   "product": "CAPITAL",
+   "text": "Customer invoices, receipts and credit notes reconcile to the receivable control account, including under concurrency",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyB_ContractToCashToGL",
+    "TestJourneyB_CreditNoteRacesReceipt",
+    "TestR8_ConcurrentCreditsAndReceipt",
+    "TestR6_10_ManualJournalOnARControl"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-04.1",
+   "domain": "CAP-04",
+   "product": "CAPITAL",
+   "text": "Cost codes are validated against the approved WBS",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSC10_CostCodesAreValidatedAgainstApprovedWBS"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-04.2",
+   "domain": "CAP-04",
+   "product": "CAPITAL",
+   "text": "Monthly cost forecast (EAC/ETC), WIP schedule and budget-vs-actual tie to their sources",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestForecast_MethodsAndGuards",
+    "TestForecast_WIPScheduleAndSummary",
+    "TestReportCatalogue_EveryReportRunsAndTiesOut",
+    "TestForecast_ChangeRuleNeedsExplanation"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-05.1",
+   "domain": "CAP-05",
+   "product": "CAPITAL",
+   "text": "Payments are prepared, approved and released by different people and settled only by an independent bank statement",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestJourneyA_PaymentControls",
+    "TestR3_09_FabricatedStatementSettlesPayment",
+    "TestR4_04_ReconcilerSeparation"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-05.2",
+   "domain": "CAP-05",
+   "product": "CAPITAL",
+   "text": "FX rates are policy-bound, maker/checker approved and re-checked at posting",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSC02_DatabaseRejectsIneligibleFXAndRechecksAtPost",
+    "TestSC03_FXMakerChecker",
+    "TestConvertIsExactAndBoundToSnapshot"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-05.3",
+   "domain": "CAP-05",
+   "product": "CAPITAL",
+   "text": "Bank transfers through a bank API",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CAP-05.3.a",
+     "text": "Bank adapter interface with validation, idempotency, status and reconciliation, verified against a sandbox double",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CAP-05.3.b",
+     "text": "Live bank integration under explicit authorisation and banking credentials",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-06.1",
+   "domain": "CAP-06",
+   "product": "CAPITAL",
+   "text": "Tax rules are effective-dated data with review status; ambiguity is an error",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestRulesValidate",
+    "TestEffectiveDatingAndReviewStatus",
+    "TestAmbiguityIsAnError"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-06.2",
+   "domain": "CAP-06",
+   "product": "CAPITAL",
+   "text": "Real jurisdiction tax and withholding rules",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CAP-06.2.a",
+     "text": "Configurable tax engine: effective dates, bases, exemptions, withholding, rounding, source and approval",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CAP-06.2.b",
+     "text": "Real rates and rules from a named tax professional with sources",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-07.1",
+   "domain": "CAP-07",
+   "product": "CAPITAL",
+   "text": "Intercompany matching, translation and elimination for consolidated statements",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-08.1",
+   "domain": "CAP-08",
+   "product": "CAPITAL",
+   "text": "Cash forecast scenarios including payroll, tax and supplier schedules",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CAP-08.1.a",
+     "text": "Scenarios are versioned with stated assumptions",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CAP-08.1.b",
+     "text": "Each scenario uses the supplier, payroll, tax and collection schedules of CMD-05.2",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-09.1",
+   "domain": "CAP-09",
+   "product": "CAPITAL",
+   "text": "Every command writes a hash-chained audit entry and its outbox event in the same transaction",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestAuditChainLinearUnderConcurrency",
+    "TestSC07_FXCommandsEmitAtomicOutboxEvents",
+    "TestOutboxAndPeriodsCannotBeTamperedByAppRole"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-09.2",
+   "domain": "CAP-09",
+   "product": "CAPITAL",
+   "text": "A tenant login cannot rewrite history",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPrivileges_TenantLoginCannotRewriteHistory",
+    "TestR3_02_NoDeleteOrTruncate"
+   ],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CAP-09.3",
+   "domain": "CAP-09",
+   "product": "CAPITAL",
+   "text": "Audit chain anchored to separately protected storage",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-014",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "ASR-01.1",
+   "domain": "ASR-01",
+   "product": "ASSURE",
+   "text": "ITP with hold/witness points, NCR and corrective action through independent closure",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-015",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "ASR-02.1",
+   "domain": "ASR-02",
+   "product": "ASSURE",
+   "text": "Samples with chain of custody, calibrated equipment, results against limits; failed tests preserved",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-015",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "ASR-03.1",
+   "domain": "ASR-03",
+   "product": "ASSURE",
+   "text": "Permits to work, incidents, toolbox talks; stop-work effective offline; no AI release",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "ASR-03.1.a",
+     "text": "Incidents investigated and closed by someone other than the reporter; major incidents need a verified corrective action; attested",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE",
+      "TestConsoleBrowserField"
+     ],
+     "note": ""
+    },
+    {
+     "id": "ASR-03.1.b",
+     "text": "Permits to work requested, issued and accepted by three different people, attested, with bounded validity",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE",
+      "TestConsoleBrowserField"
+     ],
+     "note": ""
+    },
+    {
+     "id": "ASR-03.1.c",
+     "text": "Toolbox talks, inductions and safety inspections recorded; LTIFR from approved hours",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestWorkforce_TimesheetsAndHSE"
+     ],
+     "note": ""
+    },
+    {
+     "id": "ASR-03.1.d",
+     "text": "Stop-work effective offline on the field device",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "ASR-03.1.e",
+     "text": "No AI identity can close, issue or accept (decisions reserved to human principals)",
+     "status": "IMPLEMENTING",
+     "evidence_tests": [],
+     "note": "authorize() refuses non-human principals for decisions; no HSE-specific test yet"
+    }
+   ],
+   "work_package": "WP-015",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "ASR-04.1",
+   "domain": "ASR-04",
+   "product": "ASSURE",
+   "text": "Carbon, waste, water and energy records with versioned factors; measured vs estimated",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-015",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.1",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "A controlled document has immutable revisions; content is hashed by the database; a revision is published by a second person with fresh MFA",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_RevisionsAndPublication"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.2",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Publishing a revision supersedes the previous one in the same transaction; there is never more than one current revision",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_RevisionsAndPublication",
+    "TestDocuments_ConcurrentPublicationKeepsOneCurrent"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.3",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Documents are visible only inside the tenant and the reader's project scope; every download is recorded",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_ScopeAndTenantIsolation",
+    "TestAPIDocumentsAndRFIs"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.4",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Malware scanning and quarantine before a file can be downloaded",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_FailClosedQuarantine",
+    "TestDocSecurity_InfectedAndMaliciousUploads",
+    "TestClamdAgainstARealDaemon",
+    "TestDocSecurity_RealScannerAndObjectStore"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.5",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Object storage with pre-signed, short-lived URLs and resumable upload",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CNX-01.5.a",
+     "text": "Object storage with encryption and short-lived authorised download",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CNX-01.5.b",
+     "text": "Resumable upload: an interrupted upload continues without re-sending completed parts and is scanned before acceptance",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.6",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Transmittals, QR verification of a revision, retention policy and legal hold",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CNX-01.6.a",
+     "text": "A transmittal records the approved revisions sent to a party and never changes; items only in the sending transaction",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocflow_TransmittalsAndSubmittals",
+      "TestConsoleBrowserDocuments"
+     ],
+     "note": ""
+    },
+    {
+     "id": "CNX-01.6.b",
+     "text": "QR verification of a printed revision",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CNX-01.6.c",
+     "text": "Retention policy per document type",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CNX-01.6.d",
+     "text": "Legal hold that blocks deletion and retention expiry",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.7",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Files over the PostgreSQL cap are stored encrypted in an S3-compatible store under a tenant-scoped, immutable key fixed by the database; a tampered, swapped or cross-tenant object is not served",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_ObjectStorageAndMigration",
+    "TestS3AgainstARealServer",
+    "TestSealedRoundTripAndTamperDetection",
+    "TestObjectKeyIsTenantScopedAndStrict",
+    "TestDocumentStorageConfig"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.8",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Migration from PostgreSQL to object storage is incremental and repeatable, verifies each copy by reading it back, and removes no byte until the schema owner releases it",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_ObjectStorageAndMigration"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.9",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Download links are short-lived, bound to tenant, revision and person, re-checked against quarantine when used and audited; downloads and links count against the export budget",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_DownloadLinksAndExportBudget",
+    "TestAPIDocumentSecurity"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.10",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Uploads are streamed with bounded memory and refused when mislabelled, an archive bomb, a path traversal, SVG/HTML, or carrying macros or active PDF content; refusals are audited",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestInspect",
+    "TestDocSecurity_InfectedAndMaliciousUploads",
+    "TestAPIDocumentSecurity"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.11",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "The scan requirement and storage quota are a per-tenant policy changed only by a person with tenant.settings.manage and fresh MFA, attested",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocSecurity_FailClosedQuarantine",
+    "TestDocSecurity_ObjectStorageAndMigration",
+    "TestAPIDocumentSecurity"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.12",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Safe document preview generation",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.13",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Resumable multipart upload from the client for very large BIM and engineering files",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.14",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Storage faults are told apart (missing bucket, missing object, refused credentials, unavailable service); the bucket is provisioned and proven private before use; the API refuses to start without it and never reports a storage fault as a missing file",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestS3ErrorClassification",
+    "TestS3FaultClassesAgainstARealServer",
+    "TestStorageFaultsAreNotReportedAsNotFound",
+    "TestDocSecurity_RealScannerAndObjectStore"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-01.15",
+   "domain": "CNX-01",
+   "product": "CONNECT",
+   "text": "Document encryption keys are versioned: rotation keeps earlier files readable, a missing key is reported as such and is recoverable, scan verdicts survive a rotation",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestKeyVersionsRotationAndRecovery",
+    "TestDocSecurity_KeyRotation",
+    "TestDocumentKeyRotationConfig"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-02.1",
+   "domain": "CNX-02",
+   "product": "CONNECT",
+   "text": "Drawings are controlled documents: the current revision is the only one offered as current",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_RevisionsAndPublication"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-02.2",
+   "domain": "CNX-02",
+   "product": "CONNECT",
+   "text": "Mark-ups and 2D review",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-03.1",
+   "domain": "CNX-03",
+   "product": "CONNECT",
+   "text": "An RFI is raised against a project (optionally a document revision), answered once by someone other than its author, then closed",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestDocuments_RFILifecycle",
+    "TestAPIDocumentsAndRFIs"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-03.2",
+   "domain": "CNX-03",
+   "product": "CONNECT",
+   "text": "RFI cost/time impact linked to change events",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestRFIImpactAndSubmittalCycle",
+    "TestConsoleBrowserDocuments"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-04.1",
+   "domain": "CNX-04",
+   "product": "CONNECT",
+   "text": "Submittals with review cycles and consultant responses",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CNX-04.1.a",
+     "text": "A submittal is reviewed once, with a code A-D, by someone other than the submitter; attested; C and D need a note",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestDocflow_TransmittalsAndSubmittals",
+      "TestConsoleBrowserDocuments"
+     ],
+     "note": ""
+    },
+    {
+     "id": "CNX-04.1.b",
+     "text": "A resubmission is linked to the submittal it answers, forming a review cycle",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRFIImpactAndSubmittalCycle",
+      "TestConsoleBrowserDocuments"
+     ],
+     "note": ""
+    },
+    {
+     "id": "CNX-04.1.c",
+     "text": "Consultant responses through the consultant portal",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": "Depends on CNX-12."
+    }
+   ],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-05.1",
+   "domain": "CNX-05",
+   "product": "CONNECT",
+   "text": "Correspondence register (in/out) linked to contracts",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestCorrespondence_RegisterRepliesAndOverdue",
+    "TestAPICorrespondence",
+    "TestConsoleBrowserDocuments"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-06.1",
+   "domain": "CNX-06",
+   "product": "CONNECT",
+   "text": "Versioned workflow definitions; thresholds, quorum, maker excluded; the database refuses a forged approval trail",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestWorkflow_MandatoryJournalWorkflowReplacesDirectPath",
+    "TestWorkflow_HighValueNeedsQuorumOfDistinctExecutivesWithMFA",
+    "TestWorkflow_DatabaseRefusesForgedTrail",
+    "TestValidatorRefusesUnsafeDefinitions"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-06.2",
+   "domain": "CNX-06",
+   "product": "CONNECT",
+   "text": "An approval is bound to the exact document content, step and outcome, and cannot be replayed",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestAttestation_ReplaySubstitutionExpiryAndTampering",
+    "TestAttestation_DecisionBoundToStepAndOutcome"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-06.3",
+   "domain": "CNX-06",
+   "product": "CONNECT",
+   "text": "Authority matrix and time-limited delegation that cannot defeat separation of duties",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestAuthority_MatrixGovernanceAndLimits",
+    "TestAuthority_DelegationLifecycle",
+    "TestAuthority_ConflictingDelegationIsDroppedUnlessExcepted"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-07.1",
+   "domain": "CNX-07",
+   "product": "CONNECT",
+   "text": "Alert rules notify the right people; a rule is activated by someone other than its author",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPlatform_RulesLifecycleAndWorker"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-07.2",
+   "domain": "CNX-07",
+   "product": "CONNECT",
+   "text": "Assignable tasks with due dates outside document approvals",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestTasks_AssignCompleteCancel",
+    "TestConsoleBrowserForms"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-08.1",
+   "domain": "CNX-08",
+   "product": "CONNECT",
+   "text": "Meeting minutes with actions and decisions",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-09.1",
+   "domain": "CNX-09",
+   "product": "CONNECT",
+   "text": "Every catalogued report runs and ties to its source; exports show no more than the screen and are budgeted",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestReportCatalogue_EveryReportRunsAndTiesOut",
+    "TestReportCatalogue_ScopeAndInput",
+    "TestAPIReportsAndExports",
+    "TestPlatform_ExportBudget"
+   ],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-10.1",
+   "domain": "CNX-10",
+   "product": "CONNECT",
+   "text": "Client portal limited to the client's own contracts, certificates and documents",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-11.1",
+   "domain": "CNX-11",
+   "product": "CONNECT",
+   "text": "Supplier portal limited to the supplier's own RFQs, orders and invoices",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-12.1",
+   "domain": "CNX-12",
+   "product": "CONNECT",
+   "text": "Consultant portal for scoped review and certification",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "CNX-13.1",
+   "domain": "CNX-13",
+   "product": "CONNECT",
+   "text": "Government/regulator portal",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "CNX-13.1.a",
+     "text": "Export formats, connector boundary, validation, retry and audit with contract tests",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "CNX-13.1.b",
+     "text": "Official specification and authorised interface",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-016",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "RES-01.1",
+   "domain": "RES-01",
+   "product": "ESTATE",
+   "text": "Unit inventory, atomic reservation, sale agreements and instalments",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-017",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "RES-02.1",
+   "domain": "RES-02",
+   "product": "ESTATE",
+   "text": "Service requests, preventive maintenance, leases and utilities",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-017",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "RES-03.1",
+   "domain": "RES-03",
+   "product": "ESTATE",
+   "text": "Commissioning checks and final acceptance",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-017",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "RES-04.1",
+   "domain": "RES-04",
+   "product": "ESTATE",
+   "text": "Handover package: as-built revisions, manuals, warranties, punch list",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-017",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-01.1",
+   "domain": "BRS-01",
+   "product": "BRAIN / SENTINEL",
+   "text": "Lessons learned and authorised document retrieval with ACL before search",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-02.1",
+   "domain": "BRS-02",
+   "product": "BRAIN / SENTINEL",
+   "text": "An AI principal can draft but never approve, post, pay or release; enforced in Go and in the database",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestGovernedAI_DraftOnly",
+    "TestR6_11_HumanRuleAndDraftParity",
+    "TestR8_HumanDecisionsAndScope"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-02.2",
+   "domain": "BRS-02",
+   "product": "BRAIN / SENTINEL",
+   "text": "The assistant answers only from permission-filtered computed facts and shows sources",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPlatform_IntelligenceAndAssistant",
+    "TestAIPhraserAdapter"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-02.3",
+   "domain": "BRS-02",
+   "product": "BRAIN / SENTINEL",
+   "text": "Model-independent gateway, agent registry and evaluation sets",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-02.4",
+   "domain": "BRS-02",
+   "product": "BRAIN / SENTINEL",
+   "text": "A live model provider",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "BRS-02.4.a",
+     "text": "Provider-neutral gateway with policy controls, data filtering, cost limits and safe fallback, verified with a local provider",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "BRS-02.4.b",
+     "text": "Approved provider credentials and data-sharing authorisation",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-03.1",
+   "domain": "BRS-03",
+   "product": "BRAIN / SENTINEL",
+   "text": "Sessions can be revoked across replicas, including in-flight approvals",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSessions_RevocationKillsOldTokensIncludingInFlightApprovals",
+    "TestAPISessionRevocationAcrossReplicas"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-03.2",
+   "domain": "BRS-03",
+   "product": "BRAIN / SENTINEL",
+   "text": "The approval signing key lives outside the API; a compromised API cannot forge an approval",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSignerIsolation_CompromisedAPICannotForge",
+    "TestSignerIsolation_APIWithoutSecretFailsClosed"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-03.3",
+   "domain": "BRS-03",
+   "product": "BRAIN / SENTINEL",
+   "text": "Pre-authentication abuse limits shared across replicas",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSharedAbuse_LockoutAndBudgetsSpanReplicas",
+    "TestAPIPreAuthFloodProtection"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-03.4",
+   "domain": "BRS-03",
+   "product": "BRAIN / SENTINEL",
+   "text": "Production configuration fails closed on any demo default",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestProductionRefusesTheOldDemoDefaults",
+    "TestProductionManifestHasNoDemoDefaults"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-03.5",
+   "domain": "BRS-03",
+   "product": "BRAIN / SENTINEL",
+   "text": "Independent penetration test; a real identity provider with step-up; HSM/KMS custody of the signer key",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "BRS-03.5.a",
+     "text": "Real identity provider integration with step-up and revocation",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "BRS-03.5.b",
+     "text": "KMS/HSM custody of the approval-signer key",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "BRS-03.5.c",
+     "text": "KMS/HSM custody of document keys",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "BRS-03.5.d",
+     "text": "External penetration test by an independent tester",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-03.6",
+   "domain": "BRS-03",
+   "product": "BRAIN / SENTINEL",
+   "text": "E-mail + 6-digit PIN sign-in with an optional authenticator, lockout and a full trail",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPinLogin_LockoutChangeAuthenticatorTrail",
+    "TestAPIPinLogin",
+    "TestPinLoginConfig",
+    "TestCheckPIN",
+    "TestHashVerify",
+    "TestTOTPVectors",
+    "TestSealOpen"
+   ],
+   "criteria": [
+    {
+     "id": "BRS-03.6.a",
+     "text": "The PIN is 6 digits and not an easy pattern; it is stored only as PBKDF2 over an HMAC with a server-side pepper the database never holds",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestCheckPIN",
+      "TestHashVerify",
+      "TestPinLogin_LockoutChangeAuthenticatorTrail"
+     ],
+     "note": ""
+    },
+    {
+     "id": "BRS-03.6.b",
+     "text": "15 consecutive failures lock the sign-in for 15 minutes, counted by the database under a row lock; the right PIN is refused during the lock",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestPinLogin_LockoutChangeAuthenticatorTrail",
+      "TestAPIPinLogin"
+     ],
+     "note": ""
+    },
+    {
+     "id": "BRS-03.6.c",
+     "text": "An administrator (user.manage, fresh second factor, never for themselves) issues a one-time PIN that must be changed at the first sign-in; no read returns a PIN",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestPinLogin_LockoutChangeAuthenticatorTrail",
+      "TestAPIPinLogin"
+     ],
+     "note": ""
+    },
+    {
+     "id": "BRS-03.6.d",
+     "text": "The authenticator is optional; once on it is required, each code works once, and only such a session counts as multi-factor",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestPinLogin_LockoutChangeAuthenticatorTrail",
+      "TestTOTPVectors",
+      "TestAPIPinLogin"
+     ],
+     "note": ""
+    },
+    {
+     "id": "BRS-03.6.e",
+     "text": "Every attempt and administrative action is in an append-only trail, per company; another company sees and changes nothing",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestPinLogin_LockoutChangeAuthenticatorTrail",
+      "TestAPIPinLogin"
+     ],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-04.1",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "Directory of people, custom roles and grants; identity administrators hold no financial permission",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPeople_DirectoryRolesAndProfile",
+    "TestDefaultRolesSeparateDuties",
+    "TestReservedPermissionsNotGrantableByRoles"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-04.2",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "Tenant settings and a setup checklist that reads real state",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPlatform_TenantSettings",
+    "TestSetup_ChecklistReadsRealState"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-04.3",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "Access reviews, legal hold and break-glass access",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-04.4",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "A security administrator withholds or restores permissions of a product role with a fresh second factor; the database refuses any change not attested for that person (DEF-014, 0082)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPeople_AdjustProductRole"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-04.5",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "Leadership roles with separated powers: system administrator, board chairman, CEO",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestLeadershipRoles_SeparatedPowers",
+    "TestDefaultRolesSeparateDuties"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "BRS-04.6",
+   "domain": "BRS-04",
+   "product": "BRAIN / SENTINEL",
+   "text": "Company roles state responsibilities beside permissions; leadership product roles carry written responsibilities (0096)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestRoleResponsibilities"
+   ],
+   "criteria": [],
+   "work_package": "WP-018",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-OFFLINE.1",
+   "domain": "XCT-OFFLINE",
+   "product": "PLATFORM",
+   "text": "Offline commands are idempotent: a lost acknowledgement or a retry applies once; conflicts are returned, never merged",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSync_IdempotencyConflictsAndRevocation",
+    "TestSync_ConcurrentRetriesApplyOnce",
+    "TestR12_CommandLogForgeryAndSequenceBound",
+    "TestR12_TransientFailureIsRetried"
+   ],
+   "criteria": [],
+   "work_package": "WP-019",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-OFFLINE.2",
+   "domain": "XCT-OFFLINE",
+   "product": "PLATFORM",
+   "text": "A revoked device is refused",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSync_IdempotencyConflictsAndRevocation",
+    "TestR12_DeviceCap"
+   ],
+   "criteria": [],
+   "work_package": "WP-019",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-OFFLINE.3",
+   "domain": "XCT-OFFLINE",
+   "product": "PLATFORM",
+   "text": "Native field app with an encrypted local database, restart-safe queue and 7-day offline objective",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-019",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-OFFLINE.4",
+   "domain": "XCT-OFFLINE",
+   "product": "PLATFORM",
+   "text": "Offline stock issue through expiring quantity rights; offline stop-work",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-019",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-SCALE.1",
+   "domain": "XCT-SCALE",
+   "product": "PLATFORM",
+   "text": "Tenant routing with a dedicated-database tier",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestSC04_DedicatedDatabaseTier",
+    "TestSC04_SharedLoginRetiredAndMisroutingFailsClosed"
+   ],
+   "criteria": [],
+   "work_package": "WP-020",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-SCALE.2",
+   "domain": "XCT-SCALE",
+   "product": "PLATFORM",
+   "text": "Partitioned high-volume tables with partition-independent source identity",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-020",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-SCALE.3",
+   "domain": "XCT-SCALE",
+   "product": "PLATFORM",
+   "text": "Archive catalogue, verified export to open formats and reconciled restore",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-020",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-SCALE.4",
+   "domain": "XCT-SCALE",
+   "product": "PLATFORM",
+   "text": "Measured load at tier T1 or above",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-020",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-DR.1",
+   "domain": "XCT-DR",
+   "product": "PLATFORM",
+   "text": "Base backup plus WAL archive restores exactly to a named point, every migration included; data loss on losing the primary is measured",
+   "status": "VERIFIED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-021",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-DR.2",
+   "domain": "XCT-DR",
+   "product": "PLATFORM",
+   "text": "Encrypted, signed offsite PITR backup restores exactly; forged or colliding archives are refused",
+   "status": "IMPLEMENTED_UNVERIFIED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "XCT-DR.2.a",
+     "text": "Restore is exact at the current commit (fresh evidence)",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "XCT-DR.2.b",
+     "text": "A forged or colliding archive is refused",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "XCT-DR.2.c",
+     "text": "An interrupted restore can be resumed or restarted safely",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "XCT-DR.2.d",
+     "text": "Object storage, document keys and approval verification material restore with the database",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-021",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-DR.3",
+   "domain": "XCT-DR",
+   "product": "PLATFORM",
+   "text": "Request telemetry, trace context and alert rules fire on induced failures",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestAlertDrill_InducedFailuresFireTheRightAlerts",
+    "TestRequestTelemetryAndTraceContext"
+   ],
+   "criteria": [],
+   "work_package": "WP-021",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-DR.4",
+   "domain": "XCT-DR",
+   "product": "PLATFORM",
+   "text": "Outbox relay delivers in order, retries, dead-letters and replays; consumers dedupe",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestRelayDeliversInOrderExactlyOnceWhenHealthy",
+    "TestRelayCrashAfterPublishRedeliversAndConsumerDedupes",
+    "TestRelayRetryDeadLetterHeadOfLineAndReplay"
+   ],
+   "criteria": [],
+   "work_package": "WP-021",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-DR.5",
+   "domain": "XCT-DR",
+   "product": "PLATFORM",
+   "text": "Operated staging and production environments",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "XCT-DR.5.a",
+     "text": "Reproducible deployment profiles for internal test and staging",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "XCT-DR.5.b",
+     "text": "An operated environment deployed under explicit authorisation",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-021",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-LOC.1",
+   "domain": "XCT-LOC",
+   "product": "PLATFORM",
+   "text": "Exact decimal money per ISO 4217 minor units; ETB supported",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestParseQuantisesToMinorUnits",
+    "TestAllocateConservesEveryMinorUnit"
+   ],
+   "criteria": [],
+   "work_package": "WP-022",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-LOC.2",
+   "domain": "XCT-LOC",
+   "product": "PLATFORM",
+   "text": "Ethiopic text renders in PDF exports",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestPDFEthiopicFontOnlyWhenNeeded"
+   ],
+   "criteria": [],
+   "work_package": "WP-022",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-LOC.3",
+   "domain": "XCT-LOC",
+   "product": "PLATFORM",
+   "text": "Ethiopian calendar display and input with round-trip tests",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "XCT-LOC.3.a",
+     "text": "Exact conversion between the Ethiopian and Gregorian calendars; every day 1900-2100 round-trips; published dates and new years agree",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestEthiopianCalendarRoundTrip",
+      "TestEthiopianCalendarKnownDates"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-LOC.3.b",
+     "text": "The console shows the Ethiopian date, computed in agreement with the server's conversion",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestConsoleBrowserForms"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-LOC.3.c",
+     "text": "Dates can be entered in the Ethiopian calendar in forms",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-022",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-LOC.4",
+   "domain": "XCT-LOC",
+   "product": "PLATFORM",
+   "text": "Translated interface (Amharic, Tigrinya, Afan Oromo)",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-022",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-LOC.5",
+   "domain": "XCT-LOC",
+   "product": "PLATFORM",
+   "text": "Ethiopian statutory tax, payroll and forms",
+   "status": "BLOCKED",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "XCT-LOC.5.a",
+     "text": "Localisation architecture for statutory forms and reporting formats",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "XCT-LOC.5.b",
+     "text": "Current professional legal and accounting review",
+     "status": "BLOCKED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-022",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-API.1",
+   "domain": "XCT-API",
+   "product": "PLATFORM",
+   "text": "The OpenAPI contract matches the routes served",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestOpenAPIMatchesRoutes"
+   ],
+   "criteria": [],
+   "work_package": "WP-002",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-API.2",
+   "domain": "XCT-API",
+   "product": "PLATFORM",
+   "text": "Problem details per RFC 9457 and cursor pagination on every list",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [],
+   "criteria": [
+    {
+     "id": "XCT-API.2.a",
+     "text": "Every error response is application/problem+json with type, title, status and detail",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestProblemDetailsRFC9457"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-API.2.b",
+     "text": "Document lists page by an opaque cursor with stable ordering",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestListCursorPagination"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-API.2.c",
+     "text": "A cursor cannot cross tenants or change the filters it was issued for",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestListCursorPagination"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-API.2.d",
+     "text": "Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestListCursorPagination"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-API.2.e",
+     "text": "Lists outside the document framework (journals, stock, people, reports) page by cursor",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "XCT-API.2.f",
+     "text": "The journal worklist pages by a cursor bound to the tenant, the list and both filters; journals added between pages are neither repeated nor shown out of order",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestJournalListCursorPagination"
+     ],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-002",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-FORM.1",
+   "domain": "XCT-FORM",
+   "product": "PLATFORM",
+   "text": "A dependent form applies only the newest answer for each list it loads; an older answer or error never replaces a newer one",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserForms",
+    "TestConsoleBrowserDocuments"
+   ],
+   "criteria": [],
+   "work_package": "WP-001",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-FORM.2",
+   "domain": "XCT-FORM",
+   "product": "PLATFORM",
+   "text": "Form state (lines, amounts, descriptions) lives in a state object with stable line identities, independent of the DOM",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
+   "criteria": [],
+   "work_package": "WP-001",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-FORM.3",
+   "domain": "XCT-FORM",
+   "product": "PLATFORM",
+   "text": "Changing the project marks lines whose cost code is no longer valid as unresolved; nothing is remapped or deleted silently",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
+   "criteria": [],
+   "work_package": "WP-001",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-FORM.4",
+   "domain": "XCT-FORM",
+   "product": "PLATFORM",
+   "text": "Submission is blocked while dependent data is loading and cannot be sent twice",
+   "status": "IMPLEMENTING",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
+   "criteria": [],
+   "work_package": "WP-001",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-FORM.5",
+   "domain": "XCT-FORM",
+   "product": "PLATFORM",
+   "text": "Leaving a form with unsaved changes asks first; navigation cancels the form's pending requests",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserForms"
+   ],
+   "criteria": [],
+   "work_package": "WP-001",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-FORM.6",
+   "domain": "XCT-FORM",
+   "product": "PLATFORM",
+   "text": "Every reloading form has a barrier-driven regression that fails without the fix",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserForms",
+    "TestConsoleBrowserDocuments"
+   ],
+   "criteria": [],
+   "work_package": "WP-001",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.1",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "AURA light and dark token sets meet their contrast targets and the console stylesheet matches them",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestAURATokensMatchStylesheet"
+   ],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.2",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "AURA warm and high-contrast themes, selectable per user",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.3",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Sign-in page: accessible labels, password-manager friendly, MFA and SSO when configured, no unsupported claims",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.4",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Two-panel e-mail + PIN sign-in page in the company's brand: attempts left, lock and first-sign-in PIN change shown; token and staging sign-in kept as other options",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserSignin",
+    "TestAPIPinLogin"
+   ],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.5",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Workflow map: every document workflow's steps with the product and company roles that may take each step, the duty controls that keep steps apart and the amount bands of the authority matrix in force",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestConsoleBrowserSignin"
+   ],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.6",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Company branding: name, motto, address and contacts, logo, and a light and dark colour theme with enforced contrast (0097)",
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestBranding_WordsThemeLogo",
+    "TestAPIBranding",
+    "TestValidate",
+    "TestLogo",
+    "TestDefaultsAreReadable",
+    "TestConsoleBrowserSignin"
+   ],
+   "criteria": [
+    {
+     "id": "XCT-UI.6.a",
+     "text": "The logo is PNG, JPEG or WebP up to 10 MB, identified by its content (SVG refused), digest-checked by the database and served with nosniff and a sandbox policy",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestLogo",
+      "TestBranding_WordsThemeLogo",
+      "TestAPIBranding"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-UI.6.b",
+     "text": "Fifteen colour tokens per mode, radius and font are customisable; text pairs keep 4.5:1 and non-text pairs 3:1, or the theme is refused",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestValidate",
+      "TestDefaultsAreReadable",
+      "TestBranding_WordsThemeLogo",
+      "TestAPIBranding"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-UI.6.c",
+     "text": "Branding is changed only with tenant.settings.manage, versioned and audited; another company sees nothing",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestBranding_WordsThemeLogo",
+      "TestAPIBranding"
+     ],
+     "note": ""
+    },
+    {
+     "id": "XCT-UI.6.d",
+     "text": "The settings page previews the theme and logo before saving, and the console and sign-in page apply them",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestConsoleBrowserSignin"
+     ],
+     "note": ""
+    }
+   ],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.7",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Personal workspace: tasks, approvals, deadlines, recent records; layout preferences saved per user and tenant",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.8",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Application shell: project switcher, command palette, notification centre, permission-aware search",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.9",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Role workspaces for the roles in the directive, each with its own working queue",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.10",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Every screen family reviewed by screenshot at the listed widths, with defects recorded and fixed",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  },
+  {
+   "id": "XCT-UI.11",
+   "domain": "XCT-UI",
+   "product": "PLATFORM",
+   "text": "Automated accessibility checks on every screen family; manual review recorded separately",
+   "status": "NOT_STARTED",
+   "evidence_tests": [],
+   "criteria": [],
+   "work_package": "WP-006",
+   "human_acceptance": "PENDING"
+  }
+ ]
+}

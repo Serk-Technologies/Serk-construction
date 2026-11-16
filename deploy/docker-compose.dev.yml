@@ -45,6 +45,8 @@ services:
       SERK_ABUSE_KEY: dev-only-abuse-hmac-key-0123456789abcdefABCDEF
       SERK_BANK_DATA_KEY: dev-only-bank-data-key-0123456789abcdefABCDEF
       SERK_BANK_DIGEST_KEY: dev-only-bank-digest-key-0123456789abcdefABCDEF
+      # E-mail + 6-digit PIN sign-in (0095); development/staging only.
+      SERK_LOGIN_PEPPER: dev-only-login-pepper-0123456789abcdefABCDEF
       SERK_LISTEN: ":8080"
       # Test-persona sign-in (development/staging only; refused in production).
       # SERK_STAGING_COMPANIES is written to deploy/.env by scripts/dev-seed.sh.
@@ -69,6 +71,10 @@ services:
       SERK_BANK_DATA_KEY: dev-only-bank-data-key-0123456789abcdefABCDEF
       SERK_BANK_DIGEST_KEY: dev-only-bank-digest-key-0123456789abcdefABCDEF
       SERK_SEED_TENANT: 11111111-1111-4111-8111-111111111111
+      # E-mail + PIN sign-ins for every staging position (0095): the one-time PINs are derived
+      # from this secret; `./run.sh pin <position>` shows one. Development only.
+      SERK_LOGIN_PEPPER: dev-only-login-pepper-0123456789abcdefABCDEF
+      SERK_SEED_PIN_SECRET: dev-only-seed-pin-secret-0123456789abcdefGHIJ
     depends_on: { migrate: { condition: service_completed_successfully } }
   devtoken:
     profiles: ["tools"]

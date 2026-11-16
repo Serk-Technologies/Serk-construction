@@ -1,0 +1,142 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"io"
+	"log/slog"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"context"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/serk-group/serk-construction/internal/store/postgres"
+	"github.com/serk-group/serk-construction/pkg/auth"
+	"github.com/serk-group/serk-construction/pkg/ethcal"
+)
+
+// TestConsoleBrowserForms (XCT-FORM) drives the cost-code-dependent forms in a
+// real Chromium across two projects with different cost codes: an older answer
+// released (by an explicit request barrier) after a newer one changes nothing;
+// a line's cost code that the new project does not offer is marked unresolved,
+// the typed line stays and the form will not send until it is chosen again;
+// submission waits for loading choices; a stale failure is not reported; and
+// leaving a form with typed input asks first. Skipped (never passed) without
+// node and Playwright; the CI gate rejects any skip.
+func TestConsoleBrowserForms(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed: the browser journey was not run")
+	}
+	pw := os.Getenv("SERK_PLAYWRIGHT")
+	if pw == "" {
+		if out, err := exec.Command("npm", "root", "-g").Output(); err == nil {
+			pw = filepath.Join(strings.TrimSpace(string(out)), "playwright")
+		}
+	}
+	if _, err := os.Stat(filepath.Join(pw, "package.json")); err != nil {
+		t.Skipf("playwright module not found at %q: the browser journey was not run", pw)
+	}
+	script, err := filepath.Abs("../../e2e/console_forms.mjs")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := newP2PAPI(t)
+	// A second project whose only cost code is 02-LAB.
+	var p2 string
+	if err := a.db.AdminStore.WithTenant(a.db.Ctx, a.tenant, func(ctx context.Context, tx pgx.Tx) error {
+		var err error
+		p2, err = postgres.CreateProject(ctx, tx, a.tenant, a.entity, "P-TWO", "Bahir Dar Bridge", "ETB")
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	pm := auth.Principal{Kind: auth.KindHuman, UserID: "u-wbs", TenantID: a.tenant, Roles: []string{"project_manager"}, ProjectIDs: []string{p2}}
+	v, _, err := a.svc.ProposeWBSVersion(a.db.Ctx, pm, p2, "Bridge WBS", []postgres.WBSNode{{Code: "02", Name: "Labour"}},
+		[]postgres.CostCode{{NodeCode: "02", Code: "02-LAB", Name: "Site labour", CostType: "LABOUR", ValidFrom: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := a.svc.DecideWBSVersion(a.db.Ctx, auth.Principal{Kind: auth.KindHuman, UserID: "u-wbs-approver", TenantID: a.tenant, Roles: []string{"finance_manager"}}, v.ID, true, "approved"); err != nil {
+		t.Fatal(err)
+	}
+	h := New(Config{Verifier: testVerifier, Kernel: a.svc, Store: a.db.Router, Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		RatePerMinute: 100000, Abuse: AbuseConfig{PreAuthPerMinute: 1000000, MaxInFlight: 1024}})
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+	a.srv = srv
+	P := []string{a.project, p2}
+	tokens := map[string]string{"siteEng": a.tok("u-se", P, false, "site_engineer"), "pm": a.tok("u-pm", P, false, "project_manager"),
+		"estimator": a.tok("u-est", P, false, "estimator"), "planner": a.tok("u-planner", P, false, "planner"),
+		"store": a.tok("u-store", P, false, "storekeeper"), "commercial": a.tok("u-com", P, false, "commercial_manager")}
+	// DEF-004: a machine working at each project (the fuel form follows the
+	// machine's project) and one in the yard with a work order (its part form
+	// asks which project bears the cost).
+	officer, plantMgr := a.tok("u-plant-officer", nil, false, "plant_officer"), a.tok("u-plant-manager", nil, true, "plant_manager")
+	day := func(n int) string { return time.Now().AddDate(0, 0, n).Format("2006-01-02") }
+	must := func(what string, want, code int, out map[string]any) {
+		t.Helper()
+		if code != want {
+			t.Fatalf("fixture, %s: %d %v", what, code, out)
+		}
+	}
+	machine := func(name, serial, project string) string {
+		code, out := a.do("POST", "/v1/equipment", officer, map[string]any{"legal_entity_id": a.entity, "name": name, "class": "GRADER", "ownership": "OWNED",
+			"manufacturer": "CAT", "model": "140K", "serial_number": serial, "opening_meter": "100"})
+		must("register "+name, 201, code, out)
+		id := out["id"].(string)
+		move := func(tok, to, reason, project string) {
+			code, out := a.do("POST", "/v1/equipment/"+id+"/move", tok, map[string]any{"to": to, "reason": reason, "project_id": project})
+			must(name+" to "+to, 200, code, out)
+		}
+		move(plantMgr, "AVAILABLE", "Commissioned after inspection", "")
+		if project == "" {
+			return id
+		}
+		code, out = a.do("POST", "/v1/equipment-reservations", tokens["siteEng"], map[string]any{"equipment_id": id, "project_id": project, "purpose": "Earthworks", "starts_on": day(0), "ends_on": day(14)})
+		must("reserve "+name, 201, code, out)
+		r := out["id"].(string)
+		code, out = a.do("POST", "/v1/equipment-reservations/"+r+"/submit", tokens["siteEng"], nil)
+		must("submit reservation", 200, code, out)
+		code, out = a.do("POST", "/v1/equipment-reservations/"+r+"/approve", plantMgr, nil)
+		must("approve reservation", 200, code, out)
+		move(officer, "MOBILIZING", "Low-bed dispatched", project)
+		move(tokens["siteEng"], "ASSIGNED", "Arrived on site", "")
+		return id
+	}
+	machine("Grader A", "FORMS-A-001", a.project)
+	machine("Grader B", "FORMS-B-002", p2)
+	yard := machine("Loader Y", "FORMS-Y-003", "")
+	code, wo := a.do("POST", "/v1/maintenance-work-orders", officer, map[string]any{"equipment_id": yard, "kind": "CORRECTIVE", "description": "Hydraulic hose replacement on the boom"})
+	must("work order", 201, code, wo)
+	workOrder := wo["id"].(string)
+	// A yard machine's work order is company-wide: only a session without a
+	// project restriction (here a central store also acting as plant officer)
+	// opens it and chooses the project that bears the part.
+	tokens["storeHQ"] = a.tok("u-store-hq", nil, false, "storekeeper", "plant_officer")
+	dir := t.TempDir()
+	// XCT-LOC.3: the console's Ethiopian calendar must agree with pkg/ethcal on
+	// every sampled day (one every 37 days, 1901-2099) and on today.
+	samples := map[string]string{}
+	for d := time.Date(1901, 1, 1, 0, 0, 0, 0, time.UTC); d.Year() < 2100; d = d.AddDate(0, 0, 37) {
+		samples[d.Format("2006-01-02")] = ethcal.FromGregorian(d).String()
+	}
+	fx, _ := json.Marshal(map[string]any{"tokens": tokens, "ethSamples": samples, "ethToday": ethcal.FromGregorian(time.Now()).String(), "workOrder": workOrder})
+	fixture := filepath.Join(dir, "fixture.json")
+	if err := os.WriteFile(fixture, fx, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(node, script)
+	cmd.Env = append(os.Environ(), "SERK_URL="+srv.URL, "SERK_FIXTURE="+fixture, "SERK_SHOTS="+filepath.Join(dir, "shots"), "SERK_PLAYWRIGHT="+pw)
+	start := time.Now()
+	out, err := cmd.CombinedOutput()
+	t.Logf("browser forms journey (%s):\n%s", time.Since(start).Round(time.Second), out)
+	if err != nil {
+		t.Fatalf("browser forms journey failed: %v", err)
+	}
+}

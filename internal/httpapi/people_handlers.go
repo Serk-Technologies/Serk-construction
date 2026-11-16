@@ -22,14 +22,6 @@ type accessBody struct {
 func (s *Server) registerPeople() {
 	m := s.mux
 	k := s.cfg.Kernel
-	personID := func(w http.ResponseWriter, r *http.Request) (string, bool) {
-		id := r.PathValue("uid")
-		if !personIDRe.MatchString(id) {
-			writeErr(w, http.StatusNotFound, "not_found", "not found")
-			return "", false
-		}
-		return id, true
-	}
 	reply := func(w http.ResponseWriter, out any, err error) {
 		if err != nil {
 			s.fail(w, err)
@@ -140,6 +132,22 @@ func (s *Server) registerPeople() {
 		}
 		b.Code = code
 		out, err := k.SaveRole(r.Context(), principalFrom(r.Context()), b)
+		reply(w, out, err)
+	}))
+	m.Handle("PUT /v1/roles/{code}/adjustment", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		code := r.PathValue("code")
+		if !roleCodeRe.MatchString(code) {
+			writeErr(w, http.StatusNotFound, "not_found", "not found")
+			return
+		}
+		var b struct {
+			Withheld []string `json:"withheld"`
+			Reason   string   `json:"reason"`
+		}
+		if !decode(w, r, &b) {
+			return
+		}
+		out, err := k.AdjustRole(r.Context(), principalFrom(r.Context()), code, b.Withheld, b.Reason)
 		reply(w, out, err)
 	}))
 	m.Handle("POST /v1/roles/{code}/retire", s.authed(func(w http.ResponseWriter, r *http.Request) {

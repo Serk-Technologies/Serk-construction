@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 )
 
 var (
@@ -32,6 +33,18 @@ var (
 	// ErrCorrupt: the object failed authentication (tampered, truncated or
 	// written under another key or tenant).
 	ErrCorrupt = errors.New("blob: object failed integrity verification")
+	// ErrBucketNotFound: the configured bucket does not exist. A deployment
+	// fault, never "the file is missing".
+	ErrBucketNotFound = errors.New("blob: bucket not found")
+	// ErrAccessDenied: the store refused the credentials or the signature.
+	ErrAccessDenied = errors.New("blob: access denied by the object store")
+	// ErrUnavailable: the store could not be reached or failed (5xx, throttling).
+	// The only class worth retrying.
+	ErrUnavailable = errors.New("blob: object store unavailable")
+	// ErrKeyUnavailable: the object was encrypted under a key version this
+	// service has not been given. The object is intact; supply the named key
+	// (recovery) rather than treating the file as damaged.
+	ErrKeyUnavailable = errors.New("blob: encryption key version not available")
 	// ErrKey: malformed object key.
 	ErrKey = errors.New("blob: invalid object key")
 )
@@ -148,21 +161,34 @@ func (f FS) Delete(ctx context.Context, key string) error {
 // additional data binds the object key, the counter and whether the frame is
 // the last, so frames cannot be reordered, dropped or cut off.
 // The key is HKDF-SHA256(master, info = "serk-blob-v1|" + tenant).
+//
+// Key versions (ADR 0021). With KeyID set, objects are written as
+// "SRKB2" | 1-byte id length | key id | 8 random bytes | frames, under
+// HKDF-SHA256(master, info = "serk-blob-v2|" + key id + "|" + tenant), so
+// every object names the key version that opens it. Rotation is: make a new
+// key current and list the old one in Previous. New objects use the new key;
+// old objects stay readable for as long as their key is listed. An object
+// whose key is not listed fails with ErrKeyUnavailable, never ErrCorrupt.
+// Objects written before key versions existed ("SRKB1") carry no id and are
+// opened with whichever listed key authenticates their first frame.
 type Sealed struct {
-	Store  Store
-	Master []byte // at least 32 bytes
+	Store    Store
+	Master   []byte            // current key, at least 32 bytes
+	KeyID    string            // version id of Master; "" writes the unversioned format
+	Previous map[string][]byte // earlier keys by version id, for reading only
 }
 
 const (
-	sealMagic = "SRKB1"
-	frameSize = 64 << 10
+	sealMagic  = "SRKB1"
+	sealMagic2 = "SRKB2"
+	frameSize  = 64 << 10
 )
 
-func (s Sealed) aead(tenant string) (cipher.AEAD, error) {
-	if len(s.Master) < 32 {
+func gcmFor(master []byte, info string) (cipher.AEAD, error) {
+	if len(master) < 32 {
 		return nil, errors.New("blob: master key must be at least 32 bytes")
 	}
-	k, err := hkdf.Key(sha256.New, s.Master, nil, "serk-blob-v1|"+tenant, 32)
+	k, err := hkdf.Key(sha256.New, master, nil, info, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -171,6 +197,54 @@ func (s Sealed) aead(tenant string) (cipher.AEAD, error) {
 		return nil, err
 	}
 	return cipher.NewGCM(b)
+}
+
+func validKeyID(id string) bool {
+	if len(id) == 0 || len(id) > 32 {
+		return false
+	}
+	for _, c := range id {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+// writer returns the cipher and header for a new object.
+func (s Sealed) writer(tenant string) (cipher.AEAD, []byte, error) {
+	if s.KeyID == "" {
+		g, err := gcmFor(s.Master, "serk-blob-v1|"+tenant)
+		return g, []byte(sealMagic), err
+	}
+	if !validKeyID(s.KeyID) {
+		return nil, nil, errors.New("blob: invalid key id")
+	}
+	g, err := gcmFor(s.Master, "serk-blob-v2|"+s.KeyID+"|"+tenant)
+	return g, append(append([]byte(sealMagic2), byte(len(s.KeyID))), s.KeyID...), err
+}
+
+// legacy returns the ciphers that may open an unversioned object: the current
+// key first, then every previous key in id order.
+func (s Sealed) legacy(tenant string) ([]cipher.AEAD, error) {
+	var out []cipher.AEAD
+	masters := [][]byte{s.Master}
+	ids := make([]string, 0, len(s.Previous))
+	for id := range s.Previous {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		masters = append(masters, s.Previous[id])
+	}
+	for _, m := range masters {
+		g, err := gcmFor(m, "serk-blob-v1|"+tenant)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, g)
+	}
+	return out, nil
 }
 
 func frameAAD(key string, n uint32, last bool) []byte {
@@ -185,7 +259,7 @@ func frameAAD(key string, n uint32, last bool) []byte {
 
 // Put encrypts r for tenant and stores it under key.
 func (s Sealed) Put(ctx context.Context, tenant, key string, r io.Reader) error {
-	g, err := s.aead(tenant)
+	g, header, err := s.writer(tenant)
 	if err != nil {
 		return err
 	}
@@ -196,7 +270,7 @@ func (s Sealed) Put(ctx context.Context, tenant, key string, r io.Reader) error 
 	pr, pw := io.Pipe()
 	go func() {
 		pw.CloseWithError(func() error {
-			if _, err := pw.Write(append([]byte(sealMagic), prefix...)); err != nil {
+			if _, err := pw.Write(append(append([]byte{}, header...), prefix...)); err != nil {
 				return err
 			}
 			cur, next := make([]byte, frameSize), make([]byte, frameSize)
@@ -241,20 +315,54 @@ func (s Sealed) Put(ctx context.Context, tenant, key string, r io.Reader) error 
 // ErrCorrupt if any frame fails authentication or the object is cut short;
 // callers must treat everything already read as untrusted in that case.
 func (s Sealed) Get(ctx context.Context, tenant, key string) (io.ReadCloser, error) {
-	g, err := s.aead(tenant)
-	if err != nil {
-		return nil, err
+	if len(s.Master) < 32 {
+		return nil, errors.New("blob: master key must be at least 32 bytes")
 	}
 	in, err := s.Store.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	head := make([]byte, len(sealMagic)+8)
-	if _, err := io.ReadFull(in, head); err != nil || string(head[:len(sealMagic)]) != sealMagic {
-		in.Close()
-		return nil, ErrCorrupt
+	fail := func(e error) (io.ReadCloser, error) { in.Close(); return nil, e }
+	magic := make([]byte, len(sealMagic))
+	if _, err := io.ReadFull(in, magic); err != nil {
+		return fail(ErrCorrupt)
 	}
-	return &unsealer{in: in, g: g, key: key, prefix: head[len(sealMagic):]}, nil
+	var cands []cipher.AEAD
+	switch string(magic) {
+	case sealMagic:
+		if cands, err = s.legacy(tenant); err != nil {
+			return fail(err)
+		}
+	case sealMagic2:
+		var n [1]byte
+		if _, err := io.ReadFull(in, n[:]); err != nil || n[0] == 0 || n[0] > 32 {
+			return fail(ErrCorrupt)
+		}
+		idb := make([]byte, n[0])
+		if _, err := io.ReadFull(in, idb); err != nil || !validKeyID(string(idb)) {
+			return fail(ErrCorrupt)
+		}
+		id := string(idb)
+		master, ok := s.Previous[id]
+		if id == s.KeyID {
+			master, ok = s.Master, true
+		}
+		if !ok {
+			return fail(fmt.Errorf("%w: object needs key %q", ErrKeyUnavailable, id))
+		}
+		g, err := gcmFor(master, "serk-blob-v2|"+id+"|"+tenant)
+		if err != nil {
+			return fail(err)
+		}
+		cands = []cipher.AEAD{g}
+	default:
+		return fail(ErrCorrupt)
+	}
+	prefix := make([]byte, 8)
+	if _, err := io.ReadFull(in, prefix); err != nil {
+		return fail(ErrCorrupt)
+	}
+	return &unsealer{in: in, cands: cands, key: key, prefix: prefix}, nil
 }
 
 // Delete removes the object.
@@ -263,6 +371,7 @@ func (s Sealed) Delete(ctx context.Context, key string) error { return s.Store.D
 type unsealer struct {
 	in     io.ReadCloser
 	g      cipher.AEAD
+	cands  []cipher.AEAD // keys that may open the object; the first frame settles which
 	key    string
 	prefix []byte
 	n      uint32
@@ -287,6 +396,9 @@ func (u *unsealer) Read(p []byte) (int, error) {
 			return 0, u.err
 		}
 		l := binary.BigEndian.Uint32(lb[:])
+		if u.g == nil {
+			u.g = u.cands[0]
+		}
 		if l < uint32(u.g.Overhead()) || l > frameSize+uint32(u.g.Overhead()) {
 			u.err = ErrCorrupt
 			return 0, u.err
@@ -297,6 +409,19 @@ func (u *unsealer) Read(p []byte) (int, error) {
 			return 0, u.err
 		}
 		nonce := binary.BigEndian.AppendUint32(append([]byte{}, u.prefix...), u.n)
+		if u.n == 0 && len(u.cands) > 1 {
+			// An unversioned object: the key that authenticates its first frame is its key.
+			for _, g := range u.cands {
+				if _, e1 := g.Open(nil, nonce, ct, frameAAD(u.key, 0, false)); e1 == nil {
+					u.g = g
+					break
+				}
+				if _, e2 := g.Open(nil, nonce, ct, frameAAD(u.key, 0, true)); e2 == nil {
+					u.g = g
+					break
+				}
+			}
+		}
 		// A frame is the last one exactly when it authenticates as such.
 		pt, err := u.g.Open(nil, nonce, ct, frameAAD(u.key, u.n, false))
 		if err != nil {

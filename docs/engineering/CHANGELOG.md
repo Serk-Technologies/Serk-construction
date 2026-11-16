@@ -2,6 +2,48 @@
 
 Changes made under the SERK Construction OS 3.0 directive (`MASTER_PROMPT.md`). Earlier history: `docs/release/CHECKPOINT_*.md` and `git log`.
 
+## 2026-11-15: final-completion directive — control centre, integration, form state, API contract
+
+- **Control centre** (`docs/final-completion/`, `tools/final_completion.py`): the 196 original requirements are frozen; CI fails if one disappears or changes meaning, if evidence names a test that does not exist, or if a release document claims GO while work is open.
+- **Integration of `new-version`** (ADR 0025): two owner commits that had never been merged (about 21,000 lines: revenue, subcontracts, fixed assets, period end, payroll, consolidation, tax, quality, credit rules) are now on the candidate line as migrations 0058–0071 plus a reconciliation migration 0072. Its colliding document and equipment parts are to be rebuilt on this branch's tables.
+- **Independent review of the carried work**: none of its tests fully evidences a register requirement; 13 defects recorded (DEF-008 to DEF-020), three High (unattested inspection results and NCR closure; no database maker-checker on tax returns, consolidation and plans; unapproved employee bank details).
+- **Form state**: lines live in state, a project change keeps typed lines and marks invalid cost codes for a new choice, submission waits for loading choices, stale failures are not shown, leaving a typed form asks first. A barrier-driven browser test fails on the previous console and passes now.
+- **API**: RFC 9457 problem details on every error; cursor pagination on the document lists.
+
+## 2026-11-15: console forms apply only the newest answer
+
+- A slow earlier response could arrive after a newer one and overwrite it: a reset choice in six forms, and in five forms a rebuilt line grid that discarded typed lines. Found because a GitHub run failed on timing the build environment did not have. All eleven forms converted; three have reproductions that fail without the fix.
+
+## 2026-11-15: fleet corrections after independent review (0057, ADR 0024)
+
+- **Correction of an overstatement:** a work order was described as passing through "four separate hands". Only two pairs were separated. Now the certifier is none of the preparer, authoriser or reporter (at least three people), enforced in the kernel and the database; the documents say exactly that.
+- Authorising a repair needs a fresh second factor at the database, not only in the application.
+- Fuel and maintenance thresholds are an approved, effective-dated fleet policy; reports name the policy used and label engineering defaults.
+- Preventive plans can be revised and retired. Expected fuel is computed across several standards in one period.
+- Requirement mapping: FLT-04 is Fixed assets; costing and charge-out is FLT-01.14; there is no FLT-05.
+
+## 2026-11-15: fleet part 3, maintenance (0056, ADR 0023)
+
+- Work orders: prepared, authorised (fleet.approve, fresh MFA), reported complete, closed or sent back by a certifier who did not report the work.
+- **Behaviour change:** a machine that has been UNDER_MAINTENANCE no longer returns to service on the certifier's word alone. It needs a work order closed after it entered maintenance, and no open work order. The existing lifecycle test was extended to assert the refusal first.
+- Parts are stock issues linked to the work order. Preventive plans by meter and calendar with a due list. Maintenance history and out-of-service hours per machine.
+- Console: work orders as a document type with actions, forms for work orders, parts and plans, due table on the Fleet page.
+
+## 2026-11-15: fleet part 2, fuel (0055, ADR 0022)
+
+- Fuel is ordinary stock. Filling a machine prepares a stock issue of a designated fuel item together with the record of which machine took it; the existing second-person approval values it, takes it out of the tank and charges the project through the existing issue journal. No second ledger and no new posting.
+- Fuel items and effective-dated fuel standards, set by `fleet.approve`, attested.
+- Reconciliation of dispensed, logged and expected fuel per machine, in the API and on the Fleet page, listing differences for a person to explain.
+- `scripts/prepush.sh` runs the same Gitleaks as CI before a push. Completion plan for all 80 domains generated from the register (`docs/completion/`).
+
+## 2026-11-15: audit remediation (CI honesty, storage fault classes, mandatory browser journeys)
+
+- CI could not fail on a failing test run (pipe without pipefail). Replaced by a structured gate over `go test -json`: any failure, any skip, a missing mandatory test or a package without a result rejects the run.
+- Test logins without passwords failed on the runner's password-authenticated PostgreSQL (8 tests). Fixed in the tests.
+- A kernel test depended on a bucket created by another package's test. Buckets are now provisioned and proven private before the suite; the S3 client distinguishes missing bucket, missing object, refused credentials and unavailable service; the API refuses to start without its bucket and answers storage faults as 503.
+- Playwright and Chromium are installed in CI; the seven browser journeys are mandatory.
+- Report: `AUDIT_REMEDIATION_2026-11-15.md`. Feature work suspended.
+
 ## 2026-11-15 (second session) — document security, CI, SERK FLEET part 1
 
 ### Added

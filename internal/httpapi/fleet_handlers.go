@@ -13,11 +13,44 @@ package httpapi
 //	POST /v1/equipment-logs                                        a daily log; /{id}/submit|approve|reject
 //	POST /v1/equipment-meter-resets                                {equipment_id, kind, new_reading, reason}; /{id}/submit|approve|reject
 //	GET  /v1/fleet/summary?from=&to=&project=                      counts by state and usage from approved logs
+//
+// Part 2, fuel (0055; ADR 0022). A dispense is a stock issue; it is approved through POST /v1/stock-issues/{id}/approve.
+//
+//	GET  /v1/fleet/fuel-items                                      stock items designated as fuel
+//	POST /v1/fleet/fuel-items                                      {stock_item_id}
+//	POST /v1/fleet/fuel-standards                                  {equipment_id, litres_per_unit, effective_from, basis}
+//	GET  /v1/fleet/fuel-dispenses?equipment=                       latest fillings
+//	POST /v1/fleet/fuel-dispenses                                  {equipment_id, warehouse_id, stock_item_id, cost_code_id, expense_account_id, litres, meter_reading?, operator, dispensed_on, client_ref?}
+//	GET  /v1/fleet/fuel-reconciliation?from=&to=&project=          dispensed, logged and expected fuel per machine, with differences to explain
+//
+// Part 3, maintenance (0056; ADR 0023). A part is a stock issue; it is approved through POST /v1/stock-issues/{id}/approve.
+//
+//	POST /v1/maintenance-work-orders                               {equipment_id, kind, description, plan_id?}; /{id}/submit|approve|reject|cancel
+//	POST /v1/maintenance-work-orders/{id}/complete                 {work_done, labour_hours}
+//	POST /v1/maintenance-work-orders/{id}/close                    the certifier accepts the work
+//	POST /v1/maintenance-work-orders/{id}/send-back                {reason}: the certifier returns it to the workshop
+//	GET  /v1/maintenance-work-orders/{id}/parts                    parts requested, with their stock issues
+//	POST /v1/maintenance-work-orders/{id}/parts                    {warehouse_id, stock_item_id, cost_code_id, expense_account_id, quantity, project_id?}
+//	POST /v1/maintenance-plans                                     {equipment_id, title, every_units?, every_days?}
+//	GET  /v1/fleet/maintenance-due                                 preventive plans, most urgent first
+//	GET  /v1/equipment/{id}/maintenance                            work orders and out-of-service hours of one machine
+//
+// Corrections (0057; ADR 0024): approved fleet policy; plan revision and retirement.
+//
+//	POST /v1/equipment-charge-rates {equipment_id, effective_from, productive_rate, idle_rate, basis}; /{id}/submit|approve|reject
+//	GET  /v1/fleet/charge-preview?project=&month=; POST /v1/equipment-charge-runs {project_id, month, cost_account_id, recovery_account_id}; /{id}/cancel
+//	POST /v1/fleet-policies                                        {effective_from, fuel_variance_tolerance, fuel_variance_min_litres, due_soon_fraction, due_soon_days, basis}; /{id}/submit|approve|reject
+//	GET  /v1/fleet/policy?on=                                      the thresholds in force on a date and where they come from
+//	POST /v1/maintenance-plans/{id}/revise                         {title, every_units?, every_days?}: a new version; the old plan is retired and kept
+//	POST /v1/maintenance-plans/{id}/retire                         {reason}
 
 import (
 	"context"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/shopspring/decimal"
 
 	"github.com/serk-group/serk-construction/internal/kernel"
 	"github.com/serk-group/serk-construction/pkg/auth"
@@ -171,5 +204,235 @@ func (s *Server) registerFleet() {
 	})))
 	m.Handle("POST /v1/equipment-reservations/{id}/cancel", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
 		return nil, k.CancelEquipmentReservation(ctx, p, id, b.Reason)
+	})))
+	m.Handle("GET /v1/fleet/fuel-items", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		out, err := k.ListFuelItems(r.Context(), principalFrom(r.Context()))
+		reply(w, map[string]any{"items": out}, err)
+	}))
+	m.Handle("POST /v1/fleet/fuel-items", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			StockItemID string `json:"stock_item_id"`
+		}
+		if !decode(w, r, &b) || !validIDs(w, b.StockItemID) {
+			return
+		}
+		reply(w, map[string]any{"stock_item_id": b.StockItemID, "fuel": true}, k.DesignateFuelItem(r.Context(), principalFrom(r.Context()), b.StockItemID))
+	}))
+	m.Handle("POST /v1/fleet/fuel-standards", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.FuelStandardInput
+		if !decode(w, r, &b) || !validIDs(w, b.EquipmentID) {
+			return
+		}
+		id, err := k.SetFuelStandard(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("GET /v1/fleet/fuel-dispenses", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		eq := r.URL.Query().Get("equipment")
+		if eq != "" && !validIDs(w, eq) {
+			return
+		}
+		out, err := k.ListFuelDispenses(r.Context(), principalFrom(r.Context()), eq)
+		reply(w, map[string]any{"items": out}, err)
+	}))
+	m.Handle("POST /v1/fleet/fuel-dispenses", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			kernel.FuelDispenseInput
+			DispensedOn day `json:"dispensed_on"`
+		}
+		if !decode(w, r, &b) || !validIDs(w, b.EquipmentID, b.WarehouseID, b.StockItemID, b.CostCodeID, b.ExpenseAccountID) {
+			return
+		}
+		b.FuelDispenseInput.DispensedOn = b.DispensedOn.Time
+		out, err := k.DispenseFuel(r.Context(), principalFrom(r.Context()), b.FuelDispenseInput)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		status := http.StatusCreated
+		if out.AlreadyExists {
+			status = http.StatusOK
+		}
+		writeJSON(w, status, out)
+	}))
+	m.Handle("GET /v1/fleet/fuel-reconciliation", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if p := q.Get("project"); p != "" && !validIDs(w, p) {
+			return
+		}
+		out, err := k.FuelReconciliationOf(r.Context(), principalFrom(r.Context()), q.Get("from"), q.Get("to"), q.Get("project"))
+		reply(w, out, err)
+	}))
+	m.Handle("POST /v1/maintenance-work-orders", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.WorkOrderInput
+		if !decode(w, r, &b) || !validIDs(w, b.EquipmentID) {
+			return
+		}
+		if b.PlanID != "" && !validIDs(w, b.PlanID) {
+			return
+		}
+		id, err := k.CreateWorkOrder(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/maintenance-work-orders/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, k.SubmitWorkOrder(ctx, p, id)
+	})))
+	m.Handle("POST /v1/maintenance-work-orders/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideWorkOrder(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/maintenance-work-orders/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideWorkOrder(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("POST /v1/maintenance-work-orders/{id}/cancel", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.CancelWorkOrder(ctx, p, id, b.Reason)
+	})))
+	m.Handle("POST /v1/maintenance-work-orders/{id}/close", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, k.CloseWorkOrder(ctx, p, id, true, "")
+	})))
+	m.Handle("POST /v1/maintenance-work-orders/{id}/send-back", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.CloseWorkOrder(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("POST /v1/maintenance-work-orders/{id}/complete", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		var b struct {
+			WorkDone    string          `json:"work_done"`
+			LabourHours decimal.Decimal `json:"labour_hours"`
+		}
+		if !decode(w, r, &b) {
+			return
+		}
+		reply(w, map[string]any{"id": id, "status": "COMPLETED"}, k.CompleteWorkOrder(r.Context(), principalFrom(r.Context()), id, b.WorkDone, b.LabourHours))
+	}))
+	m.Handle("GET /v1/maintenance-work-orders/{id}/parts", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		out, err := k.WorkOrderParts(r.Context(), principalFrom(r.Context()), id)
+		reply(w, map[string]any{"items": out}, err)
+	}))
+	m.Handle("POST /v1/maintenance-work-orders/{id}/parts", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		var b kernel.WorkOrderPartInput
+		if !decode(w, r, &b) || !validIDs(w, b.WarehouseID, b.StockItemID, b.CostCodeID, b.ExpenseAccountID) {
+			return
+		}
+		if b.ProjectID != "" && !validIDs(w, b.ProjectID) {
+			return
+		}
+		issue, err := k.RequestWorkOrderPart(r.Context(), principalFrom(r.Context()), id, b)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"stock_issue_id": issue})
+	}))
+	m.Handle("POST /v1/maintenance-plans", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.MaintenancePlanInput
+		if !decode(w, r, &b) || !validIDs(w, b.EquipmentID) {
+			return
+		}
+		id, err := k.CreateMaintenancePlan(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("GET /v1/fleet/maintenance-calendar", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		from, err1 := time.Parse("2006-01-02", r.URL.Query().Get("from"))
+		to, err2 := time.Parse("2006-01-02", r.URL.Query().Get("to"))
+		if err1 != nil || err2 != nil || to.Sub(from) > 366*24*time.Hour {
+			writeErr(w, http.StatusUnprocessableEntity, "validation", "from and to are dates (YYYY-MM-DD) at most a year apart")
+			return
+		}
+		out, err := k.MaintenanceCalendar(r.Context(), principalFrom(r.Context()), from, to)
+		reply(w, map[string]any{"items": out}, err)
+	}))
+	m.Handle("GET /v1/fleet/maintenance-due", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		out, err := k.MaintenanceDue(r.Context(), principalFrom(r.Context()))
+		reply(w, map[string]any{"items": out}, err)
+	}))
+	m.Handle("GET /v1/equipment/{id}/maintenance", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		out, err := k.EquipmentMaintenanceOf(r.Context(), principalFrom(r.Context()), id)
+		reply(w, out, err)
+	}))
+	m.Handle("POST /v1/fleet-policies", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.FleetPolicyInput
+		if !decode(w, r, &b) {
+			return
+		}
+		id, err := k.CreateFleetPolicy(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/fleet-policies/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, k.SubmitFleetPolicy(ctx, p, id)
+	})))
+	m.Handle("POST /v1/fleet-policies/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideFleetPolicy(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/fleet-policies/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideFleetPolicy(ctx, p, id, false, b.Reason)
+	})))
+	// Equipment charge-out (0079): rates are approved documents; a run charges a project's month.
+	m.Handle("POST /v1/equipment-charge-rates", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.ChargeRateInput
+		if !decode(w, r, &b) || !validIDs(w, b.EquipmentID) {
+			return
+		}
+		id, err := k.CreateChargeRate(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/equipment-charge-rates/{id}/submit", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, _ decisionBody) (any, error) {
+		return nil, k.SubmitChargeRate(ctx, p, id)
+	})))
+	m.Handle("POST /v1/equipment-charge-rates/{id}/approve", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideChargeRate(ctx, p, id, true, b.Reason)
+	})))
+	m.Handle("POST /v1/equipment-charge-rates/{id}/reject", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.DecideChargeRate(ctx, p, id, false, b.Reason)
+	})))
+	m.Handle("GET /v1/fleet/charge-preview", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if !validIDs(w, q.Get("project")) {
+			return
+		}
+		out, err := k.PreviewChargeRun(r.Context(), principalFrom(r.Context()), q.Get("project"), q.Get("month"))
+		reply(w, out, err)
+	}))
+	m.Handle("POST /v1/equipment-charge-runs", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.ChargeRunInput
+		if !decode(w, r, &b) || !validIDs(w, b.ProjectID, b.CostAccountID, b.RecoveryAccountID) {
+			return
+		}
+		id, err := k.PrepareChargeRun(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("POST /v1/equipment-charge-runs/{id}/cancel", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.CancelChargeRun(ctx, p, id, b.Reason)
+	})))
+	m.Handle("GET /v1/fleet/policy", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		out, err := k.FleetPolicyInForce(r.Context(), principalFrom(r.Context()), r.URL.Query().Get("on"))
+		reply(w, out, err)
+	}))
+	m.Handle("POST /v1/maintenance-plans/{id}/revise", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id, ok := pathID(w, r)
+		if !ok {
+			return
+		}
+		var b kernel.MaintenancePlanInput
+		if !decode(w, r, &b) {
+			return
+		}
+		rev, err := k.ReviseMaintenancePlan(r.Context(), principalFrom(r.Context()), id, b)
+		s.created(w, rev, err)
+	}))
+	m.Handle("POST /v1/maintenance-plans/{id}/retire", s.authed(s.p2pDecision(func(ctx context.Context, p auth.Principal, id string, b decisionBody) (any, error) {
+		return nil, k.RetireMaintenancePlan(ctx, p, id, b.Reason)
 	})))
 }

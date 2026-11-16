@@ -52,6 +52,8 @@ func (s *Server) bodyLimit(r *http.Request) int64 {
 		return 1 << 40 // the kernel stops reading at the deployment's limit
 	case r.Method == http.MethodPost && strings.HasPrefix(r.URL.Path, "/v1/documents/") && strings.HasSuffix(r.URL.Path, "/revisions"):
 		return maxUploadBodyBytes
+	case r.Method == http.MethodPut && r.URL.Path == "/v1/branding/logo":
+		return 10<<20 + 1 // a logo of at most 10 MB (0097)
 	}
 	return maxBodyBytes
 }
@@ -87,6 +89,89 @@ func serveFile(w http.ResponseWriter, f kernel.DocumentRevision, rc io.ReadClose
 func (s *Server) registerDocuments() {
 	m := s.mux
 	k := s.cfg.Kernel
+	// Transmittals and submittals (0077); lists and details through /v1/p2p/{transmittal,submittal}.
+	m.Handle("POST /v1/transmittals", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.TransmittalInput
+		if !decode(w, r, &b) || !validIDs(w, append([]string{b.ProjectID}, b.DocumentIDs...)...) {
+			return
+		}
+		id, err := k.SendTransmittal(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	// Correspondence register (0085); list and detail also through /v1/p2p/correspondence.
+	m.Handle("POST /v1/correspondence", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.CorrespondenceInput
+		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) {
+			return
+		}
+		for _, opt := range []string{b.ContractID, b.InReplyTo} {
+			if opt != "" && !validIDs(w, opt) {
+				return
+			}
+		}
+		id, err := k.RecordCorrespondence(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	m.Handle("GET /v1/projects/{id}/correspondence", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		out, err := k.CorrespondenceRegister(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": out})
+	}))
+	m.Handle("POST /v1/submittals", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		var b kernel.SubmittalInput
+		if !decode(w, r, &b) || !validIDs(w, b.ProjectID) || (b.ResubmissionOf != "" && !validIDs(w, b.ResubmissionOf)) {
+			return
+		}
+		id, err := k.SubmitSubmittal(r.Context(), principalFrom(r.Context()), b)
+		s.created(w, id, err)
+	}))
+	// 0090: the review cycle of a submittal; the cost and time impact of an RFI.
+	m.Handle("GET /v1/submittals/{id}/cycle", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		out, err := k.SubmittalCycle(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"items": out})
+	}))
+	m.Handle("GET /v1/rfis/{id}/impact", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if !validIDs(w, id) {
+			return
+		}
+		out, err := k.RFIImpact(r.Context(), principalFrom(r.Context()), id)
+		if err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	}))
+	m.Handle("POST /v1/submittals/{id}/review", s.authed(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		var b struct {
+			Code string `json:"code"`
+			Note string `json:"note"`
+		}
+		if !validIDs(w, id) || !decode(w, r, &b) {
+			return
+		}
+		if err := k.ReviewSubmittal(r.Context(), principalFrom(r.Context()), id, b.Code, b.Note); err != nil {
+			s.fail(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "status": "REVIEWED"})
+	}))
 	m.Handle("GET /v1/documents", s.authed(func(w http.ResponseWriter, r *http.Request) {
 		project := r.URL.Query().Get("project")
 		if project != "" && !validIDs(w, project) {

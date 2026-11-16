@@ -1,0 +1,180 @@
+{
+ "generated_by": "tools/final_completion.py from docs/release/REMEDIATION_REGISTER.yaml (canonical)",
+ "open": [
+  {
+   "id": "SC-11",
+   "severity": "High",
+   "register_status": "PARTIAL",
+   "finding": "No relay, MFA, reports, backup drill or UI.",
+   "residual_risk": "**Open:** session revocation, OpenTelemetry, reports, backup/PITR drill, web UI, staging end-to-end. Acceptance criterion (\\\"full end-to-end workflow passes acceptance on staging\\\") is **NOT TESTED**."
+  },
+  {
+   "id": "SC-12",
+   "severity": "Medium",
+   "register_status": "PARTIAL",
+   "finding": "No `go.sum`; actions unpinned.",
+   "residual_risk": "**BLOCKED:** 4 hashes (`x/crypto`, `x/sync`, `x/text`, `yaml.v3`) cannot be checked against `sum.golang.org` from this sandbox; stays PARTIAL until the CI job passes."
+  },
+  {
+   "id": "ERP-01",
+   "severity": "Critical",
+   "register_status": "PARTIAL",
+   "finding": "No BOQ or estimating.",
+   "residual_risk": "No estimating (resource build-up, rates library), no unit/dimension registry, no measurement-to-budget variance report; staging acceptance NOT TESTED."
+  },
+  {
+   "id": "ERP-02",
+   "severity": "Critical",
+   "register_status": "PARTIAL",
+   "finding": "No procurement or AP.",
+   "residual_risk": "No withholding tax, supplier returns, landed costs or supplier credit notes; bank feed authenticity (R-BANKFEED); staging acceptance NOT TESTED."
+  },
+  {
+   "id": "ERP-03",
+   "severity": "Critical",
+   "register_status": "PARTIAL",
+   "finding": "No contracts or IPC.",
+   "residual_risk": "No invoice cancellation, dunning, FX contracts, retention bonds, claims/daywork; VAT rates need tax sign-off; staging acceptance NOT TESTED."
+  },
+  {
+   "id": "ERP-04",
+   "severity": "High",
+   "register_status": "PARTIAL",
+   "finding": "No scheduling.",
+   "residual_risk": "No resource levelling, per-activity calendars, forecasting or constant-price EVM; not independently reviewed."
+  },
+  {
+   "id": "ERP-05",
+   "severity": "High",
+   "register_status": "OPEN",
+   "finding": "—",
+   "residual_risk": "—"
+  },
+  {
+   "id": "ERP-06",
+   "severity": "High",
+   "register_status": "OPEN",
+   "finding": "—",
+   "residual_risk": "—"
+  },
+  {
+   "id": "ERP-07",
+   "severity": "High",
+   "register_status": "OPEN",
+   "finding": "—",
+   "residual_risk": "—"
+  },
+  {
+   "id": "ERP-08",
+   "severity": "High",
+   "register_status": "PARTIAL",
+   "finding": "No web UI.",
+   "residual_risk": "No workflow designer screens, no FX desk screen, no offline/mobile app; accessibility is an automated subset, not a manual WCAG audit."
+  },
+  {
+   "id": "ERP-09",
+   "severity": "High",
+   "register_status": "PARTIAL",
+   "finding": "No governed AI boundary.",
+   "residual_risk": "No AI features are built (advisory reading of projections); the boundary depends on the IdP asserting the principal kind (R4-I4)."
+  },
+  {
+   "id": "GATEA-07",
+   "severity": "High",
+   "register_status": "PARTIAL",
+   "finding": "Stateless bearer tokens: a terminated user or a removed role kept working until token expiry.",
+   "residual_risk": ""
+  },
+  {
+   "id": "IR-L2",
+   "severity": "Low",
+   "register_status": "OPEN",
+   "finding": "Subject-hash string format fragile; some columns not covered (not exploitable today: immutable/append-only).",
+   "residual_risk": ""
+  },
+  {
+   "id": "R4-I4",
+   "severity": "Info",
+   "register_status": "OPEN",
+   "finding": "User ids are compared exactly (now case-insensitively in the new separation checks). Safe only if the IdP issues one canonical id per person.",
+   "residual_risk": ""
+  },
+  {
+   "id": "R4-I5",
+   "severity": "Info",
+   "register_status": "OPEN",
+   "finding": "Lines appended *inside* the generating transaction are blocked at approval, leaving that journal stuck. Only the kernel's own transaction can do this.",
+   "residual_risk": ""
+  },
+  {
+   "id": "R-BANKFEED",
+   "severity": "Medium",
+   "register_status": "OPEN",
+   "finding": "The authenticity of a statement file depends on how it is obtained.",
+   "residual_risk": ""
+  },
+  {
+   "id": "SUPPLY-ORIGIN-01",
+   "severity": "Info",
+   "register_status": "PARTIAL",
+   "finding": "sum.golang.org, proxy.golang.org and vuln.go.dev are unreachable from the build workspace, so the official verification cannot run here.",
+   "residual_risk": ""
+  },
+  {
+   "id": "R9-I4",
+   "severity": "Info",
+   "register_status": "OPEN",
+   "finding": "Under ~6,000 concurrent calls the shared abuse store timed out for most calls and replicas fell back to local limits (stricter or looser by a few requests).",
+   "residual_risk": ""
+  },
+  {
+   "id": "JC-BUDGET-ORIGIN",
+   "severity": "Low",
+   "register_status": "OPEN",
+   "finding": "Budget relief is by cost code, not by the stock's origin (WAC stock is pooled): stock bought on one code and issued to another is charged to both (conservative: it refuses purchases, never allows an overspend).",
+   "residual_risk": ""
+  },
+  {
+   "id": "R-SIGNER (custody)",
+   "severity": "High",
+   "register_status": "BLOCKED",
+   "finding": "Whoever controls the signer process or its secret controls approvals.",
+   "residual_risk": ""
+  },
+  {
+   "id": "GATEA-12",
+   "severity": "High (production)",
+   "register_status": "BLOCKED",
+   "finding": "sum.golang.org, proxy.golang.org and vuln.go.dev unreachable from the build environment.",
+   "residual_risk": ""
+  },
+  {
+   "id": "R10-I1",
+   "severity": "Info",
+   "register_status": "OPEN",
+   "finding": "Signer limits: fixed per-process window (replicas multiply the budget); refusals counted, not rate-limited; MFA freshness decided by approval_authorize() (600 s).",
+   "residual_risk": "Budget multiplies with replicas."
+  },
+  {
+   "id": "R10-I2",
+   "severity": "Info",
+   "register_status": "OPEN",
+   "finding": "After a quantity correction, ar_contract_position.certified_gross stays gross of the correction while measured_value is net, so 'certified > measured' can appear; retention and advance stay as certified (timing only).",
+   "residual_risk": "Reporting presentation only."
+  },
+  {
+   "id": "R10-I4",
+   "severity": "Info",
+   "register_status": "OPEN (accepted residual proposed; needs a human risk owner)",
+   "finding": "The database cannot verify that a bank digest matches its ciphertext; approvals bind the digest.",
+   "residual_risk": "A compromised API could write a mismatched pair."
+  },
+  {
+   "id": "R11-F5",
+   "severity": "Low",
+   "register_status": "PARTIAL (rollback by deletion open)",
+   "finding": "The fixed base name let an older signed base stand in for a newer one; the manifest is unsigned so deletions are not detected.",
+   "residual_risk": "Deleting the newest inventory or WAL is not detectable from the store; object lock/WORM and expected-backup monitoring (GATEA-08) are the controls."
+  }
+ ]
+}
