@@ -292,7 +292,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-16-sup033-48be931.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-16-def004-fb86907.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -301,7 +301,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "DEF-004 fuel and work-order part forms in TestConsoleBrowserForms; XCT-API.2.e cursor lists; DEF-005.",
+  "exact_next_action": "XCT-API.2.e cursor paging for journals and people lists; DEF-005 screenshot review; further NOT_STARTED domains.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -329,8 +329,9 @@
    "CAP-01.5.c drill-down, CNX-03.2, CNX-04.1.b; DEF-021 (f5e0b8c)",
    "CAP-01.5 complete: cash-flow statement (f9106d5)",
    "FLT-03.1.d maintenance calendar; DEF-004 two forms (2e0c8c7)",
-   "SUP-03.3 supplier qualification, conflict declarations, scoring (48be931)"
+   "SUP-03.3 supplier qualification, conflict declarations, scoring (48be931)",
+   "DEF-004 closed: fuel and work-order part forms in the race regressions (fb86907)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-16-sup033-48be931.summary.json (511/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-16-def004-fb86907.summary.json (511/0/0)"
 }
