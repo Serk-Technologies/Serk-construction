@@ -1,6 +1,6 @@
 {
  "generated_by": "tools/final_completion.py",
- "register_commit": "de4b97d",
+ "register_commit": "f94f52f",
  "rule": "technical_status is derived from the requirement register; human_acceptance is PENDING until a named person accepts",
  "work_packages": [
   {
@@ -543,7 +543,6 @@
     "EST-03.1",
     "EST-04.1",
     "EST-05.3",
-    "EST-06.1",
     "EST-06.2",
     "EST-07.1"
    ],
@@ -577,25 +576,29 @@
      "status": "NOT_STARTED"
     },
     {
-     "id": "EST-06.1",
-     "text": "Rate build-up: resources × rates + overhead, contingency and escalation; selling rate = full cost / (1 − margin); markup kept distinct",
-     "status": "NOT_STARTED"
-    },
-    {
      "id": "EST-06.2",
      "text": "Every rate carries source, region, currency, FX date, validity and approval; rates freeze at bid submission",
-     "status": "NOT_STARTED"
+     "status": "IMPLEMENTING"
     },
     {
      "id": "EST-07.1",
      "text": "Bid scenarios and comparison of estimate against actual historical rates",
      "status": "NOT_STARTED"
+    },
+    {
+     "id": "EST-06.2.e",
+     "text": "Rates freeze at bid submission (tender submission record, EST-04)",
+     "status": "NOT_STARTED"
     }
    ],
    "tests": [
+    "TestAPIRateBuildups",
+    "TestConsoleBrowserForms",
     "TestImports_StageReviewCommit",
     "TestJourneyA_BOQToBankReconciliationToGL",
-    "TestJourneyA_SegregationOfDutiesAndBudget"
+    "TestJourneyA_SegregationOfDutiesAndBudget",
+    "TestRateBuildup_ConcurrentOverlappingApprovals",
+    "TestRateBuildup_GoldenCaseFreezeAndRevision"
    ],
    "external_dependencies": [],
    "technical_status": "IN_PROGRESS",

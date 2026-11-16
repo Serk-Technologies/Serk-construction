@@ -75,7 +75,8 @@
   "0090_rfi_change_submittal_cycle.sql",
   "0091_cash_flow_classes.sql",
   "0092_work_order_planned_date.sql",
-  "0093_supplier_governance.sql"
+  "0093_supplier_governance.sql",
+  "0094_rate_buildup.sql"
  ],
  "adrs_added": [
   "0018",
@@ -292,7 +293,7 @@
    "BLOCKED": 12,
    "VERIFIED": 6
   },
-  "register_evidence": "docs/engineering/evidence/2026-11-16-jcursor-de4b97d.tests.txt",
+  "register_evidence": "docs/engineering/evidence/2026-11-16-est06-f94f52f.tests.txt",
   "control_centre": "docs/final-completion/ (tools/final_completion.py)",
   "critical_defects": [
    "DEF-002 main unprotected (administrator)"
@@ -301,7 +302,7 @@
   "qualified_candidate": "",
   "human_acceptance": "PENDING",
   "release_decision": "NO-GO",
-  "exact_next_action": "EST-06 rate build-up and rate library (0094); then people/stock list paging; DEF-005.",
+  "exact_next_action": "EST-07 bid scenarios / EST-04 tender record (freeze at submission); people and stock list paging; DEF-005 screenshot review.",
   "completed_work_packages": [
    "WP-000 control centre",
    "WP-INT integration of new-version (abb80ec)",
@@ -331,8 +332,9 @@
    "FLT-03.1.d maintenance calendar; DEF-004 two forms (2e0c8c7)",
    "SUP-03.3 supplier qualification, conflict declarations, scoring (48be931)",
    "DEF-004 closed: fuel and work-order part forms in the race regressions (fb86907)",
-   "XCT-API.2.e journal worklist cursor paging (de4b97d)"
+   "XCT-API.2.e journal worklist cursor paging (de4b97d)",
+   "EST-06 rate library and rate build-ups (f94f52f)"
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-16-jcursor-de4b97d.summary.json (512/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-16-est06-f94f52f.summary.json (515/0/0)"
 }

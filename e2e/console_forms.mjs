@@ -196,6 +196,10 @@ for (const F of FORMS) {
   await nav(est, `#/doc/rate_buildup/${bu}`, 'Rate build-up C25-SLAB/R1');
   await est.getByText('Fixed when the build-up was submitted; an approved build-up never changes.').waitFor();
   await est.getByRole('button', { name: 'Start a revision' }).waitFor();
+  await nav(est, '#/list/rate_buildup', 'Rate build-ups');
+  await est.getByRole('link', { name: 'C25-SLAB/R1' }).waitFor();
+  await nav(com, '#/list/resource_rate', 'Rate library');
+  for (const code of Object.keys(rates)) await com.getByRole('link', { name: code, exact: true }).waitFor();
   log('rate build-up priced at 9,576.47 per m3, submitted and approved (frozen)');
 }
 

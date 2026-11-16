@@ -124,6 +124,22 @@
    "status": "NOT_COVERED"
   },
   {
+   "route": "#/list/rate_buildup",
+   "label": "Rate build-ups",
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
+   "route": "#/list/resource_rate",
+   "label": "Rate library",
+   "browser_journeys": [
+    "console_forms.mjs"
+   ],
+   "status": "COVERED_BY_BROWSER_JOURNEY"
+  },
+  {
    "route": "#/cost",
    "label": "Cost report",
    "browser_journeys": [

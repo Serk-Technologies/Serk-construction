@@ -1,19 +1,19 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-16-jcursor-de4b97d.tests.txt",
- "register_commit": "de4b97d",
+ "results_file": "docs/engineering/evidence/2026-11-16-est06-f94f52f.tests.txt",
+ "register_commit": "f94f52f",
  "requirement_counts": {
-  "VERIFIED": 114,
-  "NOT_STARTED": 64,
-  "IMPLEMENTING": 24,
+  "VERIFIED": 115,
+  "NOT_STARTED": 62,
+  "IMPLEMENTING": 25,
   "BLOCKED": 9,
   "IMPLEMENTED_UNVERIFIED": 1
  },
  "criteria_counts": {
   "IMPLEMENTING": 7,
-  "NOT_STARTED": 41,
+  "NOT_STARTED": 42,
   "BLOCKED": 12,
-  "VERIFIED": 34
+  "VERIFIED": 42
  },
  "requirements": [
   {
@@ -303,9 +303,53 @@
    "domain": "EST-06",
    "product": "ESTIMATE",
    "text": "Rate build-up: resources × rates + overhead, contingency and escalation; selling rate = full cost / (1 − margin); markup kept distinct",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
-   "criteria": [],
+   "status": "VERIFIED",
+   "evidence_tests": [
+    "TestRateBuildup_GoldenCaseFreezeAndRevision",
+    "TestAPIRateBuildups",
+    "TestConsoleBrowserForms"
+   ],
+   "criteria": [
+    {
+     "id": "EST-06.1.a",
+     "text": "The Bible's example reproduces exactly: 5,800 + 950 + 650 = 7,400 direct, 740 overhead, 8,140 full, 9,576.47 selling at 15% margin, markup 17.6471% reported separately",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestConsoleBrowserForms"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.1.b",
+     "text": "Wastage scales a resource's quantity; repeated calculation gives identical results; a margin of 100% or more is refused",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.1.c",
+     "text": "A line's kind, unit, rate and amount are the rate's and the database's, never the client's; figures are fixed on submission",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.1.d",
+     "text": "Only approved rates of the build-up's own legal entity and currency, valid on its price date, are used (no currency conversion is built)",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups"
+     ],
+     "note": ""
+    }
+   ],
    "work_package": "WP-008",
    "human_acceptance": "PENDING"
   },
@@ -314,9 +358,62 @@
    "domain": "EST-06",
    "product": "ESTIMATE",
    "text": "Every rate carries source, region, currency, FX date, validity and approval; rates freeze at bid submission",
-   "status": "NOT_STARTED",
-   "evidence_tests": [],
-   "criteria": [],
+   "status": "IMPLEMENTING",
+   "evidence_tests": [
+    "TestRateBuildup_GoldenCaseFreezeAndRevision",
+    "TestRateBuildup_ConcurrentOverlappingApprovals",
+    "TestAPIRateBuildups"
+   ],
+   "criteria": [
+    {
+     "id": "EST-06.2.a",
+     "text": "A rate records source, region, currency, confidence, validity and, outside the functional currency, its exchange-rate date",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.2.b",
+     "text": "A rate is approved or rejected by someone other than its recorder, attested; a decided rate never changes",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.2.c",
+     "text": "No two approved rates of one code overlap in validity, including under concurrent approval",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestRateBuildup_ConcurrentOverlappingApprovals"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.2.d",
+     "text": "An approved build-up is frozen; repricing is a new revision priced at the rates valid on its date, which supersedes it when approved",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestRateBuildup_GoldenCaseFreezeAndRevision",
+      "TestAPIRateBuildups",
+      "TestConsoleBrowserForms"
+     ],
+     "note": ""
+    },
+    {
+     "id": "EST-06.2.e",
+     "text": "Rates freeze at bid submission (tender submission record, EST-04)",
+     "status": "NOT_STARTED",
+     "evidence_tests": [],
+     "note": ""
+    }
+   ],
    "work_package": "WP-008",
    "human_acceptance": "PENDING"
   },
