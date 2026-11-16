@@ -49,6 +49,8 @@ type Config struct {
 	// Staging enables the test-environment persona sign-in (never in
 	// production; see StagingLogin).
 	Staging *StagingLogin
+	// PinLogin enables the e-mail + 6-digit PIN sign-in (0095).
+	PinLogin *PinLogin
 	// CompanyName overrides the export letterhead (default: the legal
 	// entity's registered name); Brand is the product line printed under it.
 	CompanyName string
@@ -170,6 +172,7 @@ func New(cfg Config) *Server {
 	s.registerSchedule()
 	s.registerSite()
 	s.registerStaging()
+	s.registerPinLogin()
 	s.registerExport()
 	s.registerReports()
 	s.registerPlatform()
@@ -543,6 +546,11 @@ type problem struct {
 // unlisted code falls back to the HTTP status text.
 var problemTitles = map[string]string{
 	"validation":            "The request is not valid",
+	"invalid_credentials":   "The e-mail address or PIN is not right",
+	"locked":                "Sign-in locked",
+	"disabled":              "Sign-in turned off",
+	"code_required":         "Authenticator code required",
+	"pin_change_required":   "A new PIN is required",
 	"not_found":             "Not found",
 	"forbidden":             "Not permitted",
 	"unauthenticated":       "Authentication required",

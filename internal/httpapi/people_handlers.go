@@ -22,14 +22,6 @@ type accessBody struct {
 func (s *Server) registerPeople() {
 	m := s.mux
 	k := s.cfg.Kernel
-	personID := func(w http.ResponseWriter, r *http.Request) (string, bool) {
-		id := r.PathValue("uid")
-		if !personIDRe.MatchString(id) {
-			writeErr(w, http.StatusNotFound, "not_found", "not found")
-			return "", false
-		}
-		return id, true
-	}
 	reply := func(w http.ResponseWriter, out any, err error) {
 		if err != nil {
 			s.fail(w, err)

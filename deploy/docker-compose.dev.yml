@@ -45,6 +45,8 @@ services:
       SERK_ABUSE_KEY: dev-only-abuse-hmac-key-0123456789abcdefABCDEF
       SERK_BANK_DATA_KEY: dev-only-bank-data-key-0123456789abcdefABCDEF
       SERK_BANK_DIGEST_KEY: dev-only-bank-digest-key-0123456789abcdefABCDEF
+      # E-mail + 6-digit PIN sign-in (0095); development/staging only.
+      SERK_LOGIN_PEPPER: dev-only-login-pepper-0123456789abcdefABCDEF
       SERK_LISTEN: ":8080"
       # Test-persona sign-in (development/staging only; refused in production).
       # SERK_STAGING_COMPANIES is written to deploy/.env by scripts/dev-seed.sh.

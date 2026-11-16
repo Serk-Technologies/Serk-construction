@@ -168,6 +168,7 @@ func main() {
 		log.Warn("metrics disabled (SERK_METRICS_LISTEN not set): no SLO or alert signals will be available")
 	}
 	abuse := httpapi.AbuseConfig{PreAuthPerMinute: cfg.PreAuthPerMinute, AuthFailuresPerMinute: cfg.AuthFailuresPerMin, TrustedProxies: cfg.TrustedProxies}
+	var pinLogin *httpapi.PinLogin
 	if cfg.AbuseDSN != "" {
 		ab, err := pgxpool.New(ctx, cfg.AbuseDSN)
 		if err != nil {
@@ -180,6 +181,11 @@ func main() {
 			os.Exit(1)
 		}
 		abuse.Shared, abuse.KeySecret = postgres.AbuseStore{Pool: ab}, cfg.AbuseKey
+		if len(cfg.LoginPepper) > 0 && cfg.Env != config.Production {
+			log.Info("e-mail + PIN sign-in enabled (HS256 sessions; development and staging only)")
+			pinLogin = &httpapi.PinLogin{Store: kernel.PoolLoginStore{Pool: ab}, Secrets: kernel.PinSecrets{Pepper: cfg.LoginPepper, Issuer: "SERK Construction"},
+				Signer: httpapi.HS256Verifier{Secret: cfg.HS256Secret, Issuer: cfg.TokenIssuer, Audience: cfg.TokenAudience}}
+		}
 	} else {
 		log.Warn("abuse limits are per replica (SERK_ABUSE_DSN not set): refused in production")
 	}
@@ -193,7 +199,7 @@ func main() {
 		}
 	}
 	h := httpapi.New(httpapi.Config{Verifier: verifier, Kernel: svc, Store: router, Logger: log, RatePerMinute: cfg.RatePerMinute, Metrics: metrics,
-		Abuse: abuse, Staging: staging, CompanyName: cfg.CompanyName})
+		Abuse: abuse, Staging: staging, PinLogin: pinLogin, CompanyName: cfg.CompanyName})
 	if cfg.SchedulerDSN != "" {
 		sched, err := pgxpool.New(ctx, cfg.SchedulerDSN)
 		if err != nil {

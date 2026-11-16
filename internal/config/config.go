@@ -96,6 +96,12 @@ type Config struct {
 	// lists every synthetic company a tester may sign in to.
 	StagingCompanies []StagingCompany
 
+	// LoginPepper (SERK_LOGIN_PEPPER) enables the e-mail + 6-digit PIN sign-in
+	// (0095) and keys its PIN hashes and authenticator secrets; it is never
+	// stored in the database. It needs SERK_ABUSE_DSN (the pre-authentication
+	// login) and, like every HS256 sign-in, is refused in production.
+	LoginPepper []byte
+
 	// CompanyName is the letterhead on exported documents (optional;
 	// default: the tenant's letterhead setting, then each legal entity's
 	// registered name).
@@ -242,6 +248,9 @@ func Load(src Source) (Config, error) {
 		return Config{}, err
 	}
 	if c.StagingLoginPassphrase, err = src.secret("SERK_STAGING_LOGIN_PASSPHRASE"); err != nil {
+		return Config{}, err
+	}
+	if c.LoginPepper, err = src.secret("SERK_LOGIN_PEPPER"); err != nil {
 		return Config{}, err
 	}
 	c.StagingTenant = src.Getenv("SERK_STAGING_TENANT")
@@ -458,6 +467,20 @@ func (c Config) Validate() error {
 			bad("SERK_STAGING_TENANT is required with SERK_STAGING_LOGIN_PASSPHRASE")
 		case string(c.StagingLoginPassphrase) == string(c.HS256Secret) || string(c.StagingLoginPassphrase) == string(c.TenantDBSecret):
 			bad("SERK_STAGING_LOGIN_PASSPHRASE must differ from every secret")
+		}
+	}
+	if len(c.LoginPepper) > 0 {
+		switch {
+		case prod:
+			bad("SERK_LOGIN_PEPPER: the e-mail + PIN sign-in issues HS256 sessions and is refused in production until an ADR approves a production signer")
+		case oidc:
+			bad("the e-mail + PIN sign-in mints HS256 tokens and cannot be combined with OIDC")
+		case len(c.LoginPepper) < 32:
+			bad("SERK_LOGIN_PEPPER must be at least 32 characters")
+		case c.AbuseDSN == "":
+			bad("SERK_LOGIN_PEPPER needs SERK_ABUSE_DSN, the pre-authentication database login")
+		case string(c.LoginPepper) == string(c.HS256Secret) || string(c.LoginPepper) == string(c.TenantDBSecret) || string(c.LoginPepper) == string(c.AbuseKey) || string(c.LoginPepper) == string(c.BankDataKey):
+			bad("SERK_LOGIN_PEPPER must differ from every other secret")
 		}
 	}
 	if len(c.DocumentKey) > 0 {
