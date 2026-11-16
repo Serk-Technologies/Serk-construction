@@ -527,16 +527,30 @@ type JournalSummary struct {
 	ApprovedBy  string          `json:"approved_by,omitempty"`
 	ProjectID   string          `json:"project_id,omitempty"`
 	Debits      decimal.Decimal `json:"debits"`
+	CreatedAt   time.Time       `json:"created_at"`
 }
 
 // ListJournals lists journals by status (and source type prefix).
 func ListJournals(ctx context.Context, tx pgx.Tx, status, sourcePrefix string, limit int) ([]JournalSummary, error) {
-	if limit <= 0 || limit > 500 {
+	return ListJournalsAfter(ctx, tx, status, sourcePrefix, limit, nil)
+}
+
+// ListJournalsAfter is ListJournals in a stable newest-first order (created_at,
+// then id), starting after a position (XCT-API.2.e).
+func ListJournalsAfter(ctx context.Context, tx pgx.Tx, status, sourcePrefix string, limit int, after *ListPosition) ([]JournalSummary, error) {
+	if limit <= 0 || limit > 501 {
 		limit = 200
 	}
+	var at *time.Time
+	afterID := ""
+	if after != nil {
+		at, afterID = &after.CreatedAt, after.ID
+	}
 	rows, err := tx.Query(ctx, `SELECT j.id::text, j.status, j.source_type, COALESCE(j.source_ref, ''), j.description, j.business_event_at, j.created_by,
-		COALESCE(j.approved_by, ''), COALESCE(j.project_id::text, ''), COALESCE((SELECT sum(amount) FROM journal_lines l WHERE l.journal_id = j.id AND l.side = 'DEBIT'), 0)
-		FROM journals j WHERE ($1 = '' OR j.status = $1) AND j.source_type LIKE $2 || '%' ORDER BY j.created_at DESC LIMIT $3`, status, sourcePrefix, limit)
+		COALESCE(j.approved_by, ''), COALESCE(j.project_id::text, ''), COALESCE((SELECT sum(amount) FROM journal_lines l WHERE l.journal_id = j.id AND l.side = 'DEBIT'), 0), j.created_at
+		FROM journals j WHERE ($1 = '' OR j.status = $1) AND j.source_type LIKE $2 || '%'
+		  AND ($4::timestamptz IS NULL OR (j.created_at, j.id::text) < ($4::timestamptz, $5::text))
+		ORDER BY j.created_at DESC, j.id::text DESC LIMIT $3`, status, sourcePrefix, limit, at, afterID)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +558,7 @@ func ListJournals(ctx context.Context, tx pgx.Tx, status, sourcePrefix string, l
 	var out []JournalSummary
 	for rows.Next() {
 		var j JournalSummary
-		if err := rows.Scan(&j.ID, &j.Status, &j.SourceType, &j.SourceRef, &j.Description, &j.EventDate, &j.CreatedBy, &j.ApprovedBy, &j.ProjectID, &j.Debits); err != nil {
+		if err := rows.Scan(&j.ID, &j.Status, &j.SourceType, &j.SourceRef, &j.Description, &j.EventDate, &j.CreatedBy, &j.ApprovedBy, &j.ProjectID, &j.Debits, &j.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, j)

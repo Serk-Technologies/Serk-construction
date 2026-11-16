@@ -2906,9 +2906,22 @@ const FORMS = {
 // ---------- journals ----------
 async function renderJournals() {
   const p2pOnly = h('input', { type: 'checkbox', id: nextId('c'), checked: true });
-  const fetchJ = async (status) => (p2pOnly.checked
-    ? (await Promise.all(['P2P_', 'AR_', 'STK_'].map((p) => api('GET', `/v1/journals?status=${status}&source_prefix=${p}`)))).flatMap((r) => r.journals)
-    : (await api('GET', `/v1/journals?status=${status}`)).journals);
+  // XCT-API.2.e: follow the cursor, at most 10 pages of 200 per list; say so when more remain.
+  const pages = async (path) => {
+    let items = [], next = '', n = 0;
+    do {
+      const r = await api('GET', path + (next ? `&cursor=${encodeURIComponent(next)}` : ''));
+      items = items.concat(r.journals); next = r.next || '';
+    } while (next && ++n < 10);
+    return { items, more: !!next };
+  };
+  const fetchJ = async (status) => {
+    const rs = p2pOnly.checked ? await Promise.all(['P2P_', 'AR_', 'STK_'].map((p) => pages(`/v1/journals?status=${status}&source_prefix=${p}`)))
+      : [await pages(`/v1/journals?status=${status}`)];
+    const js = rs.flatMap((r) => r.items);
+    js.more = rs.some((r) => r.more);
+    return js;
+  };
   const holder = h('div');
   page('Journals', 'Subledger documents create draft journals. A finance manager approves them and a controller posts them; neither can be the document’s creator.',
     h('div', { class: 'toolbar' }, h('div', { class: 'check' }, p2pOnly, h('label', { for: p2pOnly.id }, 'Subledger journals only (procure-to-pay, receivables, stock)'))), holder);
@@ -2949,7 +2962,8 @@ async function renderJournals() {
       });
       holder.append(h('div', { class: 'pagehead' }, h('h2', { class: 'section' }, status === 'DRAFT' ? 'Waiting for approval' : 'Approved, waiting to post'),
         exportBar(`/v1/journals?status=${status}`, `Journals — ${status === 'DRAFT' ? 'waiting for approval' : 'approved, waiting to post'}`)),
-        ...[table(`${status === 'DRAFT' ? 'Draft' : 'Approved'} journals (${js.length})`, cols, js, 'None.'), btn ? h('div', { class: 'actions' }, btn) : null, out].filter(Boolean));
+        ...[js.more ? h('p', { class: 'hint', role: 'status' }, `Showing the newest ${js.length}; more are waiting. Act on these first, then reload.`) : null,
+          table(`${status === 'DRAFT' ? 'Draft' : 'Approved'} journals (${js.length}${js.more ? '+' : ''})`, cols, js, 'None.'), btn ? h('div', { class: 'actions' }, btn) : null, out].filter(Boolean));
     }
   };
   p2pOnly.addEventListener('change', () => load().catch(showError));

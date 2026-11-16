@@ -610,13 +610,15 @@ X = {
     ]),
     "XCT-API": ("M1", "API and events", [
         r("The OpenAPI contract matches the routes served", V, "TestOpenAPIMatchesRoutes"),
-        r("Problem details per RFC 9457 and cursor pagination on every list", I, note="Errors use a consistent {code,message} body; lists are bounded by LIMIT, not cursors.",
+        r("Problem details per RFC 9457 and cursor pagination on every list", I, note="Errors are RFC 9457 problem details. Document lists and the journal worklist page by cursor (the console follows up to 10 pages of journals and says when more remain; a browser run with more than one page has not been made). Stock, people and report lists are still bounded or whole.",
           criteria=[
             c("Every error response is application/problem+json with type, title, status and detail", V, "TestProblemDetailsRFC9457"),
             c("Document lists page by an opaque cursor with stable ordering", V, "TestListCursorPagination"),
             c("A cursor cannot cross tenants or change the filters it was issued for", V, "TestListCursorPagination"),
             c("Rows inserted between pages are neither repeated nor skipped for rows that existed at the first page", V, "TestListCursorPagination"),
-            c("Lists outside the document framework (journals, stock, people, reports) page by cursor", N)]),
+            c("Lists outside the document framework (journals, stock, people, reports) page by cursor", N),
+            c("The journal worklist pages by a cursor bound to the tenant, the list and both filters; journals added between pages are neither repeated nor shown out of order", V,
+              "TestJournalListCursorPagination")]),
     ]),
     # Added by the final-completion directive (sections 7 and 9). Appended; no earlier ID moves.
     "XCT-FORM": ("M6", "Console form reliability", [

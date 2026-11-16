@@ -524,16 +524,25 @@ func (s *Server) journalBatch(approve bool) func(http.ResponseWriter, *http.Requ
 	}
 }
 
+// listJournals pages by cursor (XCT-API.2.e): pass "next" back as ?cursor=
+// with the same status and source_prefix; the order is newest first.
 func (s *Server) listJournals(w http.ResponseWriter, r *http.Request) {
-	out, err := s.cfg.Kernel.ListJournals(r.Context(), principalFrom(r.Context()), r.URL.Query().Get("status"), r.URL.Query().Get("source_prefix"), 200)
+	q := r.URL.Query()
+	limit := 0
+	if v := q.Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 500 {
+			writeErr(w, http.StatusUnprocessableEntity, "validation", "limit is a whole number from 1 to 500")
+			return
+		}
+		limit = n
+	}
+	out, err := s.cfg.Kernel.ListJournalsPage(r.Context(), principalFrom(r.Context()), q.Get("status"), q.Get("source_prefix"), q.Get("cursor"), limit)
 	if err != nil {
 		s.fail(w, err)
 		return
 	}
-	if out == nil {
-		out = []postgres.JournalSummary{}
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"journals": out})
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) listP2P(w http.ResponseWriter, r *http.Request) {

@@ -43,7 +43,14 @@ func (c listCursor) sum() string {
 }
 
 func encodeListCursor(tenant, docType, status string, last postgres.DocSummary) string {
-	c := listCursor{V: 1, Tenant: tenant, Type: docType, Status: status, At: last.CreatedAt.UTC(), ID: last.ID}
+	return encodeCursorAt(tenant, docType, status, last.CreatedAt, last.ID)
+}
+
+// encodeCursorAt and decodeListCursor serve every cursor-paged list: list
+// names a list (a document type, or e.g. "journal") and filter is its whole
+// filter, so a cursor is refused with any other list or filter.
+func encodeCursorAt(tenant, list, filter string, at time.Time, id string) string {
+	c := listCursor{V: 1, Tenant: tenant, Type: list, Status: filter, At: at.UTC(), ID: id}
 	c.Sum = c.sum()
 	b, _ := json.Marshal(c)
 	return base64.RawURLEncoding.EncodeToString(b)
@@ -86,6 +93,49 @@ func (s *Service) ListP2PDocsPage(ctx context.Context, p auth.Principal, docType
 		}
 		if rows != nil {
 			out.Items = rows
+		}
+		return nil
+	})
+	return out, err
+}
+
+// JournalPage is one page of the journal worklist.
+type JournalPage struct {
+	Journals []postgres.JournalSummary `json:"journals"`
+	Next     string                    `json:"next,omitempty"`
+}
+
+// ListJournalsPage is ListJournals a page at a time, newest first (XCT-API.2.e).
+// The cursor is bound to the tenant and to both filters. limit is 1..500
+// (default 200).
+func (s *Service) ListJournalsPage(ctx context.Context, p auth.Principal, status, sourcePrefix, cursor string, limit int) (JournalPage, error) {
+	out := JournalPage{Journals: []postgres.JournalSummary{}}
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	if err := s.authz.Require(p, auth.PermJournalRead, p.TenantID); err != nil {
+		return out, err
+	}
+	if !s.tenantWide(p) {
+		return out, fmt.Errorf("%w: journal worklists need tenant-wide scope", auth.ErrForbidden)
+	}
+	filter := status + "|" + sourcePrefix
+	after, err := decodeListCursor(cursor, p.TenantID, "journal", filter)
+	if err != nil {
+		return out, err
+	}
+	err = s.store.WithTenant(ctx, p.TenantID, func(ctx context.Context, tx pgx.Tx) error {
+		rows, err := postgres.ListJournalsAfter(ctx, tx, status, sourcePrefix, limit+1, after)
+		if err != nil {
+			return err
+		}
+		if len(rows) > limit {
+			rows = rows[:limit]
+			last := rows[limit-1]
+			out.Next = encodeCursorAt(p.TenantID, "journal", filter, last.CreatedAt, last.ID)
+		}
+		if rows != nil {
+			out.Journals = rows
 		}
 		return nil
 	})
