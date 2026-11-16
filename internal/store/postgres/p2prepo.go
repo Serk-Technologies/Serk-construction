@@ -35,9 +35,12 @@ type P2PPolicy struct {
 	APAccountID           string `json:"ap_account_id"`
 	VATInputAccountID     string `json:"vat_input_account_id"`
 	PPVAccountID          string `json:"ppv_account_id"`
-	Status                string `json:"status"`
-	CreatedBy             string `json:"created_by"`
-	ApprovedBy            string `json:"approved_by,omitempty"`
+	// 0093: conflict declarations before evaluation and award; awards only to qualified suppliers.
+	RequireConflictDeclarations  bool   `json:"require_conflict_declarations"`
+	RequireSupplierQualification bool   `json:"require_supplier_qualification"`
+	Status                       string `json:"status"`
+	CreatedBy                    string `json:"created_by"`
+	ApprovedBy                   string `json:"approved_by,omitempty"`
 }
 
 // Doc is the common header of a P2P document as returned to callers.

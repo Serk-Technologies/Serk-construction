@@ -1044,6 +1044,9 @@ async function renderDoc(type, id) {
   if (type === 'maintenance_work_order') parts.push(await workOrderPanel(d));
   if (type === 'timesheet') parts.push(await timesheetPanel(d));
   if (type === 'document_revision') parts.push(revisionPanel(d, head, det.doc || {}));
+  if (type === 'supplier') parts.push(await supplierStandingPanel(d));
+  if (type === 'rfq') parts.push(await rfqDeclarationsPanel(d, det));
+  if (type === 'purchase_order' && ['APPROVED', 'CLOSED'].includes(d.status)) parts.push(supplierScorePanel(d));
   if (type === 'rfi') { const p = rfiPanel(d, head); if (p) parts.push(p); parts.push(await rfiImpactPanel(d)); }
   if (type === 'submittal') { const p = submittalPanel(d, head); if (p) parts.push(p); parts.push(await submittalCyclePanel(d, head)); }
   if (type === 'subcontract') parts.push(await subcontractPanel(d));
@@ -2884,12 +2887,17 @@ const FORMS = {
     const hv = f('high_value_po_threshold', '5000000'), dual = f('dual_payment_threshold', '500000');
     const acc = (n, types) => select(n, accountOpts(types), { required: true });
     const grni = acc('grni_account_id', ['LIABILITY']), ap = acc('ap_account_id', ['LIABILITY']), vin = acc('vat_input_account_id', ['ASSET']), ppv = acc('ppv_account_id', ['EXPENSE']);
+    // SUP-03.3 (0093): two procurement rules the company switches on through this policy.
+    const box = (name, label) => { const cb = h('input', { type: 'checkbox', name, id: nextId('pc') }); return [cb, h('div', { class: 'check' }, cb, h('label', { for: cb.id }, label))]; };
+    const [conf, confRow] = box('require_conflict_declarations', 'Evaluators and awarders declare conflicts of interest on each RFQ first');
+    const [qual, qualRow] = box('require_supplier_qualification', 'Award only to suppliers with an approved qualification valid on the day');
     formPage('Propose P2P policy', 'Tolerances, thresholds and posting accounts. Takes effect only after another person approves it. Rates are tenant configuration, not tax advice.', [
       h('div', { class: 'grid' }, field('Legal entity', ent), field('Price tolerance (fraction)', tol, '0.02 = 2%'), field('Over-receipt allowance (fraction)', over),
         field('VAT rate (fraction)', vat), field('High-value PO threshold', hv), field('Dual-approval payment threshold', dual),
-        field('GRNI account', grni), field('Accounts payable account', ap), field('VAT input account', vin), field('Price variance account', ppv))], 'Propose policy', async () => {
+        field('GRNI account', grni), field('Accounts payable account', ap), field('VAT input account', vin), field('Price variance account', ppv)), confRow, qualRow], 'Propose policy', async () => {
       const res = await api('POST', '/v1/p2p/policies', { legal_entity_id: ent.value, price_tolerance_pct: tol.value, over_receipt_pct: over.value, vat_rate: vat.value,
-        high_value_po_threshold: hv.value, dual_payment_threshold: dual.value, grni_account_id: grni.value, ap_account_id: ap.value, vat_input_account_id: vin.value, ppv_account_id: ppv.value });
+        high_value_po_threshold: hv.value, dual_payment_threshold: dual.value, grni_account_id: grni.value, ap_account_id: ap.value, vat_input_account_id: vin.value, ppv_account_id: ppv.value,
+        require_conflict_declarations: conf.checked, require_supplier_qualification: qual.checked });
       created('p2p_policy', res, 'Policy');
     });
   },
@@ -5467,6 +5475,55 @@ function submittalPanel(d, head) {
   });
   return h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Review'), h('p', { class: 'hint' }, 'The review is recorded once and attested in your name.'),
     h('div', { class: 'grid' }, field('Review code', code), field('Note', note)), h('div', { class: 'actions' }, btn));
+}
+// SUP-03.3 (0093): qualifications and performance of a supplier.
+async function supplierStandingPanel(d) {
+  const st = await api('GET', `/v1/suppliers/${d.id}/standing`);
+  const decide = (q) => {
+    if (q.status !== 'PENDING' || !S.can.has('supplier.approve') || q.created_by === S.me.user_id) return '';
+    const go = async (approve, note) => { try { clearError(); await api('POST', `/v1/supplier-qualifications/${q.id}/decide`, { approve, note }); say('Qualification decided.'); route(); } catch (e) { showError(e); } };
+    const ok = h('button', { type: 'button', 'data-approve-qualification': q.reference }, 'Approve'); ok.addEventListener('click', () => go(true, ''));
+    const no = h('button', { type: 'button', class: 'ghost' }, 'Reject'); no.addEventListener('click', () => { const why = prompt('Why is it rejected?'); if (why) go(false, why); });
+    return h('span', { class: 'row-actions' }, ok, no);
+  };
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Qualification and performance'),
+    h('p', { class: st.qualified_today ? 'notice' : 'hint', role: 'status' }, st.qualified_today ? 'Qualified today.' : 'No approved qualification valid today.'),
+    h('p', { class: 'hint' }, st.scores ? `${st.scores} scored order(s): quality ${st.quality}, delivery ${st.delivery}, safety ${st.safety} (out of 5).` : 'No order of this supplier has been scored yet.'),
+    table('Qualifications', [{ label: 'Category', cell: (q) => q.category }, { label: 'Reference', cell: (q) => q.reference }, { label: 'Valid', cell: (q) => `${q.valid_from} to ${q.valid_to}` },
+      { label: 'Status', cell: (q) => chip(q.valid_today ? 'VALID' : q.status) }, { label: '', cell: decide }], st.qualifications, 'No qualification recorded.'));
+  if (S.can.has('supplier.manage')) {
+    const cat = input('category', { type: 'text', maxlength: '100' }); const ref = input('reference', { type: 'text', maxlength: '120', placeholder: 'Licence or registration number' });
+    const from = input('valid_from', { type: 'date', value: today() }); const to = input('valid_to', { type: 'date' });
+    const b = h('button', { type: 'button' }, 'Record qualification');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', '/v1/supplier-qualifications', { supplier_id: d.id, category: cat.value.trim(), reference: ref.value.trim(), valid_from: from.value, valid_to: to.value }); say('Qualification recorded; it applies once someone else approves it.'); route(); } catch (e) { showError(e); } });
+    box.append(h('div', { class: 'grid' }, field('Category', cat), field('Reference', ref), field('Valid from', from), field('Valid to', to)), h('div', { class: 'actions' }, b));
+  }
+  return box;
+}
+// SUP-03.3 (0093): conflict-of-interest declarations on an RFQ.
+async function rfqDeclarationsPanel(d, det) {
+  const decl = (await api('GET', `/v1/rfqs/${d.id}/declarations`)).items || [];
+  const box = h('div', { class: 'panel' }, h('h2', { class: 'section' }, 'Conflict-of-interest declarations'),
+    table('Declarations', [{ label: 'Person', cell: (x) => x.declared_by }, { label: 'Conflict with', cell: (x) => x.supplier || 'No conflict' }, { label: 'Relationship', cell: (x) => x.relationship }], decl, 'Nobody has declared yet.'));
+  if (d.status === 'ISSUED' && !decl.some((x) => x.declared_by === S.me.user_id && !x.supplier)) {
+    const names = new Map((await docOpts('supplier', 'ACTIVE')).map((o) => [o.value, o.label]));
+    const sups = (det.suppliers || []).map((id) => ({ value: id, label: names.get(id) || id }));
+    const sup = select('supplier_id', [{ value: '', label: 'No conflict with any supplier on this RFQ' }, ...sups]);
+    const rel = input('relationship', { type: 'text', maxlength: '500', placeholder: 'Only for a conflict: the relationship' });
+    const b = h('button', { type: 'button' }, 'Declare');
+    b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/rfqs/${d.id}/declarations`, { supplier_id: sup.value || undefined, relationship: rel.value.trim() || undefined }); say('Declaration recorded.'); route(); } catch (e) { showError(e); } });
+    box.append(h('div', { class: 'grid' }, field('Declaration', sup), field('Relationship', rel)), h('div', { class: 'actions' }, b));
+  }
+  return box;
+}
+// SUP-03.3 (0093): score the supplier of an order once goods were received.
+function supplierScorePanel(d) {
+  const n = (name) => select(name, [5, 4, 3, 2, 1].map((v) => ({ value: String(v), label: String(v) })));
+  const q = n('quality'), dl = n('delivery'), sf = n('safety'); const note = input('note', { type: 'text', maxlength: '1000' });
+  const b = h('button', { type: 'button' }, 'Score the supplier');
+  b.addEventListener('click', async () => { try { clearError(); await api('POST', `/v1/purchase-orders/${d.id}/score`, { quality: Number(q.value), delivery: Number(dl.value), safety: Number(sf.value), note: note.value.trim() }); say('Supplier scored.'); route(); } catch (e) { showError(e); } });
+  return h('details', { class: 'panel' }, h('summary', {}, 'Score the supplier (once, after receipt)'),
+    h('div', { class: 'grid' }, field('Quality', q), field('Delivery', dl), field('Safety', sf), field('Note', note)), h('div', { class: 'actions' }, b));
 }
 // CNX-03.2 (0090): what the RFI cost, through the change events raised from it.
 async function rfiImpactPanel(d) {

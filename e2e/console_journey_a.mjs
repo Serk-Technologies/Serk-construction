@@ -252,6 +252,14 @@ try {
   }
   log('rfq issued, 3 quotes recorded');
 
+  // ---- 3b. SUP-03.3: the evaluator declares no conflict before evaluating --------
+  await nav(se, `#/doc/rfq/${rfqID}`, /^RFQ RFQ-/);
+  await se.getByRole('heading', { name: 'Conflict-of-interest declarations' }).waitFor();
+  await se.getByRole('button', { name: 'Declare', exact: true }).click();
+  await se.getByRole('cell', { name: 'No conflict', exact: true }).waitFor();
+  if (await se.getByRole('button', { name: 'Declare', exact: true }).count()) fail('the declaration form is still offered after declaring');
+  log('no-conflict declaration recorded');
+
   // ---- 4. Technical evaluation by the site engineer ----------------------------
   await nav(se, '#/list/rfq_quote/PENDING', 'Quotes');
   for (const [code, , , , ok] of [[...quotes[0], true], [...quotes[1], true], [...quotes[2], false]]) {
@@ -263,8 +271,25 @@ try {
     await act(se, 'Record evaluation', 'Record evaluation: done');
   }
 
+  // ---- 4b. SUP-03.3: supplier qualification, recorded by the buyer, approved by another
+  await nav(buyer, '#/list/supplier/ACTIVE', 'Suppliers');
+  await buyer.getByRole('link', { name: 'ABC-STEEL', exact: true }).click();
+  await buyer.getByRole('heading', { name: 'Qualification and performance' }).waitFor();
+  await buyer.getByLabel('Category', { exact: true }).fill('Structural steel supply');
+  await buyer.getByLabel('Reference', { exact: true }).fill('LIC-STEEL-2026');
+  await buyer.getByLabel('Valid from').fill('2026-10-01');
+  await buyer.getByLabel('Valid to').fill('2027-09-30');
+  await buyer.getByRole('button', { name: 'Record qualification' }).click();
+  await buyer.getByRole('cell', { name: 'LIC-STEEL-2026' }).waitFor();
+  if (await buyer.locator('[data-approve-qualification]').count()) fail('the qualification maker is offered its approval');
+  const supplierHash = await buyer.evaluate(() => location.hash);
   // ---- 5. Award (lowest compliant) and purchase order --------------------------
   const pmgr = await as('procMgr');
+  await nav(pmgr, supplierHash, null);
+  await pmgr.locator('[data-approve-qualification="LIC-STEEL-2026"]').click();
+  await pmgr.getByText('Qualified today.').waitFor();
+  log('supplier qualification recorded and approved by a second person');
+
   await nav(pmgr, `#/doc/rfq/${rfqID}`, /^RFQ RFQ-/);
   await selectByText(pmgr.getByLabel('Winning quote (technically compliant only)'), 'Q-A');
   await act(pmgr, 'Award', 'Award: done');
@@ -300,6 +325,19 @@ try {
   await receipt('12', '500', 'DN-4471');
   await receipt('8', '', 'DN-4502');
   log('two receipts confirmed');
+  // ---- 6b. SUP-03.3: the site engineer scores the supplier after receipt ----------
+  await nav(se, `#/doc/purchase_order/${poID}`, /^Purchase order PO-/);
+  await se.getByText('Score the supplier (once, after receipt)').click();
+  await se.getByLabel('Quality', { exact: true }).selectOption('4');
+  await se.getByLabel('Delivery', { exact: true }).selectOption('3');
+  await se.getByLabel('Safety', { exact: true }).selectOption('5');
+  await se.getByLabel('Note', { exact: true }).fill('Second delivery a week late');
+  await se.getByRole('button', { name: 'Score the supplier' }).click();
+  await se.locator('#status').filter({ hasText: 'Supplier scored.' }).waitFor();
+  await nav(pmgr, supplierHash, null);
+  await pmgr.getByText(/1 scored order\(s\): quality 4/).waitFor();
+  log('supplier scored after receipt');
+
 
   // ---- 7. Invoices: 3-way match, AP supervisor approval -------------------------
   const ap = await as('apClerk');

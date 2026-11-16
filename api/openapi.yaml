@@ -3183,3 +3183,37 @@ paths:
       summary: "Read maintenance calendar (scoped to what the caller may see)"
       x-generated: true  # stub: replace with a hand-written description
       responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/rfqs/{id}/declarations:
+    get:
+      summary: "Read declarations (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+    post:
+      summary: "Create declarations (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/suppliers/{id}/standing:
+    get:
+      summary: "Read standing (scoped to what the caller may see)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/purchase-orders/{id}/score:
+    post:
+      summary: "Create score (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/supplier-qualifications:
+    post:
+      summary: "Create supplier qualifications (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
+  /v1/supplier-qualifications/{id}/decide:
+    post:
+      summary: "Create decide (a draft; decisions need a different person)"
+      x-generated: true  # stub: replace with a hand-written description
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: ok }, '401': { description: bearer token required }, '403': { description: forbidden }, '404': { description: not found or outside your scope } }
