@@ -1,7 +1,7 @@
 {
  "source": "spec/module-register.csv; MASTER_PROMPT.md; spec/BIBLE.md",
- "results_file": "docs/engineering/evidence/2026-11-16-def004-fb86907.tests.txt",
- "commit": "fb86907",
+ "results_file": "docs/engineering/evidence/2026-11-16-jcursor-de4b97d.tests.txt",
+ "commit": "de4b97d",
  "status_vocabulary": [
   "NOT_STARTED",
   "IMPLEMENTING",
@@ -21,7 +21,7 @@
   "IMPLEMENTING": 7,
   "NOT_STARTED": 41,
   "BLOCKED": 12,
-  "VERIFIED": 33
+  "VERIFIED": 34
  },
  "domain_counts": {
   "IMPLEMENTING": 51,
@@ -3842,7 +3842,7 @@
      "status": "IMPLEMENTING",
      "evidence_tests": [],
      "evidence_file": "",
-     "note": "Errors use a consistent {code,message} body; lists are bounded by LIMIT, not cursors.",
+     "note": "Errors are RFC 9457 problem details. Document lists and the journal worklist page by cursor (the console follows up to 10 pages of journals and says when more remain; a browser run with more than one page has not been made). Stock, people and report lists are still bounded or whole.",
      "criteria": [
       {
        "id": "XCT-API.2.a",
@@ -3885,6 +3885,15 @@
        "text": "Lists outside the document framework (journals, stock, people, reports) page by cursor",
        "status": "NOT_STARTED",
        "evidence_tests": [],
+       "note": ""
+      },
+      {
+       "id": "XCT-API.2.f",
+       "text": "The journal worklist pages by a cursor bound to the tenant, the list and both filters; journals added between pages are neither repeated nor shown out of order",
+       "status": "VERIFIED",
+       "evidence_tests": [
+        "TestJournalListCursorPagination"
+       ],
        "note": ""
       }
      ]

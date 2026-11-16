@@ -1,7 +1,7 @@
 {
  "generated_by": "tools/final_completion.py from docs/engineering/requirements.json",
- "results_file": "docs/engineering/evidence/2026-11-16-def004-fb86907.tests.txt",
- "register_commit": "fb86907",
+ "results_file": "docs/engineering/evidence/2026-11-16-jcursor-de4b97d.tests.txt",
+ "register_commit": "de4b97d",
  "requirement_counts": {
   "VERIFIED": 114,
   "NOT_STARTED": 64,
@@ -13,7 +13,7 @@
   "IMPLEMENTING": 7,
   "NOT_STARTED": 41,
   "BLOCKED": 12,
-  "VERIFIED": 33
+  "VERIFIED": 34
  },
  "requirements": [
   {
@@ -3331,6 +3331,15 @@
      "text": "Lists outside the document framework (journals, stock, people, reports) page by cursor",
      "status": "NOT_STARTED",
      "evidence_tests": [],
+     "note": ""
+    },
+    {
+     "id": "XCT-API.2.f",
+     "text": "The journal worklist pages by a cursor bound to the tenant, the list and both filters; journals added between pages are neither repeated nor shown out of order",
+     "status": "VERIFIED",
+     "evidence_tests": [
+      "TestJournalListCursorPagination"
+     ],
      "note": ""
     }
    ],
