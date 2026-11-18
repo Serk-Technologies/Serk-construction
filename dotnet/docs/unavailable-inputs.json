@@ -1,0 +1,5 @@
+[
+ {"input": "SERK-5D-Engineering-Lab (Project Titan)", "state": "not reachable from this session: absent from the repositories the session's GitHub access lists (searched 2026-11-18)", "consequence": "Titan's numerical kernel, simulation, carbon, revision, evidence and persistence layers could not be inspected; AUD-001..AUD-028 cannot be reproduced or resolved until the repository is attached."},
+ {"input": "BIMCraft source", "state": "not supplied to this session", "consequence": "No licensing or feasibility review, no native adapter and no cross-engine IFC tests yet; xBIM evaluation can proceed on public IFC samples only."},
+ {"input": "Titan independent audit findings AUD-001..AUD-028", "state": "no copy in this repository or session", "consequence": "The C# kernel is built to the directive's stated requirements; each finding gets a regression test once its text is available."}
+]

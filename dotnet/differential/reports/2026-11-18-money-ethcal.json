@@ -1,0 +1,84 @@
+{
+  "cases": 6519,
+  "agree": 6373,
+  "seed": 20261118,
+  "per_operation": {
+    "eth.from_gregorian": {
+      "agree": 608,
+      "deviate": 0
+    },
+    "eth.from_jdn": {
+      "agree": 600,
+      "deviate": 0
+    },
+    "eth.parse": {
+      "agree": 309,
+      "deviate": 3
+    },
+    "eth.to_gregorian": {
+      "agree": 610,
+      "deviate": 1
+    },
+    "money.allocate": {
+      "agree": 807,
+      "deviate": 9
+    },
+    "money.div": {
+      "agree": 772,
+      "deviate": 30
+    },
+    "money.mul": {
+      "agree": 601,
+      "deviate": 0
+    },
+    "money.parse_strict": {
+      "agree": 518,
+      "deviate": 103
+    },
+    "money.round": {
+      "agree": 1548,
+      "deviate": 0
+    }
+  },
+  "deviations": {
+    "DIFF-001": {
+      "count": 30,
+      "examples": [
+        "money.div#2170 amount=0.01 currency=ETB factor=2.0000000000000000001 policy=HALF_UP: Go ok 0.01, C# ok 0.00",
+        "money.div#2486 amount=-0.3 currency=ETB policy=UP factor=1.99999999999999999998: Go ok -0.15, C# ok -0.16",
+        "money.div#2972 amount=-20 currency=JPY policy=DOWN factor=2.000000000000000009: Go ok -10, C# ok -9"
+      ]
+    },
+    "DIFF-002": {
+      "count": 9,
+      "examples": [
+        "money.allocate#3577 amount=999999999999999999.99 currency=ETB ratios=[1,1,1]: Go ok 25887598771507473.07|25887598771507473.06|25887598771507473.06, C# ok 333333333333333333.33|333333333333333333.33|333333333333333333.33",
+        "money.allocate#3578 amount=1000000000000.00 currency=ETB ratios=[100000,33333,66667]: Go error nontermination, C# ok 500000000000.00|166665000000.00|333335000000.00",
+        "money.allocate#4379 amount=-9584147442650.90 currency=ETB ratios=[19659,2404196,2745999]: Go error nontermination, C# ok -36444888883.72|-4457025081372.03|-5090677472395.15"
+      ]
+    },
+    "DIFF-003": {
+      "count": 3,
+      "examples": [
+        "eth.parse#6211 text=\u002B016-01-01: Go ok 0016-01-01 1 Meskerem 16, C# error invalid_date",
+        "eth.parse#6213 text= 016-01-01: Go ok 0016-01-01 1 Meskerem 16, C# error invalid_date",
+        "eth.parse#6217 text=2016-01-1x: Go ok 2016-01-01 1 Meskerem 2016, C# error invalid_date"
+      ]
+    },
+    "DIFF-004": {
+      "count": 103,
+      "examples": [
+        "money.parse_strict#3 amount=-0.00 currency=ETB: Go ok 0.00 ETB, C# error invalid_amount",
+        "money.parse_strict#4 amount=-0 currency=ETB: Go ok 0.00 ETB, C# error invalid_amount",
+        "money.parse_strict#5 amount=007.50 currency=ETB: Go ok 7.50 ETB, C# error invalid_amount"
+      ]
+    },
+    "DIFF-005": {
+      "count": 1,
+      "examples": [
+        "eth.to_gregorian#5601 y=9999 m=13 d=5: Go ok 10007-11-09, C# error out_of_range"
+      ]
+    }
+  },
+  "unexplained": []
+}

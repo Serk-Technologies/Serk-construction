@@ -1,0 +1,10 @@
+revision 59718e9 + uncommitted dotnet/ workspace; 2026-11-18T04:12:57Z
+10.0.115
+go version go1.26.11 linux/amd64
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+Passed!  - Failed:     0, Passed:     5, Skipped:     0, Total:     5, Duration: 98 ms - Serk.Architecture.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    84, Skipped:     0, Total:    84, Duration: 882 ms - Serk.Platform.Numerics.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:    12, Skipped:     0, Total:    12, Duration: 1 s - Serk.Platform.Persistence.Tests.dll (net10.0)
+Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 25 s - Serk.Differential.Tests.dll (net10.0)

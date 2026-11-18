@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Small, pure value types shared by every module (calendars, identifiers). Base class library only. -->
+  <PropertyGroup>
+    <RootNamespace>Serk.Platform.Primitives</RootNamespace>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The exact numerical kernel. Base class library only: no third-party package may enter it (architecture test). -->
+  <PropertyGroup>
+    <RootNamespace>Serk.Platform.Numerics</RootNamespace>
+  </PropertyGroup>
+</Project>

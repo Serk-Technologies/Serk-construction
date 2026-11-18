@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- PostgreSQL access for platform value types (Npgsql). Explicit SQL only; no ORM-generated schema. -->
+  <PropertyGroup>
+    <RootNamespace>Serk.Platform.Persistence</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Npgsql" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Serk.Platform.Numerics/Serk.Platform.Numerics.csproj" />
+  </ItemGroup>
+</Project>

@@ -342,5 +342,30 @@
    "AUTH-2..5 (cbc9a41, 794f753, 9cfe480): leadership roles (system admin, board chairman, CEO) with separated powers and written responsibilities; company branding (words, logo up to 10 MB, 15 colour tokens per mode with enforced contrast); two-panel e-mail + PIN sign-in page; branding editor with live preview; PIN/authenticator self-service; sign-in administration; workflow map with authorities; staging sign-ins for every position. Full run of 9cfe480: 531 passed, 0 failed, 0 skipped. The full run of cbc9a41 alone FAILED TestOpenAPIMatchesRoutes (stale OpenAPI); fixed in 794f753."
   ]
  },
- "test_evidence_latest": "docs/engineering/evidence/2026-11-16-auth2345-9cfe480.summary.json (531/0/0)"
+ "test_evidence_latest": "docs/engineering/evidence/2026-11-16-auth2345-9cfe480.summary.json (531/0/0)",
+ "dotnet_transformation": {
+  "adr": "docs/adr/0026-dotnet-transformation-workspace.md",
+  "workspace": "dotnet/",
+  "status": "INTEGRATION_BLOCKED, PRODUCTION_NO_GO",
+  "checkpoint": "dotnet/docs/CHECKPOINT-1.md",
+  "go_reference_commit": "59718e9",
+  "tests_2026_11_18": {
+   "architecture": "5/5",
+   "numerics": "84/84",
+   "persistence_pg16": "12/12",
+   "differential_cases": "6519 (6373 agree, 146 explained by DIFF-001..005)",
+   "skipped": 0
+  },
+  "blocked": [
+   "SERK-5D-Engineering-Lab not reachable",
+   "BIMCraft source not supplied",
+   "AUD-001..AUD-028 text not available"
+  ],
+  "owner_decisions": [
+   "approve DIFF-001..DIFF-005 corrected behaviours",
+   "ESTATE module",
+   "workspace location (own repository)"
+  ],
+  "exact_next_action": "pkg/ledger differential migration into Serk.Modules.Capital (+ .Api), then pkg/fx, pkg/tax, then the first database-level differential test on isolated clones"
+ }
 }

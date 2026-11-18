@@ -1,0 +1,30 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/Serk.Modules.Assure/Serk.Modules.Assure.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Capital/Serk.Modules.Capital.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Command/Serk.Modules.Command.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Connect/Serk.Modules.Connect.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Contracts/Serk.Modules.Contracts.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Design/Serk.Modules.Design.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Estimate/Serk.Modules.Estimate.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Fleet/Serk.Modules.Fleet.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Governance/Serk.Modules.Governance.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Intelligence/Serk.Modules.Intelligence.csproj" />
+    <Project Path="src/Modules/Serk.Modules.People/Serk.Modules.People.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Plan/Serk.Modules.Plan.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Stock/Serk.Modules.Stock.csproj" />
+    <Project Path="src/Modules/Serk.Modules.Supply/Serk.Modules.Supply.csproj" />
+  </Folder>
+  <Folder Name="/src/Platform/">
+    <Project Path="src/Platform/Serk.Platform.Numerics/Serk.Platform.Numerics.csproj" />
+    <Project Path="src/Platform/Serk.Platform.Persistence/Serk.Platform.Persistence.csproj" />
+    <Project Path="src/Platform/Serk.Platform.Primitives/Serk.Platform.Primitives.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Serk.Architecture.Tests/Serk.Architecture.Tests.csproj" />
+    <Project Path="tests/Serk.Differential.Tests/Serk.Differential.Tests.csproj" />
+    <Project Path="tests/Serk.Platform.Numerics.Tests/Serk.Platform.Numerics.Tests.csproj" />
+    <Project Path="tests/Serk.Platform.Persistence.Tests/Serk.Platform.Persistence.Tests.csproj" />
+  </Folder>
+</Solution>

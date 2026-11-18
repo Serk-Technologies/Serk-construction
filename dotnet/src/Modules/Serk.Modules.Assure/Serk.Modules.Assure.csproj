@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Assure module (ADR 0026). Domain, Application and Infrastructure live in their own namespaces here;
+       other modules reach it only through Serk.Modules.Assure.Api (its published interface) once that project exists. -->
+  <PropertyGroup>
+    <RootNamespace>Serk.Modules.Assure</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Platform/Serk.Platform.Numerics/Serk.Platform.Numerics.csproj" />
+    <ProjectReference Include="../../Platform/Serk.Platform.Primitives/Serk.Platform.Primitives.csproj" />
+  </ItemGroup>
+</Project>

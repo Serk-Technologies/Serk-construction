@@ -1,0 +1,18 @@
+<Project>
+  <!-- SERK Construction OS 4.0 (.NET), ADR 0026. Every project: .NET 10, nullable, warnings are errors, deterministic builds. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Deterministic>true</Deterministic>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- CA1716/CA1720: domain words (Money, Parse, Decimal) are the right names here. -->
+    <NoWarn>$(NoWarn);CA1716;CA1720;CA1724</NoWarn>
+  </PropertyGroup>
+</Project>

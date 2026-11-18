@@ -17,3 +17,15 @@ This repository already holds the SERK Construction OS: Go 1.26, PostgreSQL 16, 
 - After adding routes or permissions run `make gen-docs` (OpenAPI stubs, role matrix, KPI and report catalogues); tests fail if these are stale.
 - After a verified slice: save the test results under `docs/engineering/evidence/`, run `python3 tools/requirements_register.py --results <file>`, update `execution-state.json` and `HANDOVER.md`.
 - `tools/gate_status.py` rewrites `docs/release/GATE_STATUS.json`; run it only when cutting a checkpoint.
+
+## .NET transformation workspace (added 2026-11-18, ADR 0026)
+
+The owner's "SERK Construction OS 4.0 — .NET transformation directive" is carried out in `dotnet/` (its own solution
+`SerkOS.slnx`, .NET 10). The Go system here stays authoritative and unchanged: INTEGRATION_BLOCKED, PRODUCTION_NO_GO.
+- Start with `dotnet/README.md`, `dotnet/docs/ARCHITECTURE.md` and the latest `dotnet/docs/CHECKPOINT-*.md`.
+- Never edit Go files to suit the .NET code. The only Go code in `dotnet/` is the read-only differential oracle.
+- A module is MIGRATED only with passing differential and acceptance tests and owner-approved deviations
+  (`dotnet/docs/DIFFERENTIAL.md`). Update `dotnet/docs/migration-status.json`, then run
+  `python3 dotnet/tools/traceability.py`; `--check` fails when the register is stale.
+- Tests: `dotnet test dotnet/SerkOS.slnx` needs Go and `SERK_DOTNET_TEST_ADMIN_DSN`; nothing is skipped.
+

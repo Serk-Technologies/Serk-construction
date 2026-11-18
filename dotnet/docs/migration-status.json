@@ -1,0 +1,11 @@
+{
+ "note": "The only hand-edited input of dotnet/tools/traceability.py. A row may be MIGRATED only with named, passing differential and acceptance tests and the owner's approval of every deviation it carries.",
+ "rows": {
+  "pkg/money": {"status": "DIFFERENTIAL_PASS", "csharp": "Serk.Platform.Numerics: Money, Currency, Rational, RoundingMode",
+    "tests": ["MoneyEthcalDifferentialTests.Go_and_CSharp_agree_or_differ_only_as_documented", "MoneyTests", "RationalTests"],
+    "note": "deviations DIFF-001, DIFF-002, DIFF-004 await owner approval; Sum/Cmp/JSON shape not yet in the differential set"},
+  "pkg/ethcal": {"status": "DIFFERENTIAL_PASS", "csharp": "Serk.Platform.Primitives: EthiopianDate",
+    "tests": ["MoneyEthcalDifferentialTests.Go_and_CSharp_agree_or_differ_only_as_documented", "EthiopianDateTests"],
+    "note": "deviations DIFF-003, DIFF-005 await owner approval"}
+ }
+}
